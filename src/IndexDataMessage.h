@@ -46,7 +46,7 @@ public:
         UsedPCH = 0x4
     };
     Flags<Flag> flags() const { return mFlags; }
-    void setFlags(Flags<Flag> flags) { mFlags = flags; }
+    void setFlags(Flags<Flag> f) { mFlags = f; }
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
 
     Set<uint32_t> visitedFiles() const
@@ -70,19 +70,19 @@ public:
     }
 
     const Path &project() const { return mProject; }
-    void setProject(const Path &project) { mProject = project; }
+    void setProject(const Path &p) { mProject = p; }
 
     uint64_t id() const { return mId; }
-    void setId(uint64_t id) { mId = id; }
+    void setId(uint64_t i) { mId = i; }
 
     uint64_t parseTime() const { return mParseTime; }
-    void setParseTime(uint64_t parseTime) { mParseTime = parseTime; }
+    void setParseTime(uint64_t time) { mParseTime = time; }
 
     Flags<IndexerJob::Flag> indexerJobFlags() const { return mIndexerJobFlags; }
     void setIndexerJobFlags(Flags<IndexerJob::Flag> flags) { mIndexerJobFlags = flags; }
 
     uint32_t fileId() const { return mFileId; }
-    void setFileId(uint32_t fileId) { mFileId = fileId; }
+    void setFileId(uint32_t id) { mFileId = id; }
 
     const String &message() const { return mMessage; }
     void setMessage(const String &msg) { mMessage = msg; }
@@ -99,10 +99,10 @@ public:
     const Hash<uint32_t, Flags<FileFlag> > &files() const { return mFiles; }
 
     size_t bytesWritten() const { return mBytesWritten; }
-    void setBytesWritten(size_t bytesWritten) { mBytesWritten = bytesWritten; }
+    void setBytesWritten(size_t bytes) { mBytesWritten = bytes; }
 
     SourceList sources() const { return mSources; }
-    void setSources(const SourceList &sources) { mSources = sources; }
+    void setSources(const SourceList &srcs) { mSources = srcs; }
 private:
     Path mProject;
     uint64_t mParseTime, mId;

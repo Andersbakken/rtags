@@ -166,9 +166,9 @@ public:
         }
     };
     const List<PathFilter> &pathFilters() const { return mPathFilters; }
-    void setPathFilters(const Set<PathFilter> &pathFilters)
+    void setPathFilters(const Set<PathFilter> &filters)
     {
-        mPathFilters = pathFilters.toList();
+        mPathFilters = filters.toList();
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
