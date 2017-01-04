@@ -116,7 +116,7 @@ static void registerClasses(sel::State &state)
 
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
-    auto ast = std::make_shared<AST>();
+    std::shared_ptr<AST> ast(new AST);
     ast->mState.reset(new sel::State {true});
     sel::State &state = *ast->mState;
     registerClasses(state);
