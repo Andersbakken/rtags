@@ -64,8 +64,8 @@ public:
         : value(0)
     {}
 
-    Location(uint32_t fileId, uint32_t line, uint32_t col)
-        : value((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(line) << (FileBits)) | fileId)
+    Location(uint32_t file, uint32_t l, uint32_t col)
+        : value((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(l) << (FileBits)) | file)
     {
     }
 
