@@ -45,7 +45,7 @@ public:
         GuessFlags = 0x1
     };
     Flags<Flag> flags() const { return mFlags; }
-    void setFlags(Flags<Flag> flags) { mFlags = flags; }
+    void setFlags(Flags<Flag> f) { mFlags = f; }
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;
