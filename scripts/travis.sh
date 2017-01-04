@@ -37,27 +37,8 @@ fi
 
 LUA_DISABLE=${LUA_DISABLE:-""}
 if [ ! $LUA_DISABLE ]; then
-    LUA_VERSION=${LUA_VERSION:-"5.3.2"}
-    LUA_INSTALL_DIR=$(readlink -f $TRAVIS_BUILD_DIR/..)/lua/install
-
-    echo "Building Lua $LUA_VERSION."
-    pushd .. > /dev/null
-    git clone --depth 1 --branch $LUA_VERSION https://github.com/lua/lua.git
-    cd lua
-    make $TRAVIS_OS_NAME local
-    popd > /dev/null
-
-    # The build infrustructure cmake version is 2.8.7, and does not provide a
-    # FindLua.cmake file, only FindLua50.cmake and FindLua51.cmake. Hence, cmake
-    # will fail to detect Lua.
-    #
-    # SOLUTION:
-    # Misuse FindLua51.cmake; replace `find_package(Lua 5.3)` with
-    # `find_package(Lua51 5.3)`, and all `LUA_FOUND` with `LUA51_FOUND`.
-    echo "Applying LUA src/CMakeLists.txt hack (misuse FindLua51.cmake)."
-    sed -i 's/\(find_package(Lua\).*/\151)/;s/LUA_FOUND/LUA51_FOUND/g' src/CMakeLists.txt
-    CMAKE_PARAMS+=("-DLUA_INCLUDE_DIR=$LUA_INSTALL_DIR/include"
-                   "-DLUA_LIBRARY=$LUA_INSTALL_DIR/lib/liblua.a")
+    CMAKE_PARAMS+=("-DLUA_ENABLED=1")
+    echo "Running build with Lua extension."
 else
     echo "Running build without Lua extension."
 fi # end ! $LUA_DISABLE
