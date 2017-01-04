@@ -3,7 +3,8 @@
 # https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
 #
 
-sudo: false
+sudo: required
+dist: trusty
 
 language: cpp
 
