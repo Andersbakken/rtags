@@ -77,7 +77,7 @@ def run(rdm, project_dir, test_dir, test_files, rc_command, expected_locations):
         assert_that(actual_locations, has_item(expected_location))
 
 def setup_rdm(test_dir, test_files):
-    rdm = sp.Popen(["rdm", "-n", socket_file, "-d", "~/.rtags_dev", "-o", "-B", "-C"],
+    rdm = sp.Popen(["rdm", "-n", socket_file, "-d", "~/.rtags_dev", "-o", "-B", "-C", "--log-flush" ],
                    stdout=sp.PIPE, stderr=sp.STDOUT)
     wait_for(rdm, "Includepaths")
 
