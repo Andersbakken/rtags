@@ -31,7 +31,7 @@ public:
     const Path &projectRoot() const { return mProjectRoot; }
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
     const Path &workingDirectory() const { return mWorkingDirectory; }
-    void setWorkingDirectory(Path &&workingDirectory) { mWorkingDirectory = std::move(workingDirectory); }
+    void setWorkingDirectory(Path &&wd) { mWorkingDirectory = std::move(wd); }
     void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
     const List<String> &environment() const { return mEnvironment; }
     List<String> &&takeEnvironment() { return std::move(mEnvironment); }
@@ -39,7 +39,7 @@ public:
     void setCompileCommands(Path &&path) { mCompileCommands = std::move(path); }
     const String &arguments() const { return mArgs; }
     String &&takeArguments() { return std::move(mArgs); }
-    void setArguments(String &&arguments) { mArgs = std::move(arguments); }
+    void setArguments(String &&args) { mArgs = std::move(args); }
     enum Flag {
         None = 0x0,
         GuessFlags = 0x1
