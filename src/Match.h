@@ -38,7 +38,7 @@ public:
     inline Match()
     {}
 
-    inline Match(const String &pattern, Flags<Flag> flags = Flag_StringMatch);
+    inline Match(const String &pattern, Flags<Flag> f = Flag_StringMatch);
     inline Match(Match &&other) noexcept
         : mRegex(std::move(other.mRegex)), mPattern(std::move(other.mPattern)), mFlags(other.mFlags)
     {}
@@ -107,10 +107,10 @@ inline Log operator<<(Log log, const Match &match)
     return log;
 }
 
-inline Match::Match(const String &pattern, Flags<Flag> flags)
-    : mFlags(flags)
+inline Match::Match(const String &pattern, Flags<Flag> f)
+    : mFlags(f)
 {
-    if (flags & Flag_Regex) {
+    if (mFlags & Flag_Regex) {
         try {
             mRegex = pattern.ref();
         } catch (std::regex_error err) {
