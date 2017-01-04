@@ -606,6 +606,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
             conn->write("[Server] Compilation failed to load.");
         }
     } else {
+        data.environment = std::move(message->takeEnvironment());
         String arguments = std::move(message->takeArguments());
         if (message->flags() & IndexMessage::GuessFlags) {
             arguments = guessArguments(arguments, message->workingDirectory(), data.project);
