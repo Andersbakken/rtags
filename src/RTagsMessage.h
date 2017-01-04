@@ -43,7 +43,7 @@ public:
 
     RTagsMessage(uint8_t id) : Message(id) {}
 
-    inline void setCommandLine(const String &commandLine) { mCommandLine = commandLine; }
+    inline void setCommandLine(const String &cmd) { mCommandLine = cmd; }
     inline String commandLine() const { return mCommandLine; }
 protected:
     String mCommandLine;
