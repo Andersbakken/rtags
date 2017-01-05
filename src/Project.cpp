@@ -2471,7 +2471,7 @@ void Project::processParseData(IndexParseData &&data)
                     if (!ref.contains(source)) {
                         ref.append(source);
                         ref.parsed = 0; // dirty
-                        if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+                        if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                             index.insert(source.fileId);
                     }
                 } else {
@@ -2480,7 +2480,7 @@ void Project::processParseData(IndexParseData &&data)
                         ref.push_back(source);
                     } else if (ref[0] != source) {
                         if (!ref[0].compareArguments(source)) {
-                            if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+                            if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                                 index.insert(source.fileId);
                             ref.parsed = 0; // dirty
                         }
