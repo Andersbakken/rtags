@@ -64,7 +64,11 @@ int FollowLocationJob::execute()
     targets.sort([](const Symbol &l, const Symbol &r) {
             const int lrank = RTags::targetRank(l.kind);
             const int rrank = RTags::targetRank(r.kind);
-            return lrank > rrank || (lrank == rrank && l.isDefinition());
+            if (lrank != rrank)
+                return lrank > rrank;
+            if (l.isDefinition() != r.isDefinition())
+                return l.isDefinition();
+            return l.location < r.location;
         });
 
     int rank = -1;
