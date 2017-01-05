@@ -841,13 +841,6 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         return;
     }
 
-    if (job->flags & IndexerJob::Compile && Server::instance()->options().options & Server::NoFileSystemWatch && hasSource(job->fileId())) {
-        // When we're not watching the file system, we ignore
-        // updating compiles. This means that you always have to
-        // do check-reindex to build existing files!
-        return;
-    }
-
     std::shared_ptr<IndexerJob> &ref = mActiveJobs[job->fileId()];
     if (ref) {
         // warning() << "Aborting a job" << ref.get() << Location::path(job->fileId());
@@ -2478,7 +2471,8 @@ void Project::processParseData(IndexParseData &&data)
                     if (!ref.contains(source)) {
                         ref.append(source);
                         ref.parsed = 0; // dirty
-                        index.insert(source.fileId);
+                        if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+                            index.insert(source.fileId);
                     }
                 } else {
                     if (ref.isEmpty()) {
@@ -2486,7 +2480,8 @@ void Project::processParseData(IndexParseData &&data)
                         ref.push_back(source);
                     } else if (ref[0] != source) {
                         if (!ref[0].compareArguments(source)) {
-                            index.insert(source.fileId);
+                            if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
+                                index.insert(source.fileId);
                             ref.parsed = 0; // dirty
                         }
                         ref[0] = source;
@@ -2522,7 +2517,7 @@ void Project::processParseData(IndexParseData &&data)
                         }
                         if (same) {
                             list.parsed = oit->second.parsed; // don't want to reparse these, maintain parseTime
-                        } else {
+                        } else if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
                             index.insert(fileId);
                         }
                         oldSources.erase(oit);
