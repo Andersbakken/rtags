@@ -1048,14 +1048,16 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 }
                 return str;
             };
-            String args = quote(std::move(value));
-
+            String args;
             if (idx + 1 < arguments.size()) {
+                args = quote(std::move(value));
                 while (++idx < arguments.size()) {
                     if (!args.isEmpty())
                         args.append(' ');
                     args.append(quote(arguments[idx]));
                 }
+            } else {
+                args = std::move(value);
             }
             if (args == "-" || args.isEmpty()) {
                 String pending;
