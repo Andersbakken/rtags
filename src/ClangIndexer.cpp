@@ -2377,9 +2377,11 @@ bool ClangIndexer::visit()
             const Location loc = createLocation(cursor, &ignored);
             if (!loc.isNull()) {
                 const String refUsr = usr(resolveTemplate(ref));
-                assert(!refUsr.isEmpty());
-                const uint32_t fileId = mSources.front().fileId;
-                unit(fileId)->targets[loc][refUsr] = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
+                if (!refUsr.isEmpty()) {
+                    assert(!refUsr.isEmpty());
+                    const uint32_t fileId = mSources.front().fileId;
+                    unit(fileId)->targets[loc][refUsr] = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
+                }
                 if (RTags::isFunction(refKind) && mTemplateSpecializations.find(ref) == mTemplateSpecializations.end()) {
                     RTags::TranslationUnit::visit(ref, visitor);
                 }
