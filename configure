@@ -8,6 +8,7 @@ function usage ()
     echo "  --cmake-argument [arg]          Pass additional arguments to cmake"
     echo "  --cmake-generator [arg]         Use this generator for cmake (e.g. Ninja)"
     echo "  --enable-dev-options            Set certain development options (cpack)"
+    echo "  --asan                          Enable -fsanitize=address and -fsanitize=undefined"
     echo "  --debug                         Compile RTags in debug mode"
     echo "  --release                       Compile RTags in release mode (default)"
     echo "  --system-clang                  Don't build llvm/clang as part of RTags' build process (default)"
@@ -95,6 +96,9 @@ while [ -n "$1" ]; do
             ;;
         --no-elisp-bytecompile)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_ELISP_BYTECOMPILE=1"
+            ;;
+        --asan)
+            CMAKE_ARGS="${CMAKE_ARGS} -DASAN=1"
             ;;
         --elisp-install-location)
             shift
