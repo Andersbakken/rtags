@@ -13,7 +13,7 @@ git:
 
 matrix:
   include:
-    - env: COMPILER_VERSION=5
+    - env: COMPILER_VERSION=4.8
       os: linux
       compiler: g++
       addons:
@@ -21,8 +21,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - gcc-5
-            - g++-5
+            - g++-4.8
             - gnupg
     - env: COMPILER_VERSION=3.5
       os: linux
@@ -31,7 +30,7 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.5
+            - llvm-toolchain-precise-3.5
           packages:
             - clang-3.5
             - gnupg
