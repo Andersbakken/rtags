@@ -13,7 +13,7 @@ git:
 
 matrix:
   include:
-    - env: COMPILER_VERSION=5.x
+    - env: COMPILER_VERSION=5.1
       os: linux
       compiler: g++
       addons:
