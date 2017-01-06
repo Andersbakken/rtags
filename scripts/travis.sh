@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash
 # travis.sh --- setup and compile script for travis
 #
 # Copyright (c) Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
@@ -46,6 +46,7 @@ fi # end ! $LUA_DISABLE
 echo "Using compilers $CXX-$COMPILER_VERSION and $CC-$COMPILER_VERSION."
 mkdir build && pushd build > /dev/null
 cmake "${CMAKE_PARAMS[@]}" ..
+cat /home/travis/build/Andersbakken/rtags/build/CMakeFiles/CMakeError.log
 make VERBOSE=1 -j2
 
 if [ -z "$SKIP_TESTS" ]; then
