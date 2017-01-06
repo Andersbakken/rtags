@@ -30,9 +30,9 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-3.9
+            - llvm-toolchain-trusty-3.8
           packages:
-            - clang-3.9
+            - clang-3.8
             - gnupg
 
 install:
