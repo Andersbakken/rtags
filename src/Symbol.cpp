@@ -35,133 +35,133 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
     return "";
 }
 
-String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
+String Symbol::toString(const std::shared_ptr<Project> &project,
+                        Flags<ToStringFlag> cursorInfoFlags,
                         Flags<Location::ToStringFlag> locationToStringFlags,
-                        const std::shared_ptr<Project> &project) const
+                        const Set<String> &pieceFilters) const
 {
-    auto properties = [this]()
-        {
-            List<String> ret;
-            if (isDefinition())
-                ret << "Definition";
-            if (isContainer())
-                ret << "Container";
-            if ((flags & PureVirtualMethod) == PureVirtualMethod) {
-                ret << "Pure Virtual";
-            } else if (flags & VirtualMethod) {
-                ret << "Virtual";
-            }
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
+    auto properties = [this, &filterPiece]()
+    {
+        List<String> ret;
+        if (isDefinition() && filterPiece("definition"))
+            ret << "Definition";
+        if (isContainer() && filterPiece("container"))
+            ret << "Container";
+        if ((flags & PureVirtualMethod) == PureVirtualMethod && filterPiece("purevirtual"))
+            ret << "Pure Virtual";
+        if (flags & VirtualMethod && filterPiece("virtual"))
+            ret << "Virtual";
 
-            if (flags & ConstMethod) {
-                ret << "Const";
-            } else if (flags & StaticMethod) {
-                ret << "Static";
-            }
+        if (flags & ConstMethod) {
+            if (filterPiece("constmethod"))
+                ret << "ConstMethod";
+        } else if (flags & StaticMethod && filterPiece("static")) {
+            ret << "Static";
+        }
 
-            if (flags & Variadic)
-                ret << "Variadic";
-            if (flags & Auto)
-                ret << "Auto";
-            if (flags & AutoRef)
-                ret << "AutoRef";
+        if (flags & Variadic && filterPiece("variadic"))
+            ret << "Variadic";
+        if (flags & Auto && filterPiece("auto"))
+            ret << "Auto";
+        if (flags & AutoRef && filterPiece("autoref"))
+            ret << "AutoRef";
 
-            if (flags & MacroExpansion)
-                ret << "MacroExpansion";
-            if (flags & TemplateSpecialization)
-                ret << "TemplateSpecialization";
-            if (flags & TemplateReference)
-                ret << "TemplateReference";
+        if (flags & MacroExpansion && filterPiece("macroexpansion"))
+            ret << "MacroExpansion";
+        if (flags & TemplateSpecialization && filterPiece("templatespecialization"))
+            ret << "TemplateSpecialization";
+        if (flags & TemplateReference && filterPiece("templatereference"))
+            ret << "TemplateReference";
 
-            if (ret.isEmpty())
-                return String();
-            String joined = String::join(ret, ' ');
-            joined += '\n';
-            return joined;
-        };
+        if (ret.isEmpty())
+            return String();
+        String joined = String::join(ret, ' ');
+        joined += '\n';
+        return joined;
+    };
 
     List<String> bases;
     List<String> args;
     if (project) {
-        for (const auto &base : baseClasses) {
-            bool found = false;
-            for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn, location)) {
-                bases << sym.symbolName;
-                found = true;
-                break;
-            }
-            if (!found) {
-                bases << base;
-            }
-        }
-        for (const auto &arg : arguments) {
-            const String symName = project->findSymbol(arg.cursor).symbolName;
-            if (!symName.isEmpty()) {
-                args << symName;
-            } else {
-                args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
+        if (filterPiece("baseclasses")) {
+            for (const auto &base : baseClasses) {
+                bool found = false;
+                for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn, location)) {
+                    bases << sym.symbolName;
+                    found = true;
+                    break;
+                }
+                if (!found) {
+                    bases << base;
+                }
             }
         }
-    } else {
+        if (filterPiece("arguments")) {
+            for (const auto &arg : arguments) {
+                const String symName = project->findSymbol(arg.cursor).symbolName;
+                if (!symName.isEmpty()) {
+                    args << symName;
+                } else {
+                    args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
+                }
+            }
+        }
+    } else if (filterPiece("baseClasses")) {
         bases = baseClasses;
     }
 
-    auto printTypeName = [this]() {
-        String str;
-        if (!typeName.isEmpty()) {
-            str = typeName;
-        } else if (type != CXType_Invalid) {
-            str = RTags::eatString(clang_getTypeKindSpelling(type));
-        } else {
-            return String();
-        }
-        return String::format<128>("Type: %s\n", str.constData());
+    String ret;
+    auto writePiece = [&ret, &filterPiece](const char *key, const char *filter, const String &piece) {
+        if (piece.isEmpty())
+            return;
+        if (!filterPiece(filter))
+            return;
+        if (key && strlen(key))
+            ret << key << ": ";
+        ret << piece << "\n";
     };
+    writePiece(0, "location", location.toString(locationToStringFlags));
+    writePiece("SymbolName", "symbolname", symbolName);
+    writePiece("Kind", "kind", kindSpelling());
+    if (filterPiece("type")) {
+        if (!typeName.isEmpty()) {
+            ret += "Type: " + typeName + "\n";
+        } else if (type != CXType_Invalid) {
+            ret += "Type: " + RTags::eatString(clang_getTypeKindSpelling(type)) + "\n";
+        }
+    }
+    writePiece("SymbolLength", "symbollength", std::to_string(symbolLength));
 
-    String ret = String::format<1024>("%s\n"
-                                      "SymbolName: %s\n"
-                                      "Kind: %s\n"
-                                      "%s" // type
-                                      "SymbolLength: %u\n"
-                                      "%s" // range
-                                      "%s" // enumValue/stackCost
-                                      "%s" // linkage
-                                      "%s" // properties
-                                      "%s" // usr
-                                      "%s" // sizeof
-                                      "%s" // fieldoffset
-                                      "%s" // alignment
-                                      "%s" // arguments
-                                      "%s" // baseclasses
-                                      "%s" // briefComment
-                                      "%s", // xmlComment
-                                      location.toString(locationToStringFlags).constData(),
-                                      symbolName.constData(),
-                                      kindSpelling().constData(),
-                                      printTypeName().constData(),
-                                      symbolLength,
-                                      startLine != -1 ? String::format<32>("Range: %d:%d-%d:%d\n", startLine, startColumn, endLine, endColumn).constData() : "",
+    if (startLine != -1)
+        writePiece("Range", "range", String::format<32>("%d:%d-%d:%d", startLine, startColumn, endLine, endColumn));
+
 #if CINDEX_VERSION_MINOR > 1
-                                      (kind == CXCursor_EnumConstantDecl
-                                       ? String::format<32>("Enum Value: %lld/0x%0llx\n",
-                                                            static_cast<long long>(enumValue),
-                                                            static_cast<long long>(enumValue)).constData()
-                                       : (isDefinition() && RTags::isFunction(kind)
-                                          ? String::format<32>("Stack cost: %d\n", stackCost).constData()
-                                          : "")),
-#else
-                                      "",
+    if (kind == CXCursor_EnumConstantDecl)
+        writePiece("Enum Value", "enumvalue",
+                   String::format<32>("%lld/0x%0llx", static_cast<long long>(enumValue), static_cast<long long>(enumValue)));
+
+    if (isDefinition() && RTags::isFunction(kind))
+        writePiece("Stack cost", "stackcost", std::to_string(stackCost));
 #endif
-                                      linkageSpelling(linkage),
-                                      properties().constData(),
-                                      usr.isEmpty() ? "" : String::format<64>("Usr: %s\n", usr.constData()).constData(),
-                                      size > 0 ? String::format<16>("sizeof: %d\n", size).constData() : "",
-                                      fieldOffset >= 0 ? String::format<32>("field offset (bits/bytes): %d/%d\n", fieldOffset, fieldOffset / 8).constData() : "",
-                                      alignment >= 0 ? String::format<32>("alignment (bytes): %d\n", alignment).constData() : "",
-                                      args.isEmpty() ? "" : String::format<1024>("Arguments: %s\n", String::join(args, ", ").constData()).constData(),
-                                      bases.isEmpty() ? "" : String::format<64>("BaseClasses: %s\n", String::join(bases, ", ").constData()).constData(),
-                                      briefComment.isEmpty() ? "" : String::format<1024>("Brief comment: %s\n", briefComment.constData()).constData(),
-                                      xmlComment.isEmpty() ? "" : String::format<16384>("XML comment: %s\n", xmlComment.constData()).constData());
-    if (cursorInfoFlags & IncludeTargets && project) {
+    writePiece(0, "linkage", linkageSpelling(linkage));
+    ret += properties();
+    writePiece("Usr", "usr", usr);
+    if (size)
+        writePiece("sizeof", "sizeof", std::to_string(size));
+    if (fieldOffset >= 0)
+        writePiece("Field offset (bits/bytes)", "fieldoffset",
+                   String::format<32>("%d/%d", fieldOffset, fieldOffset / 8));
+    if (alignment >= 0)
+        writePiece("Alignment", "alignment", std::to_string(alignment));
+    if (!args.isEmpty())
+        writePiece("Arguments", "arguments", String::join(args, ", "));
+    if (!bases.isEmpty())
+        writePiece("Base classes", "baseclasses", String::join(bases, ", "));
+    writePiece("Brief comment", "briefcomment", briefComment);
+    writePiece("XML comment", "xmlcomment", xmlComment);
+
+    if (cursorInfoFlags & IncludeTargets && project && filterPiece("targets")) {
         const auto targets = project->findTargets(*this);
         if (targets.size()) {
             ret.append("Targets:\n");
@@ -175,7 +175,7 @@ String Symbol::toString(Flags<ToStringFlag> cursorInfoFlags,
         }
     }
 
-    if (cursorInfoFlags & IncludeReferences && project && !isReference()) {
+    if (cursorInfoFlags & IncludeReferences && project && !isReference() && filterPiece("references")) {
         const auto references = project->findCallers(*this);
         if (references.size()) {
             ret.append("References:\n");
@@ -232,35 +232,46 @@ bool Symbol::isContainer() const
 
 Value Symbol::toValue(const std::shared_ptr<Project> &project,
                       Flags<ToStringFlag> toStringFlags,
-                      Flags<Location::ToStringFlag> locationToStringFlags) const
+                      Flags<Location::ToStringFlag> locationToStringFlags,
+                      const Set<String> &pieceFilters) const
 {
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         if (!symbol.isNull()) {
-            ret["location"] = symbol.location.toString(locationToStringFlags);
+            if (filterPiece("location"))
+                ret["location"] = symbol.location.toString(locationToStringFlags);
             if (symbol.argumentUsage.index != String::npos) {
-                ret["invocation"] = symbol.argumentUsage.invocation.toString(locationToStringFlags);
-                ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
-                ret["functionArgumentLocation"] = symbol.argumentUsage.argument.location.toString(locationToStringFlags);
-                ret["functionArgumentCursor"] = symbol.argumentUsage.argument.cursor.toString(locationToStringFlags);
-                ret["functionArgumentLength"] = symbol.argumentUsage.argument.length;
-                ret["argumentIndex"] = symbol.argumentUsage.index;
+                if (filterPiece("invocation"))
+                    ret["invocation"] = symbol.argumentUsage.invocation.toString(locationToStringFlags);
+                if (filterPiece("invokedfunction"))
+                    ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
+                if (filterPiece("functionargumentlocation"))
+                    ret["functionArgumentLocation"] = symbol.argumentUsage.argument.location.toString(locationToStringFlags);
+                if (filterPiece("functionargumentcursor"))
+                    ret["functionArgumentCursor"] = symbol.argumentUsage.argument.cursor.toString(locationToStringFlags);
+                if (filterPiece("functionargumentlength"))
+                    ret["functionArgumentLength"] = symbol.argumentUsage.argument.length;
+                if (filterPiece("argumentindex"))
+                    ret["argumentIndex"] = symbol.argumentUsage.index;
             }
-            if (!symbol.symbolName.isEmpty())
+            if (!symbol.symbolName.isEmpty() && filterPiece("symbolname"))
                 ret["symbolName"] = symbol.symbolName;
-            if (!symbol.usr.isEmpty())
+            if (!symbol.usr.isEmpty() && filterPiece("usr"))
                 ret["usr"] = symbol.usr;
-            if (!symbol.typeName.isEmpty()) {
-                ret["type"] = symbol.typeName;
-            } else if (symbol.type != CXType_Invalid) {
-                String str;
-                Log(&str) << symbol.type;
-                ret["type"] = str;
+            if (filterPiece("type")) {
+                if (!symbol.typeName.isEmpty()) {
+                    ret["type"] = symbol.typeName;
+                } else if (symbol.type != CXType_Invalid) {
+                    String str;
+                    Log(&str) << symbol.type;
+                    ret["type"] = str;
+                }
             }
 
-            if (!symbol.baseClasses.isEmpty())
+            if (!symbol.baseClasses.isEmpty() && filterPiece("baseclasses"))
                 ret["baseClasses"] = symbol.baseClasses;
-            if (!symbol.arguments.isEmpty()) {
+            if (!symbol.arguments.isEmpty() && filterPiece("arguments")) {
                 Value args;
                 for (const auto &arg : symbol.arguments) {
                     Value a;
@@ -271,66 +282,70 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
                 ret["arguments"] = args;
             }
-            ret["symbolLength"] = symbol.symbolLength;
-            {
+            if (filterPiece("symbollength"))
+                ret["symbolLength"] = symbol.symbolLength;
+            if (filterPiece("kind")) {
                 String str;
                 Log(&str) << symbol.kind;
                 ret["kind"] = str;
             }
-            {
+            if (filterPiece("linkage")) {
                 String str;
                 Log(&str) << symbol.linkage;
                 ret["linkage"] = str;
             }
 
-            if (!symbol.briefComment.isEmpty())
+            if (!symbol.briefComment.isEmpty() && filterPiece("briefcomment"))
                 ret["briefComment"] = symbol.briefComment;
-            if (!symbol.xmlComment.isEmpty())
+            if (!symbol.xmlComment.isEmpty() && filterPiece("xmlcomment"))
                 ret["xmlComment"] = symbol.xmlComment;
-            ret["startLine"] = symbol.startLine;
-            ret["startColumn"] = symbol.startColumn;
-            ret["endLine"] = symbol.endLine;
-            ret["endColumn"] = symbol.endColumn;
-            if (symbol.size > 0)
+            if (filterPiece("range")) {
+                ret["startLine"] = symbol.startLine;
+                ret["startColumn"] = symbol.startColumn;
+                ret["endLine"] = symbol.endLine;
+                ret["endColumn"] = symbol.endColumn;
+            }
+            if (symbol.size > 0 && filterPiece("sizeof"))
                 ret["sizeof"] = symbol.size;
-            if (symbol.fieldOffset > 0)
+            if (symbol.fieldOffset >= 0 && filterPiece("fieldoffset"))
                 ret["fieldOffset"] = symbol.fieldOffset;
-            if (symbol.alignment > 0)
+            if (symbol.alignment >= 0 && filterPiece("alignment"))
                 ret["alignment"] = symbol.alignment;
-            if (symbol.kind == CXCursor_EnumConstantDecl)
+            if (symbol.kind == CXCursor_EnumConstantDecl && filterPiece("enumvalue"))
                 ret["enumValue"] = symbol.enumValue;
             if (symbol.isDefinition()) {
-                ret["definition"] = true;
-                if (RTags::isFunction(symbol.kind))
+                if (filterPiece("definition"))
+                    ret["definition"] = true;
+                if (RTags::isFunction(symbol.kind) && filterPiece("stackcost"))
                     ret["stackCost"] = symbol.stackCost;
-            } else if (symbol.isReference()) {
+            } else if (symbol.isReference() && filterPiece("reference")) {
                 ret["reference"] = true;
             }
-            if (symbol.isContainer())
+            if (symbol.isContainer() && filterPiece("container"))
                 ret["container"] = true;
-            if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod)
+            if ((symbol.flags & Symbol::PureVirtualMethod) == Symbol::PureVirtualMethod && filterPiece("purevirtual"))
                 ret["purevirtual"] = true;
-            if (symbol.flags & Symbol::VirtualMethod)
+            if (symbol.flags & Symbol::VirtualMethod && filterPiece("virtual"))
                 ret["virtual"] = true;
-            if (symbol.flags & Symbol::ConstMethod)
+            if (symbol.flags & Symbol::ConstMethod && filterPiece("constmethod"))
                 ret["constmethod"] = true;
-            if (symbol.flags & Symbol::StaticMethod)
+            if (symbol.flags & Symbol::StaticMethod && filterPiece("staticmethod"))
                 ret["staticmethod"] = true;
-            if (symbol.flags & Symbol::Variadic)
+            if (symbol.flags & Symbol::Variadic && filterPiece("variadic"))
                 ret["variadic"] = true;
-            if (symbol.flags & Symbol::Auto)
+            if (symbol.flags & Symbol::Auto && filterPiece("auto"))
                 ret["auto"] = true;
-            if (symbol.flags & Symbol::AutoRef)
+            if (symbol.flags & Symbol::AutoRef && filterPiece("autoref"))
                 ret["autoref"] = true;
-            if (symbol.flags & Symbol::MacroExpansion)
+            if (symbol.flags & Symbol::MacroExpansion && filterPiece("macroexpansion"))
                 ret["macroexpansion"] = true;
-            if (symbol.flags & Symbol::TemplateSpecialization)
+            if (symbol.flags & Symbol::TemplateSpecialization && filterPiece("templatespecialization"))
                 ret["templatespecialization"] = true;
-            if (symbol.flags & Symbol::TemplateReference)
+            if (symbol.flags & Symbol::TemplateReference && filterPiece("templatereference"))
                 ret["templatereference"] = true;
             if (f & IncludeTargets) {
                 const auto targets = project->findTargets(symbol);
-                if (!targets.isEmpty()) {
+                if (!targets.isEmpty() && filterPiece("targets")) {
                     Value t;
                     for (const auto &target : targets) {
                         t.push_back(toValue(target, NullFlags));
@@ -340,7 +355,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             }
             if (f & IncludeReferences) {
                 const auto references = project->findCallers(symbol);
-                if (!references.isEmpty()) {
+                if (!references.isEmpty() && filterPiece("references")) {
                     Value r;
                     for (const auto &ref : references) {
                         r.push_back(toValue(ref, NullFlags));
@@ -348,7 +363,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                     ret["references"] = r;
                 }
             }
-            if (f & IncludeBaseClasses) {
+            if (f & IncludeBaseClasses && filterPiece("baseclasses")) {
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn, symbol.location)) {
@@ -361,7 +376,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (f & IncludeParents) {
+            if (f & IncludeParents && filterPiece("parent")) {
                 auto syms = project->openSymbols(symbol.location.fileId());
                 uint32_t idx = -1;
                 if (syms) {

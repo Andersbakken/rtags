@@ -409,7 +409,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     Set<String> roots;
     if (!projectRootOverride.isEmpty())
         roots.insert(projectRootOverride.ensureTrailingSlash());
-    ret << "/usr/bin/g++";
+    ret << "/usr/bin/g++"; // this should be clang on mac
     const List<String> split = args.split(" ");
     for (size_t i=0; i<split.size(); ++i) {
         const String &s = split.at(i);
@@ -1056,7 +1056,8 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     Deserializer deserializer(data);
     Path path;
     uint32_t line, column, line2, column2;
-    deserializer >> path >> line >> column >> line2 >> column2;
+    Set<String> kinds; // This is serialized as a of List<String>
+    deserializer >> path >> line >> column >> line2 >> column2 >> kinds;
     uint32_t fileId = Location::fileId(path);
     if (!fileId) {
         path.resolve();
@@ -1080,7 +1081,7 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     const Location start(fileId, line, column);
     const Location end = line2 ? Location(fileId, line2, column2) : Location();
 
-    SymbolInfoJob job(start, end, query, project);
+    SymbolInfoJob job(start, end, std::move(kinds), query, project);
     const int ret = job.run(conn);
     conn->finish(ret);
 }

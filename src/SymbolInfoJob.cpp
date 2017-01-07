@@ -21,9 +21,11 @@
 #include "Server.h"
 
 SymbolInfoJob::SymbolInfoJob(Location s, Location e,
+                             Set<String> &&pieceFilters,
                              const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
     : QueryJob(query, proj), start(s), end(e)
 {
+    setPieceFilters(std::move(pieceFilters));
 }
 
 int SymbolInfoJob::execute()

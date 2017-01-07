@@ -219,7 +219,6 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
     if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
         toStringFlags |= Symbol::IncludeBaseClasses;
 
-
     if (symbol.isNull())
         return false;
 
@@ -231,11 +230,11 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
 
     String out;
     if (queryFlags() & QueryMessage::Elisp) {
-        out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath));
+        out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath, mPieceFilters));
     } else if (queryFlags() & QueryMessage::JSON) {
-        out = symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath).toJSON();
+        out = symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath, mPieceFilters).toJSON();
     } else {
-        out = symbol.toString(toStringFlags, locationToStringFlags(), project());
+        out = symbol.toString(project(), toStringFlags, locationToStringFlags(), mPieceFilters);
     }
     return write(out, writeFlags|Unfiltered);
 }

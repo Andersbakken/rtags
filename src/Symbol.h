@@ -163,10 +163,12 @@ struct Symbol
     };
     Value toValue(const std::shared_ptr<Project> &project,
                   Flags<ToStringFlag> toStringFlags,
-                  Flags<Location::ToStringFlag> locationToStringFlags) const;
-    String toString(Flags<ToStringFlag> toStringFlags = DefaultFlags,
+                  Flags<Location::ToStringFlag> locationToStringFlags,
+                  const Set<String> &pieceFilters) const;
+    String toString(const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
+                    Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
-                    const std::shared_ptr<Project> &project = std::shared_ptr<Project>()) const;
+                    const Set<String> &pieceFilters = Set<String>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;
     static String kindSpelling(uint16_t kind);

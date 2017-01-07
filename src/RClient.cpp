@@ -733,8 +733,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case SymbolInfo: {
             std::cmatch match;
-            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?");
+            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
             Path path;
+            List<String> kinds;
             uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
             if (std::regex_match(value.constData(), match, rx)) {
                 path.assign(value.constData(), match.length(1));
@@ -742,15 +743,32 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 col = atoi(value.constData() + match.position(3));
                 line2 = atoi(value.constData() + match.position(4));
                 col2 = atoi(value.constData() + match.position(5));
+                if (match.length(6) > 1)
+                    kinds = String(value.constData() + match.position(6) + 1, match.length(6) - 1).split(",");
                 if (!line || !col || !line2 || !col2 || !path.resolve(Path::MakeAbsolute)) {
                     return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                 }
-            } else if (!Location::parse(value, Path(), Path::MakeAbsolute, &path, &line, &col)) {
-                return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
+            } else {
+                std::regex rx2("^(.*):([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
+                if (std::regex_match(value.constData(), match, rx2)) {
+                    path.assign(value.constData(), match.length(1));
+                    line = atoi(value.constData() + match.position(2));
+                    col = atoi(value.constData() + match.position(3));
+                    if (match.length(4) > 1)
+                        kinds = String(value.constData() + match.position(4) + 1, match.length(4) - 1).split(",");
+                    if (!line || !col || !path.resolve(Path::MakeAbsolute)) {
+                        return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
+                    }
+                } else if (!Location::parse(value, Path(), Path::MakeAbsolute, &path, &line, &col)) {
+                    return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
+                }
+            }
+            for (String &k : kinds) {
+                k.lowerCase();
             }
             String query;
             Serializer serializer(query);
-            serializer << path << line << col << line2 << col2;
+            serializer << path << line << col << line2 << col2 << kinds;
             addQuery(QueryMessage::SymbolInfo, std::move(query));
             break; }
         case CurrentFile: {

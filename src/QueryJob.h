@@ -47,12 +47,15 @@ public:
 
     bool hasFilter() const { return mFileFilter || !mFilters.isEmpty(); }
     bool hasKindFilter() const { return !mKindFilters.isEmpty(); }
+    bool hasPieceFilter() const { return !mPieceFilters.isEmpty(); }
     List<QueryMessage::PathFilter> pathFilters() const
     {
         if (mQueryMessage)
             return mQueryMessage->pathFilters();
         return List<QueryMessage::PathFilter>();
     }
+    Set<String> pieceFilters() const { return mPieceFilters; }
+    void setPieceFilters(Set<String> &&pieceFilters) { mPieceFilters = std::move(pieceFilters); }
     uint32_t fileFilter() const { return mFileFilter; }
     enum WriteFlag {
         NoWriteFlags = 0x00,
@@ -142,6 +145,7 @@ private:
     uint32_t mFileFilter;
     List<std::shared_ptr<Filter> > mFilters;
     QueryMessage::KindFilters mKindFilters;
+    Set<String> mPieceFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
     Hash<Path, String> mContextCache;
