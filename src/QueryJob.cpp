@@ -233,10 +233,13 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
         return false;
 
     String out;
-    if (queryFlags() & QueryMessage::Elisp) {
-        out = RTags::toElisp(symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath, mPieceFilters));
-    } else if (queryFlags() & QueryMessage::JSON) {
-        out = symbol.toValue(project(), toStringFlags, Location::NoColor|Location::AbsolutePath, mPieceFilters).toJSON();
+    if (queryFlags() & (QueryMessage::Elisp|QueryMessage::JSON)) {
+        Value val = symbol.toValue(project(), toStringFlags, locationToStringFlags() | Location::NoColor, mPieceFilters);
+        if (queryFlags() & QueryMessage::Elisp) {
+            out = RTags::toElisp(val);
+        } else {
+            out = val.toJSON();
+        }
     } else {
         out = symbol.toString(project(), toStringFlags, locationToStringFlags(), mPieceFilters);
     }

@@ -270,16 +270,26 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
     auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
+        auto formatLocation = [locationToStringFlags,&filterPiece, &ret](const Location &loc, const char *key, const char *ctxKey,
+                                                                         const char *keyFilter = 0,
+                                                                         const char *ctxKeyFilter = 0,
+                                                                         Value *val = 0) {
+            if (!val)
+                val = &ret;
+            if (filterPiece(keyFilter ? keyFilter : key))
+                (*val)[key] = loc.toString(locationToStringFlags & ~Location::ShowContext);
+            if (locationToStringFlags & Location::ShowContext && filterPiece(ctxKeyFilter ? ctxKeyFilter : ctxKey)) {
+                (*val)[ctxKey] = loc.context(locationToStringFlags);
+            }
+        };
         if (!symbol.isNull()) {
-            if (filterPiece("location"))
-                ret["location"] = symbol.location.toString(locationToStringFlags);
+            formatLocation(symbol.location, "location", "context");
             if (symbol.argumentUsage.index != String::npos) {
-                if (filterPiece("invocation"))
-                    ret["invocation"] = symbol.argumentUsage.invocation.toString(locationToStringFlags);
+                formatLocation(symbol.argumentUsage.invocation, "invocation", "invocationContext", 0, "invocationcontext");
                 if (filterPiece("invokedfunction"))
                     ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
-                if (filterPiece("functionargumentlocation"))
-                    ret["functionArgumentLocation"] = symbol.argumentUsage.argument.location.toString(locationToStringFlags);
+                formatLocation(symbol.argumentUsage.argument.location, "functionArgumentLocation", "functionArgumentLocationContext",
+                               "functionargumentlocation", "functionargumentlocationcontext");
                 if (filterPiece("functionargumentcursor"))
                     ret["functionArgumentCursor"] = symbol.argumentUsage.argument.cursor.toString(locationToStringFlags);
                 if (filterPiece("functionargumentlength"))
@@ -307,8 +317,8 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 Value args;
                 for (const auto &arg : symbol.arguments) {
                     Value a;
-                    a["location"] = arg.location.toString(locationToStringFlags);
-                    a["cursor"] = arg.cursor.toString(locationToStringFlags);
+                    formatLocation(arg.location, "location", "context", "arguments", "arguments", &a);
+                    formatLocation(arg.location, "cursor", "cursorContext", "arguments", "arguments", &a);
                     a["length"] = arg.length;
                     args.push_back(a);
                 }
@@ -410,7 +420,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
 
             if ((f & IncludeParents && filterPiece("parent"))
                 || (f & (IncludeContainingFunction) && filterPiece("cf"))
-                || (f & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
+                || (f & (IncludeContainingFunctionLocation) && (filterPiece("cfl") || filterPiece("cflcontext")))) {
                 auto syms = project->openSymbols(symbol.location.fileId());
                 uint32_t idx = -1;
                 if (syms) {
@@ -427,8 +437,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                         && s.isContainer()
                         && comparePosition(line, column, s.startLine, s.startColumn) >= 0
                         && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                        if (f & IncludeContainingFunctionLocation && filterPiece("cfl"))
-                            ret["cfl"] = s.location.toString(locationToStringFlags);
+                        if (f & IncludeContainingFunctionLocation) {
+                            formatLocation(s.location, "cfl", "cflcontext");
+                        }
                         if (f & IncludeContainingFunction && filterPiece("cf"))
                             ret["cf"] = s.symbolName;
                         if (f & IncludeParents && filterPiece("parent"))
