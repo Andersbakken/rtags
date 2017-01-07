@@ -161,6 +161,38 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     writePiece("Brief comment", "briefcomment", briefComment);
     writePiece("XML comment", "xmlcomment", xmlComment);
 
+    if ((cursorInfoFlags & IncludeParents && filterPiece("parent"))
+        || (cursorInfoFlags & (IncludeContainingFunction) && filterPiece("cf"))
+        || (cursorInfoFlags & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
+        auto syms = project->openSymbols(location.fileId());
+        uint32_t idx = -1;
+        if (syms) {
+            idx = syms->lowerBound(location);
+            if (idx == std::numeric_limits<uint32_t>::max()) {
+                idx = syms->count() - 1;
+            }
+        }
+        const unsigned int line = location.line();
+        const unsigned int column = location.column();
+        while (idx-- > 0) {
+            const Symbol s = syms->valueAt(idx);
+            if (s.isDefinition()
+                && s.isContainer()
+                && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                if (cursorInfoFlags & IncludeContainingFunctionLocation)
+                    writePiece("Containing function location", "cfl", s.location.toString(locationToStringFlags));
+                if (cursorInfoFlags & IncludeContainingFunction)
+                    writePiece("Containing function", "cf", s.symbolName);
+                if (cursorInfoFlags & IncludeParents)
+                    writePiece("Parent", "parent", s.location.toString(locationToStringFlags)); // redundant, this is a mess
+                break;
+            }
+        }
+    }
+
+
+
     if (cursorInfoFlags & IncludeTargets && project && filterPiece("targets")) {
         const auto targets = project->findTargets(*this);
         if (targets.size()) {
@@ -376,7 +408,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (f & IncludeParents && filterPiece("parent")) {
+            if ((f & IncludeParents && filterPiece("parent"))
+                || (f & (IncludeContainingFunction) && filterPiece("cf"))
+                || (f & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
                 auto syms = project->openSymbols(symbol.location.fileId());
                 uint32_t idx = -1;
                 if (syms) {
@@ -393,7 +427,12 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                         && s.isContainer()
                         && comparePosition(line, column, s.startLine, s.startColumn) >= 0
                         && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                        ret["parent"] = toValue(s, IncludeParents);
+                        if (f & IncludeContainingFunctionLocation && filterPiece("cfl"))
+                            ret["cfl"] = s.location.toString(locationToStringFlags);
+                        if (f & IncludeContainingFunction && filterPiece("cf"))
+                            ret["cf"] = s.symbolName;
+                        if (f & IncludeParents && filterPiece("parent"))
+                            ret["parent"] = toValue(s, IncludeParents);
                         break;
                     }
                 }

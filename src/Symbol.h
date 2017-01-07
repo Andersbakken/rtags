@@ -155,11 +155,14 @@ struct Symbol
     inline bool isDefinition() const { return flags & Definition; }
 
     enum ToStringFlag {
-        DefaultFlags = 0x0,
-        IncludeTargets = 0x1,
-        IncludeReferences = 0x2,
-        IncludeParents = 0x4,
-        IncludeBaseClasses = 0x8
+        DefaultFlags = 0x00,
+        IncludeTargets = 0x01,
+        IncludeReferences = 0x02,
+        IncludeParents = 0x04,
+        IncludeBaseClasses = 0x08,
+        IncludeContainingFunction = 0x10,
+        IncludeContainingFunctionLocation = 0x20
+
     };
     Value toValue(const std::shared_ptr<Project> &project,
                   Flags<ToStringFlag> toStringFlags,
