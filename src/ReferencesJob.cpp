@@ -161,7 +161,8 @@ int ReferencesJob::execute()
         write(")", DontQuote);
     };
 
-    auto writeLoc = [this, writeCons, writeFlags, kf](Location loc) {
+    Value json;
+    auto writeLoc = [this, writeCons, writeFlags, kf, &json](Location loc) {
         if (queryFlags() & QueryMessage::Elisp) {
             if (!filterLocation(loc))
                 return;
@@ -189,6 +190,33 @@ int ReferencesJob::execute()
                     }
                 });
             write(")", DontQuote);
+        } else if (queryFlags() & QueryMessage::JSON) {
+            if (!filterLocation(loc))
+                return;
+            Value value;
+            locationToString(loc, [&value, this](LocationPiece piece, const String &string) {
+                    switch (piece) {
+                    case Piece_ContainingFunctionLocation:
+                        if (queryFlags() & QueryMessage::ContainingFunctionLocation)
+                            value["cfl"] = string;
+                        break;
+                    case Piece_ContainingFunctionName:
+                        if (queryFlags() & QueryMessage::ContainingFunction)
+                            value["cf"] = string;
+                        break;
+                    case Piece_Location:
+                        value["loc"] = string;
+                        break;
+                    case Piece_Context:
+                        if (!(queryFlags() & QueryMessage::NoContext))
+                            value["ctx"] = string;
+                        break;
+                    case Piece_SymbolName:
+                    case Piece_Kind:
+                        break;
+                    }
+                });
+            json.push_back(value);
         } else {
             write(loc, writeFlags);
         }
@@ -236,8 +264,11 @@ int ReferencesJob::execute()
             writeLoc(loc);
         }
     }
-    if (queryFlags() & QueryMessage::Elisp)
+    if (queryFlags() & QueryMessage::Elisp) {
         write(")", DontQuote);
+    } else if (queryFlags() & QueryMessage::JSON) {
+        write(json.toJSON(), DontQuote|Unfiltered);
+    }
 
     return references.isEmpty() ? 1 : 0;
 }
