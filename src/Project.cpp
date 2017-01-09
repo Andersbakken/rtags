@@ -2349,8 +2349,11 @@ void Project::reloadCompileCommands()
                     removed[src.first] = it->first;
                 }
                 mIndexParseData.compileCommands.erase(it++);
-            } else if (lastModified != it->second.lastModifiedMs
-                       && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
+                continue;
+            }
+
+            if (lastModified != it->second.lastModifiedMs
+                && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
                 found = true;
             }
             ++it;
