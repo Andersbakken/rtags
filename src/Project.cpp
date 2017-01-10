@@ -38,7 +38,7 @@
 #include "Server.h"
 #include "RTagsVersion.h"
 
-enum { DirtyTimeout = 100 };
+enum { DirtyTimeout = 100, ReloadCompileCommandsTimeout = 500 };
 
 class Dirty
 {
@@ -249,6 +249,7 @@ Project::~Project()
 
     assert(EventLoop::isMainThread());
     mDirtyTimer.stop();
+    mReloadCompileCommandsTimer.stop();
 }
 
 static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, Set<uint32_t> &seen)
@@ -310,6 +311,7 @@ bool Project::init()
     }
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
+    mReloadCompileCommandsTimer.timeout().connect(std::bind(&Project::reloadCompileCommands, this));
 
     String err;
     if (!Project::readSources(mSourcesFilePath, mIndexParseData, &err)) {
@@ -878,7 +880,7 @@ void Project::onFileAddedOrModified(const Path &file)
         return;
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
     if (mIndexParseData.compileCommands.contains(fileId)) {
-        reloadCompileCommands();
+        mReloadCompileCommandsTimer.restart(ReloadCompileCommandsTimeout, Timer::SingleShot);
         return;
     }
 
@@ -2333,6 +2335,7 @@ String Project::estimateMemory() const
 
 void Project::reloadCompileCommands()
 {
+    mReloadCompileCommandsTimer.stop();
     if (!Server::instance()->suspended()) {
         SourceCache cache;
         Hash<uint32_t, uint32_t> removed;

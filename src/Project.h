@@ -405,7 +405,7 @@ private:
 
     Hash<uint32_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 
-    Timer mDirtyTimer;
+    Timer mDirtyTimer, mReloadCompileCommandsTimer;
     Set<uint32_t> mPendingDirtyFiles;
 
     StopWatch mTimer;
