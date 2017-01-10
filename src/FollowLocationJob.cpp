@@ -80,8 +80,6 @@ int FollowLocationJob::execute()
         }
     };
     for (const auto &target : targets) {
-        if (rank != -1 && RTags::targetRank(target.kind) != rank)
-            continue;
         if (target.location.isNull())
             continue;
 

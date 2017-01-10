@@ -636,7 +636,7 @@ inline uint16_t createTargetsValue(const CXCursor &cursor)
 inline int targetRank(CXCursorKind kind)
 {
     switch (kind) {
-    case CXCursor_Constructor: // this one should be more than class/struct decl and fielddecl
+    case CXCursor_Constructor: // this one should be more than class/struct decl
         return 5;
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
@@ -644,10 +644,12 @@ inline int targetRank(CXCursorKind kind)
         return 0;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
+        return 6;
     case CXCursor_FunctionDecl:
     case CXCursor_CXXMethod:
         // functiondecl and cxx method must be more than cxx
-        // CXCursor_FunctionTemplate. Since constructors for templatatized
+        // CXCursor_FunctionTemplate. Since constructors for templatized
         // objects seem to come out as function templates
         return 3;
     case CXCursor_MacroDefinition:
