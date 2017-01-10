@@ -438,6 +438,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
 #ifdef RTAGS_COMPLETION_TOKENS_ENABLED
     ret["distance"] = distance;
 #endif
+    String str;
     str << cursorKind;
     ret["kind"] = str;
     if (f & IncludeChunks && !chunks.isEmpty()) {
