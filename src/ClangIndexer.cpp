@@ -1139,8 +1139,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                 const CXTokenKind k = clang_getTokenKind(tokens[i]);
                 if (k == CXToken_Punctuation) {
                     const CXStringScope str(clang_getTokenSpelling(tu, tokens[i]));
-                    if (str == "->" || str == "." || str == "::") {
-                        ++i;
+                    if ((str == "->" || str == "." || str == "::") && ++i < numTokens) {
                         assert(i < numTokens);
                         CXSourceRange memberRange = clang_getTokenExtent(tu, tokens[i]);
                         unsigned line, column;
