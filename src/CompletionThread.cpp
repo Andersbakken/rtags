@@ -160,10 +160,12 @@ bool CompletionThread::compareCompletionCandidates(const Completions::Candidate 
 {
     if (l->priority != r->priority)
         return l->priority < r->priority;
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
     if ((l->distance != -1) != (r->distance != -1))
         return l->distance != -1;
     if (l->distance != r->distance)
         return l->distance > r->distance;
+#endif
     return l->completion < r->completion;
 }
 
@@ -302,6 +304,7 @@ void CompletionThread::process(Request *request)
         nodes.reserve(results->NumResults);
 
         int nodeCount = 0;
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
         Map<Token, int> tokens;
         if (!request->unsaved.isEmpty()) {
             tokens = Token::tokenize(request->unsaved.constData(), request->unsaved.size());
@@ -309,6 +312,7 @@ void CompletionThread::process(Request *request)
             //     error() << String(it->first.data, it->first.length) << it->second;
             // }
         }
+#endif
         for (unsigned int i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             const CXCompletionString &string = results->Results[i].CompletionString;
@@ -376,10 +380,15 @@ void CompletionThread::process(Request *request)
                 if (ws >= 0) {
                     node.completion.truncate(ws + 1);
                     node.signature.replace("\n", "");
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
                     node.distance = tokens.isEmpty() ? -1 : tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
+#endif
                     if (sendDebug)
                         debug() << node.signature << node.priority << kind
-                                << node.distance << clang_getCompletionAvailability(string);
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
+                                << node.distance
+#endif
+                                << clang_getCompletionAvailability(string);
 
                     ++nodeCount;
                     continue;
@@ -426,8 +435,9 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
     if (!briefComment.isEmpty())
         ret["briefComment"] = briefComment;
     ret["priority"] = priority;
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
     ret["distance"] = distance;
-    String str;
+#endif
     str << cursorKind;
     ret["kind"] = str;
     if (f & IncludeChunks && !chunks.isEmpty()) {

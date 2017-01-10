@@ -87,7 +87,10 @@ private:
         Completions(Location loc) : location(loc), next(0), prev(0) {}
         struct Candidate {
             String completion, signature, annotation, parent, briefComment;
-            int priority, distance;
+            int priority = 0;
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
+            int distance = 0;
+#endif
             CXCursorKind cursorKind;
             struct Chunk {
                 Chunk()
@@ -131,6 +134,7 @@ private:
         SourceFile *next, *prev;
     };
 
+#ifdef RTAGS_COMPLETION_TOKENS_ENABLED
     struct Token
     {
         Token(const char *bytes = 0, int size = 0)
@@ -187,6 +191,7 @@ private:
                 val = pos;
         }
     };
+#endif
 
     Hash<uint32_t, SourceFile*> mCacheMap;
     EmbeddedLinkedList<SourceFile*> mCacheList;
