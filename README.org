@@ -498,7 +498,7 @@ also be socket acivated.
    Description=RTags daemon socket
 
    [Socket]
-   ListenStream=%h/.rdm
+   ListenStream=%t/rdm.socket
 
    [Install]
    WantedBy=default.target
