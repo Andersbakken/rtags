@@ -68,6 +68,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defconst rtags-protocol-version 119)
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
@@ -1127,6 +1128,7 @@ to only call this when `rtags-socket-file' is defined.
         (setq arguments (mapcar 'rtags-untrampify arguments))
         ;; other way to ignore colors would IMHO be to configure tramp,
         ;; but: do we need colors from rc?
+        (push (format "--verify-version=%d" rtags-protocol-version) arguments)
         (push "-z" arguments)
         (setq path (rtags-untrampify path))
         (when path-filter
@@ -1199,6 +1201,12 @@ to only call this when `rtags-socket-file' is defined.
                           (setq rtags-last-request-not-connected t)
                           (unless noerror
                             (error "Can't seem to connect to server. Is rdm running?"))
+                          nil)
+                         ((re-search-forward "^Protocol version mismatch" nil t)
+                          (erase-buffer)
+                          (unless noerror
+                            (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
+                                           "and installing a new rtags build that modified the protocol. They need to be in sync.")))
                           nil)
                          ((re-search-forward "^Not indexed" nil t)
                           (erase-buffer)

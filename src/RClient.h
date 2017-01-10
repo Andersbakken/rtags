@@ -146,6 +146,7 @@ public:
         UnsavedFile,
         Verbose,
         Version,
+        VerifyVersion,
 #ifdef RTAGS_HAS_LUA
         VisitAST,
         VisitASTScript,

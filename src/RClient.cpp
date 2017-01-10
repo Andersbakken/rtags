@@ -39,6 +39,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Options:" },
     { RClient::Verbose, "verbose", 'v', CommandLineParser::NoValue, "Be more verbose." },
     { RClient::Version, "version", 0, CommandLineParser::NoValue, "Print current version." },
+    { RClient::VerifyVersion, "verify-version", 0, CommandLineParser::Required, "Verify that the correct protocol version is used." },
     { RClient::Silent, "silent", 'Q', CommandLineParser::NoValue, "Be silent." },
     { RClient::Help, "help", 'h', CommandLineParser::NoValue, "Display this help." },
     { RClient::Noop, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },
@@ -625,6 +626,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case Version: {
             fprintf(stdout, "%s\n", RTags::versionString().constData());
             return { String(), CommandLineParser::Parse_Ok }; }
+        case VerifyVersion: {
+            const int version = strtoul(value.constData(), 0, 10);
+            if (version != NumOptions) {
+                fprintf(stdout, "Protocol version mismatch\n");
+                return { String(), CommandLineParser::Parse_Error };
+            }
+            break; }
         case Verbose: {
             ++mLogLevel;
             break; }
