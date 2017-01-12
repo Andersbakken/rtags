@@ -759,6 +759,8 @@ to case differences."
 (defvar rtags-references-tree-mode-map nil)
 (setq rtags-references-tree-mode-map (make-sparse-keymap))
 (define-key rtags-references-tree-mode-map (kbd "TAB") 'rtags-references-tree-toggle-current-expanded)
+(define-key rtags-references-tree-mode-map (kbd "e") 'rtags-references-tree-expand-all)
+(define-key rtags-references-tree-mode-map (kbd "c") 'rtags-references-tree-collapse-all)
 (define-key rtags-references-tree-mode-map (kbd "-") 'rtags-references-tree-collapse-current)
 (define-key rtags-references-tree-mode-map (kbd "+") 'rtags-references-tree-expand-current)
 (define-key rtags-references-tree-mode-map (kbd "n") 'rtags-references-tree-next-level)
@@ -1636,6 +1638,40 @@ instead of file from `current-buffer'.
          (cons
           (concat rtags-current-project (buffer-substring-no-properties (match-beginning 2) (match-end 2)))
           (/ (length (match-string 1)) rtags-tree-indent)))))
+
+(defun rtags-references-tree-collapse-all ()
+  (interactive)
+  (goto-char (point-min))
+  (save-excursion
+    (while (not (eobp))
+      (rtags-references-tree-collapse-current)
+      (if (= (point-at-eol) (point-max))
+          (goto-char (point-max))
+        (forward-line 1)))))
+
+(defun rtags-references-tree-expand-all ()
+  (interactive)
+  (rtags-references-tree-collapse-all)
+  (goto-char (point-min))
+  (let ((seen))
+    (save-excursion
+      (while (not (eobp))
+        (add-to-list 'seen (car (rtags-references-tree-current-location)))
+        (if (= (point-at-eol) (point-max))
+            (goto-char (point-max))
+          (forward-line 1))))
+    (save-excursion
+      (while (not (eobp))
+        (let ((loc (rtags-references-tree-current-location)))
+          (cond ((= (cdr loc) 0)
+                 (rtags-references-tree-expand-current))
+                ((not (member (car loc) seen))
+                 (push (car loc) seen)
+                 (rtags-references-tree-expand-current))
+                (t)))
+        (if (= (point-at-eol) (point-max))
+            (goto-char (point-max))
+          (forward-line 1))))))
 
 (defun rtags-file-from-location (location)
   (and location
