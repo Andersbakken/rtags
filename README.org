@@ -146,10 +146,24 @@ There are a few prerequisites you need to have in order to build RTags
 
 If you plan to tag projects using C++11 features on OS X then you'll
 need a libclang linked with LLVM's [[http://libcxx.llvm.org/][libc++]].
-For LLVM 3.6 the following works:
+For LLVM 3.9 the following works:
 
 #+BEGIN_SRC sh
 brew install llvm --with-libcxx --with-clang --without-assertions --with-rtti
+#+END_SRC
+
+Note that unless you link llvm
+#+BEGIN_SRC sh
+brew link llvm
+#+END_SRC
+
+You'll likely have to tell cmake where to find llvm-config.
+
+E.g.
+
+#+BEGIN_SRC sh
+$ PATH=/usr/local/Cellar/llvm/3.9.1/bin/:$PATH cmake /path/to/rtags
+$ make
 #+END_SRC
 
 or you can install clang and llvm from mac ports
