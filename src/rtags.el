@@ -1824,6 +1824,7 @@ instead of file from `current-buffer'.
   (save-excursion
     (goto-char (point-min))
     (let ((longest 0)
+          (max)
           (cfs))
       (while (not (eobp))
         (goto-char (point-at-eol))
@@ -1837,10 +1838,14 @@ instead of file from `current-buffer'.
         (setq longest (max longest (current-column)))
         (or (eobp) (forward-char 1)))
       (goto-char (point-min))
+      (setq max (- (frame-width) 2 longest))
       (mapc (lambda (cf)
               (goto-char (point-at-eol))
               (when cf
-                (insert (make-string (+ (- longest (current-column)) 2) ? ) cf))
+                (when (> (length cf) max)
+                  ;; (message "truncating %s %d vs %d to " cf (length cf) max (substring cf 0 max))
+                  (setq cf (substring cf 0 max)))
+                (insert (make-string (+ (- longest (current-column))) ? ) cf))
               (unless (eobp)
                 (forward-char)))
             (nreverse cfs)))))
