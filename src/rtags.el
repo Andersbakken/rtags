@@ -1629,9 +1629,6 @@ instead of file from `current-buffer'.
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-dependency-tree t)))
 
-(defvar rtags-references-tree-data nil)
-(make-variable-buffer-local 'rtags-references-tree-data)
-
 (defun rtags-references-tree-current-location ()
   (save-excursion
     (goto-char (point-at-bol))
