@@ -1096,7 +1096,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
             && type.kind != CXType_RValueReference
             && type.kind != CXType_Auto
             && type.kind != CXType_Unexposed) {
-            c->size = clang_Type_getSizeOf(type);
+            c->size = std::max<uint16_t>(0, clang_Type_getSizeOf(type));
             c->alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
         }
     }
@@ -1680,7 +1680,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         && c.type != CXType_RValueReference
         && c.type != CXType_Auto
         && c.type != CXType_Unexposed) {
-        c.size = clang_Type_getSizeOf(type);
+        c.size = std::max<uint16_t>(0, clang_Type_getSizeOf(type));
         c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
         if (c.size > 0 && (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl)) {
             for (int i=mScopeStack.size() - 1; i>=0; --i) {

@@ -347,7 +347,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["endLine"] = symbol.endLine;
                 ret["endColumn"] = symbol.endColumn;
             }
-            if (symbol.size > 0 && filterPiece("sizeof"))
+            if (symbol.size && filterPiece("sizeof"))
                 ret["sizeof"] = symbol.size;
             if (symbol.fieldOffset >= 0 && filterPiece("fieldoffset"))
                 ret["fieldOffset"] = symbol.fieldOffset;

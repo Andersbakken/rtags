@@ -34,7 +34,7 @@ struct Symbol
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
           flags(None), enumValue(0), startLine(-1), endLine(-1), startColumn(-1), endColumn(-1),
-          size(-1), fieldOffset(-1), alignment(-1)
+          size(0), fieldOffset(-1), alignment(-1)
     {}
 
     Location location;
@@ -100,7 +100,7 @@ struct Symbol
     };
     int32_t startLine, endLine;
     int16_t startColumn, endColumn;
-    int32_t size; // sizeof
+    uint16_t size; // sizeof
     int16_t fieldOffset, alignment; // bits
 
     bool isNull() const { return location.isNull() || clang_isInvalid(kind); }
