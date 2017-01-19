@@ -1976,7 +1976,7 @@ instead of file from `current-buffer'.
         (goto-char (point-min))
         (insert "Functions called from: " (cdr (assoc 'location container)) " " (cdr (assoc 'symbolName container)) "\n")
         (goto-char (point-min))
-        (rtags-handle-results-buffer)))))
+        (rtags-handle-results-buffer nil nil file)))))
 
 ;;;###autoload
 (defun rtags-find-all-functions-called-this-function ()
@@ -2416,7 +2416,7 @@ If called with prefix, open first match in other window"
                  (with-current-buffer (rtags-get-buffer)
                    (insert (car results))
                    (goto-char (point-min))
-                   (rtags-handle-results-buffer)))))))))
+                   (rtags-handle-results-buffer nil nil fn otherwindow)))))))))
 
 ;;;###autoload
 (defun rtags-find-references-at-point (&optional prefix)
