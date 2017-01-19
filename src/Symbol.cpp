@@ -27,10 +27,10 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 {
     switch (kind) {
     case CXLinkage_Invalid: return "";
-    case CXLinkage_NoLinkage: return "Linkage: No Linkage\n";
-    case CXLinkage_Internal: return "Linkage: Internal\n";
-    case CXLinkage_UniqueExternal: return "Linkage: Unique External\n";
-    case CXLinkage_External: return "Linkage: External\n";
+    case CXLinkage_NoLinkage: return "Linkage: No Linkage";
+    case CXLinkage_Internal: return "Linkage: Internal";
+    case CXLinkage_UniqueExternal: return "Linkage: Unique External";
+    case CXLinkage_External: return "Linkage: External";
     }
     return "";
 }
@@ -76,9 +76,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
 
         if (ret.isEmpty())
             return String();
-        String joined = String::join(ret, ' ');
-        joined += '\n';
-        return joined;
+        return String::join(ret, ' ') + '\n';
     };
 
     List<String> bases;
