@@ -1805,17 +1805,19 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : 0,
                 Location(location.fileId(), c.startLine, c.startColumn),
                 Location(location.fileId(), c.endLine, c.endColumn - 1)});
-        if (c.kind == CXCursor_FunctionTemplate)
+        bool isTemplateFunction = c.kind == CXCursor_FunctionTemplate;
+        if (!isTemplateFunction  && (c.kind == CXCursor_CXXMethod
+                                     || c.kind == CXCursor_Constructor
+                                     || c.kind == CXCursor_Destructor)
+            && clang_getCursorSemanticParent(cursor) == CXCursor_ClassTemplate) {
+            isTemplateFunction = true;
+        }
+        if (isTemplateFunction)
             ++mInTemplateFunction;
         visit(cursor);
-        if (c.kind == CXCursor_FunctionTemplate)
+        if (isTemplateFunction)
             --mInTemplateFunction;
         mScopeStack.removeLast();
-        return CXChildVisit_Continue;
-    } else if (c.kind == CXCursor_ClassTemplate) {
-        ++mInTemplateFunction;
-        visit(cursor);
-        --mInTemplateFunction;
         return CXChildVisit_Continue;
     }
 
