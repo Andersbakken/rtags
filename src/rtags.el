@@ -1326,6 +1326,7 @@ Uses `completing-read' to ask for the project."
                                           (targets nil)
                                           (base-classes nil)
                                           (piece nil)
+                                          (relative-filenames nil)
                                           (location (rtags-current-location))
                                           (silent nil))
   (when location
@@ -1333,6 +1334,7 @@ Uses `completing-read' to ask for the project."
            (object (with-temp-buffer
                      (and location
                           (rtags-call-rc :path path :noerror t :silent-query silent "-U" location "--elisp"
+                                         (unless relative-filenames "-K")
                                          (when parents "--symbol-info-include-parents")
                                          (when references "--symbol-info-include-references")
                                          (when targets "--symbol-info-include-targets")
@@ -1363,9 +1365,9 @@ Uses `completing-read' to ask for the project."
       (with-temp-buffer
         (rtags-call-rc :path path
                        :noerror noerror
+                       :relative-filenames rtags-print-filenames-relative
                        :silent-query silent-query
                        "-U" loc
-                       (unless rtags-print-filenames-relative "-K")
                        (when include-targets "--symbol-info-include-targets")
                        (when include-references "--symbol-info-include-references")
                        (when include-base-classes "--symbol-info-include-base-classes")
