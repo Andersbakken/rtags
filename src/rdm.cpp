@@ -129,6 +129,7 @@ enum OptionType {
     IncludePath,
     Isystem,
     Define,
+    DefaultArgument,
     LogFile,
     CrashDumpFile,
     SetEnv,
@@ -273,7 +274,8 @@ int main(int argc, char** argv)
         { Version, "version", 0, CommandLineParser::NoValue, "Display version." },
         { IncludePath, "include-path", 'I', CommandLineParser::Required, "Add additional include path to clang." },
         { Isystem, "isystem", 's', CommandLineParser::Required, "Add additional system include path to clang." },
-        { Define, "define", 'D', CommandLineParser::Required, "Add additional define directive to clang" },
+        { Define, "define", 'D', CommandLineParser::Required, "Add additional define directive to clang." },
+        { DefaultArgument, "default-argument", 0, CommandLineParser::Required, "Add additional argument to clang." },
         { LogFile, "log-file", 'L', CommandLineParser::Required, "Log to this file." },
         { CrashDumpFile, "crash-dump-file", 0, CommandLineParser::Required, "File to dump crash log to (default is <datadir>/crash.dump)." },
         { SetEnv, "setenv", 'e', CommandLineParser::Required, "Set this environment variable (--setenv \"foobar=1\")." },
@@ -383,6 +385,9 @@ int main(int argc, char** argv)
                 def.value = value.mid(eq + 1);
             }
             serverOpts.defines.append(def);
+            break; }
+        case DefaultArgument: {
+            serverOpts.defaultArguments.append(std::move(value));
             break; }
         case LogFile: {
             logFile = std::move(value);
