@@ -179,7 +179,7 @@ enum OptionType {
     EnableNDEBUG,
     Progress,
     MaxFileMapCacheSize,
-#ifdef OS_FreeBSD
+#ifdef FILEMANAGER_OPT_IN
     FileManagerWatch,
 #else
     NoFileManagerWatch,
@@ -247,7 +247,7 @@ int main(int argc, char** argv)
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
     serverOpts.rp = defaultRP();
     strcpy(crashDumpFilePath, "crash.dump");
-#ifdef OS_FreeBSD
+#ifdef FILEMANAGER_OPT_IN
     serverOpts.options |= Server::NoFileManagerWatch;
 #endif
     // #ifndef NDEBUG
