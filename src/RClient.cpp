@@ -1239,16 +1239,18 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case ReferenceName: {
             addQuery(QueryMessage::ReferencesName, std::move(value));
             break; }
-#ifdef RTAGS_HAS_LUA
         case VisitAST: {
+#ifdef RTAGS_HAS_LUA
             Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
                 return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::VisitAST, std::move(p));
+#endif
             break; }
         case VisitASTScript: {
+#ifdef RTAGS_HAS_LUA
             String code = std::move(value);
             if (code.startsWith("@")) {
                 const Path p = code.mid(1);
@@ -1261,8 +1263,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("Script is empty"), CommandLineParser::Parse_Error };
             }
             mVisitASTScripts.push_back(std::move(code));
-            break; }
 #endif
+            break; }
         }
         return { String(), CommandLineParser::Parse_Exec };
     };

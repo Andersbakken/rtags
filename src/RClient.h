@@ -147,10 +147,8 @@ public:
         Verbose,
         Version,
         VerifyVersion,
-#ifdef RTAGS_HAS_LUA
         VisitAST,
         VisitASTScript,
-#endif
         Wait,
         WildcardSymbolNames,
         XML,
