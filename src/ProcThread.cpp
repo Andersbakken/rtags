@@ -72,16 +72,10 @@ void ProcThread::readProc()
     }
 #ifdef RTAGS_HAS_PROC
     DIR *dir = opendir("/proc/");
-    union {
-        char direntPathBuf[PATH_MAX + sizeof(dirent) + 1];
-        dirent dbuf;
-    };
-
     int found = 0;
     StopWatch sw;
-    dirent *p;
     List<ParseNode> nodes(1);
-    while (!readdir_r(dir, &dbuf, &p) && p) {
+    while (const dirent *p = readdir(dir)) {
 #if defined(_DIRENT_HAVE_D_TYPE) && defined(_BSD_SOURCE)
         if (p->d_type != DT_DIR)
             continue;
