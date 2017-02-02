@@ -41,7 +41,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
                         const Set<String> &pieceFilters) const
 {
     auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
-    auto properties = [this, &filterPiece]()
+    auto properties = [this, &filterPiece]() -> String
     {
         List<String> ret;
         if (isDefinition() && filterPiece("definition"))

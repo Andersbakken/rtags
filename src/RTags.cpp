@@ -106,13 +106,10 @@ Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, So
         }
     }
     Path ret;
+    char buf[PATH_MAX + sizeof(dirent) + 1];
     int slash = path.size();
     const int len = fn.size() + 1;
     struct stat st;
-    char buf[PATH_MAX + sizeof(dirent) + 1];
-    dirent *direntBuf = 0, *entry = 0;
-    if (flags & Wildcard)
-        direntBuf = reinterpret_cast<struct dirent *>(malloc(sizeof(buf)));
 
     memcpy(buf, path.constData(), path.size() + 1);
     while ((slash = path.lastIndexOf('/', slash - 1)) > 0) { // We don't want to search in /
@@ -130,7 +127,7 @@ Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, So
             DIR *dir = opendir(buf);
             bool found = false;
             if (dir) {
-                while (!readdir_r(dir, direntBuf, &entry) && entry) {
+                while (dirent *entry = readdir(dir)) {
                     const int l = strlen(entry->d_name) + 1;
                     switch (l - 1) {
                     case 1:
@@ -158,8 +155,6 @@ Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, So
                 break;
         }
     }
-    if (flags & Wildcard)
-        free(direntBuf);
 
     ret = ret.ensureTrailingSlash();
     if (cacheResult) {
