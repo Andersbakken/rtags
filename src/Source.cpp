@@ -225,6 +225,7 @@ static const char *blacklist[] = {
     "-fno-use-linker-plugin"
     "-fno-var-tracking",
     "-fno-var-tracking-assignments",
+    "-fno-enforce-eh-specs",
     "-fvar-tracking",
     "-fvar-tracking-assignments",
     "-fvar-tracking-assignments-toggle",
