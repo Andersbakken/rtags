@@ -104,7 +104,7 @@ String IndexerJob::encode() const
                 int idx = copy.arguments.indexOf("-Werror");
                 if (idx != -1)
                     copy.arguments.removeAt(idx);
-                idx = copy.arguments.indexOf("-Wfatal-error");
+                idx = copy.arguments.indexOf("-Wfatal-errors");
                 if (idx != -1)
                     copy.arguments.removeAt(idx);
             }

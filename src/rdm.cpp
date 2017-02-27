@@ -321,7 +321,7 @@ int main(int argc, char** argv)
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
-        { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-error. By default these are stripped out. " },
+        { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
         { EnableCompilerManager, "enable-compiler-manager", 'R', CommandLineParser::NoValue, "Query compilers for their actual include paths instead of letting clang use its own." },
         { EnableNDEBUG, "enable-NDEBUG", 'g', CommandLineParser::NoValue, "Don't remove -DNDEBUG from compile lines." },
         { Progress, "progress", 'p', CommandLineParser::NoValue, "Report compilation progress in diagnostics output." },
