@@ -396,6 +396,7 @@ void CompletionThread::process(Request *request)
             }
             node.completion.clear();
             node.signature.clear();
+            node.chunks.clear();
         }
         if (nodeCount) {
             // Sort pointers instead of shuffling candidates around
