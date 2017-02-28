@@ -3054,7 +3054,6 @@ This includes both declarations and definitions."
     (cancel-timer rtags-container-timer))
   (setq rtags-container-timer
         (and rtags-track-container
-
              (funcall rtags-is-indexable (current-buffer))
              (run-with-idle-timer rtags-container-timer-interval nil #'rtags-update-current-container-cache))))
 
