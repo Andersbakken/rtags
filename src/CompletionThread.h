@@ -30,6 +30,7 @@
 #include "rct/Thread.h"
 #include "Source.h"
 #include "RTags.h"
+#include "StringTokenizer.h"
 
 class CompletionThread : public Thread
 {
@@ -117,7 +118,7 @@ private:
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<const Completions::Candidate *> &completions, Request *request);
+    void printCompletions(const std::vector<MatchResult *> &results, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 
