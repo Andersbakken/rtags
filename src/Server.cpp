@@ -211,7 +211,7 @@ bool Server::init(const Options &options)
     if (mOptions.pollTimer) {
         mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
                 if (std::shared_ptr<Project> proj = mCurrentProject.lock()) {
-                    proj->poll();
+                    proj->validateAll();
                 }
             }, mOptions.pollTimer * 1000);
     }
@@ -696,6 +696,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::VisitAST:
 #endif
         startClangThread(message, conn);
+        break;
+    case QueryMessage::Validate:
+        validate(message, conn);
         break;
     case QueryMessage::DumpFileMaps:
         dumpFileMaps(message, conn);
@@ -1896,6 +1899,22 @@ void Server::tokens(const std::shared_ptr<QueryMessage> &query, const std::share
 
     TokensJob job(query, fileId, from, to, project);
     conn->finish(job.run(conn));
+}
+
+void Server::validate(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = mCurrentProject.lock();
+    if (!project) {
+        error("No project");
+        conn->write("No current project");
+        conn->finish(1);
+        return;
+    }
+
+    project->validateAll();
+    conn->finish();
 }
 
 void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn)

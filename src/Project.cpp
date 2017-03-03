@@ -51,8 +51,9 @@ public:
 class SimpleDirty : public Dirty
 {
 public:
-    void init(const Set<uint32_t> &dirty, const std::shared_ptr<Project> &project)
+    void init(const std::shared_ptr<Project> &project, const Set<uint32_t> &dirty = Set<uint32_t>())
     {
+        mProject = project;
         for (auto fileId : dirty) {
             mDirty.insert(fileId);
             mDirty += project->dependencies(fileId, Project::DependsOnArg);
@@ -64,12 +65,19 @@ public:
         return mDirty;
     }
 
+    void insert(uint32_t fileId)
+    {
+        if (mDirty.insert(fileId))
+            mDirty += mProject->dependencies(fileId, Project::DependsOnArg);
+    }
+
     virtual bool isDirty(const SourceList &sourceList) override
     {
         return mDirty.contains(sourceList.fileId());
     }
 
     Set<uint32_t> mDirty;
+    std::shared_ptr<Project> mProject;
 };
 
 class ComplexDirty : public Dirty
@@ -450,7 +458,7 @@ bool Project::init()
     // don't want to abort the jobs we just started from reloadCompileCommands
     if (!missingFileMaps.isEmpty()) {
         SimpleDirty simple;
-        simple.init(missingFileMaps, shared_from_this());
+        simple.init(shared_from_this(), missingFileMaps);
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
     return true;
@@ -1058,7 +1066,7 @@ int Project::reindex(const Match &match,
         if (dirtyFiles.isEmpty())
             return 0;
         SimpleDirty dirty;
-        dirty.init(dirtyFiles, shared_from_this());
+        dirty.init(shared_from_this(), dirtyFiles);
         return startDirtyJobs(&dirty, IndexerJob::Reindex, query->unsavedFiles(), wait);
     } else {
         assert(query->type() == QueryMessage::CheckReindex);
@@ -1929,7 +1937,7 @@ void Project::dirty(uint32_t fileId)
     SimpleDirty dirty;
     Set<uint32_t> dirtyFiles;
     dirtyFiles.insert(fileId);
-    dirty.init(dirtyFiles, shared_from_this());
+    dirty.init(shared_from_this(), dirtyFiles);
     startDirtyJobs(&dirty, IndexerJob::Dirty);
 }
 
@@ -1979,22 +1987,6 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         }
     }
     return true;
-}
-
-void Project::loadFailed(uint32_t fileId)
-{
-    if (hasSource(fileId)) {
-        if (Server::instance()->jobScheduler()->increasePriority(fileId))
-            return;
-    } else { // header
-        for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
-            if (hasSource(dep) && Server::instance()->jobScheduler()->increasePriority(dep)) {
-                return;
-            }
-        }
-    }
-
-    dirty(fileId); // file might have gone missing
 }
 
 template <typename T>
@@ -2724,9 +2716,19 @@ void Project::removeSource(uint32_t fileId)
     Path::rmdir(sourceFilePath(fileId));
 }
 
-void Project::poll()
+void Project::validateAll()
 {
-    for (auto it : mDependencies) {
-        validate(it.first,  Validate);
+    SimpleDirty dirty;
+    dirty.init(shared_from_this());
+    bool clean = true;
+    for (auto dep : mDependencies) {
+        String err;
+        if (!validate(dep.first, Validate, &err)) {
+            clean = false;
+            dirty.insert(dep.first);
+            error() << err;
+        }
     }
+    if (!clean)
+        startDirtyJobs(&dirty, IndexerJob::Dirty);
 }

@@ -144,6 +144,7 @@ public:
         Tokens,
         TokensIncludeSymbols,
         UnsavedFile,
+        Validate,
         Verbose,
         Version,
         VerifyVersion,

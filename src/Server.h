@@ -194,6 +194,7 @@ private:
     void classHierarchy(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void debugLocations(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void tokens(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void validate(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> projectForMatches(const List<Match> &matches);

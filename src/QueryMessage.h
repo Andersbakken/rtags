@@ -68,6 +68,7 @@ public:
         Status,
         Suspend,
         SymbolInfo,
+        Validate,
 #ifdef RTAGS_HAS_LUA
         VisitAST,
 #endif

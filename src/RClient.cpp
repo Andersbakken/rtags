@@ -110,6 +110,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
 #ifdef RTAGS_HAS_LUA
     { RClient::VisitAST, "visit-ast", 0, CommandLineParser::Required, "Visit AST of a source file." },
 #endif
+    { RClient::Validate, "validate", 0, CommandLineParser::NoValue, "Validate database files for current project." },
     { RClient::Tokens, "tokens", 0, CommandLineParser::Required, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Command flags:" },
@@ -622,6 +623,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("Invalid range (%d-%d), must be uint-uint. E.g. 1-123", mMinOffset, mMaxOffset),
                          CommandLineParser::Parse_Error };
             }
+            break; }
+        case Validate: {
+            addQuery(QueryMessage::Validate);
             break; }
         case Version: {
             fprintf(stdout, "%s\n", RTags::versionString().constData());

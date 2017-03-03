@@ -240,7 +240,6 @@ public:
     void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
     void destroy() { mSaveDirty = false; }
-    void poll();
     enum VisitResult {
         Stop,
         Continue,
@@ -264,6 +263,7 @@ public:
     static void forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb);
     void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
+    void validateAll();
 private:
     void reloadCompileCommands();
     void onFileAddedOrModified(const Path &path);
@@ -286,11 +286,13 @@ private:
 
     struct FileMapScope {
         FileMapScope(const std::shared_ptr<Project> &proj, int m)
-            : project(proj), openedFiles(0), totalOpened(0), max(m)
+            : project(proj), openedFiles(0), totalOpened(0), max(m), loadFailed(false)
         {}
         ~FileMapScope()
         {
             warning() << "Query opened" << totalOpened << "files for project" << project->path();
+            if (loadFailed)
+                project->validateAll();
         }
 
         struct LRUKey {
@@ -373,7 +375,7 @@ private:
                 } else {
                     error() << "Failed to open" << path << Location::path(fileId) << err;
                 }
-                project->loadFailed(fileId);
+                loadFailed = true;
                 fileMap.reset();
             }
             return fileMap;
@@ -386,6 +388,7 @@ private:
         std::shared_ptr<Project> project;
         int openedFiles, totalOpened;
         const int max;
+        bool loadFailed;
 
         EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
         Map<LRUKey, std::shared_ptr<LRUEntry> > entryMap;
