@@ -398,16 +398,60 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
     return compiler;
 }
 
+static List<String> splitCommandLine(const String &cmdLine)
+{
+    List<String> split;
+    char quote = '\0';
+    const char *cur = cmdLine.data();
+    const char *prev = cur;
+    int size = cmdLine.size();
+    int escape = 0;
+    while (size > 0) {
+        switch (*cur) {
+        case '"':
+        case '\'':
+            if (escape % 2 == 0) {
+                if (quote == '\0') {
+                    quote = *cur;
+                } else if (*cur == quote) {
+                    quote = '\0';
+                }
+            }
+            escape = 0;
+            break;
+        case '\\':
+            ++escape;
+            break;
+        case ' ':
+            if (quote == '\0') {
+                if (cur > prev)
+                    split.append(unquote(trim(prev, cur - prev)));
+                prev = cur + 1;
+            }
+            escape = 0;
+            break;
+        default:
+            escape = 0;
+            break;
+        }
+        --size;
+        ++cur;
+    }
+    if (cur > prev)
+        split.append(trim(prev, cur - prev));
+    return split;
+}
+
 struct Input {
     Path realPath, absolute, unmolested;
     Source::Language language;
 };
 
 SourceList Source::parse(const String &cmdLine,
-                           const Path &cwd,
-                           const List<String> &environment,
-                           List<Path> *unresolvedInputLocations,
-                           SourceCache *cache)
+                         const Path &cwd,
+                         const List<String> &environment,
+                         List<Path> *unresolvedInputLocations,
+                         SourceCache *cache)
 {
     List<Path> pathEnvironment;
     for (const String &env : environment) {
@@ -418,49 +462,8 @@ SourceList Source::parse(const String &cmdLine,
     }
     assert(cwd.endsWith('/'));
     assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
-    String args = cmdLine;
-    char quote = '\0';
-    List<String> split;
-    {
-        char *cur = args.data();
-        char *prev = cur;
-        int size = args.size();
-        int escape = 0;
-        while (size > 0) {
-            switch (*cur) {
-            case '"':
-            case '\'':
-                if (escape % 2 == 0) {
-                    if (quote == '\0') {
-                        quote = *cur;
-                    } else if (*cur == quote) {
-                        quote = '\0';
-                    }
-                }
-                escape = 0;
-                break;
-            case '\\':
-                ++escape;
-                break;
-            case ' ':
-                if (quote == '\0') {
-                    if (cur > prev)
-                        split.append(unquote(trim(prev, cur - prev)));
-                    prev = cur + 1;
-                }
-                escape = 0;
-                break;
-            default:
-                escape = 0;
-                break;
-            }
-            --size;
-            ++cur;
-        }
-        if (cur > prev)
-            split.append(trim(prev, cur - prev));
-    }
-    debug() << "Source::parse (" << args << ") => " << split << cwd;
+    List<String> split = splitCommandLine(cmdLine);
+    debug() << "Source::parse (" << cmdLine << ") => " << split << cwd;
 
     for (size_t i=0; i<split.size(); ++i) {
         if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.isEmpty()) {
@@ -486,6 +489,27 @@ SourceList Source::parse(const String &cmdLine,
     if (split.isEmpty()) {
         warning() << "Source::parse No args" << cmdLine;
         return SourceList();
+    }
+
+    // expand any response file references
+    for (size_t i=0; i<split.size(); ++i) {
+        auto arg = split.at(i);
+        if (!arg.startsWith('@'))
+            continue;
+        arg.remove(0, 1);
+        Path responseFile = Path::resolved(arg, Path::MakeAbsolute, cwd);
+        if (!responseFile.isFile())
+            continue;
+        auto contents = responseFile.readAll();
+        if (contents.isEmpty())
+            continue;
+        contents.chomp("\r\n\t ");
+        List<String> subcommands = splitCommandLine(contents);
+        if (!subcommands.isEmpty()) {
+            split.removeAt(i);
+            split.insert(i, subcommands);
+            i += subcommands.size() - 1;
+        }
     }
 
     List<Input> inputs;
