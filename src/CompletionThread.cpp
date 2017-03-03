@@ -473,7 +473,6 @@ struct Output
     std::shared_ptr<Connection> connection;
     Flags<CompletionThread::Flag> flags;
 };
-
 void CompletionThread::printCompletions(const List<const Completions::Candidate *> &completions, Request *request)
 {
     static List<String> cursorKindNames;
@@ -535,6 +534,11 @@ void CompletionThread::printCompletions(const List<const Completions::Candidate 
             elispOut << String::format<256>("(list 'completions (list \"%s\" (list",
                                             RTags::elispEscape(request->location.toString(Location::AbsolutePath)).constData());
         }
+        if (json) {
+            jsonOut.reserve(16384);
+            jsonOut += "{\"completions\":[";
+        }
+        bool jsonNeedComma = false;
         for (const auto *val : completions) {
             if (val->cursorKind >= cursorKindNames.size())
                 cursorKindNames.resize(val->cursorKind + 1);
@@ -567,11 +571,10 @@ void CompletionThread::printCompletions(const List<const Completions::Candidate 
                 // val->briefComment.constData());
             }
             if (json) {
-                if (jsonOut.isEmpty()) {
-                    jsonOut.reserve(16384);
-                    jsonOut += "{\"completions\":[";
-                } else {
+                if (jsonNeedComma) {
                     jsonOut += ',';
+                } else {
+                    jsonNeedComma = true;
                 }
 
                 jsonOut += val->toValue(Completions::Candidate::IncludeChunks).toJSON();
