@@ -769,12 +769,25 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             Location oldLoc;
             std::swap(mLastCallExprSymbol, old);
             const CXCursor ref = clang_getCursorReferenced(cursor);
+            bool handled = false;
             if (clang_getCursorKind(ref) == CXCursor_Constructor
-                && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)
-                && clang_getCursorKind(mParents.back()) != CXCursor_VarDecl) {
-                loc = createLocation(mLastCursor);
-                handleReference(mLastCursor, kind, loc, ref);
-            } else {
+                && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)) {
+                handled = true;
+                for (int pos = mParents.size() - 1; pos >= 0; --pos) {
+                    const CXCursorKind k = clang_getCursorKind(mParents[pos]);
+                    if (k == CXCursor_VarDecl) {
+                        handled = false;
+                        break;
+                    } else if (k != CXCursor_UnexposedExpr) {
+                        break;
+                    }
+                }
+                if (handled) {
+                    loc = createLocation(mLastCursor);
+                    handleReference(mLastCursor, kind, loc, ref);
+                }
+            }
+            if (!handled) {
                 handleReference(cursor, kind, loc, ref);
             }
             List<Symbol::Argument> destArguments;
