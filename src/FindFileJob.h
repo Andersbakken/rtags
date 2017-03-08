@@ -16,7 +16,7 @@
 #ifndef FindFileJob_h
 #define FindFileJob_h
 
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "QueryJob.h"
 #include "rct/String.h"
@@ -29,7 +29,7 @@ protected:
     virtual int execute() override;
 private:
     String mPattern;
-    std::regex mRegex;
+    boost::regex mRegex;
 };
 
 #endif

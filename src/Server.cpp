@@ -21,7 +21,7 @@
 #include <clang-c/CXCompilationDatabase.h>
 #include <stdio.h>
 #include <limits>
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "ClassHierarchyJob.h"
 #include "CompletionThread.h"

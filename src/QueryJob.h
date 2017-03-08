@@ -16,7 +16,7 @@
 #ifndef QueryJob_h
 #define QueryJob_h
 
-#include <regex>
+#include <boost/regex.hpp>
 #include <mutex>
 
 #include "Project.h"
@@ -119,9 +119,9 @@ private:
     {
     public:
         RegexFilter(const String &str) : regex(str.ref()) {}
-        virtual bool match(uint32_t, const Path &path) const { return std::regex_search(path.constData(), regex); }
+        virtual bool match(uint32_t, const Path &path) const { return boost::regex_search(path.constData(), regex); }
 
-        const std::regex regex;
+        const boost::regex regex;
     };
 
     class DependencyFilter : public Filter

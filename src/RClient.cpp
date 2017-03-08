@@ -744,12 +744,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             addQuery(queryType, std::move(encoded), QueryMessage::HasLocation);
             break; }
         case SymbolInfo: {
-            std::cmatch match;
-            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
+            boost::cmatch match;
+            boost::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
             Path path;
             List<String> kinds;
             uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
-            if (std::regex_match(value.constData(), match, rx)) {
+            if (boost::regex_match(value.constData(), match, rx)) {
                 path.assign(value.constData(), match.length(1));
                 line = atoi(value.constData() + match.position(2));
                 col = atoi(value.constData() + match.position(3));
@@ -761,8 +761,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                 }
             } else {
-                std::regex rx2("^(.*):([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
-                if (std::regex_match(value.constData(), match, rx2)) {
+                boost::regex rx2("^(.*):([0-9]+):([0-9]+):?(@[A-Za-z,]+)?");
+                if (boost::regex_match(value.constData(), match, rx2)) {
                     path.assign(value.constData(), match.length(1));
                     line = atoi(value.constData() + match.position(2));
                     col = atoi(value.constData() + match.position(3));

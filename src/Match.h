@@ -17,7 +17,7 @@
 #ifndef Match_h
 #define Match_h
 
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "Location.h"
 #include "rct/Flags.h"
@@ -74,7 +74,7 @@ public:
         return !mFlags || mPattern.isEmpty();
     }
 
-    inline std::regex regex() const
+    inline boost::regex regex() const
     {
         return mRegex;
     }
@@ -88,7 +88,7 @@ public:
         return Location::fileId(mPattern);
     }
 private:
-    std::regex mRegex;
+    boost::regex mRegex;
     String mPattern;
     Flags<Flag> mFlags;
 };
@@ -113,7 +113,7 @@ inline Match::Match(const String &pattern, Flags<Flag> f)
     if (mFlags & Flag_Regex) {
         try {
             mRegex = pattern.ref();
-        } catch (std::regex_error err) {
+        } catch (boost::regex_error err) {
             mFlags &= ~Flag_Regex;
         }
     }

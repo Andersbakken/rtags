@@ -15,7 +15,7 @@
 
 #include "QueryJob.h"
 
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "Project.h"
 #include "QueryMessage.h"
