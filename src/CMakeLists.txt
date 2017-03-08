@@ -176,7 +176,7 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+set(RTAGS_LIBRARIES rtags boost_regex ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
 if (LUA_ENABLED)
     list(APPEND RTAGS_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build/ liblua.a)
     add_definitions(-DRTAGS_HAS_LUA)

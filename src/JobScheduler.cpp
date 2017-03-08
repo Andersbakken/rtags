@@ -142,9 +142,9 @@ void JobScheduler::startJobs()
                 assert(n);
                 n->stdOut.append(proc->readAllStdOut());
 
-                std::regex rx("@CRASH@([^@]*)@CRASH@");
-                std::smatch match;
-                while (std::regex_search(n->stdOut.ref(), match, rx)) {
+                boost::regex rx("@CRASH@([^@]*)@CRASH@");
+                boost::smatch match;
+                while (boost::regex_search(n->stdOut.ref(), match, rx)) {
                     error() << match[1].str();
                     n->stdOut.remove(match.position(), match.length());
                 }

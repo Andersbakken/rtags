@@ -17,7 +17,7 @@
 
 #include <fnmatch.h>
 #include <memory>
-#include <regex>
+#include <boost/regex.hpp>
 
 #include "Diagnostic.h"
 #include "FileManager.h"
