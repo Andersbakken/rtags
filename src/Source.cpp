@@ -611,9 +611,9 @@ SourceList Source::parse(const String &cmdLine,
             } else if (arg.startsWith("-iframework")) {
                 addIncludeArg(includePaths, Source::Include::Type_SystemFramework, 11, split, i, path);
 #endif
-            } else if (arg.startsWith("-include")) {
-                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
             } else if (arg.startsWith("-include-pch")) {
+                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
+            } else if (arg.startsWith("-include")) {
                 addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
             } else if (arg.startsWith("-isystem")) {
                 addIncludeArg(includePaths, Source::Include::Type_System, 8, split, i, path);
