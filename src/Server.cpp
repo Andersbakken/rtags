@@ -1499,7 +1499,12 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
 
 void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    if (query->flags() & QueryMessage::CurrentProjectOnly) {
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (project) {
+        setCurrentProject(project);
+    }
+
+    if (project || query->flags() & QueryMessage::CurrentProjectOnly) {
         if (std::shared_ptr<Project> current = currentProject()) {
             conn->write(current->path());
         }
