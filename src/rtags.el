@@ -560,6 +560,12 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-use-ivy nil
+  "If t, use ivy to display results when appropriate."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
   "argument passed to --kind-filter for rtags-imenu"
   :group 'rtags
@@ -3349,14 +3355,16 @@ other window instead of the current one."
            (message "RTags: Found %d locations."
                     (count-lines (point-min) (point-max))))
          ;; Optionally jump to first result and open results buffer
-         (when (and rtags-popup-results-buffer (not rtags-use-helm) (rtags-switch-to-buffer rtags-buffer-name t))
+         (when (and rtags-popup-results-buffer (not rtags-use-helm) (not rtags-use-ivy) (rtags-switch-to-buffer rtags-buffer-name t))
            (shrink-window-if-larger-than-buffer))
          (if rtags-use-helm
              (helm :sources '(rtags-helm-source))
-           (when (and rtags-jump-to-first-match (not noautojump))
-             (if rtags-popup-results-buffer
-                 (rtags-select-other-window)
-               (rtags-select other-window))))
+           (if rtags-use-ivy
+               (rtags-ivy-read)
+             (when (and rtags-jump-to-first-match (not noautojump))
+               (if rtags-popup-results-buffer
+                   (rtags-select-other-window)
+                 (rtags-select other-window)))))
          t)))
 
 (defun rtags-filename-complete (string predicate code)
