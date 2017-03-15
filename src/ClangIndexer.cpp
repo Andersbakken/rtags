@@ -1242,6 +1242,8 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
             return;
         }
     }
+
+    mIndexDataMessage.files()[location.fileId()] |= IndexDataMessage::IncludeError;
     error() << "handleInclude failed" << includedFile << cursor;
 }
 

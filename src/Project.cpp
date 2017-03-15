@@ -190,7 +190,9 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
         file >> fileId;
         if (!fileId)
             return false;
-        dependencies[fileId] = new DependencyNode(fileId);
+        Flags<DependencyNode::Flag> flags;
+        file >> flags;
+        dependencies[fileId] = new DependencyNode(fileId, flags);
     }
     for (int i=0; i<size; ++i) {
         int links;
@@ -220,7 +222,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 {
     file << static_cast<int>(dependencies.size());
     for (const auto &it : dependencies) {
-        file << it.first;
+        file << it.first << it.second->flags;
     }
     for (const auto &it : dependencies) {
         file << static_cast<int>(it.second->dependents.size());
@@ -1014,21 +1016,34 @@ void Project::removeDependencies(uint32_t fileId)
 
 void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
 {
+    // error() << "updateDependencies" << Location::path(msg->fileId());
     const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
-    Set<uint32_t> files;
+    Set<uint32_t> includeErrors, dirty;
     for (auto pair : msg->files()) {
         assert(pair.first);
         DependencyNode *&node = mDependencies[pair.first];
         if (!node) {
             node = new DependencyNode(pair.first);
-            if (pair.second & IndexDataMessage::Visited)
-                files.insert(pair.first);
-        } else if (pair.second & IndexDataMessage::Visited) {
-            files.insert(pair.first);
+        }
+
+        if (pair.second & IndexDataMessage::Visited) {
             if (prune) {
                 for (auto it : node->includes)
                     it.second->dependents.remove(pair.first);
                 node->includes.clear();
+            }
+            if (pair.second & IndexDataMessage::IncludeError) {
+                node->flags |= DependencyNode::Flag_IncludeError;
+                includeErrors.insert(pair.first);
+                // error() << "got include error for" << Location::path(pair.first);
+            } else if (node->flags & DependencyNode::Flag_IncludeError) {
+                // error() << "used to have include error for" << Location::path(pair.first);
+                node->flags &= ~DependencyNode::Flag_IncludeError;
+                dirty.insert(pair.first);
+                for (auto dep : node->dependents) {
+                    dirty.insert(dep.first);
+                    // error() << "dirty" << Location::path(dep.first);
+                }
             }
         }
         watchFile(pair.first);
@@ -1040,13 +1055,28 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
         assert(it.second);
         DependencyNode *&includer = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
-        files.insert(it.first);
-        files.insert(it.second);
         if (!includer)
             includer = new DependencyNode(it.first);
         if (!inclusiary)
             inclusiary = new DependencyNode(it.second);
         includer->include(inclusiary);
+    }
+
+    if (!includeErrors.isEmpty()) {
+        // error() << "releasing files";
+        // for (uint32_t f : includeErrors) {
+        //     error() << Location::path(f);
+        // }
+        releaseFileIds(includeErrors);
+    }
+    if (!dirty.isEmpty()) {
+        // error() << "dirtying";
+        // for (uint32_t f : dirty) {
+        //     error() << Location::path(f);
+        // }
+        SimpleDirty simple;
+        simple.init(shared_from_this(), dirty);
+        startDirtyJobs(&simple, IndexerJob::Dirty);
     }
 }
 

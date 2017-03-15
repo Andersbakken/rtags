@@ -93,7 +93,8 @@ public:
     enum FileFlag {
         NoFileFlag = 0x0,
         Visited = 0x1,
-        HeaderError = 0x2
+        HeaderError = 0x2,
+        IncludeError = 0x4
     };
     Hash<uint32_t, Flags<FileFlag> > &files() { return mFiles; }
     const Hash<uint32_t, Flags<FileFlag> > &files() const { return mFiles; }

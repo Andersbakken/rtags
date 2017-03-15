@@ -43,10 +43,13 @@ class Match;
 class RestoreThread;
 struct DependencyNode
 {
-    DependencyNode(uint32_t f)
-        : fileId(f)
+    enum Flag {
+        Flag_None = 0x0,
+        Flag_IncludeError = 0x1
+    };
+    DependencyNode(uint32_t f, Flags<Flag> l = NullFlags)
+        : fileId(f), flags(l)
     {}
-
     void include(DependencyNode *dependee)
     {
         assert(!includes.contains(dependee->fileId) || includes.value(dependee->fileId) == dependee);
@@ -57,7 +60,12 @@ struct DependencyNode
 
     Dependencies dependents, includes;
     uint32_t fileId;
+
+    Flags<Flag> flags;
 };
+
+RCT_FLAGS(DependencyNode::Flag);
+
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
