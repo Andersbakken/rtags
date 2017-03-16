@@ -637,7 +637,7 @@ inline int targetRank(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_Constructor: // this one should be more than class/struct decl
-        return 5;
+        return 3;
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
     case CXCursor_ClassTemplate:
@@ -651,7 +651,7 @@ inline int targetRank(CXCursorKind kind)
         // functiondecl and cxx method must be more than cxx
         // CXCursor_FunctionTemplate. Since constructors for templatized
         // objects seem to come out as function templates
-        return 3;
+        return 4;
     case CXCursor_MacroDefinition:
         return 5;
     default:
