@@ -1,10 +1,25 @@
 #!/bin/bash -e
-# update-man-pages.sh ---
-# Copyright (c) Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
-# Author: Christian Schwarzgruber
-# Created: Thu Mar 16 11:04:56 2017 (+0000)
-# Description: rc, rdm and help2man need to be in the PATH environment variable.
+# gen-man-pages.sh --- generate man pages
 #
+# Copyright (c) Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
+#
+# This file is part of RTags (http://rtags.net).
+#
+# RTags is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or (at
+# your option) any later version.
+#
+# RTags is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
+#
+# Description: rc, rdm and help2man need to be in the PATH environment variable.
+
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAN_BASE=$BASE_DIR/man/man7
 
@@ -49,7 +64,7 @@ Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
 ") $(which rdm) > $MAN_BASE/rdm.7
 
-# Fixups
+# Fix-ups
 sed -ri \
     -e '/^(rdm|rc) options...$/d' \
     -e 's/^Options:$/.SH OPTIONS/' \
