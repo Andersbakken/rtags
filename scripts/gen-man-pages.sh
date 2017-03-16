@@ -23,6 +23,9 @@
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAN_BASE=$BASE_DIR/man/man7
 
+# Force simply locale
+LC_TIME=C
+
 # Generate the rc manual page.
 $(which help2man) --no-info -s 7 \
                   -i <(echo "
