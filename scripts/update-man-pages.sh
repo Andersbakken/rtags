@@ -1,0 +1,57 @@
+#!/bin/bash -e
+# update-man-pages.sh ---
+# Copyright (c) Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
+# Author: Christian Schwarzgruber
+# Created: Thu Mar 16 11:04:56 2017 (+0000)
+# Description: rc, rdm and help2man need to be in the PATH environment variable.
+#
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MAN_BASE=$BASE_DIR/man/man7
+
+# Generate the rc manual page.
+$(which help2man) --no-info -s 7 \
+                  -i <(echo "
+[SYNOPSIS]
+rc [OPTION]...
+
+[DESCRIPTION]
+rc is the RTags client application.
+") $(which rc) > $MAN_BASE/rc.7
+
+# Generate the rdm manual page.
+$(which help2man) --no-info -s 7 \
+                  -i <(echo "
+[SYNOPSIS]
+rdm [OPTION]...
+
+[DESCRIPTION]
+RTags is a client/server application that indexes C/C++ code and keeps
+a persistent file\-based database of references, declarations,
+definitions, symbolnames etc. There's also limited support for
+ObjC/ObjC++. It allows you to find symbols by name (including nested
+class and namespace scope). Most importantly we give you proper
+follow\-symbol and find\-references support. We also have neat little
+things like rename\-symbol, integration with clang's \"fixits\"
+(http://clang.llvm.org/diagnostics.html). We also integrate with
+flymake using clang's vastly superior errors and warnings. Since
+RTags constantly will reindex \"dirty\" files you get live updates of
+compiler errors and warnings. Since we already know how to compile
+your sources we have a way to quickly bring up the preprocessed output
+of the current source file in a buffer.
+
+While existing taggers like gnu global, cscope, etags, ctags etc do a
+decent job for C they often fall a little bit short for C++. With its
+incredible lexical complexity, parsing C++ is an incredibly hard task
+and we make no bones about the fact that the only reason we are able
+to improve on the current tools is because of clang
+(http://clang.llvm.org/). RTags is named RTags in recognition of
+Roberto Raggi on whose C++ parser we intended to base this project but
+he assured us clang was the way to go. The name stuck though.
+") $(which rdm) > $MAN_BASE/rdm.7
+
+# Fixups
+sed -ri \
+    -e '/^(rdm|rc) options...$/d' \
+    -e 's/^Options:$/.SH OPTIONS/' \
+    $MAN_BASE/rc.7 $MAN_BASE/rdm.7
+exit 0
