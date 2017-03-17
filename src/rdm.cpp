@@ -292,7 +292,7 @@ int main(int argc, char** argv)
         { Silent, "silent", 'S', CommandLineParser::NoValue, "No logging to stdout/stderr." },
         { ExcludeFilter, "exclude-filter", 'X', CommandLineParser::Required, "Files to exclude from rdm, default \"" DEFAULT_EXCLUDEFILTER "\"." },
         { SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this file for the server socket (default ~/.rdm)." },
-        { DataDir, "data-dir", 'd', CommandLineParser::Required, "Use this directory to store persistent data (default ~/.rtags)." },
+        { DataDir, "data-dir", 'd', CommandLineParser::Required, "Use this directory to store persistent data (default $XDG_CACHE_HOME/rtags otherwise ~/.cache/rtags)." },
         { IgnorePrintfFixits, "ignore-printf-fixits", 'F', CommandLineParser::NoValue, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
         { ErrorLimit, "error-limit", 'f', CommandLineParser::Required, "Set error limit to argument (-ferror-limit={arg} (default " STR(DEFAULT_ERROR_LIMIT) ")." },
         { BlockArgument, "block-argument", 'G', CommandLineParser::Required, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
@@ -850,5 +850,3 @@ int main(int argc, char** argv)
     cleanupLogging();
     return ret;
 }
-
-
