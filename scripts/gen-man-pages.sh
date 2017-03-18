@@ -19,26 +19,36 @@
 # along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.  */
 #
 # Description: rc, rdm and help2man need to be in the PATH environment variable.
-
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MAN_BASE=$BASE_DIR/man/man7
 
-# Force simply locale
+if [ $# -lt 1 ]; then
+    echo "Usage: $(basename $0) RDM_RC_BIN_DIR"
+    exit 1
+fi
+
+MAN_BASE="$BASE_DIR/man/man7"
+
+# Force simply locale `C`
 LC_TIME=C
 
 # Generate the rc manual page.
-$(which help2man) --no-info -s 7 \
-                  -i <(echo "
+echo 'Generating manual page for "rc"'
+help2man --no-info -s 7                         \
+         -i <(echo "
 [SYNOPSIS]
 rc [OPTION]...
 
 [DESCRIPTION]
 rc is the RTags client application.
-") $(which rc) > $MAN_BASE/rc.7
+
+[SEE ALSO]
+rdm(7)
+") "$1/rc" > "$MAN_BASE/rc.7"
 
 # Generate the rdm manual page.
-$(which help2man) --no-info -s 7 \
-                  -i <(echo "
+echo 'Generating manual page for "rdm"'
+help2man --no-info -s 7                         \
+         -i <(echo "
 [SYNOPSIS]
 rdm [OPTION]...
 
@@ -65,11 +75,15 @@ to improve on the current tools is because of clang
 (http://clang.llvm.org/). RTags is named RTags in recognition of
 Roberto Raggi on whose C++ parser we intended to base this project but
 he assured us clang was the way to go. The name stuck though.
-") $(which rdm) > $MAN_BASE/rdm.7
+
+[SEE ALSO]
+rc(7)
+") "$1/rdm" > "$MAN_BASE/rdm.7"
 
 # Fix-ups
-sed -ri \
-    -e '/^(rdm|rc) options...$/d' \
-    -e 's/^Options:$/.SH OPTIONS/' \
-    $MAN_BASE/rc.7 $MAN_BASE/rdm.7
+sed -ri                                         \
+    -e '/^(rdm|rc) options...$/d'               \
+    -e 's/^Options:$/.SH OPTIONS/'              \
+    -e 's/^(Path to rp) \(default.*$/\1/'       \
+    "$MAN_BASE/rc.7" "$MAN_BASE/rdm.7"
 exit 0
