@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Server.h"
+#include <rct/ThreadPool.h>
 #include "TokensJob.h"
 
 #include <arpa/inet.h>
@@ -1574,8 +1575,14 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         if (header)
             q.remove(0, 1);
         size_t &jobs = header ? mOptions.headerErrorJobCount : mOptions.jobCount;
+        int jobCount;
         bool ok;
-        const int jobCount = q.toLongLong(&ok);
+        if (q == "default") {
+            ok = true;
+            jobCount = header ? mOptions.jobCount : std::max(2, ThreadPool::idealThreadCount());
+        } else {
+            jobCount = q.toLongLong(&ok);
+        }
         if (!ok || jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
