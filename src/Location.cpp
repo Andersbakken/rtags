@@ -78,14 +78,26 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
     String copy;
     String *code = 0;
     const Path p = path();
+
+    auto readAll = [&p, this]() {
+        if (Server::instance()) {
+            if (auto project = Server::instance()->currentProject()) {
+                const Path f = project->sourceFilePath(fileId(), "unsaved");
+                String contents = f.readAll();
+                if (!contents.isEmpty())
+                    return contents;
+            }
+        }
+        return p.readAll();
+    };
     if (cache) {
         String &ref = (*cache)[p];
         if (ref.isEmpty()) {
-            ref = p.readAll();
+            ref = readAll();
         }
         code = &ref;
     } else {
-        copy = p.readAll();
+        copy = readAll();
         code = &copy;
     }
 

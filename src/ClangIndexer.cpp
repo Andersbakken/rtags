@@ -1952,17 +1952,32 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         String unitRoot = root;
         unitRoot << unit->first;
         Path::mkdir(unitRoot, Path::Recursive);
+        const Path path = Location::path(unit->first);
         if (unit->first != fileId) {
             FILE *f = fopen((unitRoot + "/info").constData(), "w");
             if (!f)
                 return false;
             bytesWritten += fprintf(f, "%s\nIndexed by %s at %llu\n",
-                                    Location::path(unit->first).constData(),
+                                    path.constData(),
                                     p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
             fclose(f);
         }
 
-        // ::error() << "Writing file" << Location::path(unit->first) << unitRoot << unit->second->symbols.size()
+        auto uit = mUnsavedFiles.find(path);
+        if (uit == mUnsavedFiles.end()) {
+            Path::rm(unitRoot + "/unsaved");
+        } else {
+            FILE *f = fopen((unitRoot + "/unsaved").constData(), "w");
+            if (!f)
+                return false;
+            bool ok = fwrite(uit->second.constData(), uit->second.size(), 1, f);
+            fclose(f);
+            if (!ok)
+                return false;
+            bytesWritten += uit->second.size();
+        }
+
+        //::error() << "Writing file" << Location::path(unit->first) << unitRoot << unit->second->symbols.size()
         //           << unit->second->targets.size()
         //           << unit->second->usrs.size()
         //           << unit->second->symbolNames.size();
