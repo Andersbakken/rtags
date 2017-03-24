@@ -62,6 +62,7 @@
 (declare-function yas-expand-snippet "ext:yasnippet" t)
 (declare-function popup-tip "ext:popup" t)
 (declare-function helm "ext:helm" t)
+(declare-function rtags-ivy-read "ext:ivy" t)
 (declare-function rtags-helm-get-candidate-line 'rtags (candidate))
 
 
