@@ -680,6 +680,7 @@ SourceList Source::parse(const String &cmdLine,
                         buildRoot.clear();
                     }
                 }
+                arguments << "-o" << p;
             } else {
                 arguments.append(arg);
                 if (hasValue(arg)) {
