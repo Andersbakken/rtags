@@ -1005,7 +1005,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!path.exists()) {
                 return { String::format<1024>("%s does not seem to exist", path.constData()), CommandLineParser::Parse_Error };
             } else if (path.isDir()) {
-                path += "compile_commands.json";
+                path = path.ensureTrailingSlash() + "compile_commands.json";
             } else if (!path.endsWith("/compile_commands.json")) {
                 return { "The file has to be called compile_commands.json", CommandLineParser::Parse_Error };
             }
