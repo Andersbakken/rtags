@@ -1039,7 +1039,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
 
             p.resolve(Path::MakeAbsolute);
-            mProjectRoot = p;
+            mProjectRoot = p.ensureTrailingSlash();
             break; }
         case Suspend: {
             Path p;
