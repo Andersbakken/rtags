@@ -1617,19 +1617,24 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
     const Path path = query->query();
     const bool flagsOnly = query->flags() & QueryMessage::CompilationFlagsOnly;
     const bool splitLine = query->flags() & QueryMessage::CompilationFlagsSplitLine;
-    auto format = [flagsOnly, splitLine](const Source &source) {
+    const bool pwd = query->flags() & QueryMessage::CompilationFlagsPwd;
+    auto format = [flagsOnly, splitLine, pwd](const Source &source) {
+        String ret;
+        if (pwd)
+            ret += "pwd: " + source.directory + "\n";
         if (flagsOnly) {
             const Flags<Source::CommandLineFlag> flags = (Source::Default
                                                           |Source::ExcludeDefaultArguments
                                                           |Source::IncludeCompiler
                                                           |Source::IncludeSourceFile
                                                           |Source::ExcludeDefaultIncludePaths);
-            return String::join(source.toCommandLine(flags), splitLine ? '\n' : ' ');
+            ret += String::join(source.toCommandLine(flags), splitLine ? '\n' : ' ');
         } else if (splitLine) {
-            return String::join(source.toString().split(' '), '\n');
+            ret += String::join(source.toString().split(' '), '\n');
         } else {
-            return source.toString();
+            ret += source.toString();
         }
+        return ret;
     };
     if (path.isFile()) {
         std::shared_ptr<Project> project = projectForQuery(query);

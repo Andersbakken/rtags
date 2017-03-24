@@ -154,6 +154,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::BuildIndex, "build-index", 0, CommandLineParser::Required, "For sources with multiple builds, use the arg'th." },
     { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, CommandLineParser::NoValue, "For --source, only print compilation flags." },
     { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, CommandLineParser::NoValue, "For --source, print one compilation flag per line." },
+    { RClient::CompilationFlagsPwd, "compilation-flags-pwd", 0, CommandLineParser::NoValue, "For --source, print pwd for compile command on the first line." },
     { RClient::DumpIncludeHeaders, "dump-include-headers", 0, CommandLineParser::NoValue, "For --dump-file, also dump dependencies." },
     { RClient::SilentQuery, "silent-query", 0, CommandLineParser::NoValue, "Don't log this request in rdm." },
     { RClient::SynchronousCompletions, "synchronous-completions", 0, CommandLineParser::NoValue, "Wait for completion results and print them to stdout." },
@@ -506,8 +507,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case CompilationFlagsOnly: {
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
             break; }
-        case NoColor: {
-            mQueryFlags |= QueryMessage::NoColor;
+        case CompilationFlagsPwd: {
+            mQueryFlags |= QueryMessage::CompilationFlagsPwd;
             break; }
         case CompilationFlagsSplitLine: {
             mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
@@ -589,6 +590,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case FilterSystemHeaders: {
             mQueryFlags |= QueryMessage::FilterSystemIncludes;
+            break; }
+        case NoColor: {
+            mQueryFlags |= QueryMessage::NoColor;
             break; }
         case NoContext: {
             mQueryFlags |= QueryMessage::NoContext;

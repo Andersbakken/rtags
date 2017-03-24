@@ -69,7 +69,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 122)
+(defconst rtags-protocol-version 123)
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
@@ -4044,15 +4044,22 @@ definition."
                         (t (rtags-buffer-file-name)))))
       (with-temp-buffer
         (setq rtags-last-compiled-source source)
-        (rtags-call-rc :path source "--sources" source "--compilation-flags-only")
-        (let* ((lines (split-string (buffer-string) "\n" t))
+        (rtags-call-rc :path source "--sources" source "--compilation-flags-only" "--compilation-flags-split-line" "--compilation-flags-pwd")
+        (let* ((commands (mapcar (lambda (build)
+                                   (let ((lines (split-string build "\n" t)))
+                                     (cons (combine-and-quote-strings (cdr lines))
+                                           (substring (car lines) 5))))
+                                 (split-string (buffer-string) "(\n)?pwd: " t)))
                (old-compile-command compile-command)
-               (line (car lines)))
-          (when (cond ((> (length lines) 1)
-                       (setq line (or (completing-read "Choose build: " lines) line)))
-                      ((null lines) (message "RTags doesn't know how to compile this file") nil)
+               (command (car commands)))
+          (when (cond ((> (length commands) 1)
+                       (let ((answer (completing-read "Choose build: " commands)))
+                         (when answer
+                           (setq command (assoc answer commands)))))
+                      ((null commands) (message "RTags doesn't know how to compile this file") nil)
                       (t))
-            (compile line)
+            (cd (cdr command))
+            (compile (car command))
             (setq compile-command old-compile-command)))))))
 
 ;;;###autoload

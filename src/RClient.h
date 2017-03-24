@@ -50,6 +50,7 @@ public:
         CodeCompletePrefix,
         CodeCompletionEnabled,
         CompilationFlagsOnly,
+        CompilationFlagsPwd,
         CompilationFlagsSplitLine,
         Compile,
         ConnectTimeout,
