@@ -1586,8 +1586,12 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         if (!ok || jobCount < 0 || jobCount > 100) {
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
-            jobs = jobCount;
-            mOptions.headerErrorJobCount = std::min(mOptions.headerErrorJobCount, mOptions.jobCount);
+            if (mOptions.headerErrorJobCount == mOptions.jobCount) {
+                mOptions.headerErrorJobCount = mOptions.jobCount = jobCount;
+            } else {
+                jobs = jobCount;
+                mOptions.headerErrorJobCount = std::min(mOptions.headerErrorJobCount, mOptions.jobCount);
+            }
             conn->write<128>("Changed jobs to %zu/%zu", mOptions.jobCount, mOptions.headerErrorJobCount);
         }
     }
