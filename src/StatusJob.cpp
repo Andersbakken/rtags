@@ -75,18 +75,18 @@ int StatusJob::execute()
         out << "Running a debug build\n";
 #endif
         const Server::Options &opt = Server::instance()->options();
-        out << "socketFile" << opt.socketFile << '\n'
-            << "dataDir" << opt.dataDir << '\n'
-            << "options" << opt.options
-            << "jobCount" << opt.jobCount << '\n'
-            << "rpVisitFileTimeout" << opt.rpVisitFileTimeout << '\n'
-            << "rpIndexDataMessageTimeout" << opt.rpIndexDataMessageTimeout << '\n'
-            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "rpConnectTimeout" << opt.rpConnectTimeout << '\n'
-            << "defaultArguments" << opt.defaultArguments << '\n'
-            << "includePaths" << opt.includePaths << '\n'
-            << "defines" << opt.defines << '\n'
-            << "ignoredCompilers" << opt.ignoredCompilers;
+        out << "socketFile: " << opt.socketFile << '\n'
+            << "dataDir: " << opt.dataDir << '\n'
+            << "options: " << opt.options
+            << "jobCount: " << opt.jobCount << '\n'
+            << "rpVisitFileTimeout: " << opt.rpVisitFileTimeout << '\n'
+            << "rpIndexDataMessageTimeout: " << opt.rpIndexDataMessageTimeout << '\n'
+            << "rpConnectTimeout: " << opt.rpConnectTimeout << '\n'
+            << "rpConnectTimeout: " << opt.rpConnectTimeout << '\n'
+            << "defaultArguments: " << opt.defaultArguments << '\n'
+            << "includePaths: " << opt.includePaths << '\n'
+            << "defines: " << opt.defines << '\n'
+            << "ignoredCompilers: " << opt.ignoredCompilers;
         write(out);
     }
 
