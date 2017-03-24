@@ -320,7 +320,7 @@ RClient::RClient()
     : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
-      mTerminalWidth(-1)
+      mTerminalWidth(-1), mExitCode(RTags::ArgumentParseError)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -362,7 +362,7 @@ void RClient::addCompile(Path &&path)
     mCommands.append(std::make_shared<CompileCommand>(std::move(path)));
 }
 
-int RClient::exec()
+void RClient::exec()
 {
     RTags::initMessages();
     OnDestruction onDestruction([]() { Message::cleanup(); });
@@ -379,7 +379,8 @@ int RClient::exec()
         if (!connection->connectTcp(mTcpHost, mTcpPort, mConnectTimeout)) {
             if (mLogLevel >= LogLevel::Error)
                 fprintf(stdout, "Can't seem to connect to server (%s:%d)\n", mTcpHost.constData(), mTcpPort);
-            return 1;
+            mExitCode = RTags::ConnectionFailure;
+            return;
         }
         connection->connected().connect(std::bind(&EventLoop::quit, loop.get()));
         loop->exec(mConnectTimeout);
@@ -391,32 +392,31 @@ int RClient::exec()
                     fprintf(stdout, "Can't seem to connect to server (%s)\n", mSocketFile.constData());
                 }
             }
-            return 1;
+            mExitCode = RTags::ConnectionFailure;
+            return;
         }
     } else if (!connection->connectUnix(mSocketFile, mConnectTimeout)) {
         if (mLogLevel >= LogLevel::Error)
             fprintf(stdout, "Can't seem to connect to server (%s)\n", mSocketFile.constData());
-        return 1;
+        mExitCode = RTags::ConnectionFailure;
+        return;
     }
 
-    int ret = 0;
-    bool hasZeroExit = false;
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
-        if (!cmd->exec(this, connection) || loop->exec(timeout()) != EventLoop::Success) {
-            ret = 1;
+        if (!cmd->exec(this, connection)) {
+            mExitCode = RTags::NetworkFailure;
+            break;
+        } else if (loop->exec(timeout()) != EventLoop::Success) {
+            mExitCode = RTags::TimeoutFailure;
             break;
         }
-        if (connection->finishStatus() == 0)
-            hasZeroExit = true;
+        mExitCode = connection->finishStatus();
     }
     if (connection->client())
         connection->client()->close();
     mCommands.clear();
-    if (!ret && !hasZeroExit)
-        ret = connection->finishStatus();
-    return ret;
 }
 
 CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
@@ -457,9 +457,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case Help: {
             CommandLineParser::help(stdout, "rc", opts);
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok } ; }
         case Man: {
             CommandLineParser::man(opts);
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case SocketFile: {
             mSocketFile = std::move(value);
@@ -629,11 +631,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case Version: {
             fprintf(stdout, "%s\n", RTags::versionString().constData());
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case VerifyVersion: {
             const int version = strtoul(value.constData(), 0, 10);
             if (version != NumOptions) {
                 fprintf(stdout, "Protocol version mismatch\n");
+                mExitCode = RTags::ProtocolFailure;
                 return { String(), CommandLineParser::Parse_Error };
             }
             break; }
@@ -839,10 +843,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case FindProjectRoot: {
             const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
             printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::SourceRoot).constData());
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case FindProjectBuildRoot: {
             const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
             printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::BuildRoot).constData());
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case RTagsConfig: {
             const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
@@ -851,6 +857,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             for (const auto &it : config) {
                 printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case CurrentProject: {
             addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
@@ -952,6 +959,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             print(CXCursor_FirstAttr, CXCursor_LastAttr);
             Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Preprocessing:";
             print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
+            mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case SetBuffers: {
             String arg;

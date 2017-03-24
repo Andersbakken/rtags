@@ -159,7 +159,8 @@ public:
 
     RClient();
     ~RClient();
-    int exec();
+    void exec();
+    int exitCode() const { return mExitCode; }
     CommandLineParser::ParseStatus parse(size_t argc, char **argv);
 
     int max() const { return mMax; }
@@ -217,6 +218,7 @@ private:
     bool mGuessFlags;
     Path mProjectRoot;
     int mTerminalWidth;
+    int mExitCode;
 #ifdef RTAGS_HAS_LUA
     List<String> mVisitASTScripts;
 #endif

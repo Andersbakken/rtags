@@ -77,6 +77,17 @@
 (defconst rtags-diagnostics-buffer-name "*RTags Diagnostics*")
 (defconst rtags-diagnostics-raw-buffer-name " *RTags Raw*")
 
+(defconst rtags-exit-code-success 0)
+(defconst rtags-exit-code-general-failure 32)
+(defconst rtags-exit-code-network-failure 33)
+(defconst rtags-exit-code-timeout-failure 34)
+(defconst rtags-exit-code-not-indexed 35)
+(defconst rtags-exit-code-connection-failure 36)
+(defconst rtags-exit-code-protocol-failure 37)
+(defconst rtags-exit-code-argument-parse-error 38)
+(defconst rtags-return-value-unexpected-message-error 39)
+(defconst rtags-return-value-unknown-message-error 40)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Variables
@@ -1205,30 +1216,24 @@ to only call this when `rtags-socket-file' is defined.
             ;; synchronous
             (goto-char (point-min))
             (save-excursion
-              (and (cond ((re-search-forward "^Can't seem to connect to server" nil t)
-                          (erase-buffer)
-                          (setq rtags-last-request-not-connected t)
-                          (unless noerror
-                            (error "Can't seem to connect to server. Is rdm running?"))
-                          nil)
-                         ((re-search-forward "^Protocol version mismatch" nil t)
-                          (erase-buffer)
-                          (unless noerror
-                            (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
-                                           "and installing a new rtags build that modified the protocol. They need to be in sync.")))
-                          nil)
-                         ((re-search-forward "^Not indexed" nil t)
-                          (erase-buffer)
-                          (setq rtags-last-request-not-indexed t)
-                          nil)
-                         ((looking-at "Project loading")
-                          (erase-buffer)
-                          (message "Project loading...")
-                          t)
-                         (t))
-                   (eq result 0)
-                   rtags-autostart-diagnostics (rtags-diagnostics)))))
-        (or async (> (point-max) (point-min)))))))
+              (cond ((= result rtags-exit-code-success)
+                     (when rtags-autostart-diagnostics
+                       (rtags-diagnostics)))
+                    ((= result rtags-exit-code-connection-failure)
+                     (erase-buffer)
+                     (setq rtags-last-request-not-connected t)
+                     (unless noerror
+                       (error "Can't seem to connect to server. Is rdm running?")))
+                    ((= result rtags-exit-code-protocol-failure)
+                     (erase-buffer)
+                     (unless noerror
+                       (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
+                                      "and installing a new rtags build that modified the protocol. They need to be in sync."))))
+                    ((= result rtags-exit-code-not-indexed)
+                     (erase-buffer)
+                     (setq rtags-last-request-not-indexed t))
+                    (t)))) ;; other error
+          (or async (and (> (point-max) (point-min)) (= result rtags-exit-code-success))))))))
 
 (defvar rtags-preprocess-mode-map (make-sparse-keymap))
 (define-key rtags-preprocess-mode-map (kbd "q") 'rtags-call-bury-or-delete)

@@ -96,6 +96,18 @@ String versionString();
 const LogLevel DiagnosticsLevel(-2);
 const LogLevel Statistics(-3);
 
+enum ExitCodes {
+    Success = 0,
+    GeneralFailure = 32,
+    NetworkFailure = 33,
+    TimeoutFailure = 34,
+    NotIndexed = 35,
+    ConnectionFailure = 36,
+    ProtocolFailure = 37,
+    ArgumentParseError = 38,
+    UnexpectedMessageError = 39,
+    UnknownMessageError = 40
+};
 enum UnitType {
     CompileC,
     CompileCPlusPlus
