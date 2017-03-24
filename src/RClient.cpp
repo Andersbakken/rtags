@@ -166,7 +166,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::WildcardSymbolNames, "wildcard-symbol-names", 'a', CommandLineParser::NoValue, "Expand * like wildcards in --list-symbols and --find-symbols." },
     { RClient::NoColor, "no-color", 'z', CommandLineParser::NoValue, "Don't colorize context." },
     { RClient::Wait, "wait", 0, CommandLineParser::NoValue, "Wait for reindexing to finish." },
-    { RClient::Autotest, "autotest", 0, CommandLineParser::NoValue, "Turn on behaviors appropriate for running autotests." },
     { RClient::CodeCompleteIncludeMacros, "code-complete-include-macros", 0, CommandLineParser::NoValue, "Include macros in code completion results." },
     { RClient::CodeCompleteIncludes, "code-complete-includes", 0, CommandLineParser::NoValue, "Give includes in completion results." },
     { RClient::CodeCompleteNoWait, "code-complete-no-wait", 0, CommandLineParser::NoValue, "Don't wait for synchronous completion if the translation unit has to be created." },
@@ -415,7 +414,7 @@ int RClient::exec()
     if (connection->client())
         connection->client()->close();
     mCommands.clear();
-    if (!ret && !(mFlags & Flag_Autotest) && !hasZeroExit)
+    if (!ret && !hasZeroExit)
         ret = connection->finishStatus();
     return ret;
 }
@@ -500,9 +499,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case CodeCompletionEnabled: {
             mQueryFlags |= QueryMessage::CodeCompletionEnabled;
-            break; }
-        case Autotest: {
-            mFlags |= Flag_Autotest;
             break; }
         case CompilationFlagsOnly: {
             mQueryFlags |= QueryMessage::CompilationFlagsOnly;
