@@ -52,7 +52,7 @@ class Location:
 
 
 def run_rc(args):
-    args = ["rc", "--socket-file=" + socket_file, "--autotest"] + args
+    args = ["rc", "--socket-file=" + socket_file] + args
     return sp.check_output(args)
 
 
