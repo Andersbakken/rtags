@@ -60,14 +60,17 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
     set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt")
     set(CPACK_PACKAGE_VERSION "${RTAGS_VERSION}")
 
-    set(CPACK_GENERATOR TGZ)
+    if (NOT CPACK_GENERATOR)
+        set(CPACK_GENERATOR TGZ)
+    endif ()
     set(CPACK_SOURCE_PACKAGE_FILE_NAME "rtags-${RTAGS_VERSION_MAJOR}.${RTAGS_VERSION_MINOR}"
-      CACHE INTERNAL "tarball basename")
-    set(CPACK_SOURCE_GENERATOR TGZ)
+        CACHE INTERNAL "tarball basename")
+    set(CPACK_SOURCE_GENERATOR ${CPACK_GENERATOR})
 
     set(CPACK_SOURCE_IGNORE_FILES
       "~$"
       "\\\\.gitignore$"
+      "\\\\.gitmodules$"
       "^${PROJECT_SOURCE_DIR}/.git/"
       "^${PROJECT_SOURCE_DIR}/build/"
       )
