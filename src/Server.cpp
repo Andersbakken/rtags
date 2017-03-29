@@ -211,8 +211,8 @@ bool Server::init(const Options &options)
     assert(mOptions.pollTimer >= 0);
     if (mOptions.pollTimer) {
         mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
-                if (std::shared_ptr<Project> proj = mCurrentProject.lock()) {
-                    proj->validateAll();
+                for (auto proj : mProjects) {
+                    proj.second->validateAll();
                 }
             }, mOptions.pollTimer * 1000);
     }

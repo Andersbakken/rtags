@@ -181,6 +181,27 @@ public:
     Hash<uint32_t, Set<uint32_t> > mModified;
 };
 
+static Project::DependencyMode modeForSymbol(const Symbol &symbol)
+{
+    Project::DependencyMode mode = symbol.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg;
+    switch (symbol.kind) {
+    case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate:
+    case CXCursor_StructDecl:
+    case CXCursor_FunctionDecl:
+        if (!symbol.isDefinition()) // forward declarations for global functions and classes/structs
+            mode = Project::All;
+        break;
+    case CXCursor_VarDecl:
+        if (symbol.kind == CXCursor_VarDecl && symbol.linkage == CXLinkage_External && !symbol.isDefinition())
+            mode = Project::All;
+    default:
+        break;
+    }
+
+    return mode;
+}
+
 static bool loadDependencies(DataFile &file, Dependencies &dependencies)
 {
     int size;
@@ -1508,8 +1529,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
     case CXCursor_FunctionTemplate: {
-        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(),
-                                              symbol.isDefinition() ? ArgDependsOn : DependsOnArg, symbol.location);
+        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), modeForSymbol(symbol));
         for (const auto &c : symbols) {
             if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
@@ -1526,7 +1546,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
                 ret.unite(findByUsr(usr, symbol.location.fileId(), Project::DependsOnArg));
             }
         } else {
-            for (const String &usr : findTargetUsrs(symbol.location)) {
+            for (const String &usr : findTargetUsrs(symbol)) {
                 ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
             }
         }
@@ -1536,7 +1556,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode, Location filtered)
+Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
 {
     assert(fileId);
     Set<Symbol> ret;
@@ -1555,20 +1575,6 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
             // for (int i=0; i<usrs->count(); ++i) {
             //     error() << i << usrs->count() << usrs->keyAt(i) << usrs->valueAt(i);
             // }
-        }
-    }
-    if (ret.isEmpty() || (!filtered.isNull() && ret.size() == 1 && ret.begin()->location == filtered)) {
-        for (const auto &dep : mDependencies) {
-            auto usrs = openUsrs(dep.first);
-            if (usrs) {
-                // SBROOT
-                tusr = Sandbox::encoded(usr);
-                for (Location loc : usrs->value(tusr)) {
-                    const Symbol c = findSymbol(loc);
-                    if (!c.isNull())
-                        ret.insert(c);
-                }
-            }
         }
     }
 
@@ -1668,9 +1674,7 @@ static Set<Symbol> findReferences(const Symbol &in,
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
     case CXCursor_NamespaceAlias:
-        inputs = project->findByUsr(s.usr, location.fileId(),
-                                    s.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg,
-                                    in.location);
+        inputs = project->findByUsr(s.usr, location.fileId(), modeForSymbol(s));
         break;
     default:
         inputs.insert(s);
@@ -1707,7 +1711,7 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
 
     Set<Symbol> inputs;
     inputs.insert(symbol);
-    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), DependsOnArg, symbol.location));
+    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), modeForSymbol(symbol)));
     Set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
         Set<Symbol> inputLocations;
