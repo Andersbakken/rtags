@@ -1076,6 +1076,11 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     }
 
     std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project) {
+        List<Match> matches;
+        matches << path;
+        project = projectForMatches(matches);
+    }
     if (!project || !project->dependencies().contains(fileId)) {
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
