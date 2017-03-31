@@ -215,6 +215,11 @@ warnings and fixups."
   :type 'boolean
   :safe 'booleanp)
 
+(defun rtags-set-transient-map (map)
+  (cond ((fboundp 'set-transient-map) (set-transient-map map))
+        ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
+        (t)))
+
 (defvar rtags-periodic-reparse-timer nil)
 (defun rtags--update-periodic-reparse-timer ()
   (when (and (not rtags-periodic-reparse-timer)
@@ -793,6 +798,20 @@ to case differences."
 (define-key rtags-references-tree-mode-map (kbd "k") 'previous-line)
 (define-key rtags-references-tree-mode-map (kbd "j") 'next-line)
 (define-key rtags-references-tree-mode-map (kbd "q") 'rtags-call-bury-or-delete)
+
+(defvar rtags-location-stack-visualize-mode-map nil)
+(setq rtags-location-stack-visualize-mode-map (make-sparse-keymap))
+(define-key rtags-location-stack-visualize-mode-map (kbd "RET") 'rtags-select-other-window)
+(define-key rtags-location-stack-visualize-mode-map (kbd "M-RET") 'rtags-select)
+(define-key rtags-location-stack-visualize-mode-map [mouse-1] 'rtags-select-other-window)
+(define-key rtags-location-stack-visualize-mode-map [mouse-2] 'rtags-select-other-window)
+(define-key rtags-location-stack-visualize-mode-map (kbd "M-o") 'rtags-show-in-other-window)
+(define-key rtags-location-stack-visualize-mode-map (kbd "s") 'rtags-show-in-other-window)
+(define-key rtags-location-stack-visualize-mode-map (kbd "SPC") 'rtags-select-and-remove-rtags-buffer)
+(define-key rtags-location-stack-visualize-mode-map (kbd "k") 'previous-line)
+(define-key rtags-location-stack-visualize-mode-map (kbd "j") 'next-line)
+(define-key rtags-location-stack-visualize-mode-map (kbd "q") 'rtags-call-bury-or-delete)
+
 
 (defvar rtags-current-file nil)
 (make-variable-buffer-local 'rtags-current-file)
@@ -2225,15 +2244,51 @@ See `rtags-current-location' for loc-arg format."
         (when (and (>= target 0) (< target (length rtags-location-stack)))
           (setq rtags-location-stack-index target)
           (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t nil t))))
+    (rtags-location-stack-visualize-update)
     (when repeat-char
       (let ((map (make-sparse-keymap)))
         (define-key map (vector repeat-char)
           `(lambda ()
              (interactive)
              (rtags-location-stack-jump ,by)))
-        (cond ((fboundp 'set-transient-map) (set-transient-map map))
-              ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
-              (t))))))
+        (rtags-set-transient-map map)))))
+
+(define-derived-mode rtags-location-stack-visualize-mode fundamental-mode "rtags"
+  ;; (set (make-local-variable 'font-lock-defaults)
+  ;;      '(rtags-font-lock-keywords (save-excursion
+  ;;                                   (goto-char (point-min))
+  ;;                                   (when (search-forward "'\"'" nil t)
+  ;;                                     t))))
+  (goto-char (point-min))
+  (setq next-error-function 'rtags-next-prev-match)
+  (rtags-init-current-line-overlay)
+  (setq buffer-read-only t))
+
+;;;###autoload
+(defun rtags-location-stack-visualize-update ()
+  (let ((buffer (get-buffer "*RTags Location Stack*")))
+    (when buffer
+      (with-current-buffer buffer
+        (let ((idx -1)
+              (buffer-read-only nil)
+              (lines))
+          (erase-buffer)
+          (mapc (lambda (entry)
+                  (incf idx)
+                  (push (if (= idx rtags-location-stack-index)
+                            (concat entry " <--")
+                          entry) lines))
+                rtags-location-stack)
+          (insert (mapconcat 'identity lines "\n")))
+        (rtags-location-stack-visualize-mode)
+        (forward-line rtags-location-stack-index)))))
+
+(defun rtags-location-stack-visualize ()
+  (interactive)
+  (if (<= (length rtags-location-stack) 1)
+      (message "RTags: Location stack is empty")
+    (switch-to-buffer (rtags-get-buffer "*RTags Location Stack*"))
+    (rtags-location-stack-visualize-update)))
 
 ;; **************************** API *********************************
 
@@ -2285,7 +2340,8 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "h")) 'rtags-print-class-hierarchy)
   (define-key map (kbd (concat prefix "a")) 'rtags-print-source-arguments)
   (define-key map (kbd (concat prefix "A")) 'rtags-find-functions-called-by-this-function)
-  (define-key map (kbd (concat prefix "l")) 'rtags-list-results))
+  (define-key map (kbd (concat prefix "l")) 'rtags-list-results)
+  (define-key map (kbd (concat prefix "Z")) 'rtags-location-stack-visualize))
 
 
 ;; XXX - would be nice to rename functions to match menu prompts and
@@ -3542,6 +3598,11 @@ other window instead of the current one."
            (let ((cur (rtags-dependency-tree-current-file)))
              (when cur
                (rtags-goto-location (car cur) nil other-window))))
+          ((string= (buffer-name) "*RTags Location Stack*")
+           (let ((index (- (length rtags-location-stack) line)))
+             (setq rtags-location-stack-index index)
+             (rtags-goto-location (nth rtags-location-stack-index rtags-location-stack) t other-window t)
+             (rtags-location-stack-visualize-update)))
           ((and (car idx)
                 (>= rtags-buffer-bookmarks (car idx))
                 (member bookmark (rtags-bookmark-all-names)))
