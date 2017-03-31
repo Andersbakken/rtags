@@ -593,7 +593,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     } const format = flags & QueryMessage::Elisp ? Diagnostics_Elisp : Diagnostics_XML;
 
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t) {
+        formatDiagnostic = [](Location loc, const Diagnostic &diagnostic, uint32_t) {
             return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
                                        loc.line(), loc.column(),
                                        (diagnostic.length <= 0 ? ""
@@ -2489,7 +2489,7 @@ void Project::processParseData(IndexParseData &&data)
     Hash<uint32_t, uint32_t> removed;
     if (mIndexParseData.isEmpty()) {
         mIndexParseData = std::move(data);
-        forEachSources([this, &index](const Sources &sources) -> VisitResult {
+        forEachSources([&index](const Sources &sources) -> VisitResult {
                 for (auto pair : sources) {
                     index.insert(pair.first);
                 }
