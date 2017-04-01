@@ -590,8 +590,9 @@ c++mode.
 E.g.
 
 #+BEGIN_SRC emacs-lisp
-(add-hook 'c-mode-common-hook 'rtags-start-process-unless-running)
-(add-hook 'c++-mode-common-hook 'rtags-start-process-unless-running)
+(add-hook 'c-mode-hook 'rtags-start-process-unless-running)
+(add-hook 'c++-mode-hook 'rtags-start-process-unless-running)
+(add-hook 'objc-mode-hook 'rtags-start-process-unless-running)
 #+END_SRC
 
 #+begin_src emacs-lisp
