@@ -1,10 +1,12 @@
-;;; rtags.el --- A front-end for rtags
+;;; company-rtags.el --- RTags back-end for company
 
-;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
+;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
+;; Version: 0.5
+;; Package-Requires: ((emacs "24.3") (company "0.8.1"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -43,7 +45,8 @@
   :link '(url-link :tag "Website" "http://rtags.net"))
 
 (defcustom company-rtags-begin-after-member-access t
-  "When non-nil, automatic completion will start whenever the current
+  "Whether to start automatic completion or not.
+When non-nil, automatic completion will start whenever the current
 symbol is preceded by \".\", \"->\" or \"::\", ignoring
 `company-minimum-prefix-length'.
 
@@ -58,13 +61,14 @@ and `c-electric-colon', for automatic completion right after \">\" and
   :group 'company-rtags
   :type 'boolean)
 
-(defvar rtags-company-last-completion-location nil)
-(defvar rtags-company-last-completion-prefix-type nil)
-(defvar rtags-company-last-completion-callback nil)
-(defvar rtags-company-last-completion-prefix nil)
-(defvar rtags-company-completions-maxwidth nil)
+(defvar company-rtags-last-completion-location nil)
+(defvar company-rtags-last-completion-prefix-type nil)
+(defvar company-rtags-last-completion-callback nil)
+(defvar company-rtags-last-completion-prefix nil)
+(defvar company-rtags-completions-maxwidth nil)
 
 (defun company-rtags--prefix ()
+  "Check for prefix."
   (let ((symbol (company-grab-symbol)))
     (if symbol
         (cond ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (point-at-bol)) (match-string 1))
@@ -81,6 +85,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
       'stop)))
 
 (defun company-rtags--prefix-type ()
+  "Get prefix type."
   (let ((symbol (company-grab-symbol))
         (string-or-comment (company-in-string-or-comment)))
     (when symbol
@@ -93,42 +98,47 @@ and `c-electric-colon', for automatic completion right after \">\" and
               (t nil))))))
 
 (defun company-rtags--valid-candidate (prefix cand)
+  "Verify CAND (candidate).
+
+PREFIX, is prefix type."
   (and (> (length (car cand)) 0)
        (or (not prefix)
            (string-prefix-p prefix (car cand)))
        (not (string= (nth 2 cand) "NotImplemented"))
-       (or (not rtags-company-last-completion-prefix-type)
-           (eq rtags-company-last-completion-prefix-type 'company-rtags-colons)
+       (or (not company-rtags-last-completion-prefix-type)
+           (eq company-rtags-last-completion-prefix-type 'company-rtags-colons)
            (not (string= (nth 2 cand) "EnumConstantDecl")))))
 
 (defun company-rtags--make-candidate (candidate)
+  "Insert CANDIDATE."
   (let* ((text (copy-sequence (nth 0 candidate)))
          (meta (nth 1 candidate))
          (brief (nth 3 candidate))
          (metalength (length meta)))
     (put-text-property 0 1 'meta-insert meta text)
-    (when (> metalength rtags-company-completions-maxwidth)
+    (when (> metalength company-rtags-completions-maxwidth)
       ;; (message "text %s meta %s metalength %d max %d brief %s"
-      ;;          text meta metalength rtags-company-completions-maxwidth brief)
-      (setq meta (concat (substring meta 0 (- rtags-company-completions-maxwidth 5)) "<...>)")))
+      ;;          text meta metalength company-rtags-completions-maxwidth brief)
+      (setq meta (concat (substring meta 0 (- company-rtags-completions-maxwidth 5)) "<...>)")))
     (put-text-property 0 1 'meta meta text)
     (put-text-property 0 1 'brief brief text)
     text))
 
 (defun company-rtags--candidates ()
-  (if (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
-      (let* ((file (and (string-match "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$" rtags-company-last-completion-location)
-                        (match-string 1 rtags-company-last-completion-location)))
+  "Get candidates."
+  (if (member company-rtags-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))
+      (let* ((file (and (string-match "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$" company-rtags-last-completion-location)
+                        (match-string 1 company-rtags-last-completion-location)))
              (alternatives (and file
                                 (with-temp-buffer
-                                  (rtags-call-rc :path file "--code-complete-at" rtags-company-last-completion-location "--code-complete-includes" "--elisp")
+                                  (rtags-call-rc :path file "--code-complete-at" company-rtags-last-completion-location "--code-complete-includes" "--elisp")
                                   (eval (read (buffer-string))))))
              (results))
         (while alternatives
           (let ((text (car alternatives)))
-            (when (or (not rtags-company-last-completion-prefix)
-                      (string-prefix-p rtags-company-last-completion-prefix text))
-              (put-text-property 0 1 'meta-insert (concat text (if (eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote) "\"" ">")) text)
+            (when (or (not company-rtags-last-completion-prefix)
+                      (string-prefix-p company-rtags-last-completion-prefix text))
+              (put-text-property 0 1 'meta-insert (concat text (if (eq company-rtags-last-completion-prefix-type 'company-rtags-include-quote) "\"" ">")) text)
               (push text results))
             (setq alternatives (cdr alternatives))))
         results)
@@ -137,18 +147,23 @@ and `c-electric-colon', for automatic completion right after \">\" and
       (with-temp-buffer
         (rtags-call-rc :path (buffer-file-name buf)
                        :unsaved (and (buffer-modified-p buf) buf)
-                       "--code-complete-at" rtags-company-last-completion-location
+                       "--code-complete-at" company-rtags-last-completion-location
                        "--synchronous-completions"
                        "--elisp"
-                       (if (> (length rtags-company-last-completion-location) 0)
-                           (concat "--code-complete-prefix=" rtags-company-last-completion-prefix)))
+                       (if (> (length company-rtags-last-completion-location) 0)
+                           (concat "--code-complete-prefix=" company-rtags-last-completion-prefix)))
 
-        (rtags-company--make-candidates)))))
+        (company-rtags--make-candidates)))))
 
 (defun company-rtags--meta (candidate insert)
+  "Get candidate meta property.
+
+CANDIDATE is the company candidate.  When INSERT is non-nill get 'meta-insert
+property from candidate, otherwise 'meta."
   (get-text-property 0 (if insert 'meta-insert 'meta) candidate))
 
 (defun company-rtags--doc-buffer (candidate)
+  "Get documentation for CANDIDATE."
   (let ((brief (get-text-property 0 'brief candidate))
         (meta (company-rtags--meta candidate nil)))
     (if meta
@@ -156,16 +171,21 @@ and `c-electric-colon', for automatic completion right after \">\" and
       brief)))
 
 (defun company-rtags--annotation (candidate insert)
+  "Company RTags annoation function.
+When INSERT is non-nill get 'meta-insert property of CANDIDATE,
+otherwise 'meta property. See also `company-rtags--meta'."
   (let ((meta (company-rtags--meta candidate insert)))
     (cond
      ((null meta) nil)
      ((string-match "\\((.*)\\)" meta)
       (match-string 1 meta)))))
 
-(defun rtags-company-completions-calculate-maxwidth ()
-  (setq rtags-company-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
+(defun company-rtags-completions-calculate-maxwidth ()
+  "Calculate the maximal width for completion candidates."
+  (setq company-rtags-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
 
-(defun rtags-company--make-candidates ()
+(defun company-rtags--make-candidates ()
+  "Make company candidates."
   (goto-char (point-min))
   (when (looking-at "(")
     (let ((data
@@ -175,22 +195,23 @@ and `c-electric-colon', for automatic completion right after \">\" and
               (message "****** Got Completion Error ******")
               nil))))
       (when (and (eq (car data) 'completions)
-                 (string= (rtags-untrampify rtags-company-last-completion-location) (caadr data)))
+                 (string= (rtags-untrampify company-rtags-last-completion-location) (caadr data)))
         (let ((all (cadadr data))
               (completions))
           (while all
-            (when (company-rtags--valid-candidate rtags-company-last-completion-prefix (car all))
+            (when (company-rtags--valid-candidate company-rtags-last-completion-prefix (car all))
               (push (company-rtags--make-candidate (car all)) completions))
             (setq all (cdr all)))
           (nreverse completions))))))
 
-(defun rtags-company-code-complete-at-sentinel (process event)
+(defun company-rtags-code-complete-at-sentinel (process event)
+  "Company RTags code complete at sentinel function."
   (let ((status (process-status process)))
     (when (eq status 'exit)
       (with-current-buffer (process-buffer process)
-        (let ((completions (rtags-company--make-candidates)))
+        (let ((completions (company-rtags--make-candidates)))
           (when completions
-            (funcall rtags-company-last-completion-callback completions)))))
+            (funcall company-rtags-last-completion-callback completions)))))
     (when (memq status '(exit signal closed failed))
       (kill-buffer (process-buffer process)))))
 
@@ -200,8 +221,8 @@ and `c-electric-colon', for automatic completion right after \">\" and
   ;; (message "company-rtags %s %s" (symbol-name command) arg)
   (cl-case command
     (init
-     (setq rtags-company-last-completion-callback nil)
-     (setq rtags-company-last-completion-location nil))
+     (setq company-rtags-last-completion-callback nil)
+     (setq company-rtags-last-completion-location nil))
     (interactive
      (company-begin-backend 'company-rtags))
     (prefix
@@ -212,24 +233,24 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (candidates
      (let ((pos (rtags-calculate-completion-point)))
        (when pos
-         (setq rtags-company-last-completion-prefix (if (> (length arg) 0) arg))
-         (setq rtags-company-last-completion-prefix-type (company-rtags--prefix-type))
-         (setq rtags-company-last-completion-location (rtags-current-location pos t))
-         (rtags-company-completions-calculate-maxwidth)
+         (setq company-rtags-last-completion-prefix (if (> (length arg) 0) arg))
+         (setq company-rtags-last-completion-prefix-type (company-rtags--prefix-type))
+         (setq company-rtags-last-completion-location (rtags-current-location pos t))
+         (company-rtags-completions-calculate-maxwidth)
          (company-rtags--candidates))))
     (meta
      (company-rtags--meta arg nil))
-    (sorted (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))))
+    (sorted (not (member company-rtags-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote))))
     (annotation
-     (and (not (member rtags-company-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote)))
+     (and (not (member company-rtags-last-completion-prefix-type (list 'company-rtags-include 'company-rtags-include-quote)))
           (company-rtags--annotation arg nil)))
     (doc-buffer
      (company-doc-buffer (company-rtags--doc-buffer arg)))
     (post-completion
-     (cond ((eq rtags-company-last-completion-prefix-type 'company-rtags-include)
+     (cond ((eq company-rtags-last-completion-prefix-type 'company-rtags-include)
             (unless (search-forward ">" (point-at-eol) t)
               (insert ">")))
-           ((eq rtags-company-last-completion-prefix-type 'company-rtags-include-quote)
+           ((eq company-rtags-last-completion-prefix-type 'company-rtags-include-quote)
             (unless (search-forward "\"" (point-at-eol) t)
               (insert "\"")))
            (t
@@ -239,7 +260,8 @@ and `c-electric-colon', for automatic completion right after \">\" and
                 (company-template-c-like-templatify anno))))))))
 
 
-(defun rtags-completion-at-point ()
+(defun company-rtags-completion-at-point ()
+  "Complete at point."
   (when (and (company-manual-begin)
              (boundp 'company-common)
              (looking-back company-common (line-beginning-position)))

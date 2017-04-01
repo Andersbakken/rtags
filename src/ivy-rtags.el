@@ -1,11 +1,12 @@
-;;; rtags-helm.el --- A front-end for rtags
+;;; ivy-rtags.el --- RTags completion back-end for ivy
 
-;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
+;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
-;; Version: 2.3.94
+;; Version: 0.1
+;; Package-Requires: ((ivy "0.7.0") (rtags "2.9"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -34,7 +35,8 @@
 (require 'rtags)
 (require 'ivy)
 
-(defun rtags-ivy-collection ()
+(defun ivy-rtags-collection ()
+  "Get candidates."
   (let ((buf (get-buffer rtags-buffer-name))
         (ret))
     (when buf
@@ -51,19 +53,23 @@
                 (forward-line 1)))))))
     ret))
 
-(defun rtags-ivy-select (candidate)
+(defun ivy-rtags-select (candidate)
+  "Select CANDIDATE."
   (with-current-buffer (get-buffer rtags-buffer-name)
     (goto-char (cdr candidate))
     (rtags-select nil nil)))
 
-;; (defun rtags-ivy-select-other-window (candidate)
+;; (defun ivy-rtags-select-other-window (candidate)
 ;;   (with-current-buffer (get-buffer rtags-buffer-name)
 ;;     (goto-char (cdr candidate))
 ;;     (rtags-select t nil)))
 
-(defun rtags-ivy-read ()
-  (ivy-read "RTags Ivy: " (rtags-ivy-collection)
+(defun ivy-rtags-read ()
+  "RTags completing read function for `ivy'."
+  (ivy-read "RTags Ivy: " (ivy-rtags-collection)
             :require-match t
-            :action #'rtags-ivy-select))
+            :action #'ivy-rtags-select))
 
-(provide 'rtags-ivy)
+(provide 'ivy-rtags)
+
+;;; ivy-rtags.el ends here

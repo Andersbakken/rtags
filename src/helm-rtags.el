@@ -1,11 +1,12 @@
-;;; rtags-helm.el --- A front-end for rtags
+;;; helm-rtags.el --- A front-end for rtags
 
 ;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
-;; Version: 2.3.94
+;; Version: 0.2
+;; Package-Requires: ((helm "2.0") (rtags "2.9"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -36,15 +37,16 @@
 
 (declare-function helm-highlight-current-line "ext:helm")
 
-(defcustom rtags-helm-actions
-  '(("Select" . rtags-helm-select)
-    ("Select other window" . rtags-helm-select-other-window))
+(defcustom helm-rtags-actions
+  '(("Select" . helm-rtags-select)
+    ("Select other window" . helm-rtags-select-other-window))
   "RTags helm actions.
 Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
   :group 'rtags
   :type '(alist :key-type string :value-type function))
 
-(defun rtags-helm-candidates ()
+(defun helm-rtags-candidates ()
+  "Get candidates."
   (let ((buf (get-buffer rtags-buffer-name))
         (ret))
     (when buf
@@ -61,19 +63,22 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
                 (forward-line 1)))))))
     ret))
 
-(defun rtags-helm-select (candidate)
+(defun helm-rtags-select (candidate)
+  "Select CANDIDATE."
   (with-current-buffer (get-buffer rtags-buffer-name)
     (goto-char candidate)
     (rtags-select nil nil)))
 
-(defun rtags-helm-select-other-window (candidate)
+(defun helm-rtags-select-other-window (candidate)
+  "Select CANDIDATE in other window."
   (with-current-buffer (get-buffer rtags-buffer-name)
     (goto-char candidate)
     (rtags-select t nil)))
 
 ;; (message "CAND: %d" (get-text-property 0 'rtags-buffer-position candidate)))
 
-(defun rtags-helm-get-candidate-line (candidate)
+(defun helm-rtags-get-candidate-line (candidate)
+  "Get CANDIDATE line."
   (with-current-buffer (get-buffer rtags-buffer-name)
     (goto-char candidate)
     (buffer-substring-no-properties (save-excursion
@@ -82,35 +87,39 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
                                       (point))
                                     (point-at-eol))))
 
-(defun rtags-helm-select-persistent (candidate)
-  (let ((line (rtags-helm-get-candidate-line candidate)))
+(defun helm-rtags-select-persistent (candidate)
+  "Goto CANDIDATE (Helm persistent action)."
+  (let ((line (helm-rtags-get-candidate-line candidate)))
     (rtags-goto-location line t nil)
     (helm-highlight-current-line)))
 
-(defface rtags-helm-file-face
+(defface helm-rtags-file-face
   '((t :inherit font-lock-keyword-face))
   "Face used to highlight file name in the *RTags Helm* buffer."
   :group 'rtags)
 
-(defface rtags-helm-lineno-face
+(defface helm-rtags-lineno-face
   '((t :inherit font-lock-doc-face))
   "Face used to highlight line number in the *RTags Helm* buffer."
   :group 'rtags)
 
-(defun rtags-helm-transform (candidate)
-  (let ((line (rtags-helm-get-candidate-line candidate)))
+(defun helm-rtags-transform (candidate)
+  "Transform CANDIDATE."
+  (let ((line (helm-rtags-get-candidate-line candidate)))
     (when (string-match "\\`\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\):\\(.*\\)" line)
       (format "%s:%s:%s:%s"
-              (propertize (match-string 1 line) 'face 'rtags-helm-file-face)
-              (propertize (match-string 2 line) 'face 'rtags-helm-lineno-face)
-              (propertize (match-string 3 line) 'face 'rtags-helm-lineno-face)
+              (propertize (match-string 1 line) 'face 'helm-rtags-file-face)
+              (propertize (match-string 2 line) 'face 'helm-rtags-lineno-face)
+              (propertize (match-string 3 line) 'face 'helm-rtags-lineno-face)
               (match-string 4 line)))))
 
-(defvar rtags-helm-source nil)
-(setq rtags-helm-source '((name . "RTags Helm")
-                          (candidates . rtags-helm-candidates)
-                          (real-to-display . rtags-helm-transform)
-                          (action . rtags-helm-actions)
-                          (persistent-action . rtags-helm-select-persistent)))
+(defvar helm-rtags-source nil)
+(setq helm-rtags-source '((name . "RTags Helm")
+                          (candidates . helm-rtags-candidates)
+                          (real-to-display . helm-rtags-transform)
+                          (action . helm-rtags-actions)
+                          (persistent-action . helm-rtags-select-persistent)))
 
-(provide 'rtags-helm)
+(provide 'helm-rtags)
+
+;;; helm-rtags.el ends here

@@ -1,9 +1,11 @@
 ;;; flycheck-rtags.el --- RTags Flycheck integration.
 
-;; Copyright (C) 2016 Christian Schwarzgruber
+;; Copyright (C) 2017 Christian Schwarzgruber
 
 ;; Author: Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
 ;; URL: http://rtags.net
+;; Version: 0.2
+;; Package-Requires: ((emacs "24") (flycheck "0.23") (rtags "2.9"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -67,6 +69,8 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
    :group 'flycheck-rtags)
 
 (defun flycheck-rtags--build-error (checker buffer)
+  "Flycheck RTags build error function.
+CHECKER is the syntax checker used to parse BUFFER."
   (let* ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
          (file-name (file-truename (buffer-file-name buffer)))
          (rx (concat "^\\(" file-name "\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
@@ -93,12 +97,15 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
     flycheck-errors))
 
 (defun flycheck-rtags--start (checker callback)
+  "Flycheck RTags start function.
+CHECKER is the syntax checker (RTags).
+CALLBACK is the callback function to call."
   (let ((buffer (current-buffer)))
     (rtags-diagnostics)
     (funcall callback 'finished (flycheck-rtags--build-error checker buffer))))
 
 (defun flycheck-rtags--verify (checker)
-  "Verify the Flycheck RTags syntax checker."
+  "Verify the Flycheck RTags syntax CHECKER."
   (list
    (flycheck-verification-result-new
     :label "RTags enabled"

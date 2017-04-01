@@ -1,10 +1,11 @@
-;;; rtags.el --- A front-end for rtags
+;;; ac-rtags.el --- auto-complete back-end for RTags
 
-;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
+;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
+;; Package-Requires: ((auto-complete "1.4.0") (rtags "2.9"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -32,7 +33,7 @@
 (require 'auto-complete)
 (eval-when-compile (require 'cl))
 
-(defgroup rtags-ac nil
+(defgroup ac-rtags nil
   "Auto completion back-end for RTags."
   :prefix "rtags-"
   :group 'ac
@@ -41,17 +42,19 @@
 
 (defconst rtags-location-regx "\\([^:]*\\):\\([0-9]*\\):\\([0-9]*\\)")
 
-(defcustom rtags-ac-expand-functions t
+(defcustom ac-rtags-expand-functions t
   "Whether to expand function parameter lists in `auto-complete' mode."
-  :group 'rtags-ac
+  :group 'ac-rtags
   :type 'boolean)
 
-(defun rtags-ac-trim-leading-trailing-whitespace (argstr)
+(defun ac-rtags-trim-leading-trailing-whitespace (argstr)
+  "Remove leading trailing whitespaces from ARGSTR."
   (replace-regexp-in-string
    (rx (one-or-more blank) string-end) ""
    (replace-regexp-in-string (rx string-start (one-or-more blank)) "" argstr)))
 
-(defun rtags-ac-candidates ()
+(defun ac-rtags-candidates ()
+  "Get candidates."
   (let ((buf (current-buffer))
         (loc (rtags-current-location)))
     (when (buffer-file-name buf)
@@ -70,34 +73,35 @@
             (and (eq (car data) 'completions)
                  (mapcar #'(lambda (elem)
                              (propertize (car elem)
-                                         'rtags-ac-full (cadr elem)
-                                         'rtags-ac-type (caddr elem)))
+                                         'ac-rtags-full (cadr elem)
+                                         'ac-rtags-type (caddr elem)))
                          (cadadr data)))))))))
 
-(defun rtags-ac-document (item)
-  (get-text-property 0 'rtags-ac-full item))
+(defun ac-rtags-document (item)
+  "Get property text from ITEM."
+  (get-text-property 0 'ac-rtags-full item))
 
-(defun rtags-ac-action ()
+(defun ac-rtags-action ()
   ;; propertized string of last completion is cdr of `ac-last-completion'
   (let* ((last-compl (cdr ac-last-completion))
-         (type (get-text-property 0 'rtags-ac-type last-compl))
-         (tag (rtags-ac-document last-compl)))
+         (type (get-text-property 0 'ac-rtags-type last-compl))
+         (tag (ac-rtags-document last-compl)))
     (cond ((or (string= type "CXXMethod")
                (string= type "FunctionDecl")
                (string= type "FunctionTemplate"))
-           (and rtags-ac-expand-functions (rtags-ac-action-function tag)))
+           (and ac-rtags-expand-functions (ac-rtags-action-function tag)))
           ((or (string= type "Namespace")
                (string= type "NamespaceAlias"))
-           (rtags-ac-action-namespace tag))
+           (ac-rtags-action-namespace tag))
           (t
            nil))))
 
-(defun rtags-ac-action-function (origtag)
+(defun ac-rtags-action-function (origtag)
   ;; grab only inside the func arg list: int func( int x, int y )
   ;;                                              ^............^
   (let* ((tag (replace-regexp-in-string
                ".*(" "" (replace-regexp-in-string ").*" "" origtag)))
-         (arglist (mapcar #'rtags-ac-trim-leading-trailing-whitespace
+         (arglist (mapcar #'ac-rtags-trim-leading-trailing-whitespace
                           (split-string tag "," t)))
          insertfunc inserttxt)
 
@@ -115,10 +119,10 @@
            (setq inserttxt (mapconcat 'identity arglist ", "))))
     (apply insertfunc (list (concat "(" inserttxt ")")))))
 
-(defun rtags-ac-action-namespace (origtag)
+(defun ac-rtags-action-namespace (origtag)
   (insert "::"))
 
-(defun rtags-ac-prefix ()
+(defun ac-rtags-prefix ()
   ;; shamelessly borrowed from clang-complete-async
   (or (ac-prefix-symbol)
       (let ((c (char-before)))
@@ -131,23 +135,23 @@
                        (eq ?: (char-before (1- (point))))))
           (point)))))
 
-(defun rtags-ac-init ()
+(defun ac-rtags-init ()
   (rtags-diagnostics))
 
-(defun rtags-ac-completions-hook ()
+(defun ac-rtags-completions-hook ()
   (ac-start))
 
-(add-hook 'rtags-completions-hook 'rtags-ac-completions-hook)
+(add-hook 'rtags-completions-hook 'ac-rtags-completions-hook)
 
 (ac-define-source rtags
-  '((init . rtags-ac-init)
-    (prefix . rtags-ac-prefix)
-    (candidates . rtags-ac-candidates)
-    (action . rtags-ac-action)
-    (document . rtags-ac-document)
+  '((init . ac-rtags-init)
+    (prefix . ac-rtags-prefix)
+    (candidates . ac-rtags-candidates)
+    (action . ac-rtags-action)
+    (document . ac-rtags-document)
     (requires . 0)
     (symbol . "r")))
 
-(provide 'rtags-ac)
+(provide 'ac-rtags)
 
-;;; rtags-ac.el ends here
+;;; ac-rtags.el ends here

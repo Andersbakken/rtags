@@ -1,11 +1,11 @@
 ;;; rtags.el --- A front-end for rtags
 
-;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
+;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
-;; Version: 2.3.94
+;; Version: 2.9
 
 ;; This file is not part of GNU Emacs.
 
@@ -62,8 +62,8 @@
 (declare-function yas-expand-snippet "ext:yasnippet" t)
 (declare-function popup-tip "ext:popup" t)
 (declare-function helm "ext:helm" t)
-(declare-function rtags-ivy-read "ext:ivy" t)
-(declare-function rtags-helm-get-candidate-line 'rtags (candidate))
+(declare-function ivy-rtags-read "ext:ivy" t)
+(declare-function helm-rtags-get-candidate-line 'rtags (candidate))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,8 +100,8 @@
 (defvar rtags-jump-hook nil)
 (defvar rtags-diagnostics-suspended nil)
 (defvar rtags-taglist-hook nil)
-(defvar rtags-path-face 'rtags-path "Path part")
-(defvar rtags-context-face 'rtags-context "Context part")
+(defvar rtags-path-face 'rtags-path "Path part.")
+(defvar rtags-context-face 'rtags-context "Context part.")
 (defvar rtags-last-request-not-indexed nil)
 (defvar rtags-last-request-not-connected nil)
 (defvar rtags-buffer-bookmarks 0)
@@ -114,7 +114,7 @@
 ;; Customizations
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defcustom rtags-enabled t
-  "Whether RTags is enabled. We try to do nothing when it's not."
+  "Whether RTags is enabled.  We try to do nothing when it's not."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -171,7 +171,7 @@ Set to nil to enable ido-ubiquitous etc."
 
 (defcustom rtags-diagnostics-use-pipe t
   "Whether diagnostics should use pipes.
-If you're running emacs in cygwin you might have to set this to nil."
+If you're running Emacs in cygwin you might have to set this to nil."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -183,15 +183,13 @@ If you're running emacs in cygwin you might have to set this to nil."
   :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
-  "Whether RTags does syntax checking with overlays etc to mark errors,
-warnings and fixups."
+  "Whether RTags does syntax checking with overlays etc to mark errors, warnings and fixups."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-multiple-targets t
-  "Whether RTags will offer multiple choices for rtags-find-symbol-at-point when appropriate,
-warnings and fixups."
+  "Whether RTags will offer multiple choices for `rtags-find-symbol-at-point' when appropriate, warnings and fixups."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -203,8 +201,7 @@ warnings and fixups."
   :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
-  "Whether RTags sorts the references based on the input to
-`rtags-find-references'."
+  "Whether RTags sorts the references based on the input to `rtags-find-references'."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -216,12 +213,14 @@ warnings and fixups."
   :safe 'booleanp)
 
 (defun rtags-set-transient-map (map)
+  "Set transient MAP."
   (cond ((fboundp 'set-transient-map) (set-transient-map map))
         ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
         (t)))
 
 (defvar rtags-periodic-reparse-timer nil)
 (defun rtags--update-periodic-reparse-timer ()
+  "Update periodic reparse timer."
   (when (and (not rtags-periodic-reparse-timer)
              rtags-periodic-reparse-timeout)
     (setq rtags-periodic-reparse-timer
@@ -336,7 +335,7 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :safe 'stringp)
 
 (defcustom rtags-find-file-prompt "Find files"
-  "What prompt to use for rtags-find-file"
+  "What prompt to use for ‘rtags-find-file’."
   :group 'rtags
   :type 'string
   :type 'stringp)
@@ -391,7 +390,7 @@ on intervals."
   :safe 'numberp)
 
 (defcustom rtags-container-timer-interval .5
-  "Interval for container timer"
+  "Interval for container timer."
   :group 'rtags
   :type 'number
   :safe 'numberp)
@@ -507,8 +506,7 @@ return t if RTags is allowed to modify this file."
   :safe 'booleanp)
 
 (defcustom rtags-find-file-prefer-exact-match t
-  "Jump directly to files that exactly match the filename for
-`rtags-find-file'."
+  "Jump directly to files that exactly match the filename for `rtags-find-file'."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
@@ -519,13 +517,12 @@ return t if RTags is allowed to modify this file."
   :type 'integer)
 
 (defcustom rtags-split-window-function 'split-window
-  "Function to split window. default is `split-window'."
+  "Function to split window.  default is `split-window'."
   :group 'rtags
   :type 'function)
 
 (defcustom rtags-buffer-follows-sandbox-id-match 'ask
-  "Tells the way current buffer follows sandbox-id in case
-match fails at a query to rc/rdm backend.
+  "Tells the way current buffer follows sandbox-id in case match fails at a query to rc/rdm backend.
 
 `nil' perform current query without updating diagnostics buffer.
       Diagnostics will be away from current context.
@@ -584,7 +581,7 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :safe 'booleanp)
 
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
-  "argument passed to --kind-filter for rtags-imenu"
+  "Argument passed to --kind-filter for ‘rtags-imenu’."
   :group 'rtags
   :type 'string
   :safe 'stringp)
@@ -661,9 +658,11 @@ Effected interactive functions:
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun rtags-buffer-file-name (&optional buffer)
+  "Return the BUFFER file name."
   (buffer-file-name (or (buffer-base-buffer buffer) buffer)))
 
 (defun rtags-remove (predicate seq &optional not)
+  "RTags remove."
   (let ((ret))
     (while seq
       (let ((matched (funcall predicate (car seq))))
@@ -674,13 +673,15 @@ Effected interactive functions:
         (setq seq (cdr seq))))
     ret))
 
-(defun rtags-remove-last-if-duplicated (seq) ;; destroys seq
+(defun rtags-remove-last-if-duplicated (seq)
+  "Destroy SEQ."
   (let ((newitem (car (last seq))))
     (when (> (length (member newitem seq)) 1)
       (nbutlast seq 1))
     seq))
 
 (defun rtags-is-indexable-default (buffer)
+  "Check whether open file in BUFFER is indexable."
   (let ((filename (rtags-buffer-file-name buffer)))
     (when filename
       (let ((suffix (and (string-match "\.\\([^.]+\\)$" filename) (match-string 1 filename))))
@@ -690,22 +691,29 @@ Effected interactive functions:
                  t))))))
 
 (defun rtags-get-buffer (&optional name)
+  "Return *RTags* buffer.
+
+When optional argument NAME is non-nil return buffer with NAME instead
+of *RTags* buffer."
   (unless name
     (setq name rtags-buffer-name))
   (when (get-buffer name)
     (kill-buffer name))
   (generate-new-buffer name))
 
-(defvar-local rtags-previous-window-configuration nil)
+(defvar rtags-previous-window-configuration nil)
+(make-variable-buffer-local 'rtags-previous-window-configuration)
 (put 'rtags-previous-window-configuration 'permanent-local t)
 
 (defun rtags-switch-to-buffer (buffer-or-name &optional other-window)
-  ;; (unless (get-buffer-window (current-buffer) (selected-frame))
+  "Switch to buffer.
+Switch to BUFFER-OR-NAME, when optional argument OTHER-WINDOW is non-nil,
+switch to BUFFER-OR-NAME in other window."
   (let ((conf (current-window-configuration)))
     (if other-window
         (switch-to-buffer-other-window buffer-or-name)
       (switch-to-buffer buffer-or-name))
-    (setq-local rtags-previous-window-configuration conf)))
+    (set (make-local-variable 'rtags-previous-window-configuration) conf)))
 
 ;; for old emacsen
 (defun rtags-string-prefix-p (str1 str2 &optional ignore-case)
@@ -716,10 +724,12 @@ to case differences."
                          str2 0 (length str1) ignore-case)))
 
 (defun rtags-is-rtags-buffer (&optional buffer)
+  "Check if buffer is *RTags* buffer."
   (and (not (buffer-file-name buffer))
        (rtags-string-prefix-p "*RTags" (buffer-name buffer))))
 
 (defun rtags-has-diagnostics ()
+  "Check for diagnostics."
   (and (get-buffer rtags-diagnostics-buffer-name)
        rtags-diagnostics-process
        (not (eq (process-status rtags-diagnostics-process) 'exit))
@@ -727,6 +737,7 @@ to case differences."
        (> (process-id rtags-diagnostics-process) 0)))
 
 (defun rtags-bury-or-delete ()
+  "Bury or delete buffer."
   (interactive)
   (let ((conf rtags-previous-window-configuration)
         (frame (selected-frame)))
@@ -736,6 +747,7 @@ to case differences."
 
 ;;;###autoload
 (defun rtags-call-bury-or-delete ()
+  "Call `rtags-bury-buffer-function' function."
   (interactive)
   (funcall rtags-bury-buffer-function))
 
@@ -3445,9 +3457,9 @@ other window instead of the current one."
          (when (and rtags-popup-results-buffer (not rtags-use-helm) (not rtags-use-ivy) (rtags-switch-to-buffer rtags-buffer-name t))
            (shrink-window-if-larger-than-buffer))
          (if rtags-use-helm
-             (helm :sources '(rtags-helm-source))
+             (helm :sources '(helm-rtags-source))
            (if rtags-use-ivy
-               (rtags-ivy-read)
+               (ivy-rtags-read)
              (when (and rtags-jump-to-first-match (not noautojump))
                (if rtags-popup-results-buffer
                    (rtags-select-other-window)
@@ -4010,7 +4022,6 @@ definition."
                      (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                      (when rtags-symbolnames-case-insensitive "-I")
                      (unless rtags-print-filenames-relative "-K"))
-      ;; (setq-local rtags-current-file (or path default-directory))
       (rtags-handle-results-buffer nil nil path other-window))))
 
 (defun rtags-symbolname-completion-get (string)
@@ -4174,7 +4185,7 @@ definition."
     (when rc
       (process-file rc nil nil nil "--quit-rdm"))))
 
-(defun rdm-includes ()
+(defun rtags-rdm-includes ()
   (mapconcat 'identity
              (mapcar
               (lambda (item) (concat "-I" item))
@@ -4184,7 +4195,7 @@ definition."
   "Shell command used to start the `rtags-server' process."
   (format "%s %s %s"
           (rtags-executable-find "rdm")
-          (rdm-includes)
+          (rtags-rdm-includes)
           rtags-process-flags))
 
 (defun rtags-cancel-process ()
