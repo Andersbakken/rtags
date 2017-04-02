@@ -568,17 +568,14 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-use-helm nil
-  "If t, use helm to display results when appropriate."
+(defcustom rtags-display-result-backend 'default
+  "Method to use to diplay RTags results, like references."
+  :type '(choice (const :tag "RTags (default)" default)
+                 (const :tag "Helm" helm)
+                 (const :tag "Ivy" ivy))
   :group 'rtags
-  :type 'boolean
-  :safe 'booleanp)
-
-(defcustom rtags-use-ivy nil
-  "If t, use ivy to display results when appropriate."
-  :group 'rtags
-  :type 'boolean
-  :safe 'booleanp)
+  :type 'symbol
+  :risky t)
 
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
   "Argument passed to --kind-filter for ‘rtags-imenu’."
@@ -948,7 +945,7 @@ to case differences."
       (set-buffer rtags-buffer-name)
       (when reset
         (goto-char (point-min)))
-      (when (and rtags-use-helm
+      (when (and (eq rtags-display-result-backend 'helm)
                  (boundp 'helm-action-buffer)
                  (get-buffer-window helm-action-buffer 'visible)
                  (fboundp 'helm-keyboard-quit))
@@ -3454,16 +3451,21 @@ other window instead of the current one."
            (message "RTags: Found %d locations."
                     (count-lines (point-min) (point-max))))
          ;; Optionally jump to first result and open results buffer
-         (when (and rtags-popup-results-buffer (not rtags-use-helm) (not rtags-use-ivy) (rtags-switch-to-buffer rtags-buffer-name t))
+         (when (and rtags-popup-results-buffer
+                    (eq rtags-display-result-backend 'default)
+                    (rtags-switch-to-buffer rtags-buffer-name t))
            (shrink-window-if-larger-than-buffer))
-         (if rtags-use-helm
-             (helm :sources '(helm-rtags-source))
-           (if rtags-use-ivy
-               (ivy-rtags-read)
-             (when (and rtags-jump-to-first-match (not noautojump))
-               (if rtags-popup-results-buffer
-                   (rtags-select-other-window)
-                 (rtags-select other-window)))))
+         (cond ((eq rtags-display-result-backend 'default)
+                (when (and rtags-jump-to-first-match (not noautojump))
+                  (if rtags-popup-results-buffer
+                      (rtags-select-other-window)
+                    (rtags-select other-window))))
+               ((eq rtags-display-result-backend 'helm)
+                (require 'helm-rtags)
+                (helm :sources '(helm-rtags-source)))
+               ((eq rtags-display-result-backend 'ivy)
+                (require 'ivy-rtags)
+                (ivy-rtags-read)))
          t)))
 
 (defun rtags-filename-complete (string predicate code)
