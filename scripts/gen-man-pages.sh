@@ -84,6 +84,10 @@ rc(7)
 sed -ri                                         \
     -e '/^(rdm|rc) options...$/d'               \
     -e 's/^Options:$/.SH OPTIONS/'              \
-    -e 's/^(Path to rp) \(default.*$/\1/'       \
+    -e 's/^(Path to rp) \(default.*\).$/\1./'   \
+    -e '/job\\-count/{
+                n
+                s/(.*indexing) \(default [0-9]+\).$/\1./
+       }'                                       \
     "$MAN_BASE/rc.7" "$MAN_BASE/rdm.7"
 exit 0
