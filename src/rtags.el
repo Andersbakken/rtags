@@ -2669,7 +2669,7 @@ This includes both declarations and definitions."
           (rtags-switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
           (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (rtags-rename-confirm-text (nreverse confirms) len) "\n")
           (goto-char (point-min))
-          (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length confirms)))
+          (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length replacements)))
             (setq replacements nil))
           (kill-buffer (current-buffer)))
         (dolist (value replacements)
