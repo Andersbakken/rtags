@@ -1,7 +1,15 @@
 #+OPTIONS: ^:nil
-[[https://travis-ci.org/Andersbakken/rtags][https://travis-ci.org/Andersbakken/rtags.svg?branch=master]]
-[[http://www.gnu.org/licenses/gpl-3.0.txt][https://img.shields.io/badge/license-GPL%203-brightgreen.svg]]
-[[http://melpa.org/#/rtags][file:http://melpa.org/packages/rtags-badge.svg]]
+
+#+html: <p align="center"><a href="https://travis-ci.org/Andersbakken/rtags"><img alt="MELPA" src="https://travis-ci.org/Andersbakken/rtags.svg?branch=master"/></a></p>
+#+html: <p align="center"><a href="https://www.gnu.org/licenses/gpl-3.0.txt"><img alt="MELPA" src="https://img.shields.io/badge/license-GPL%203-brightgreen.svg"/></a></p>
+
+#+html: <p align="center"><a href="https://melpa.org/#/ac-rtags"><img alt="MELPA" src="https://melpa.org/packages/ac-rtags-badge.svg"/></a></p>
+*rtags.el* [[https://melpa.org/#/rtags][file:http://melpa.org/packages/rtags-badge.svg]]
+*company-rtags.el*  [[https://melpa.org/#/company-rtags][file:https://melpa.org/packages/company-rtags-badge.svg]]
+
+*ivy-rtags.el* [[https://melpa.org/#/ivy-rtags][file:https://melpa.org/packages/ivy-rtags-badge.svg]]
+*flycheck-rtags.el* [[https://melpa.org/#/flycheck-rtags][file:https://melpa.org/packages/flycheck-rtags-badge.svg]]
+*helm-rtags.el* [[https://melpa.org/#/helm-rtags][file:https://melpa.org/packages/helm-rtags-badge.svg]]
 
 * Introduction
 RTags is a client/server application that indexes C/C++ code and keeps a
