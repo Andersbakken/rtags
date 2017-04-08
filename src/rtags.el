@@ -63,6 +63,7 @@
 (declare-function popup-tip "ext:popup" t)
 (declare-function helm "ext:helm" t)
 (declare-function ivy-rtags-read "ext:ivy" t)
+(declare-function package-desc-dir "ext:package" t)
 (declare-function helm-rtags-get-candidate-line 'rtags (candidate))
 
 
