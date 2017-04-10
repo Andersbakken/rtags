@@ -519,9 +519,6 @@ also be socket acivated.
 
    [Socket]
    ListenStream=%t/rdm.socket
-
-   [Install]
-   WantedBy=default.target
    #+END_EXAMPLE
 
  2. Add the following to =~/.config/systemd/user/rdm.service=
@@ -534,7 +531,13 @@ also be socket acivated.
 
    [Service]
    Type=simple
-   ExecStart=$RDM -v --inactivity-timeout 300 --log-flush
+   # ExecStart=$RDM -v --inactivity-timeout 300 --log-flush
+   ExecStart=/usr/bin/rdm -v --inactivity-timeout 300 --log-flush
+   ExecStop=pkill rdm
+   Restart=on-failure
+
+   [Install]
+   WantedBy=default.target
    #+END_EXAMPLE
 
  3. Replace =$RDM= with the path to your copy of =rdm=, and add any command
@@ -546,8 +549,8 @@ also be socket acivated.
  4. Run the following command from the terminal:
 
     #+BEGIN_SRC sh
-    systemctl --user enable rdm.socket
-    systemctl --user start rdm.socket
+    systemctl --user enable rdm.service
+    systemctl --user start rdm.service
     #+END_SRC
 
     =Systemd= will create the =rdm= socket automatically.
