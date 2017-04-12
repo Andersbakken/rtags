@@ -3102,7 +3102,7 @@ This includes both declarations and definitions."
     (when (and start
                end
                replacedata
-               (eq severity 'fixit)
+               (eq severity 'fixit))
       (save-excursion
         (save-restriction
           (widen)
@@ -3125,7 +3125,7 @@ This includes both declarations and definitions."
                           (end (overlay-get overlay 'rtags-error-end)))
                       (overlay-put overlay 'rtags-error-start (+ start change))
                       (overlay-put overlay 'rtags-error-end (+ end change))))
-                  (setq overlays (cdr overlays))))))))))))
+                  (setq overlays (cdr overlays)))))))))))
 
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
@@ -3659,11 +3659,11 @@ other window instead of the current one."
                 (goto-char (point-min))
                 (and (looking-at "Functions called from: \\(.*?\\):[0-9]+:[0-9]+:")
                      (match-string 1)))))
-  (when file
-    (save-excursion
-      (goto-char (point-at-bol))
-      (when (looking-at ".*called from - .*?:\\([0-9]+\\):\\([0-9]+\\):")
-        (rtags-goto-location (concat file ":" (match-string 1) ":" (match-string 2)) (not not-other-window)))))))
+    (when file
+      (save-excursion
+        (goto-char (point-at-bol))
+        (when (looking-at ".*called from - .*?:\\([0-9]+\\):\\([0-9]+\\):")
+          (rtags-goto-location (concat file ":" (match-string 1) ":" (match-string 2)) (not not-other-window)))))))
 
 
 ;;;###autoload
@@ -4454,11 +4454,11 @@ Return nil if it can't get any info about the item."
             (setq symbol-text (format "enum: %s = %d(0x%x)" (cdr (assoc 'symbolName symbol))
                                       (cdr (assoc 'enumValue symbol)) (cdr (assoc 'enumValue symbol))))
           (setq symbol-text (cdr (assoc 'contents (rtags-get-file-contents :info symbol :maxlines (or max-num-lines 5)))))
-        (when arg-text
-          (setq symbol-text (concat symbol-text "\n" arg-text)))
-        (when brief
-          (setq symbol-text (concat symbol-text "\n\n" brief)))
-        symbol-text)))))
+          (when arg-text
+            (setq symbol-text (concat symbol-text "\n" arg-text)))
+          (when brief
+            (setq symbol-text (concat symbol-text "\n\n" brief)))
+          symbol-text)))))
 
 ;;;###autoload
 (defun rtags-display-summary (&optional hide-empty pos)
