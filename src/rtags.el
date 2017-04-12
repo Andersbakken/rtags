@@ -4920,14 +4920,13 @@ the user enter missing field manually."
     (cond ((eq status 'exit)
            (message "RTags is now installed in %s"
                     (with-current-buffer (process-buffer process)
-                      default-directory))
-           (kill-buffer (process-buffer process)))
+                      default-directory)))
           ((memq status '(signal closed failed))
            (message "RTags failed to install")
            (switch-to-buffer (process-buffer process)))
           (t nil))))
 
-(defun rtags-install (&optional dir)
+(defun rtags-install (&optional dir cmakeargs)
   (interactive "P")
   (when (cond ((not (processp rtags-install-process)))
               ((memq (process-status rtags-install-process) '(exit signal closed failed)))
@@ -4943,10 +4942,11 @@ the user enter missing field manually."
       (make-directory dir))
     (let ((default-directory dir))
       (with-temp-buffer
-        (insert "#!/bin/bash\n"
+        (insert "#!/bin/bash -x\n"
                 (format "FILE=\"rtags-%s.tar.bz2\"\n" rtags-package-version)
                 "URL=\"https://andersbakken.github.io/rtags-releases/$FILE\"\n"
                 "ARGS=\"--progress -L -o $FILE\"\n"
+                "CMAKEARGS=" (combine-and-quote-strings (if (listp cmakeargs) cmakeargs (list cmakeargs))) "\n"
                 "[ -e \"$FILE\" ] && ARGS=\"$ARGS -C -\"\n"
                 "ARGS=\"$ARGS $URL\"\n"
                 "echo \"Downloading rtags from $URL\"\n"
@@ -4958,12 +4958,17 @@ the user enter missing field manually."
                 "if ! tar xfj \"$FILE\"; then\n"
                 "    echo \"Failed to untar $FILE\" >&2\n"
                 "    rm \"$FILE\"\n"
-                "    exit 1\n"
+                "    exit 2\n"
                 "fi\n"
                 "\n"
                 "cd \"`echo $FILE | sed -e 's,\.tar.bz2,,'`\"\n"
-                "cmake .\n"
-                "make\n")
+                "if ! cmake . ${CMAKEARGS}; then\n"
+                "    echo Failed to cmake\n"
+                "    rm -rf CMakeCache.txt\n"
+                "    exit 3\n"
+                "fi\n"
+                "make\n"
+                "exit $?\n")
         (write-region (point-min) (point-max) "install-rtags.sh"))
       (switch-to-buffer (rtags-get-buffer "*RTags install*"))
       (setq buffer-read-only t)
