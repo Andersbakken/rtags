@@ -214,6 +214,27 @@ sudo port install clang-3.5
   *TIP:* You can run =ccmake= (CMake with an ncurses UI) instead of =cmake= to
   interactively configure the RTags build.
 
+- Elpa
+
+  You can install the elisp part of RTags using package.el if you add
+  melpa to your sources list.
+
+  Once you have emacs installed from melpa you can use the elisp to
+  build the c++ parts of RTags. You still need to have a working
+  compiler, libclang and cmake installed.
+
+  To use:
+  #+BEGIN_SRC elisp
+  M-x rtags-install <ret>
+  #+END_SRC
+
+  You may have to set additional arguments to cmake for this
+  work. E.g.
+
+  #+BEGIN_SRC elisp
+    M-: (rtags-install nil "-DLIBCLANG_LLVM_CONFIG_EXECUTABLE=/usr/local//Cellar/llvm/4.0.0/bin/llvm-config") <ret>
+  #+END_SRC
+
 * Finding clang
 ** Use Your System's version
 Unless you define RTAGS_BUILD_CLANG in cmake (or configure), the build system will try to
