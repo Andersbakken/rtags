@@ -1,4 +1,4 @@
-;;; ivy-rtags.el --- RTags completion back-end for ivy
+;;; ivy-rtags.el --- RTags completion back-end for ivy -*- lexical-binding: t; -*-
 
 ;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
@@ -35,6 +35,8 @@
 (require 'rtags)
 (require 'ivy)
 
+(defvar ivy-rtags-tracking-timer nil)
+
 (defun ivy-rtags-collection ()
   "Get candidates."
   (let ((buf (get-buffer rtags-buffer-name))
@@ -64,11 +66,55 @@
 ;;     (goto-char (cdr candidate))
 ;;     (rtags-select t nil)))
 
+(defun ivy-rtags-update ()
+  "If `rtags-tracking' is true, follow the selection.
+The logic for this function is almost entirely taken from `ivy-call'."
+  (when ivy-rtags-tracking-timer
+    (cancel-timer ivy-rtags-tracking-timer))
+  (when rtags-tracking
+    (with-current-buffer (get-buffer rtags-buffer-name)
+      (let* ((collection (ivy-state-collection ivy-last))
+             (x (cond
+                 ;; Alist type.
+                 ((and (consp collection)
+                       (consp (car collection))
+                       (let (idx)
+                         (if (setq idx (get-text-property
+                                        0 'idx (ivy-state-current ivy-last)))
+                             (nth idx collection)
+                           (assoc (ivy-state-current ivy-last)
+                                  collection)))))
+                 (t
+                  (ivy-state-current ivy-last)))))
+        ;; If x is not a listp, there were no results.
+        (when (listp x)
+          (setq
+           ivy-rtags-tracking-timer
+           (run-with-idle-timer
+            rtags-tracking-timer-interval
+            nil (lambda ()
+                  (setq ivy-rtags-tracking-timer nil)
+                  (save-mark-and-excursion
+                    (with-current-buffer (get-buffer rtags-buffer-name)
+                      (select-window (ivy--get-window ivy-last))
+                      (prog1 (with-current-buffer (ivy-state-buffer ivy-last)
+                               (unwind-protect
+                                   (progn
+                                     (goto-char (cdr x))
+                                     (rtags-select nil nil)))
+                               (ivy-recursive-restore)))
+                      (unless (or (eq ivy-exit 'done)
+                                  (equal (selected-window)
+                                         (active-minibuffer-window))
+                                  (null (active-minibuffer-window)))
+                        (select-window (active-minibuffer-window)))))))))))))
+
 (defun ivy-rtags-read ()
   "RTags completing read function for `ivy'."
   (ivy-read "RTags Ivy: " (ivy-rtags-collection)
             :require-match t
-            :action #'ivy-rtags-select))
+            :action #'ivy-rtags-select
+            :update-fn #'ivy-rtags-update))
 
 (provide 'ivy-rtags)
 
