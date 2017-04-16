@@ -4926,6 +4926,13 @@ the user enter missing field manually."
            (switch-to-buffer (process-buffer process)))
           (t nil))))
 
+
+(defcustom rtags-install-cmake-args nil
+  "Additional arguments to cmake when building rtags with rtags-install."
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
 (defun rtags-install (&optional dir cmakeargs)
   (interactive "P")
   (when (cond ((not (processp rtags-install-process)))
@@ -4946,7 +4953,8 @@ the user enter missing field manually."
                 (format "FILE=\"rtags-%s.tar.bz2\"\n" rtags-package-version)
                 "URL=\"https://andersbakken.github.io/rtags-releases/$FILE\"\n"
                 "ARGS=\"--progress -L -o $FILE\"\n"
-                "CMAKEARGS=" (combine-and-quote-strings (if (listp cmakeargs) cmakeargs (list cmakeargs))) "\n"
+                "CMAKEARGS=" (combine-and-quote-strings (append (and rtags-install-cmake-args (list rtags-install-cmake-args))
+                                                                (if (listp cmakeargs) cmakeargs (list cmakeargs)))) "\n"
                 "[ -e \"$FILE\" ] && ARGS=\"$ARGS -C -\"\n"
                 "ARGS=\"$ARGS $URL\"\n"
                 "echo \"Downloading rtags from $URL\"\n"
