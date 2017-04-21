@@ -1263,6 +1263,7 @@ to only call this when `rtags-socket-file' is defined.
                        (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
                                       "and installing a new rtags build that modified the protocol. They need to be in sync."))))
                     ((= result rtags-exit-code-not-indexed)
+                     (message "%s not indexed" (or path "buffer"))
                      (erase-buffer)
                      (setq rtags-last-request-not-indexed t))
                     (t)))) ;; other error
