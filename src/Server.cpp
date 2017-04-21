@@ -80,10 +80,15 @@
 
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
+// As of clang 4.0.0 we don't need (and can't have) these includes on Mac.
+#if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin)
+static const List<Path> sSystemIncludePaths;
+#else
 static const List<Path> sSystemIncludePaths = {
     CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
     "/usr/lib"        // fedora, arch
 };
+#endif
 
 Server *Server::sInstance = 0;
 Server::Server()
