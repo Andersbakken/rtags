@@ -1024,6 +1024,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
     if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) {
         s << Sandbox::encoded(sourceFile()) << fileId << Sandbox::encoded(compiler()) << compilerId
           << Sandbox::encoded(extraCompiler) << Sandbox::encoded(buildRoot()) << buildRootId
+          << compileCommands() << compileCommandsFileId
           << static_cast<uint8_t>(language) << flags << defines;
 
         auto incPaths = includePaths;
