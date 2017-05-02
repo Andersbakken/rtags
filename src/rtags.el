@@ -4903,9 +4903,16 @@ the user enter missing field manually."
              (replace-regexp-in-string "\n" " " doc)))))))
 
 (defun rtags-package-install-path ()
-  (when (boundp 'package-alist)
-    (let ((pkg (cadr (assq 'rtags package-alist))))
-      (and pkg (concat (package-desc-dir pkg) "/")))))
+  (when (and (boundp 'package-user-dir) package-user-dir)
+    (let ((dir load-path)
+          (rx (concat "^"
+                      (if (string-match "/$" package-user-dir)
+                          (expand-file-name package-user-dir)
+                        (concat (expand-file-name package-user-dir) "/"))
+                      "rtags-")))
+      (while (and dir (not (string-match rx (expand-file-name (car dir)))))
+        (setq dir (cdr dir)))
+      (car dir))))
 
 (defconst rtags-install-buffer-name "*RTags Install*")
 (defvar rtags-install-process nil)
