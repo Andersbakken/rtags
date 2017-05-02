@@ -61,6 +61,8 @@ public:
     Set<uint32_t> headerErrors() const { return mHeaderErrors; }
     bool increasePriority(uint32_t fileId);
     void startJobs();
+    size_t pendingJobCount() const { return mPendingJobs.size(); }
+    size_t activeJobCount() const { return mActiveById.size(); }
 private:
     enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);

@@ -2824,6 +2824,7 @@ This includes both declarations and definitions."
 
 (defvar rtags-last-index nil)
 (defvar rtags-last-total nil)
+(defvar rtags-remaining-jobs nil)
 
 (defun rtags-modeline-format-helper (type count)
   (and (> count 0)
@@ -2831,11 +2832,9 @@ This includes both declarations and definitions."
 
 (defun rtags-modeline()
   (let* ((progress
-          (and rtags-last-index
-               rtags-last-total
-               (> rtags-last-total rtags-last-index)
-               (> rtags-last-total 0)
-               (format "%d/%d %d%%%%" rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total))))
+          (and rtags-remaining-jobs
+               (> rtags-remaining-jobs 0)
+               (format "%d/%d %d%%%% (%d left)" rtags-last-index rtags-last-total (/ (* rtags-last-index 100) rtags-last-total) rtags-remaining-jobs)))
          (errors (if rtags-error-warning-count
                      (car rtags-error-warning-count)
                    0))
@@ -2974,8 +2973,9 @@ This includes both declarations and definitions."
                  (when rtags-spellcheck-enabled
                    (rtags-parse-check-style (cdr data))))
                 ((eq (car data) 'progress)
-                 (setq rtags-last-index (nth 2 data)
-                       rtags-last-total (nth 3 data)))
+                 (setq rtags-last-index (nth 1 data)
+                       rtags-last-total (nth 2 data)
+                       rtags-remaining-jobs (nth 3 data)))
                 (t))
           (run-hooks 'rtags-diagnostics-hook)
           (forward-char 1)

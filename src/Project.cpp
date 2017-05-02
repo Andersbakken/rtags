@@ -734,7 +734,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                             output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
                                          idx, mJobCounter);
                         } else {
-                            output->vlog("(list 'progress %d %d)", idx, mJobCounter);
+                            std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
+                            output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
                         }
                     }
                 }
