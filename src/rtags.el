@@ -262,6 +262,10 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :type 'number
   :safe 'numberp)
 
+(defcustom rtags-imenu-syntax-highlighting nil
+  "Set to t to enable syntax highlight in rtags-imenu. If rtags-imenu-syntax-highlighting is set to a number this is considered the max number of lines to highlight"
+  :group 'rtags)
+
 (defcustom rtags-wildcard-symbol-names t
   "Allow use of * and ? to match symbol names."
   :group 'rtags
@@ -3693,10 +3697,21 @@ other window instead of the current one."
            (alternatives (with-temp-buffer
                            (rtags-call-rc :path fn :path-filter fn
                                           "--kind-filter" rtags-imenu-kind-filter
-                                          "--elisp"
                                           (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                                          "--list-symbols")
-                           (eval (read (buffer-string)))))
+                                          "--list-symbols"
+                                          (unless rtags-imenu-syntax-highlighting
+                                            "--elisp"))
+                           (cond ((not rtags-imenu-syntax-highlighting) (eval (read (buffer-string))))
+                                 ((numberp rtags-imenu-syntax-highlighting)
+                                  (c++-mode)
+                                  (goto-char (point-min))
+                                  (forward-line rtags-imenu-syntax-highlighting)
+                                  (font-lock-fontify-region (point-min) (point))
+                                  (split-string (buffer-string) "\n" t))
+                                 (t
+                                  (c++-mode)
+                                  (font-lock-fontify-region (point-min) (point-max))
+                                  (split-string (buffer-string) "\n" t)))))
            (match (and (> (length alternatives) 1)
                        (completing-read "Symbol: " alternatives nil t))))
       (when match
