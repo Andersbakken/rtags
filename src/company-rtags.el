@@ -1,4 +1,4 @@
-;;; company-rtags.el --- RTags back-end for company
+;;; company-rtags.el --- RTags back-end for company -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
@@ -143,20 +143,19 @@ PREFIX, is prefix type."
             (setq alternatives (cdr alternatives))))
         results)
     ;; this needs to call code-complete-at --synchronous-completions
-    (let ((buf (current-buffer))
-          (proc-buf (generate-new-buffer "rc")))
-      (cons :async (lambda (callback)
-
-                     (defun on-call-rc-complete (proc msg)
-                       (let ((result (with-current-buffer proc-buf
-                                       (company-rtags--make-candidates))))
-                         (kill-buffer proc-buf)
-                         (funcall callback result)))
-
+    (cons :async (lambda (callback)
+                   (let* ((buf (current-buffer))
+                          (proc-buf (generate-new-buffer "rc"))
+                          (on-call-rc-complete (lambda (proc msg)
+                                                 (when (string-equal msg "finished\n")
+                                                   (let ((result (with-current-buffer proc-buf
+                                                                   (company-rtags--make-candidates))))
+                                                     (kill-buffer proc-buf)
+                                                     (funcall callback result))))))
                      (with-current-buffer proc-buf
                        (rtags-call-rc :path (buffer-file-name buf)
                                       :unsaved (and (buffer-modified-p buf) buf)
-                                      :async (cons nil 'on-call-rc-complete)
+                                      :async (cons nil on-call-rc-complete)
                                       "--code-complete-at" company-rtags-last-completion-location
                                       "--synchronous-completions"
                                       "--elisp"
