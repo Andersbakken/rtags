@@ -143,17 +143,25 @@ PREFIX, is prefix type."
             (setq alternatives (cdr alternatives))))
         results)
     ;; this needs to call code-complete-at --synchronous-completions
-    (let ((buf (current-buffer)))
-      (with-temp-buffer
-        (rtags-call-rc :path (buffer-file-name buf)
-                       :unsaved (and (buffer-modified-p buf) buf)
-                       "--code-complete-at" company-rtags-last-completion-location
-                       "--synchronous-completions"
-                       "--elisp"
-                       (if (> (length company-rtags-last-completion-location) 0)
-                           (concat "--code-complete-prefix=" company-rtags-last-completion-prefix)))
+    (let ((buf (current-buffer))
+          (proc-buf (generate-new-buffer "rc")))
+      (cons :async (lambda (callback)
 
-        (company-rtags--make-candidates)))))
+                     (defun on-call-rc-complete (proc msg)
+                       (let ((result (with-current-buffer proc-buf
+                                       (company-rtags--make-candidates))))
+                         (kill-buffer proc-buf)
+                         (funcall callback result)))
+
+                     (with-current-buffer proc-buf
+                       (rtags-call-rc :path (buffer-file-name buf)
+                                      :unsaved (and (buffer-modified-p buf) buf)
+                                      :async (cons nil 'on-call-rc-complete)
+                                      "--code-complete-at" company-rtags-last-completion-location
+                                      "--synchronous-completions"
+                                      "--elisp"
+                                      (if (> (length company-rtags-last-completion-location) 0)
+                                          (concat "--code-complete-prefix=" company-rtags-last-completion-prefix)))))))))
 
 (defun company-rtags--meta (candidate insert)
   "Get candidate meta property.
