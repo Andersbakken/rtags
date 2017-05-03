@@ -1,4 +1,4 @@
-;;; rtags.el --- A front-end for rtags
+;;; rtags.el --- A front-end for rtags -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
