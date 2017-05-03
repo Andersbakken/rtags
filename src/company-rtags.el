@@ -150,8 +150,8 @@ PREFIX, is prefix type."
                                                  (when (string-equal msg "finished\n")
                                                    (let ((result (with-current-buffer proc-buf
                                                                    (company-rtags--make-candidates))))
-                                                     (kill-buffer proc-buf)
-                                                     (funcall callback result))))))
+                                                     (funcall callback result)))
+                                                 (kill-buffer proc-buf))))
                      (with-current-buffer proc-buf
                        (rtags-call-rc :path (buffer-file-name buf)
                                       :unsaved (and (buffer-modified-p buf) buf)
