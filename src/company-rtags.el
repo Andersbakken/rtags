@@ -146,7 +146,7 @@ PREFIX, is prefix type."
     (cons :async (lambda (callback)
                    (let* ((buf (current-buffer))
                           (proc-buf (generate-new-buffer "rc"))
-                          (on-call-rc-complete (lambda (proc msg)
+                          (on-call-rc-complete (lambda (_proc msg)
                                                  (when (string-equal msg "finished\n")
                                                    (let ((result (with-current-buffer proc-buf
                                                                    (company-rtags--make-candidates))))
@@ -211,7 +211,7 @@ otherwise 'meta property. See also `company-rtags--meta'."
             (setq all (cdr all)))
           (nreverse completions))))))
 
-(defun company-rtags-code-complete-at-sentinel (process event)
+(defun company-rtags-code-complete-at-sentinel (process _event)
   "Company RTags code complete at sentinel function."
   (let ((status (process-status process)))
     (when (eq status 'exit)
