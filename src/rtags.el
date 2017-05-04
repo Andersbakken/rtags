@@ -35,19 +35,15 @@
   :group 'tools
   :link '(url-link :tag "Website" "http://rtags.net"))
 
+(if (version< emacs-version "24.3")
+    (eval-when-compile
+      (require 'cl))
+  (require 'cl-lib)
+  (defalias 'defun* 'cl-defun))
 (require 'bookmark)
 (require 'cc-mode)
 (require 'tramp)
 (require 'simple)
-(if (or (> emacs-major-version 24)
-        (< emacs-major-version 23)
-        (and (= emacs-major-version 24)
-             (>= emacs-minor-version 3)))
-    (progn
-      (require 'cl-lib)
-      (defalias 'defun* 'cl-defun)) ;; cl-lib has own namespace now
-  (eval-when-compile
-    (require 'cl)))
 (require 'compile)
 (require 'thingatpt)
 (require 'repeat)
@@ -4998,6 +4994,6 @@ the user enter missing field manually."
       (set-process-sentinel rtags-install-process 'rtags-install-process-sentinel)
       (set-process-filter rtags-install-process 'rtags-install-process-filter))))
 
-
 (provide 'rtags)
 
+;;; rtags.el ends here
