@@ -3345,7 +3345,7 @@ This includes both declarations and definitions."
   (let ((path (rtags-buffer-file-name)))
     (when path
       (with-temp-buffer
-        (rtags-call-rc :path path "--source" path "--compilation-flags-only" "--compilation-flags-split-line")
+        (rtags-call-rc :path path "--sources" path "--compilation-flags-only" "--compilation-flags-split-line")
         (let ((str (buffer-substring-no-properties (point-min) (point-max))))
           (when (rtags-called-interactively-p)
             (message "%s" (combine-and-quote-strings (split-string str "\n") " ")))
