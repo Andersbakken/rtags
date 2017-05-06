@@ -1019,7 +1019,7 @@ to case differences."
           (let ((file (expand-file-name exe (concat rtags-path "/bin/"))))
             (and (file-executable-p file) file))))
         ((let* ((install-path (rtags-package-install-path))
-                (file (and install-path (concat install-path "rtags-" rtags-package-version "/bin/" exe))))
+                (file (and install-path (concat install-path "/rtags-" rtags-package-version "/bin/" exe))))
            (and file (file-executable-p file) file)))
         (t (executable-find exe))))
 
