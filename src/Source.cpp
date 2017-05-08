@@ -54,7 +54,7 @@ Path Source::compiler() const
 
 String Source::toString() const
 {
-    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludePaths|QuoteDefines|IncludeDefines), ' ');
+    String ret = String::join(toCommandLine(IncludeCompiler|IncludeSourceFile|IncludeIncludePaths|QuoteDefines|IncludeDefines|IncludeOutputFilename), ' ');
     if (buildRootId)
         ret << " Build: " << buildRoot();
     if (compileCommandsFileId)
@@ -521,6 +521,7 @@ SourceList Source::parse(const String &cmdLine,
     int32_t sysRootIndex = -1;
     uint32_t buildRootId = 0;
     Path buildRoot;
+    Path outputFilename;
     uint32_t compilerId = 0;
     uint64_t includePathHash = 0;
     bool validCompiler = false;
@@ -680,7 +681,7 @@ SourceList Source::parse(const String &cmdLine,
                         buildRoot.clear();
                     }
                 }
-                arguments << "-o" << p;
+                outputFilename = p;
             } else {
                 arguments.append(arg);
                 if (hasValue(arg)) {
@@ -762,6 +763,7 @@ SourceList Source::parse(const String &cmdLine,
             source.includePaths = includePaths;
             source.arguments = arguments;
             source.sysRootIndex = sysRootIndex;
+            source.outputFilename = outputFilename;
             source.language = input.language;
             assert(source.language != NoLanguage);
             ret.emplace_back(std::move(source));
@@ -994,6 +996,9 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
                 }
             }
         }
+    }
+    if (f & IncludeOutputFilename && !outputFilename.isEmpty()) {
+        ret << "-o" << outputFilename;
     }
     if (f & IncludeRTagsConfig) {
         ret << config.value("add-arguments").split(' ');
