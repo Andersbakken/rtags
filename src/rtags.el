@@ -1,4 +1,4 @@
-;;; rtags.el --- A front-end for rtags
+;;; rtags.el --- A front-end for rtags -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 
@@ -2665,7 +2665,7 @@ This includes both declarations and definitions."
                                     (cons 'col col)
                                     (cons 'contents (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
                               confirms))
-                      (push replacements (cons (current-buffer) (point))))))))))
+                      (push (cons (current-buffer) (point)) replacements))))))))
         (unless no-confirm
           (rtags-switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
           (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (rtags-rename-confirm-text (nreverse confirms) len) "\n")
