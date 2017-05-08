@@ -1450,6 +1450,7 @@ String Project::toCompileCommands() const
                                                   | Source::IncludeSourceFile
                                                   | Source::IncludeDefines
                                                   | Source::IncludeIncludePaths
+                                                  | Source::IncludeOutputFilename
                                                   | Source::QuoteDefines
                                                   | Source::FilterBlacklist);
     Value ret;

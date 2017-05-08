@@ -20,13 +20,6 @@
 #include "rct/Process.h"
 #include "RTags.h"
 
-Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connection> &connection)
-    : mSource(source), mConnection(connection)
-{
-    mProcess.reset(new Process);
-    mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
-}
-
 const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::IncludeExtraCompiler
                                                     | Source::ExcludeDefaultArguments
@@ -35,19 +28,24 @@ const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::IncludeIncludePaths
                                                     | Source::IncludeDefines);
 
+Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connection> &connection)
+    : mSource(source), mConnection(connection)
+{
+    mArgs = source.toCommandLine(SourceFlags);
+    mArgs.append("-E");
+    mProcess.reset(new Process);
+    mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
+}
+
 void Preprocessor::preprocess()
 {
-    List<String> args = mSource.toCommandLine(SourceFlags);
-    args.append("-E");
-
-    mProcess->start(mSource.compiler(), args);
+    mProcess->start(mSource.compiler(), mArgs);
 }
 
 void Preprocessor::onProcessFinished()
 {
     mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    const Flags<Source::CommandLineFlag> flags = (SourceFlags | Source::IncludeCompiler);
-    mConnection->write<256>("// %s", String::join(mSource.toCommandLine(flags), ' ').constData());
+    mConnection->write<256>("// %s %s", mSource.compiler().constData(), String::join(mArgs, ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();
     if (!err.isEmpty()) {

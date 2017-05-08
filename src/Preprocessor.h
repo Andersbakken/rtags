@@ -31,6 +31,7 @@ public:
 private:
     void onProcessFinished();
     const Source mSource;
+    List<String> mArgs;
     std::shared_ptr<Connection> mConnection;
     std::unique_ptr<Process> mProcess;
 };
