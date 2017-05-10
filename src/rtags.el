@@ -2998,10 +2998,11 @@ This includes both declarations and definitions."
 
 (defun rtags-elide-text (str len part)
   (cond ((<= (length str) len) str)
-        ((<= len 3) (substring str 0 len))
+        ((<= len 4) (substring str 0 len))
         ((eq part 'middle)
-         (let ((part (- (/ len 2) 3)))
-           (concat (substring str 0 part)
+         (let ((part (max 1 (/ (- len 3) 2)))
+               (preextra (% (- len 3) 2)))
+           (concat (substring str 0 (+ part preextra))
                    "..."
                    (substring str (- part)))))
         ((eq part 'left)
