@@ -160,19 +160,18 @@ bool Server::init(const Options &options)
             mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
         }
 #endif
-    } else {
+    }
 #ifdef CLANG_INCLUDE
-        mOptions.includePaths.append(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
+    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
 #endif
 
-        // Iterate until we find an existing directory
-        for (Path systemInclude : sSystemIncludePaths) {
-            systemInclude = systemInclude.ensureTrailingSlash();
-            systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
-            if (systemInclude.isDir()) {
-                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
-                break;
-            }
+    // Iterate until we find an existing directory
+    for (Path systemInclude : sSystemIncludePaths) {
+        systemInclude = systemInclude.ensureTrailingSlash();
+        systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
+        if (systemInclude.isDir()) {
+            mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
+            break;
         }
     }
 
