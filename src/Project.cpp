@@ -570,7 +570,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         "(list 'checkstyle "
     };
     static const char *fileEmpty[] = {
-        "\n    <file name=\"%s\">\n    </file>",
+        "\n    <file name=\"%s\">",
         "(cons \"%s\" nil)"
     };
     static const char *startFile[] = {
