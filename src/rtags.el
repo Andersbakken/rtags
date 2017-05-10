@@ -3711,7 +3711,7 @@ other window instead of the current one."
            (match (and (> (length alternatives) 1)
                        (completing-read "Symbol: " alternatives nil t))))
       (if match
-        (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match "--no-context" "--absolute-path") (buffer-string)))
+          (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match "--no-context" "--absolute-path") (buffer-string)))
         (message "RTags: No symbols")))))
 
 (defun rtags-append (txt)
