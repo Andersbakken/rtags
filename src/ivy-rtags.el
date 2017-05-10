@@ -35,6 +35,11 @@
 (require 'rtags)
 (require 'ivy)
 
+(eval-when-compile
+  (when (< emacs-major-version 25)
+    (defmacro save-mark-and-excursion (&rest body)
+      `(save-excursion ,@body))))
+
 (defvar ivy-rtags-tracking-timer nil)
 
 (defun ivy-rtags-collection ()
