@@ -68,7 +68,8 @@ struct Source
         ExcludeDefaultDefines = 0x200,
         IncludeRTagsConfig = 0x400,
         PCHEnabled = 0x800,
-        Default = IncludeDefines|IncludeIncludePaths|FilterBlacklist|IncludeRTagsConfig
+        IncludeOutputFilename = 0x1000,
+        Default = IncludeDefines|IncludeIncludePaths|FilterBlacklist|IncludeRTagsConfig|IncludeOutputFilename,
     };
 
     struct Define {
@@ -142,6 +143,7 @@ struct Source
     List<String> arguments;
     int32_t sysRootIndex;
     Path directory;
+    Path outputFilename;
 
     bool isValid() const { return fileId; }
     bool isNull() const  { return !fileId; }
