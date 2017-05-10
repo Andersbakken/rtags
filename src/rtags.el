@@ -1687,10 +1687,11 @@ instead of file from `current-buffer'.
 (defun rtags-references-tree-current-location ()
   (save-excursion
     (goto-char (point-at-bol))
-    (and (looking-at "\\( *\\)\\([^ ]+:[0-9]+:[0-9]+:\\)")
-         (cons
-          (concat rtags-current-project (buffer-substring-no-properties (match-beginning 2) (match-end 2)))
-          (/ (length (match-string 1)) rtags-tree-indent)))))
+    (skip-chars-forward " ")
+    (let ((prop (get-text-property (point) 'rtags-ref-location)))
+      (and prop
+           (cons (format "%s:%d:%d:" (car prop) (cadr prop) (caddr prop))
+                 (/ (- (point) (point-at-bol)) rtags-tree-indent))))))
 
 (defun rtags-references-tree-collapse-all ()
   (interactive)
@@ -1860,9 +1861,10 @@ instead of file from `current-buffer'.
                     (when (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
                       (incf rtags-buffer-bookmarks)
                       (1- rtags-buffer-bookmarks)))))))))
-    (insert (rtags-tree-indent level) location " " (rtags-format-context (cdr (assoc 'ctx ref)) .4))
+    (insert (rtags-tree-indent level) (file-name-nondirectory location) " " (rtags-format-context (cdr (assoc 'ctx ref)) .4))
     (let ((cf (cdr (assoc 'cf ref)))
-          (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))))
+          (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))
+                       'rtags-ref-location components))
           (pos (point)))
       (when bookmark-idx
         (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
