@@ -995,8 +995,8 @@ To turn off the automatic Flycheck syntax checking, set the variable
   To integrate rtags with helm you need to do the following:
 
 #+BEGIN_SRC emacs-lisp
-(require 'rtags-helm)
-(setq rtags-use-helm t)
+(require 'helm-rtags)
+(setq rtags-display-result-backend 'helm)
 #+END_SRC
 
 * Videos
