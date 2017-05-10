@@ -465,6 +465,12 @@ return t if RTags is allowed to modify this file."
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
 
+(defcustom rtags-install-path nil
+  "Path to install rtags using rtags-package-install RTags executables."
+  :group 'rtags
+  :type '(choice (const :tag "Unset" nil) directory)
+  :risky t)
+
 (defcustom rtags-max-bookmark-count 100
   "How many bookmarks to keep on the stack."
   :group 'rtags
@@ -4905,17 +4911,24 @@ the user enter missing field manually."
              "[ \t\n]+" " "
              (replace-regexp-in-string "\n" " " doc)))))))
 
+(defun rtags-ensure-trailing-slash (path)
+  (cond ((null path) nil)
+        ((string-match "/$" path) path)
+        (t (concat path "/"))))
+
 (defun rtags-package-install-path ()
-  (when (and (boundp 'package-user-dir) package-user-dir)
-    (let ((dir load-path)
-          (rx (concat "^"
-                      (if (string-match "/$" package-user-dir)
-                          (expand-file-name package-user-dir)
-                        (concat (expand-file-name package-user-dir) "/"))
-                      "rtags-")))
-      (while (and dir (not (string-match rx (expand-file-name (car dir)))))
-        (setq dir (cdr dir)))
-      (car dir))))
+  (rtags-ensure-trailing-slash
+   (or rtags-install-path
+       (when (and (boundp 'package-user-dir) package-user-dir)
+         (let ((dir load-path)
+               (rx (concat "^"
+                           (rtags-ensure-trailing-slash (expand-file-name package-user-dir))
+                           "rtags-")))
+           (while (and dir
+                       (or (not (file-directory-p (car dir)))
+                           (not (string-match rx (expand-file-name (car dir))))))
+             (setq dir (cdr dir)))
+           (car dir))))))
 
 (defconst rtags-install-buffer-name "*RTags Install*")
 (defvar rtags-install-process nil)
