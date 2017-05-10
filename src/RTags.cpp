@@ -264,6 +264,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
     static const Path home = Path::home();
     if (mode == SourceRoot) {
         const Entry before[] = {
+            { ".projectile", Flags<FindAncestorFlag>() },
             { ".git", Flags<FindAncestorFlag>() },
             { ".svn", Flags<FindAncestorFlag>() },
             { ".bzr", Flags<FindAncestorFlag>() },
