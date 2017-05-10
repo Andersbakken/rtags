@@ -73,11 +73,15 @@ struct Source
     };
 
     struct Define {
-        Define(const String &def = String(), const String &val = String())
-            : define(def), value(val)
-        {}
+        enum Flag {
+            None = 0x0,
+            NoValue = 0x1
+        };
+        inline Define(const String &def = String(), const String &val = String(), Flags<Flag> f = NullFlags);
         String define;
         String value;
+
+        Flags<Flag> flags;
 
         inline String toString(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>()) const;
         inline bool operator==(const Define &other) const { return !compare(other); }
@@ -86,6 +90,8 @@ struct Source
         inline bool operator>(const Define &other) const { return compare(other) > 0; }
         inline int compare(const Source::Define &other) const
         {
+            if (flags != other.flags)
+                return flags.cast<int>() - other.flags.cast<int>();
             int cmp = define.compare(other.define);
             if (!cmp)
                 cmp = value.compare(other.value);
@@ -168,10 +174,10 @@ struct Source
     Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
     static SourceList parse(const String &cmdLine,
-                              const Path &pwd,
-                              const List<String> &environment,
-                              List<Path> *unresolvedInputLocation = 0,
-                              SourceCache *cache = 0);
+                            const Path &pwd,
+                            const List<String> &environment,
+                            List<Path> *unresolvedInputLocation = 0,
+                            SourceCache *cache = 0);
     enum EncodeMode {
         IgnoreSandbox,
         EncodeSandbox
@@ -182,6 +188,7 @@ struct Source
 
 RCT_FLAGS(Source::Flag);
 RCT_FLAGS(Source::CommandLineFlag);
+RCT_FLAGS(Source::Define::Flag);
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
@@ -289,15 +296,21 @@ inline bool Source::operator>(const Source &other) const
     return compare(other) > 0;
 }
 
+inline Source::Define::Define(const String &def, const String &val, Flags<Flag> f)
+    : define(def), value(val), flags(f)
+{
+    assert(static_cast<bool>(flags & NoValue) == val.isEmpty());
+}
+
 template <> inline Serializer &operator<<(Serializer &s, const Source::Define &d)
 {
-    s << d.define << d.value;
+    s << d.define << d.value << d.flags;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 {
-    s >> d.define >> d.value;
+    s >> d.define >> d.value >> d.flags;
     return s;
 }
 
@@ -351,15 +364,17 @@ inline String Source::Define::toString(Flags<CommandLineFlag> f) const
     ret.reserve(2 + define.size() + value.size() + 5);
     ret += "-D";
     ret += define;
-    if (!value.isEmpty()) {
+    if (!(flags & NoValue)) {
         ret += '=';
-        if (f & Source::QuoteDefines) {
-            String out = value;
-            out.replace("\\", "\\\\");
-            out.replace("\"", "\\\"");
-            ret += out;
-        } else {
-            ret += value;
+        if (!value.isEmpty()) {
+            if (f & Source::QuoteDefines) {
+                String out = value;
+                out.replace("\\", "\\\\");
+                out.replace("\"", "\\\"");
+                ret += out;
+            } else {
+                ret += value;
+            }
         }
     }
     return ret;

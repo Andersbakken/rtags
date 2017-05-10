@@ -579,6 +579,7 @@ SourceList Source::parse(const String &cmdLine,
                     const int eq = def.indexOf('=');
                     if (eq == -1) {
                         define.define = def;
+                        define.flags |= Define::NoValue;
                     } else {
                         define.define = def.left(eq);
                         define.value = def.mid(eq + 1);
