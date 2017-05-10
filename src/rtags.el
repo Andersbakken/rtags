@@ -3639,11 +3639,14 @@ other window instead of the current one."
           (t
            (when (cdr idx)
              (goto-char (cdr idx)))
-           (rtags-goto-location (buffer-substring-no-properties (save-excursion
-                                                                  (goto-char (point-at-bol))
-                                                                  (skip-chars-forward " ")
-                                                                  (point))
-                                                                (point-at-eol)) nil other-window)
+           (let ((refloc (car (rtags-references-tree-current-location))))
+             (if refloc
+                 (rtags-goto-location refloc nil other-window)
+               (rtags-goto-location (buffer-substring-no-properties (save-excursion
+                                                                      (goto-char (point-at-bol))
+                                                                      (skip-chars-forward " ")
+                                                                      (point))
+                                                                    (point-at-eol)) nil other-window)))
            (when bookmark
              (bookmark-set bookmark))))
     (if remove
