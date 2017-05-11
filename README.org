@@ -991,12 +991,24 @@ To turn off the automatic Flycheck syntax checking, set the variable
 (add-hook 'objc-mode-hook #'my-flycheck-rtags-setup)
 #+END_SRC
 
-* Helm support
-  To integrate rtags with helm you need to do the following:
+* Helm integration
+You can use Helm to view the result, to do so, set
+=rtags-display-result-backend= to =helm=. You don't need to load =helm-rtags=,
+we do it. If you have installed *RTags* through MELPA you need to install
+=helm-rtags=.
 
 #+BEGIN_SRC emacs-lisp
-(require 'helm-rtags)
 (setq rtags-display-result-backend 'helm)
+#+END_SRC
+
+* Ivy integration
+You can use Ivy to view the result, to do so, set
+=rtags-display-result-backend= to =ivy=. You don't need to load =ivy-rtags=,
+we do it. If you have installed *RTags* through MELPA you need to install
+=ivy-rtags=.
+
+#+BEGIN_SRC emacs-lisp
+(setq rtags-display-result-backend 'ivy)
 #+END_SRC
 
 * Videos
