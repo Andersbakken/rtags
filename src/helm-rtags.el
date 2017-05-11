@@ -35,6 +35,8 @@
 (require 'rtags)
 (require 'helm)
 
+(defvar helm-rtags-token nil)
+
 (declare-function helm-highlight-current-line "ext:helm")
 
 (defcustom helm-rtags-actions
@@ -103,15 +105,34 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
   "Face used to highlight line number in the *RTags Helm* buffer."
   :group 'rtags)
 
+(defface helm-rtags-token-face
+  '((t :inherit font-lock-warning-face
+       :background "#212026"))
+  "Face used to highlight file name in the *RTags Helm* buffer."
+  :group 'rtags)
+
 (defun helm-rtags-transform (candidate)
   "Transform CANDIDATE."
   (let ((line (helm-rtags-get-candidate-line candidate)))
     (when (string-match "\\`\\([^:]+\\):\\([0-9]+\\):\\([0-9]+\\):\\(.*\\)" line)
-      (format "%s:%s:%s:%s"
-              (propertize (match-string 1 line) 'face 'helm-rtags-file-face)
-              (propertize (match-string 2 line) 'face 'helm-rtags-lineno-face)
-              (propertize (match-string 3 line) 'face 'helm-rtags-lineno-face)
-              (match-string 4 line)))))
+      (let* ((file-name (match-string 1 line))
+             (line-num (match-string 2 line))
+             (column-num (match-string 3 line))
+             (token-begin (string-to-number column-num))
+             (token-end (+ token-begin (length helm-rtags-token)))
+             (content (match-string 4 line))
+             (content-prefix (substring content 0 token-begin))
+             (content-token (substring content token-begin token-end))
+             (content-suffix (substring content token-end (length content))))
+        (format "%s:%s:%s: %s%s%s"
+                (propertize file-name 'face 'helm-rtags-file-face)
+                (propertize line-num 'face 'helm-rtags-lineno-face)
+                (propertize column-num 'face 'helm-rtags-lineno-face)
+                (string-trim-left content-prefix)
+                (if (string= content-token helm-rtags-token)
+                    (propertize content-token 'face 'helm-rtags-token-face)
+                  content-token)
+                (string-trim-right content-suffix))))))
 
 (defvar helm-rtags-source nil)
 (setq helm-rtags-source '((name . "RTags Helm")
@@ -119,6 +140,11 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
                           (real-to-display . helm-rtags-transform)
                           (action . helm-rtags-actions)
                           (persistent-action . helm-rtags-select-persistent)))
+
+(defun create-helm-rtags-source (token)
+  "Create helm source with TOKEN."
+  (setq helm-rtags-token token)
+  '(helm-rtags-source))
 
 (provide 'helm-rtags)
 
