@@ -4927,18 +4927,23 @@ the user enter missing field manually."
         (t (concat path "/"))))
 
 (defun rtags-package-install-path ()
-  (rtags-ensure-trailing-slash
-   (expand-file-name (or rtags-install-path
-                         (when (and (boundp 'package-user-dir) package-user-dir)
-                           (let ((dir load-path)
-                                 (rx (concat "^"
-                                             (rtags-ensure-trailing-slash (expand-file-name package-user-dir))
-                                             "rtags-")))
-                             (while (and dir
-                                         (or (not (file-directory-p (car dir)))
-                                             (not (string-match rx (expand-file-name (car dir))))))
-                               (setq dir (cdr dir)))
-                             (car dir)))))))
+  (let ((path (or
+               ;; If the user has set `rtags-install-path', assume RTags was installed there...
+               rtags-install-path
+               ;; ..otherwise check if RTags was installed with melpa.
+               (when (and (boundp 'package-user-dir) package-user-dir)
+                 (let ((dir load-path)
+                       (rx (concat "^"
+                                   (rtags-ensure-trailing-slash (expand-file-name package-user-dir))
+                                   "rtags-")))
+                   (while (and dir
+                               (or (not (file-directory-p (car dir)))
+                                   (not (string-match rx (expand-file-name (car dir))))))
+                     (setq dir (cdr dir)))
+                   (car dir))))))
+    (when path
+      (rtags-ensure-trailing-slash
+       (expand-file-name path)))))
 
 (defconst rtags-install-buffer-name "*RTags Install*")
 (defvar rtags-install-process nil)
@@ -4989,28 +4994,28 @@ the user enter missing field manually."
                 "ARGS=\"--progress -L -o $FILE\"\n"
                 "CMAKEARGS=" (combine-and-quote-strings (append (and rtags-install-cmake-args (list rtags-install-cmake-args))
                                                                 (if (listp cmakeargs) cmakeargs (list cmakeargs)))) "\n"
-                "[ -e \"$FILE\" ] && ARGS=\"$ARGS -C -\"\n"
-                "ARGS=\"$ARGS $URL\"\n"
-                "echo \"Downloading rtags from $URL\"\n"
-                "if ! curl $ARGS; then\n"
-                "    echo \"Failed to download $FILE from $URL\" >&2\n"
-                "    exit 1\n"
-                "fi\n"
-                "\n"
-                "if ! tar xfj \"$FILE\"; then\n"
-                "    echo \"Failed to untar $FILE\" >&2\n"
-                "    rm \"$FILE\"\n"
-                "    exit 2\n"
-                "fi\n"
-                "\n"
-                "cd \"`echo $FILE | sed -e 's,\.tar.bz2,,'`\"\n"
-                "if ! cmake . ${CMAKEARGS}; then\n"
-                "    echo Failed to cmake\n"
-                "    rm -rf CMakeCache.txt\n"
-                "    exit 3\n"
-                "fi\n"
-                "make\n"
-                "exit $?\n")
+                                                                "[ -e \"$FILE\" ] && ARGS=\"$ARGS -C -\"\n"
+                                                                "ARGS=\"$ARGS $URL\"\n"
+                                                                "echo \"Downloading rtags from $URL\"\n"
+                                                                "if ! curl $ARGS; then\n"
+                                                                "    echo \"Failed to download $FILE from $URL\" >&2\n"
+                                                                "    exit 1\n"
+                                                                "fi\n"
+                                                                "\n"
+                                                                "if ! tar xfj \"$FILE\"; then\n"
+                                                                "    echo \"Failed to untar $FILE\" >&2\n"
+                                                                "    rm \"$FILE\"\n"
+                                                                "    exit 2\n"
+                                                                "fi\n"
+                                                                "\n"
+                                                                "cd \"`echo $FILE | sed -e 's,\.tar.bz2,,'`\"\n"
+                                                                "if ! cmake . ${CMAKEARGS}; then\n"
+                                                                "    echo Failed to cmake\n"
+                                                                "    rm -rf CMakeCache.txt\n"
+                                                                "    exit 3\n"
+                                                                "fi\n"
+                                                                "make\n"
+                                                                "exit $?\n")
         (write-region (point-min) (point-max) "install-rtags.sh"))
       (switch-to-buffer (rtags-get-buffer "*RTags install*"))
       (setq buffer-read-only t)
