@@ -4924,17 +4924,17 @@ the user enter missing field manually."
 
 (defun rtags-package-install-path ()
   (rtags-ensure-trailing-slash
-   (or rtags-install-path
-       (when (and (boundp 'package-user-dir) package-user-dir)
-         (let ((dir load-path)
-               (rx (concat "^"
-                           (rtags-ensure-trailing-slash (expand-file-name package-user-dir))
-                           "rtags-")))
-           (while (and dir
-                       (or (not (file-directory-p (car dir)))
-                           (not (string-match rx (expand-file-name (car dir))))))
-             (setq dir (cdr dir)))
-           (car dir))))))
+   (expand-file-name (or rtags-install-path
+                         (when (and (boundp 'package-user-dir) package-user-dir)
+                           (let ((dir load-path)
+                                 (rx (concat "^"
+                                             (rtags-ensure-trailing-slash (expand-file-name package-user-dir))
+                                             "rtags-")))
+                             (while (and dir
+                                         (or (not (file-directory-p (car dir)))
+                                             (not (string-match rx (expand-file-name (car dir))))))
+                               (setq dir (cdr dir)))
+                             (car dir)))))))
 
 (defconst rtags-install-buffer-name "*RTags Install*")
 (defvar rtags-install-process nil)
@@ -4974,8 +4974,9 @@ the user enter missing field manually."
           (t (setq dir (read-directory-name "RTags install dir: "))))
     (unless dir
       (error "Nowhere to install"))
+    (setq dir (expand-file-name dir))
     (unless (file-directory-p dir)
-      (make-directory dir))
+      (make-directory dir t))
     (let ((default-directory dir))
       (with-temp-buffer
         (insert "#!/bin/bash -x\n"
