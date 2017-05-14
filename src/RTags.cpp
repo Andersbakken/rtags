@@ -238,7 +238,12 @@ static inline Path checkEntries(const Entry *entries, const Path &path, const Pa
                 p = findAncestor(path, name.constData(), entries[i].flags & ~Wildcard, cache);
             }
         }
-        if (!p.isEmpty() && p != home && (best.isEmpty() || p.size() < best.size())) {
+        if (p.isEmpty() || p == home)
+            continue;
+        if (entries[i].flags & Authoritative) {
+            best = p;
+            break;
+        } else if (best.isEmpty() || p.size() < best.size()) {
             best = p;
         }
     }
@@ -264,7 +269,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
     static const Path home = Path::home();
     if (mode == SourceRoot) {
         const Entry before[] = {
-            { ".projectile", Flags<FindAncestorFlag>() },
+            { ".projectile", Authoritative },
             { ".git", Flags<FindAncestorFlag>() },
             { ".hg", Flags<FindAncestorFlag>() },
             { ".svn", Flags<FindAncestorFlag>() },

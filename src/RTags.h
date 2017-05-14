@@ -622,7 +622,8 @@ enum ProjectRootMode {
 Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache = 0);
 enum FindAncestorFlag {
     Shallow = 0x1,
-    Wildcard = 0x2
+    Wildcard = 0x2,
+    Authoritative = 0x4
 };
 RCT_FLAGS(FindAncestorFlag);
 Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache = 0);
