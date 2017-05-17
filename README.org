@@ -62,7 +62,7 @@ M-: (load-file "rtags.el") RET
 Insure =rc= can be found
 
 #+BEGIN_EXAMPLE
-M-: set-variable RET rtags-path RET "../bin" RET
+M-x set-variable RET rtags-path RET "../bin" RET
 #+END_EXAMPLE
 
 Call =rtags-find-symbol-at-point=
