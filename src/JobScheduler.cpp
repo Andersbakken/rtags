@@ -163,7 +163,7 @@ void JobScheduler::startJobs()
         }
         if (headerError) {
             jobNode->job->priority = IndexerJob::HeaderError;
-            warning() << "Letting" << jobNode->job->sourceFile << "go even with a headerheader error from" << Location::path(headerError);
+            warning() << "Letting" << jobNode->job->sourceFile << "go even with a header error from" << Location::path(headerError);
             mHeaderErrorJobIds.insert(jobId);
         }
         process->finished().connect([this, jobId](Process *proc) {
