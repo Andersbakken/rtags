@@ -118,15 +118,6 @@
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-suspend-during-compilation nil
-  "Suspend during compilation."
-  :group 'rtags
-  :type 'boolean
-  :safe 'booleanp
-  :set (lambda (var val)
-         (set var val)
-         (rtags-set-suspend-during-compilation-enabled)))
-
 (defun rtags-set-suspend-during-compilation-enabled ()
   (if rtags-suspend-during-compilation
       (progn
@@ -136,6 +127,16 @@
     (setq compilation-finish-functions (cl-remove-if (lambda (item)
                                                        (eq item 'rtags-clear-suspended-files))
                                                      compilation-finish-functions))))
+
+(defcustom rtags-suspend-during-compilation nil
+  "Suspend during compilation."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp
+  :set (lambda (var val)
+         (set var val)
+         (rtags-set-suspend-during-compilation-enabled)))
+
 (rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-use-bookmarks t
