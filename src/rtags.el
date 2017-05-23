@@ -125,14 +125,18 @@
   :safe 'booleanp
   :set (lambda (var val)
          (set var val)
-         (if val
-             (progn
-               (add-hook 'compilation-start-hook 'rtags-suspend-all-files)
-               (add-to-list 'compilation-finish-functions 'rtags-clear-suspended-files))
-           (remove-hook 'compilation-start-hook 'rtags-suspend-all-files)
-           (setq compilation-finish-functions (cl-remove-if (lambda (item)
-                                                              (eq item 'rtags-clear-suspended-files))
-                                                            compilation-finish-functions)))))
+         (rtags-set-suspend-during-compilation-enabled)))
+
+(defun rtags-set-suspend-during-compilation-enabled ()
+  (if rtags-suspend-during-compilation
+      (progn
+        (add-hook 'compilation-start-hook 'rtags-suspend-all-files)
+        (add-to-list 'compilation-finish-functions 'rtags-clear-suspended-files))
+    (remove-hook 'compilation-start-hook 'rtags-suspend-all-files)
+    (setq compilation-finish-functions (cl-remove-if (lambda (item)
+                                                       (eq item 'rtags-clear-suspended-files))
+                                                     compilation-finish-functions))))
+(rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-use-bookmarks t
   "Whether RTags uses bookmarks for locations."
@@ -4150,7 +4154,6 @@ definition."
 ;;;###autoload
 (defun rtags-clear-suspended-files (&optional a b)
   (interactive)
-  (message "Balls")
   (or a b)
   (let ((buffer (rtags-buffer-file-name)))
     (with-temp-buffer
@@ -4162,7 +4165,6 @@ definition."
 ;;;###autoload
 (defun rtags-suspend-all-files(&optional a)
   (interactive)
-  (message "shit")
   (or a)
   (let ((buffer (rtags-buffer-file-name)))
     (with-temp-buffer
