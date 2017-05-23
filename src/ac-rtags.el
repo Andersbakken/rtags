@@ -5,7 +5,7 @@
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
-;; Package-Requires: ((auto-complete "1.4.0") (rtags "2.9"))
+;; Package-Requires: ((auto-complete "1.4.0") (rtags "2.10"))
 
 ;; This file is not part of GNU Emacs.
 

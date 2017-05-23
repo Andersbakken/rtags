@@ -6,7 +6,7 @@
 ;;         Anders Bakken <agbakken@gmail.com>
 ;; URL: http://rtags.net
 ;; Version: 0.2
-;; Package-Requires: ((helm "2.0") (rtags "2.9"))
+;; Package-Requires: ((helm "2.0") (rtags "2.10"))
 
 ;; This file is not part of GNU Emacs.
 
