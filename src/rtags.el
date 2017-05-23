@@ -118,6 +118,22 @@
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-suspend-during-compilation nil
+  "Suspend during compilation."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp
+  :set (lambda (var val)
+         (set var val)
+         (if val
+             (progn
+               (add-hook 'compilation-start-hook 'rtags-suspend-all-files)
+               (add-to-list 'compilation-finish-functions 'rtags-clear-suspended-files))
+           (remove-hook 'compilation-start-hook 'rtags-suspend-all-files)
+           (setq compilation-finish-functions (cl-remove-if (lambda (item)
+                                                              (eq item 'rtags-clear-suspended-files))
+                                                            compilation-finish-functions)))))
+
 (defcustom rtags-use-bookmarks t
   "Whether RTags uses bookmarks for locations."
   :group 'rtags
@@ -2065,7 +2081,7 @@ instead of file from `current-buffer'.
           (kill-buffer args-buffer))))))
 
 ;;;###autoload
-(defun rtags-print-class-hierarchy()
+(defun rtags-print-class-hierarchy ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((class-hierarchy-buffer (rtags-get-buffer))
@@ -2576,7 +2592,7 @@ This includes both declarations and definitions."
           (rtags-handle-results-buffer tagname nil nil fn otherwindow))))))
 
 ;;;###autoload
-(defun rtags-guess-function-at-point()
+(defun rtags-guess-function-at-point ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
@@ -2809,7 +2825,7 @@ This includes both declarations and definitions."
         (rtags-overlays-remove))
     (rtags-overlays-remove)))
 
-(defun rtags-clear-all-diagnostics-overlays()
+(defun rtags-clear-all-diagnostics-overlays ()
   (interactive)
   (dolist (buf rtags-overlays-buffers)
     (when (buffer-live-p buf)
@@ -3174,7 +3190,7 @@ This includes both declarations and definitions."
 
 (defvar rtags-tracking-timer nil)
 ;;;###autoload
-(defun rtags-restart-tracking-timer()
+(defun rtags-restart-tracking-timer ()
   (interactive)
   (when rtags-tracking-timer
     (cancel-timer rtags-tracking-timer))
@@ -3732,7 +3748,7 @@ other window instead of the current one."
     (forward-line)))
 
 ;;;###autoload
-(defun rtags-copy-and-print-current-location()
+(defun rtags-copy-and-print-current-location ()
   (interactive)
   (let ((loc (rtags-current-location)))
     (if (not loc)
@@ -4111,7 +4127,7 @@ definition."
        (<= end (window-end))))
 
 ;;;###autoload
-(defun rtags-suspend-file(&optional arg)
+(defun rtags-suspend-file (&optional arg)
   (interactive)
   (let ((buffer (rtags-buffer-file-name)))
     (when buffer
@@ -4122,36 +4138,38 @@ definition."
           (message (buffer-string)))))))
 
 ;;;###autoload
-(defun rtags-unsuspend-file()
+(defun rtags-unsuspend-file ()
   (interactive)
   (rtags-suspend-file "off"))
 
 ;;;###autoload
-(defun rtags-toggle-file-suspended()
+(defun rtags-toggle-file-suspended ()
   (interactive)
   (rtags-suspend-file "toggle"))
 
 ;;;###autoload
-(defun rtags-clear-suspended-files()
+(defun rtags-clear-suspended-files (&optional a b)
   (interactive)
+  (message "Balls")
+  (or a b)
   (let ((buffer (rtags-buffer-file-name)))
-    (when buffer
-      (with-temp-buffer
-        (rtags-call-rc :path buffer "-X" "clear")
-        (if (> (point-max) (point-min))
-            (message (buffer-substring-no-properties (point-min) (1- (point-max))))
-          (message (buffer-string)))))))
+    (with-temp-buffer
+      (rtags-call-rc :noerror t :path (or buffer default-directory) "-X" "clear")
+      (if (> (point-max) (point-min))
+          (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+        (message (buffer-string))))))
 
 ;;;###autoload
-(defun rtags-suspend-all-files()
+(defun rtags-suspend-all-files(&optional a)
   (interactive)
+  (message "shit")
+  (or a)
   (let ((buffer (rtags-buffer-file-name)))
-    (when buffer
-      (with-temp-buffer
-        (rtags-call-rc :path buffer "-X" "all")
-        (if (> (point-max) (point-min))
-            (message (buffer-substring-no-properties (point-min) (1- (point-max))))
-          (message (buffer-string)))))))
+    (with-temp-buffer
+      (rtags-call-rc :noerror t :path (or buffer default-directory) "-X" "all")
+      (if (> (point-max) (point-min))
+          (message (buffer-substring-no-properties (point-min) (1- (point-max))))
+        (message (buffer-string))))))
 
 ;;;###autoload
 (defun rtags-list-suspended-files()
@@ -4199,7 +4217,7 @@ definition."
       (rtags-compile-file rtags-last-compiled-source)
     (message "No file to recompile")))
 
-(defun rtags-dummy-includes-func()
+(defun rtags-dummy-includes-func ()
   "Dummy function, returns `rtags-rdm-includes'."
   rtags-rdm-includes)
 
