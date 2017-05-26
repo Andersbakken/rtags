@@ -81,9 +81,6 @@ public:
     Flags<IndexerJob::Flag> indexerJobFlags() const { return mIndexerJobFlags; }
     void setIndexerJobFlags(Flags<IndexerJob::Flag> flags) { mIndexerJobFlags = flags; }
 
-    uint32_t fileId() const { return mFileId; }
-    void setFileId(uint32_t id) { mFileId = id; }
-
     const String &message() const { return mMessage; }
     void setMessage(const String &msg) { mMessage = msg; }
 
@@ -107,7 +104,6 @@ public:
 private:
     Path mProject;
     uint64_t mParseTime, mId;
-    uint32_t mFileId;
     Flags<IndexerJob::Flag> mIndexerJobFlags; // indexerjobflags
     String mMessage; // used as output for dump when flags & Dump
     FixIts mFixIts;
@@ -124,7 +120,7 @@ RCT_FLAGS(IndexDataMessage::FileFlag);
 
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {
-    serializer << mProject << mParseTime << mFileId << mId << mIndexerJobFlags << mMessage
+    serializer << mProject << mParseTime << mId << mIndexerJobFlags << mMessage
                << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten
                << static_cast<uint32_t>(mSources.size());
     for (const Source &source : mSources) {
@@ -134,7 +130,7 @@ inline void IndexDataMessage::encode(Serializer &serializer) const
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mProject >> mParseTime >> mFileId >> mId >> mIndexerJobFlags >> mMessage
+    deserializer >> mProject >> mParseTime >> mId >> mIndexerJobFlags >> mMessage
                  >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
 
     uint32_t size;

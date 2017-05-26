@@ -678,7 +678,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 {
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
-    const uint32_t fileId = msg->fileId();
+    const uint32_t fileId = job->fileId();
     auto j = mActiveJobs.take(fileId);
     if (!j) {
         error() << "Couldn't find JobData for" << Location::path(fileId) << msg->id() << job->id << job.get();
@@ -697,7 +697,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         releaseFileIds(job->visited);
     }
 
-    if (!hasSource(msg->fileId())) {
+    if (!hasSource(fileId)) {
         releaseFileIds(job->visited);
         error() << "Can't find source for" << Location::path(fileId);
         return;
@@ -706,7 +706,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         for (uint32_t file : job->visited) {
             if (!validate(file, Validate)) {
                 releaseFileIds(job->visited);
-                dirty(job->fileId());
+                dirty(fileId);
                 return;
             }
         }
@@ -746,10 +746,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateFixIts(visited, msg->fixIts());
     updateDependencies(msg);
     if (success) {
-        forEachSources([&msg](Sources &sources) -> VisitResult {
-                // error() << "finished with" << Location::path(msg->fileId()) << sources.contains(msg->fileId()) << msg->parseTime();
-                if (sources.contains(msg->fileId())) {
-                    sources[msg->fileId()].parsed = msg->parseTime();
+        forEachSources([&msg, fileId](Sources &sources) -> VisitResult {
+                // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
+                if (sources.contains(fileId)) {
+                    sources[fileId].parsed = msg->parseTime();
                 }
                 return Continue;
             });
@@ -1038,7 +1038,7 @@ void Project::removeDependencies(uint32_t fileId)
 
 void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
 {
-    // error() << "updateDependencies" << Location::path(msg->fileId());
+    // error() << "updateDependencies" << Location::path(fileId);
     const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
     Set<uint32_t> includeErrors, dirty;
     for (auto pair : msg->files()) {

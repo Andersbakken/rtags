@@ -204,7 +204,6 @@ bool ClangIndexer::exec(const String &data)
     mIndexDataMessage.setProject(mProject);
     mIndexDataMessage.setIndexerJobFlags(indexerJobFlags);
     mIndexDataMessage.setParseTime(parseTime);
-    mIndexDataMessage.setFileId(mSources.front().fileId);
     mIndexDataMessage.setId(id);
 
     assert(mConnection->isConnected());
@@ -336,7 +335,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     }
 
     ++mFileIdsQueried;
-    VisitFileMessage msg(resolved, mProject, mIndexDataMessage.fileId());
+    VisitFileMessage msg(resolved, mProject, mSources.front().fileId);
 
     mVisitFileResponseMessageFileId = UINT_MAX;
     mVisitFileResponseMessageVisit = false;
