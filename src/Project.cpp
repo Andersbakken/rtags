@@ -744,7 +744,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(msg);
+    updateDependencies(fileId, msg);
     if (success) {
         forEachSources([&msg, fileId](Sources &sources) -> VisitResult {
                 // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
@@ -1027,6 +1027,7 @@ bool Project::dependsOn(uint32_t source, uint32_t header) const
 
 void Project::removeDependencies(uint32_t fileId)
 {
+    // error() << "removeDependencies" << Location::path(fileId);
     if (DependencyNode *node = mDependencies.take(fileId)) {
         for (auto it : node->includes)
             it.second->dependents.remove(fileId);
@@ -1036,36 +1037,45 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
+void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    // error() << "updateDependencies" << Location::path(fileId);
+    static_cast<void>(fileId);
     const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
+    // error() << "updateDependencies" << Location::path(fileId) << prune;
     Set<uint32_t> includeErrors, dirty;
     for (auto pair : msg->files()) {
         assert(pair.first);
         DependencyNode *&node = mDependencies[pair.first];
+        // error() << "checking deps" << Location::path(pair.first) << node;
         if (!node) {
             node = new DependencyNode(pair.first);
         }
 
         if (pair.second & IndexDataMessage::Visited) {
-            if (prune) {
-                for (auto it : node->includes)
-                    it.second->dependents.remove(pair.first);
-                node->includes.clear();
-            }
             if (pair.second & IndexDataMessage::IncludeError) {
                 node->flags |= DependencyNode::Flag_IncludeError;
                 includeErrors.insert(pair.first);
                 // error() << "got include error for" << Location::path(pair.first);
             } else if (node->flags & DependencyNode::Flag_IncludeError) {
-                // error() << "used to have include error for" << Location::path(pair.first);
+                // error() << "used to have include error for" << Location::path(pair.first) << node->includes.size();
                 node->flags &= ~DependencyNode::Flag_IncludeError;
                 dirty.insert(pair.first);
+                // for (auto dep : node->includes) {
+                //     dirty.insert(dep.first);
+                //     // error() << "dirty" << Location::path(dep.first);
+                // }
                 for (auto dep : node->dependents) {
                     dirty.insert(dep.first);
                     // error() << "dirty" << Location::path(dep.first);
                 }
+            }
+            if (prune) {
+                for (auto it : node->includes) {
+                    it.second->dependents.remove(pair.first);
+                    // error() << "removing" << Location::path(pair.first) << "from" << Location::path(it.first);
+                }
+                error() << "Removing all includes for" << Location::path(pair.first) << node->includes.size();
+                node->includes.clear();
             }
         }
         watchFile(pair.first);
@@ -1077,6 +1087,7 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
         assert(it.second);
         DependencyNode *&includer = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
+        // error() << "adding include for" << Location::path(it.first) << Location::path(it.second);
         if (!includer)
             includer = new DependencyNode(it.first);
         if (!inclusiary)
@@ -1100,6 +1111,18 @@ void Project::updateDependencies(const std::shared_ptr<IndexDataMessage> &msg)
         simple.init(shared_from_this(), dirty);
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
+    // for (auto node : mDependencies) {
+    //     for (auto inc : node.second->includes) {
+    //         if (!inc.second->dependents.contains(node.first)) {
+    //             error() << "SHIT SHIT SHIT" << Location::path(inc.first) << "doesn't have" << Location::path(node.first) << "in its dependents";
+    //         }
+    //     }
+    //     for (auto inc : node.second->dependents) {
+    //         if (!inc.second->includes.contains(node.first)) {
+    //             error() << "SHIT SHIT SHIT" << Location::path(inc.first) << "doesn't have" << Location::path(node.first) << "in its includes";
+    //         }
+    //     }
+    // }
 }
 
 int Project::reindex(const Match &match,
@@ -2748,6 +2771,10 @@ void Project::removeSource(uint32_t fileId)
         releaseFileIds(job->visited);
         Server::instance()->jobScheduler()->abort(job);
     }
+    Set<uint32_t> file;
+    file.insert(fileId);
+    dirty(fileId);
+    releaseFileIds(file);
     removeDependencies(fileId);
     Path::rmdir(sourceFilePath(fileId));
 }

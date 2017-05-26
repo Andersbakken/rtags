@@ -98,9 +98,6 @@ public:
 
     size_t bytesWritten() const { return mBytesWritten; }
     void setBytesWritten(size_t bytes) { mBytesWritten = bytes; }
-
-    SourceList sources() const { return mSources; }
-    void setSources(const SourceList &srcs) { mSources = srcs; }
 private:
     Path mProject;
     uint64_t mParseTime, mId;
@@ -112,7 +109,6 @@ private:
     Hash<uint32_t, Flags<FileFlag> > mFiles;
     Flags<Flag> mFlags;
     size_t mBytesWritten;
-    SourceList mSources;
 };
 
 RCT_FLAGS(IndexDataMessage::Flag);
@@ -121,25 +117,13 @@ RCT_FLAGS(IndexDataMessage::FileFlag);
 inline void IndexDataMessage::encode(Serializer &serializer) const
 {
     serializer << mProject << mParseTime << mId << mIndexerJobFlags << mMessage
-               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten
-               << static_cast<uint32_t>(mSources.size());
-    for (const Source &source : mSources) {
-        source.encode(serializer, Source::IgnoreSandbox);
-    }
+               << mFixIts << mIncludes << mDiagnostics << mFiles << mFlags << mBytesWritten;
 }
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
     deserializer >> mProject >> mParseTime >> mId >> mIndexerJobFlags >> mMessage
                  >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
-
-    uint32_t size;
-    deserializer >> size;
-    mSources.resize(size);
-    for (Source &source : mSources) {
-        source.decode(deserializer, Source::IgnoreSandbox);
-    }
-
 }
 
 #endif

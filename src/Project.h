@@ -282,7 +282,7 @@ private:
     };
     bool validate(uint32_t fileId, ValidateMode mode, String *error = 0) const;
     void removeDependencies(uint32_t fileId);
-    void updateDependencies(const std::shared_ptr<IndexDataMessage> &msg);
+    void updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg);
     void loadFailed(uint32_t fileId);
     void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
     Diagnostics updateDiagnostics(const Diagnostics &diagnostics);
