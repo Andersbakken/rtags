@@ -299,7 +299,6 @@ inline bool Source::operator>(const Source &other) const
 inline Source::Define::Define(const String &def, const String &val, Flags<Flag> f)
     : define(def), value(val), flags(f)
 {
-    assert(static_cast<bool>(flags & NoValue) == val.isEmpty());
 }
 
 template <> inline Serializer &operator<<(Serializer &s, const Source::Define &d)
