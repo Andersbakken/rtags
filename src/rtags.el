@@ -3558,7 +3558,7 @@ other window instead of the current one."
         (facemenu-set-face "header-line" start end))
       (insert "\n\n")
       (while category
-        (add-to-list 'rtags-taglist-locations (cons (line-number-at-pos) (cdar category)))
+        (push (cons (line-number-at-pos) (cdar category)) rtags-taglist-locations)
         (let* ((text (caar category))
                (len (length text)))
           (insert " " text "\n")
