@@ -1074,7 +1074,7 @@ void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDat
                     it.second->dependents.remove(pair.first);
                     // error() << "removing" << Location::path(pair.first) << "from" << Location::path(it.first);
                 }
-                error() << "Removing all includes for" << Location::path(pair.first) << node->includes.size();
+                // error() << "Removing all includes for" << Location::path(pair.first) << node->includes.size();
                 node->includes.clear();
             }
         }
