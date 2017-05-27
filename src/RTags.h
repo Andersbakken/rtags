@@ -684,6 +684,37 @@ inline Symbol bestTarget(const Set<Symbol> &targets)
     }
     return ret;
 }
+
+inline void sortTargets(List<Symbol> &targets)
+{
+    targets.sort([](const Symbol &l, const Symbol &r) {
+            const int lrank = RTags::targetRank(l.kind);
+            const int rrank = RTags::targetRank(r.kind);
+            if (lrank != rrank)
+                return lrank > rrank;
+            if (l.isDefinition() != r.isDefinition())
+                return l.isDefinition();
+            return l.location < r.location;
+        });
+}
+
+inline List<Symbol> sortTargets(Set<Symbol> &&set)
+{
+    List<Symbol> targets;
+    targets.resize(set.size());
+    size_t i=0;
+    for (auto &sym : set) {
+        targets[i++] = std::move(sym);
+    }
+    sortTargets(targets);
+    return targets;
+}
+
+inline List<Symbol> sortTargets(const Set<Symbol> &set)
+{
+    return sortTargets(Set<Symbol>(set));
+}
+
 inline String xmlEscape(const String& xml)
 {
     if (xml.isEmpty())

@@ -1558,7 +1558,6 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         for (const auto &c : symbols) {
             if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
                 ret.insert(c);
-                break;
             }
         }
 
