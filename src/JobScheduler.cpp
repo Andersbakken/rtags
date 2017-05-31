@@ -44,11 +44,11 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
     std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String() }));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
-    if (mPendingJobs.isEmpty() || job->priority > mPendingJobs.first()->job->priority) {
+    if (mPendingJobs.isEmpty() || job->priority() > mPendingJobs.first()->job->priority()) {
         mPendingJobs.prepend(node);
     } else {
         std::shared_ptr<Node> after = mPendingJobs.last();
-        while (job->priority > after->job->priority) {
+        while (job->priority() > after->job->priority()) {
             after = after->prev;
             assert(after);
         }
@@ -114,25 +114,11 @@ void JobScheduler::startJobs()
             continue;
         }
 
-        uint32_t headerError = 0;
-        if (!mHeaderErrors.isEmpty()) {
-            headerError = hasHeaderError(jobNode->job->fileId(), project);
-            if (headerError) {
-                // error() << "We got a headerError" << Location::path(headerError) << "for" << jobNode->job->sourceFile
-                //         << mHeaderErrorMaxJobs << mHeaderErrorJobIds;
-                if (options.headerErrorJobCount <= mHeaderErrorJobIds.size()) {
-                    warning() << "Holding off on" << jobNode->job->sourceFile << "it's got a header error from" << Location::path(headerError);
-                    jobNode = jobNode->next;
-                    continue;
-                }
-            }
-        }
-
         const uint64_t jobId = jobNode->job->id;
         Process *process = new Process;
         debug() << "Starting process for" << jobId << jobNode->job->fileId() << jobNode->job.get();
         List<String> arguments;
-        arguments << "--priority" << String::number(jobNode->job->priority);
+        arguments << "--priority" << String::number(jobNode->job->priority());
 
         for (int i=logLevel().toInt(); i>0; --i)
             arguments << "-v";
@@ -161,11 +147,6 @@ void JobScheduler::startJobs()
             cont();
             continue;
         }
-        if (headerError) {
-            jobNode->job->priority = IndexerJob::HeaderError;
-            warning() << "Letting" << jobNode->job->sourceFile << "go even with a header error from" << Location::path(headerError);
-            mHeaderErrorJobIds.insert(jobId);
-        }
         process->finished().connect([this, jobId](Process *proc) {
                 EventLoop::deleteLater(proc);
                 auto n = mActiveByProcess.take(proc);
@@ -192,7 +173,6 @@ void JobScheduler::startJobs()
                         jobFinished(n->job, msg);
                     }
                 }
-                mHeaderErrorJobIds.remove(jobId);
                 startJobs();
             });
 
@@ -223,11 +203,13 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
+    bool headerErrorChanged = false;
     for (const auto &it : message->files()) {
         if (it.second & IndexDataMessage::HeaderError) {
-            mHeaderErrors.insert(it.first);
-        } else {
-            mHeaderErrors.remove(it.first);
+            if (mHeaderErrors.insert(it.first))
+                headerErrorChanged = true;
+        } else if (mHeaderErrors.remove(it.first)) {
+            headerErrorChanged = true;
         }
     }
     // mHeaderErrors.unite(message->headerErrors());
@@ -259,6 +241,8 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         debug() << "job crashed too many times" << job->id << job->fileId() << job.get();
     }
     project->onJobFinished(job, message);
+    if (headerErrorChanged)
+        sort();
 }
 
 void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
@@ -281,19 +265,6 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
                              node.second->job->flags.toString().constData(),
                              IndexerJob::dumpFlags(node.second->job->flags).constData(),
                              now - node.second->started);
-
-        }
-    }
-
-    if (!mHeaderErrorJobIds.isEmpty()) {
-        conn->write("HeaderErrorJobs:");
-        for (uint64_t headerErrorJobId : mHeaderErrorJobIds) {
-            auto node = mActiveById.value(headerErrorJobId);
-            assert(node);
-            conn->write<128>("%s: %s %s",
-                             node->job->sourceFile.constData(),
-                             node->job->flags.toString().constData(),
-                             IndexerJob::dumpFlags(node->job->flags).constData());
 
         }
     }
@@ -329,27 +300,20 @@ void JobScheduler::clearHeaderError(uint32_t file)
         warning() << Location::path(file) << "was touched, starting jobs";
 }
 
-// ### This is a linear lookup
-bool JobScheduler::increasePriority(uint32_t fileId)
+void JobScheduler::sort()
 {
-    for (auto node = mPendingJobs.first(); node; node = node->next) {
-        if (node->job->fileId() == fileId) {
-            if (node->job->priority != IndexerJob::HeaderError) {
-                node->job->priority = MaxPriority;
-                mPendingJobs.moveToFront(node);
-                warning() << "Bumped priority for" << Location::path(fileId);
-            }
-
-            return true;
-        }
+    std::vector<std::shared_ptr<Node> > nodes(mPendingJobs.size());
+    for (size_t i=0; i<nodes.size(); ++i) {
+        std::shared_ptr<Node> node = mPendingJobs.removeFirst();
+        node->job->recalculatePriority();
+        nodes[i] = std::move(node);
     }
 
-    for (auto pair : mActiveByProcess) {
-        if (pair.second->job->fileId() == fileId) {
-            warning() << Location::path(fileId) << "is already running, no need to bump priority";
-            return true;
-        }
+    std::stable_sort(nodes.begin(), nodes.end(), [](const std::shared_ptr<Node> &l, const std::shared_ptr<Node> &r) -> bool {
+            return l->job->priority() > r->job->priority();
+        });
+
+    for (std::shared_ptr<Node> &n : nodes) {
+        mPendingJobs.append(std::move(n));
     }
-    debug() << Location::path(fileId) << "is not currently indexing";
-    return false;
 }

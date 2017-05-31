@@ -50,18 +50,21 @@ public:
 
     uint32_t fileId() const { assert(!sources.isEmpty()); return sources.begin()->fileId; }
 
+    int priority() const;
+    void recalculatePriority();
+
     uint64_t id;
     SourceList sources;
     Path sourceFile;
     Flags<Flag> flags;
     Path project;
-    int priority;
-    enum { HeaderError = -1 };
     UnsavedFiles unsavedFiles;
     Set<uint32_t> visited;
     int crashCount;
     Signal<std::function<void(IndexerJob *)> > destroyed;
+
 private:
+    mutable int mCachedPriority;
     static uint64_t sNextId;
 };
 

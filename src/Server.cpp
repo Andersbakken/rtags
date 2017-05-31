@@ -1849,6 +1849,7 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
         }
         conn->write<32>("Added %zu buffers", mActiveBuffers.size());
     }
+    mJobScheduler->sort();
     conn->finish();
 }
 

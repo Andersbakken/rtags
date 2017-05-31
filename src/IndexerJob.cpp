@@ -18,6 +18,7 @@
 #include "CompilerManager.h"
 #include "Project.h"
 #include "rct/Process.h"
+#include "JobScheduler.h"
 #include "RTags.h"
 #include "Server.h"
 #include "RTagsVersion.h"
@@ -28,7 +29,7 @@ IndexerJob::IndexerJob(const SourceList &s,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
     : id(0), flags(f),
-      project(p->path()), priority(0), unsavedFiles(u), crashCount(0)
+      project(p->path()), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
 {
     sources.append(s.front());
     for (size_t i=1; i<s.size(); ++i) {
@@ -47,31 +48,6 @@ IndexerJob::IndexerJob(const SourceList &s,
     assert(!sources.isEmpty());
     sourceFile = s.begin()->sourceFile();
     acquireId();
-    if (flags & Dirty) {
-        ++priority;
-    } else if (flags & Reindex) {
-        priority += 4;
-    }
-    Server *server = Server::instance();
-    assert(server);
-    if (server->isActiveBuffer(sources.begin()->fileId)) {
-        priority += 8;
-    } else if (DependencyNode *node = p->dependencyNode(sources.begin()->fileId)) {
-        Set<DependencyNode*> seen;
-        seen.insert(node);
-        std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
-            for (const auto &inc : n->includes) {
-                if (seen.insert(inc.second)
-                    && !Location::path(n->fileId).isSystem()
-                    && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
-                    return true;
-                }
-            }
-            return false;
-        };
-        if (func(node))
-            priority += 2;
-    }
     visited.insert(sources.begin()->fileId);
 }
 
@@ -83,6 +59,48 @@ IndexerJob::~IndexerJob()
 void IndexerJob::acquireId()
 {
     id = sNextId++;
+}
+
+int IndexerJob::priority() const
+{
+    if (mCachedPriority == INT_MIN) {
+        int ret = 0;
+        Server *server = Server::instance();
+        uint32_t fileId = sources.begin()->fileId;
+        assert(server);
+        if (server->jobScheduler()->hasHeaderError(fileId)) {
+            ret = -1;
+        } else {
+            if (flags & Dirty) {
+                ++ret;
+            } else if (flags & Reindex) {
+                ret += 4;
+            }
+            std::shared_ptr<Project> p = server->project(project);
+            if (server->isActiveBuffer(fileId)) {
+                ret += 8;
+            } else if (p) {
+                if (DependencyNode *node = p->dependencyNode(fileId)) {
+                    Set<DependencyNode*> seen;
+                    seen.insert(node);
+                    std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
+                        for (const auto &inc : n->includes) {
+                            if (seen.insert(inc.second)
+                                && !Location::path(n->fileId).isSystem()
+                                && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    };
+                    if (func(node))
+                        ret += 2;
+                }
+            }
+        }
+        mCachedPriority = ret;
+    }
+    return mCachedPriority;
 }
 
 String IndexerJob::encode() const
@@ -200,4 +218,10 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
     }
 
     return String::join(ret, ", ");
+}
+
+void IndexerJob::recalculatePriority()
+{
+    mCachedPriority = INT_MIN;
+    priority();
 }

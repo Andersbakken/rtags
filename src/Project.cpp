@@ -757,9 +757,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                                                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                                                   String::formatTime(time(0), String::Time).constData(),
                                                   msg->message().constData(),
-                                                  (job->priority == IndexerJob::HeaderError
-                                                   ? "header-error"
-                                                   : String::format<16>("priority %d", job->priority).constData())),
+                                                  String::format<16>("priority %d", job->priority()).constData()),
                   LogOutput::StdOut|LogOutput::TrailingNewLine);
     } else {
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
