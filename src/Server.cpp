@@ -1767,7 +1767,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     List<Match> matches;
     if (!query->currentFile().isEmpty())
         matches.push_back(query->currentFile());
-    if (mode == FileOn || mode == FileOff || mode == FileOn)
+    if (mode == FileOn || mode == FileOff || mode == FileToggle)
         matches.push_back(p);
     std::shared_ptr<Project> project;
     if (matches.isEmpty()) {
