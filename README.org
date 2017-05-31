@@ -1062,6 +1062,67 @@ https://github.com/mattn/vim-rtags
 Note to those maintainers. If you need RTags to behave differently or add
 features to make these other integration's easier (like produce output in
 other formats etc), just drop us a note.
+* Coding style
+  We are always excited to accept bug fixes, improvements and features
+  through code contributions. Feel free to send a pull request for
+  anything you think could be improved upon.
+
+  We'd like contributions to adhere to our coding style.
+
+  The coding style can kinda be deduced from this:
+  #+begin_src sh
+    if (foo) {
+        while (!done) {
+            switch (value) {
+            case 1:
+                break;
+            case 2: {
+                int variable = 12;
+                break; }
+            case 3:
+                break;
+            }
+        }
+        for (auto foo : vars) {
+
+        }
+    }
+
+    void test(const std::string &bar);
+
+    class Foo
+    {
+    private:
+        int mPrivateMember;
+    };
+
+    struct Bar
+    {
+        int publicMember;
+    };
+
+    class A
+    {
+    public:
+        A(int val);
+    private:
+        int mValue;
+    };
+
+    A::A(int val)
+        : mValue(val)
+    {
+    }
+
+    conn->setErrorHandler([](const SocketClient::SharedPtr &, Message::MessageError &&error) {
+            if (error.type == Message::Message_VersionError) {
+                ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
+            } else {
+                logDirect(LogLevel::Error, error.text);
+            }
+        });
+
+#+end_src
 
 * Disclaimer
 RTags is still under development and is not the most stable piece of software
