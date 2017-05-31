@@ -1195,6 +1195,11 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
                 continue;
         }
 
+        if (mSuspendedFiles.contains(fileId)) {
+            warning() << "Not starting job for" << Location::path(fileId) << "because it is suspended";
+            continue;
+        }
+
         auto job = std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this(), unsavedFiles);
         if (wait) {
             job->destroyed.connect([weakConn](IndexerJob *) {
