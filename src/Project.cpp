@@ -1541,40 +1541,42 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         return false;
     };
 
-    switch (symbol.kind) {
-    case CXCursor_ClassDecl:
-    case CXCursor_ClassTemplate:
-    case CXCursor_StructDecl:
-        if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
-            return ret;
-    case CXCursor_FunctionDecl:
-    case CXCursor_CXXMethod:
-    case CXCursor_Destructor:
-    case CXCursor_Constructor:
-    case CXCursor_FieldDecl:
-    case CXCursor_VarDecl:
-    case CXCursor_FunctionTemplate: {
-        const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), modeForSymbol(symbol));
-        for (const auto &c : symbols) {
-            if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
-                ret.insert(c);
+    for (int i=0; i<2 && ret.isEmpty(); ++i) {
+        switch (symbol.kind) {
+        case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_StructDecl:
+            if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
+                return ret;
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_Destructor:
+        case CXCursor_Constructor:
+        case CXCursor_FieldDecl:
+        case CXCursor_VarDecl:
+        case CXCursor_FunctionTemplate: {
+            const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), i == 0 ? modeForSymbol(symbol) : Project::All);
+            for (const auto &c : symbols) {
+                if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
+                    ret.insert(c);
+                }
             }
-        }
 
-        if (!ret.isEmpty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
-            break; }
-        // fall through
-    default:
-        if (symbol.flags & Symbol::TemplateReference) {
-            for (const String &usr : findTargetUsrs(symbol)) {
-                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::DependsOnArg));
+            if (!ret.isEmpty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
+                break; }
+            // fall through
+        default:
+            if (symbol.flags & Symbol::TemplateReference) {
+                for (const String &usr : findTargetUsrs(symbol)) {
+                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::DependsOnArg : Project::All));
+                }
+            } else {
+                for (const String &usr : findTargetUsrs(symbol)) {
+                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::ArgDependsOn : Project::All));
+                }
             }
-        } else {
-            for (const String &usr : findTargetUsrs(symbol)) {
-                ret.unite(findByUsr(usr, symbol.location.fileId(), Project::ArgDependsOn));
-            }
+            break;
         }
-        break;
     }
 
     return ret;
