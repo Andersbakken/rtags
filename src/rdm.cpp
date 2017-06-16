@@ -828,7 +828,6 @@ int main(int argc, char** argv)
         crashDumpFile = fopen(crashDumpTempFilePath, "w");
         if (!crashDumpFile) {
             fprintf(stderr, "Couldn't open temp file %s for write (%d)\n", crashDumpTempFilePath, errno);
-            return 1;
         }
     }
 #endif
