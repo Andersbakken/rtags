@@ -2733,13 +2733,13 @@ This includes both declarations and definitions."
 (defun rtags-find-symbol-current-file ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (rtags-find-symbol t)))
+    (rtags-find-symbols-by-name-internal "Find rsymbol (current file)" "-F" buffer-file-name t)))
 
 ;;;###autoload
 (defun rtags-find-references-current-file ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (rtags-find-references t)))
+    (rtags-find-symbols-by-name-internal "Find rreferences (current file)" "-R" buffer-file-name t)))
 
 (defun rtags-dir-filter ()
   (concat (substring buffer-file-name 0 (string-match "[^/]*/?$" buffer-file-name)) "[^/]* "))
