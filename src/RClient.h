@@ -34,6 +34,7 @@ public:
     enum OptionType {
         None = 0,
         AbsolutePath,
+        AddBuffers,
         AllDependencies,
         AllReferences,
         AllTargets,
@@ -107,6 +108,7 @@ public:
         NoRealPath,
         NoSortReferencesByInput,
         NoSpellCheckinging,
+        Noop,
         PathFilter,
         PreprocessFile,
         Project,
@@ -119,6 +121,7 @@ public:
         ReferenceName,
         Reindex,
         ReloadFileManager,
+        RemoveBuffers,
         RemoveFile,
         Rename,
         ReverseSort,
@@ -146,14 +149,13 @@ public:
         UnsavedFile,
         Validate,
         Verbose,
-        Version,
         VerifyVersion,
+        Version,
         VisitAST,
         VisitASTScript,
         Wait,
         WildcardSymbolNames,
         XML,
-        Noop,
         NumOptions
     };
 

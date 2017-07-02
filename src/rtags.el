@@ -67,7 +67,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 122)
+(defconst rtags-protocol-version 124)
 (defconst rtags-package-version "2.10")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -3349,7 +3349,7 @@ This includes both declarations and definitions."
                 (set-process-sentinel rtags-diagnostics-process 'rtags-diagnostics-sentinel)
                 (set-process-query-on-exit-flag rtags-diagnostics-process nil)
                 (rtags-clear-diagnostics)
-                (rtags-schedule-buffer-list-update)))))
+                (rtags-update-buffer-list)))))
         (when (and (called-interactively-p 'any) (rtags-is-running))
           (switch-to-buffer-other-window rtags-diagnostics-buffer-name)
           (other-window 1))))))
@@ -4553,52 +4553,51 @@ See `rtags-get-summary-text' for details."
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
-(defun rtags-set-buffers (buffers)
+(defun rtags-kill-buffer-hook ()
+  "When killing a buffer that is indexable, inform rdm of the new
+set of buffers we are visiting."
+  (condition-case nil
+      (let ((name (rtags-buffer-file-name)))
+        (when (and rtags-enabled name (funcall rtags-is-indexable (current-buffer)))
+          (unless (file-directory-p default-directory)
+            (cd "/"))
+          (rtags-call-rc :noerror t :silent-query t :output nil "--remove-buffers" name)))
+    (error
+     t))
+  t)
+
+(add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
+
+(defun rtags-update-buffer-list ()
   "Send the list of indexable buffers to the rtags server, rdm,
 so it knows what files may be queried which helps with responsiveness.
 "
+  (interactive)
+  ;; (message "rtags-update-buffer-list")
   (when rtags-enabled
     (with-temp-buffer
       (mapc #'(lambda (x)
                 (when (funcall rtags-is-indexable x)
                   (insert (rtags-buffer-file-name x) "\n")))
-            buffers)
+            (buffer-list))
       (when (> (point-max) 1)
         (rtags-log (concat "--set-buffers files: "
                            (combine-and-quote-strings
                             (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
       (rtags-call-rc :noerror t :silent-query t :silent t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
 
-(defun rtags-kill-buffer-hook ()
-  "When killing a buffer that is indexable, inform rdm of the new
-set of buffers we are visiting."
-  (when (and (rtags-buffer-file-name)
-             (memq major-mode rtags-supported-major-modes))
-    (unless (file-directory-p default-directory)
-      (cd "/"))
-    (rtags-set-buffers (remove (current-buffer) (buffer-list))))
-  t)
-(add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
-
-(defvar rtags-update-buffer-list-timer nil)
-(defun rtags-update-buffer-list ()
-  (interactive)
-  ;; (message "rtags-update-buffer-list")
-  (when rtags-update-buffer-list-timer
-    (cancel-timer rtags-update-buffer-list-timer)
-    (setq rtags-update-buffer-list-timer nil))
-  (rtags-set-buffers (buffer-list)))
-
-(defun rtags-schedule-buffer-list-update ()
-  ;; (message "rtags-schedule-buffer-list-update %s" (if rtags-update-buffer-list-timer "yes" "no"))
-  (unless rtags-update-buffer-list-timer
-    (setq rtags-update-buffer-list-timer (run-with-idle-timer 1 nil #'rtags-update-buffer-list))))
-
 (defun rtags-find-file-hook ()
   (interactive)
-  (when (rtags-buffer-file-name)
-    (rtags-schedule-buffer-list-update))
-  t)
+  (condition-case nil
+      (let ((name (rtags-buffer-file-name)))
+        (and rtags-enabled
+             name
+             (funcall rtags-is-indexable (current-buffer))
+             (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name)))
+    (error
+     t))
+    t)
+
 (add-hook 'find-file-hook 'rtags-find-file-hook)
 
 (defun rtags-insert-include (include)

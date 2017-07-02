@@ -104,6 +104,8 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::DumpCompileCommands, "dump-compile-commands", 0, CommandLineParser::NoValue, "Dump compilation database for project." },
     { RClient::SetBuffers, "set-buffers", 0, CommandLineParser::Optional, "Set active buffers (list of filenames for active buffers in editor)." },
     { RClient::ListBuffers, "list-buffers", 0, CommandLineParser::NoValue, "List active buffers." },
+    { RClient::AddBuffers, "add-buffers", 0, CommandLineParser::Required, "Add additional buffers." },
+    { RClient::RemoveBuffers, "remove-buffers", 0, CommandLineParser::Required, "Remove buffers." },
     { RClient::ListCursorKinds, "list-cursor-kinds", 0, CommandLineParser::NoValue, "List spelling for known cursor kinds." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, CommandLineParser::Required, "Dump class hierarcy for struct/class at location." },
     { RClient::DebugLocations, "debug-locations", 0, CommandLineParser::Optional, "Manipulate debug locations." },
@@ -961,7 +963,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
             mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
-        case SetBuffers: {
+        case SetBuffers:
+        case AddBuffers:
+        case RemoveBuffers: {
             String arg;
             if (!value.isEmpty()) {
                 arg = std::move(value);
@@ -996,6 +1000,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     }
                 }
                 Serializer serializer(encoded);
+                switch (type) {
+                case AddBuffers: serializer << 1; break;
+                case SetBuffers: serializer << 0; break;
+                case RemoveBuffers: serializer << -1; break;
+                default: assert(0); break;
+                }
                 serializer << paths;
             }
             addQuery(QueryMessage::SetBuffers, std::move(encoded));

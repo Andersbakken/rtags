@@ -1841,13 +1841,31 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
         }
     } else {
         Deserializer deserializer(encoded);
+        int mode;
+        deserializer >> mode;
         List<Path> paths;
         deserializer >> paths;
-        mActiveBuffers.clear();
-        for (const Path &path : paths) {
-            mActiveBuffers << Location::insertFile(path);
+        const size_t oldCount = mActiveBuffers.size();
+        if (mode == 0 || mode == 1) {
+            if (mode == 0)
+                mActiveBuffers.clear();
+            for (const Path &path : paths) {
+                if (uint32_t fileId = Location::insertFile(path))
+                    mActiveBuffers.insert(fileId);
+            }
+        } else {
+            assert(mode == -1);
+            for (const Path &path : paths) {
+                mActiveBuffers.remove(Location::insertFile(path));
+            }
         }
-        conn->write<32>("Added %zu buffers", mActiveBuffers.size());
+        if (oldCount < mActiveBuffers.size()) {
+            conn->write<32>("Added %zu buffers", mActiveBuffers.size() - oldCount);
+        } else if (oldCount > mActiveBuffers.size()) {
+            conn->write<32>("Removed %zu buffers", oldCount - mActiveBuffers.size());
+        } else {
+            conn->write<32>("We still have %zu buffers", oldCount);
+        }
     }
     mJobScheduler->sort();
     conn->finish();
