@@ -4593,7 +4593,8 @@ so it knows what files may be queried which helps with responsiveness.
         (and rtags-enabled
              name
              (funcall rtags-is-indexable (current-buffer))
-             (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name)))
+             (with-temp-buffer
+               (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name))))
     (error
      t))
     t)
