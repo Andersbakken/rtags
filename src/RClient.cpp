@@ -446,7 +446,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                                                  String &&value,
                                                  size_t &idx,
                                                  const List<String> &args)> cb;
-    cb = [this, &logFlags, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
+    cb = [this, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
         case NumOptions: {
