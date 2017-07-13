@@ -68,7 +68,7 @@
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defconst rtags-protocol-version 124)
-(defconst rtags-package-version "2.10")
+(defconst rtags-package-version "2.11")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
 (defconst rtags-verbose-results-delimiter "------------------------------------------")
@@ -282,7 +282,9 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
 
 (defcustom rtags-imenu-syntax-highlighting nil
   "Set to t to enable syntax highlight in rtags-imenu. If rtags-imenu-syntax-highlighting is set to a number this is considered the max number of lines to highlight"
-  :group 'rtags)
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
 
 (defcustom rtags-wildcard-symbol-names t
   "Allow use of * and ? to match symbol names."
@@ -4395,8 +4397,8 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
   (and rtags-completions-enabled
        (memq major-mode rtags-supported-major-modes)))
 
-(defconst rtags-paren-start ?()
-  (defconst rtags-paren-end ?))
+(defconst rtags-paren-start ?\()
+(defconst rtags-paren-end ?\))
 (defun rtags-find-arg (startpos argument)
   (let ((location (cdr (assoc 'location argument))))
     (when (string-match ".*:\\([0-9]+\\):\\([0-9]+\\):?" location)
