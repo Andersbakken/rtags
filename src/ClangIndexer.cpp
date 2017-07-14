@@ -175,6 +175,7 @@ bool ClangIndexer::exec(const String &data)
             error("Bad fileId");
             return false;
         }
+        break;
     default:
         for (size_t i=1; i<mSources.size(); ++i) {
             if (!mSources.at(i).fileId || mSources.at(i).fileId != mSources.front().fileId) {
