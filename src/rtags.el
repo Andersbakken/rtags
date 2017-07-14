@@ -4560,9 +4560,11 @@ See `rtags-get-summary-text' for details."
 set of buffers we are visiting."
   (condition-case nil
       (let ((name (rtags-buffer-file-name)))
-        (when (and rtags-enabled name (funcall rtags-is-indexable (current-buffer)))
-          (unless (file-directory-p default-directory)
-            (cd "/"))
+        (when (and rtags-enabled
+                   name
+                   default-directory
+                   (file-directory-p default-directory)
+                   (funcall rtags-is-indexable (current-buffer)))
           (rtags-call-rc :noerror t :silent-query t :output nil "--remove-buffers" name)))
     (error
      t))
