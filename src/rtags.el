@@ -4555,19 +4555,24 @@ See `rtags-get-summary-text' for details."
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
+(defvar rtags-pending-dead-buffers nil)
+(defvar rtags-pending-remove-buffers-timer nil)
 (defun rtags-kill-buffer-hook ()
   "When killing a buffer that is indexable, inform rdm of the new
 set of buffers we are visiting."
-  (condition-case nil
-      (let ((name (rtags-buffer-file-name)))
-        (when (and rtags-enabled
-                   name
-                   default-directory
-                   (file-directory-p default-directory)
-                   (funcall rtags-is-indexable (current-buffer)))
-          (rtags-call-rc :noerror t :silent-query t :output nil "--remove-buffers" name)))
-    (error
-     t))
+  (when rtags-enabled
+    (let ((name (rtags-buffer-file-name)))
+      (when (and name (funcall rtags-is-indexable (current-buffer)))
+        (push name rtags-pending-dead-buffers)
+        (unless rtags-pending-remove-buffers-timer
+          (setq rtags-pending-remove-buffers-timer
+                (run-with-idle-timer 1 nil
+                                     (lambda ()
+                                       (with-temp-buffer
+                                         (insert (mapconcat 'identity rtags-pending-dead-buffers "\n"))
+                                         (setq rtags-pending-dead-buffers nil)
+                                         (setq rtags-pending-remove-buffers-timer nil)
+                                         (rtags-call-rc :noerror t :silent-query t :unsaved (current-buffer) "--remove-buffers" "-")))))))))
   t)
 
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
