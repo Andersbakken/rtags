@@ -531,7 +531,7 @@ int main(int argc, char** argv)
             break; }
         case RpNiceValue: {
             bool ok;
-            serverOpts.rpNiceValue = String(value).toLong(&ok);
+            serverOpts.rpNiceValue = value.toLong(&ok);
             if (!ok) {
                 return { String::format<1024>("Can't parse argument to -a %s.", value.constData()), CommandLineParser::Parse_Error };
             }
