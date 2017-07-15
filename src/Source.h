@@ -102,13 +102,10 @@ struct Source
     Set<Define> defines;
     struct Include {
         enum Type {
-            Type_None,
-            Type_Include,
-            Type_Quote,
-            Type_Framework,
-            Type_System,
-            Type_SystemFramework,
-            Type_FileInclude
+            Type_None
+#define DECLARE_INCLUDE_TYPE(type, arg, space) , type
+#include "IncludeTypesInternal.h"
+#undef DECLARE_INCLUDE_TYPE
         };
         Include(Type t = Type_None, const Path &p = Path())
             : type(t), path(p)
@@ -121,12 +118,9 @@ struct Source
         inline String toString() const
         {
             switch (type) {
-            case Type_Include: return String::format<128>("-I%s", path.constData());
-            case Type_Quote: return String::format<128>("-iquote %s", path.constData());
-            case Type_Framework: return String::format<128>("-F%s", path.constData());
-            case Type_System: return String::format<128>("-isystem %s", path.constData());
-            case Type_SystemFramework: return String::format<128>("-iframework %s", path.constData());
-            case Type_FileInclude: return String::format<128>("-include %s", path.constData());
+#define DECLARE_INCLUDE_TYPE(type, arg, space) case type: return String::format<128>("%s%s%s", #arg, space, path.constData());
+#include "IncludeTypesInternal.h"
+#undef DECLARE_INCLUDE_TYPE
             case Type_None: break;
             }
             return String();
@@ -147,7 +141,7 @@ struct Source
     };
     List<Include> includePaths;
     List<String> arguments;
-    int32_t sysRootIndex;
+    // int32_t sysRootIndex;
     Path directory;
     Path outputFilename;
 
@@ -171,7 +165,6 @@ struct Source
     Path compiler() const;
     void clear();
     String toString() const;
-    Path sysRoot() const { return arguments.value(sysRootIndex, "/"); }
 
     static SourceList parse(const String &cmdLine,
                             const Path &pwd,
@@ -192,7 +185,7 @@ RCT_FLAGS(Source::Define::Flag);
 
 inline Source::Source()
     : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
-      language(NoLanguage), sysRootIndex(-1)
+      language(NoLanguage)
 {
 }
 
@@ -259,12 +252,6 @@ inline int Source::compare(const Source &other) const
 
     if (int cmp = includePaths.compare(other.includePaths)) {
         return cmp;
-    }
-
-    if (sysRootIndex < other.sysRootIndex) {
-        return -1;
-    } else if (sysRootIndex > other.sysRootIndex) {
-        return 1;
     }
 
     if (language < other.language) {

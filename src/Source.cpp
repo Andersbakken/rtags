@@ -520,7 +520,6 @@ SourceList Source::parse(const String &cmdLine,
     List<String> arguments;
     Set<Define> defines;
     List<Include> includePaths;
-    int32_t sysRootIndex = -1;
     uint32_t buildRootId = 0;
     Path buildRoot;
     Path outputFilename;
@@ -592,8 +591,6 @@ SourceList Source::parse(const String &cmdLine,
                           define.value.constData());
                     defines.insert(define);
                 }
-            } else if (arg.startsWith("-I")) {
-                addIncludeArg(includePaths, Source::Include::Type_Include, 2, split, i, path);
 #ifdef OS_Darwin
             } else if (arg == "-arch") {
                 // Limit -arch to a single format i368/x86_64. Darwin allows
@@ -608,23 +605,7 @@ SourceList Source::parse(const String &cmdLine,
                 } else {
                     warning() << "[Source::parse] Removing additional -arch argument(s) to allow indexing.";
                 }
-
-                // Framework includes
-            } else if (arg.startsWith("-F")) {
-                addIncludeArg(includePaths, Source::Include::Type_Framework, 2, split, i, path);
-            } else if (arg.startsWith("-iframework")) {
-                addIncludeArg(includePaths, Source::Include::Type_SystemFramework, 11, split, i, path);
 #endif
-            } else if (arg.startsWith("-include-pch")) {
-                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
-            } else if (arg.startsWith("-include")) {
-                addIncludeArg(includePaths, Source::Include::Type_FileInclude, 8, split, i, path);
-            } else if (arg.startsWith("-isystem")) {
-                addIncludeArg(includePaths, Source::Include::Type_System, 8, split, i, path);
-            } else if (arg.startsWith("-iquote")) {
-                addIncludeArg(includePaths, Source::Include::Type_Quote, 7, split, i, path);
-            } else if (arg.startsWith("-cxx-isystem")) {
-                addIncludeArg(includePaths, Source::Include::Type_System, 12, split, i, path);
             } else if (arg == "-ObjC++") {
                 language = ObjectiveCPlusPlus;
                 arguments.append(arg);
@@ -653,14 +634,6 @@ SourceList Source::parse(const String &cmdLine,
                         language = CPlusPlus11;
                     }
                 }
-            } else if (arg.startsWith("-isysroot")) {
-                arguments.append(arg);
-                if (i + 1 < s) {
-                    sysRootIndex = arguments.size();
-                    Path root = split.value(++i);
-                    root.resolve();
-                    arguments.append(root);
-                }
             } else if (arg.startsWith("-o")) {
                 Path p;
                 if (arg.size() > 2) {
@@ -685,7 +658,21 @@ SourceList Source::parse(const String &cmdLine,
                     }
                 }
                 outputFilename = std::move(p);
-            } else {
+            }
+#define DECLARE_INCLUDE_TYPE(type, argument, space)                     \
+            else if (arg.startsWith(argument)) {                        \
+                const size_t argLen = strlen(argument);                 \
+                Path p;                                                 \
+                if (arg.size() == argLen) {                             \
+                    p = Path::resolved(split.value(++i), Path::MakeAbsolute, path); \
+                } else {                                                \
+                    p = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd); \
+                }                                                       \
+                includePaths.append(Source::Include(Source::Include::type, p)); \
+            }
+#include "IncludeTypesInternal.h"
+#undef DECLARE_INCLUDE_TYPE
+            else {
                 arguments.append(arg);
                 if (hasValue(arg)) {
                     arguments.append(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
@@ -765,7 +752,6 @@ SourceList Source::parse(const String &cmdLine,
             source.defines = defines;
             source.includePaths = includePaths;
             source.arguments = arguments;
-            source.sysRootIndex = sysRootIndex;
             source.outputFilename = outputFilename;
             source.language = input.language;
             assert(source.language != NoLanguage);
@@ -940,63 +926,32 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     if (f & IncludeIncludePaths) {
         for (const auto &inc : includePaths) {
             switch (inc.type) {
-            case Source::Include::Type_None:
-                assert(0 && "Impossible impossibility");
-                break;
-            case Source::Include::Type_Include:
-                ret << ("-I" + inc.path);
-                break;
-            case Source::Include::Type_Quote:
-                ret << "-iquote" << inc.path;
-                break;
-            case Source::Include::Type_Framework:
-                ret << ("-F" + inc.path);
-                break;
-            case Source::Include::Type_System:
-                ret << "-isystem" << inc.path;
-                break;
-            case Source::Include::Type_SystemFramework:
-                ret << "-iframework" << inc.path;
-                break;
-            case Source::Include::Type_FileInclude:
-                if (inc.isPch()) {
-                    if (f & PCHEnabled) {
-                        if (usedPch)
-                            *usedPch = true;
-                        ret << "-include-pch" << (inc.path + ".gch");
-                    }
-                } else {
-                    ret << "-include" << inc.path;
-                }
-                break;
+            case Include::Type_None: assert(0 && "Impossible impossibility"); break;
+#define DECLARE_INCLUDE_TYPE(type, argument, space)                 \
+                case Source::Include::type:                         \
+                    if (inc.type == Include::Type_PCH) {            \
+                        if (f & PCHEnabled) {                       \
+                            if (usedPch)                            \
+                                *usedPch = true;                    \
+                            ret << argument << (inc.path + ".gch"); \
+                        }                                           \
+                    } else if (*space) {                            \
+                        ret << argument << inc.path;                \
+                    } else {                                        \
+                        ret << (argument + inc.path);               \
+                    }                                               \
+                    break;
+#include "IncludeTypesInternal.h"
             }
         }
-        if (!(f & ExcludeDefaultIncludePaths)) {
-            assert(server);
-            for (const auto &inc : server->options().includePaths) {
-                switch (inc.type) {
-                case Source::Include::Type_None:
-                    assert(0 && "Impossible impossibility");
-                    break;
-                case Source::Include::Type_Include:
-                    ret << ("-I" + inc.path);
-                    break;
-                case Source::Include::Type_Quote:
-                    ret << "-iquote" << inc.path;
-                    break;
-                case Source::Include::Type_Framework:
-                    ret << ("-F" + inc.path);
-                    break;
-                case Source::Include::Type_System:
-                    ret << "-isystem" << inc.path;
-                    break;
-                case Source::Include::Type_SystemFramework:
-                    ret << "-iframework" << inc.path;
-                    break;
-                case Source::Include::Type_FileInclude:
-                    ret << "-include" << inc.path;
-                    break;
-                }
+    }
+    if (!(f & ExcludeDefaultIncludePaths)) {
+        assert(server);
+        for (const auto &inc : server->options().includePaths) {
+            switch (inc.type) {
+            case Include::Type_None: assert(0 && "Impossible impossibility"); break;
+#include "IncludeTypesInternal.h"
+#undef DECLARE_INCLUDE_TYPE
             }
         }
     }
@@ -1040,13 +995,13 @@ void Source::encode(Serializer &s, EncodeMode mode) const
             Sandbox::encode(inc.path);
 
         s << incPaths << Sandbox::encoded(arguments)
-          << sysRootIndex << Sandbox::encoded(directory) << includePathHash;
+          << Sandbox::encoded(directory) << includePathHash;
     } else {
         s << sourceFile() << fileId << compiler() << compilerId
           << extraCompiler << buildRoot() << buildRootId
           << compileCommands() << compileCommandsFileId
           << static_cast<uint8_t>(language) << flags << defines
-          << includePaths << arguments << sysRootIndex << directory << includePathHash;
+          << includePaths << arguments << directory << includePathHash;
     }
 }
 
@@ -1057,8 +1012,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
     Path source, compiler, buildRoot, compileCommands;
     s >> source >> fileId >> compiler >> compilerId >> extraCompiler
       >> buildRoot >> buildRootId >> compileCommands >> compileCommandsFileId
-      >> lang >> flags
-      >> defines >> includePaths >> arguments >> sysRootIndex
+      >> lang >> flags >> defines >> includePaths >> arguments
       >> directory >> includePathHash;
     language = static_cast<Language>(lang);
 
