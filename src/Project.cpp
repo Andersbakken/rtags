@@ -1317,6 +1317,10 @@ void Project::findSymbols(const String &unencoded,
     const String string = Sandbox::encoded(unencoded);
     const bool wildcard = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
     const bool caseInsensitive = queryFlags & QueryMessage::MatchCaseInsensitive;
+    std::regex rx;
+    const bool regex = queryFlags & QueryMessage::MatchRegex;
+    if (regex)
+        rx.assign(string.ref());
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
     String lowerBound;
     if (wildcard) {
@@ -1329,11 +1333,11 @@ void Project::findSymbols(const String &unencoded,
                 }
             }
         }
-    } else if (!caseInsensitive) {
+    } else if (!caseInsensitive && !regex) {
         lowerBound = string;
     }
 
-    auto processFile = [this, &lowerBound, &string, wildcard, cs, &inserter](uint32_t file) {
+    auto processFile = [this, &lowerBound, &string, wildcard, regex, &rx, cs, &inserter](uint32_t file) {
         auto symNames = openSymbolNames(file);
         if (!symNames)
             return;
@@ -1358,13 +1362,17 @@ void Project::findSymbols(const String &unencoded,
                         continue;
                     }
                     type = Wildcard;
+                } else if (regex) {
+                    if (!std::regex_search(entry.ref(), rx)) {
+                        continue;
+                    }
+                    type = Regexp;
                 } else if (!entry.startsWith(string, cs)) {
                     if (cs == String::CaseInsensitive) {
                         continue;
                     } else {
                         break;
                     }
-                    type = StartsWith;
                 } else if (entry.size() != string.size()) {
                     type = StartsWith;
                 }

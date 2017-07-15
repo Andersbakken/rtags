@@ -142,6 +142,7 @@ public:
     enum SymbolMatchType {
         Exact,
         Wildcard,
+        Regexp,
         StartsWith
     };
     void findSymbols(const String &symbolName,
