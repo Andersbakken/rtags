@@ -29,8 +29,8 @@ public:
 protected:
     virtual int execute() override;
 private:
-    Set<Location> locations;
-    const String symbolName;
+    Set<Location> mLocations;
+    const String mSymbolName;
 };
 
 #endif

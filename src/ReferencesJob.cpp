@@ -27,11 +27,11 @@ static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryF
 ReferencesJob::ReferencesJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
     : QueryJob(query, proj, ::jobFlags(query->flags()))
 {
-    locations.insert(loc);
+    mLocations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj, ::jobFlags(query->flags())), symbolName(sym)
+    : QueryJob(query, proj, ::jobFlags(query->flags())), mSymbolName(sym)
 {
 }
 
@@ -43,28 +43,28 @@ int ReferencesJob::execute()
         return 1;
     Set<Symbol> refs;
     Map<Location, std::pair<bool, CXCursorKind> > references;
-    if (!symbolName.isEmpty()) {
+    if (!mSymbolName.isEmpty()) {
         const bool hasFilter = QueryJob::hasFilter();
         auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
             if (type == Project::StartsWith) {
                 const size_t paren = string.indexOf('(');
-                if (paren == String::npos || paren != symbolName.size() || RTags::isFunctionVariable(string))
+                if (paren == String::npos || paren != mSymbolName.size() || RTags::isFunctionVariable(string))
                     return;
             }
 
             for (const auto &l : locs) {
                 if (!hasFilter || filter(l.path())) {
-                    locations.insert(l);
+                    mLocations.insert(l);
                 }
             }
         };
-        proj->findSymbols(symbolName, inserter, queryFlags());
+        proj->findSymbols(mSymbolName, inserter, queryFlags());
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     const bool definitionOnly = queryFlags() & QueryMessage::DefinitionOnly;
     Location startLocation;
     bool first = true;
-    for (auto it = locations.begin(); it != locations.end(); ++it) {
+    for (auto it = mLocations.begin(); it != mLocations.end(); ++it) {
         const Location pos = *it;
         Symbol sym = proj->findSymbol(pos);
         if (sym.isNull())
