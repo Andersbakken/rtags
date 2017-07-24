@@ -281,8 +281,8 @@ void CompletionThread::process(Request *request)
     StringTokenizer st;
 
     LOG() << "line: " << request->location.line() << "column: "
-         << request->location.column() << ", prefix: "
-         << request->prefix;
+          << request->location.column() << ", prefix: "
+          << request->prefix;
 
     if (reparse) {
         sw.restart();
@@ -346,15 +346,15 @@ void CompletionThread::process(Request *request)
             const int priority = clang_getCompletionPriority(string);
 
 
-	    CompletionCandidate *candidate = new CompletionCandidate("");
-	    candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
-	    candidate->priority = priority;
-	    candidate->parent = RTags::eatString(clang_getCompletionParent(string, 0));
-	    candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
+            CompletionCandidate *candidate = new CompletionCandidate("");
+            candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
+            candidate->priority = priority;
+            candidate->parent = RTags::eatString(clang_getCompletionParent(string, 0));
+            candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
 
-	    candidates.push_back(candidate);
+            candidates.push_back(candidate);
 
-	    bool ok = true;
+            bool ok = true;
             const int chunkCount = clang_getNumCompletionChunks(string);
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
@@ -373,21 +373,21 @@ void CompletionThread::process(Request *request)
                 }
             }
 
-	    if (ok) {
-		const unsigned int annotations = clang_getCompletionNumAnnotations(string);
-		for (unsigned j=0; j<annotations; ++j) {
-		    const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
-		    const char *cstr = clang_getCString(annotation);
-		    if (const int len = strlen(cstr)) {
-			if (!candidate->annotation.empty())
-			    candidate->annotation += ' ';
-			candidate->annotation + cstr;
-			}
-		    }
-	    }
+            if (ok) {
+                const unsigned int annotations = clang_getCompletionNumAnnotations(string);
+                for (unsigned j=0; j<annotations; ++j) {
+                    const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
+                    const char *cstr = clang_getCString(annotation);
+                    if (const int len = strlen(cstr)) {
+                        if (!candidate->annotation.empty())
+                            candidate->annotation += ' ';
+                        candidate->annotation + cstr;
+                    }
+                }
+            }
         }
 
-	vector<MatchResult *> matches = st.find_and_sort_matches(candidates, request->prefix);
+        vector<MatchResult *> matches = st.find_and_sort_matches(candidates, request->prefix);
 
         if (!matches.empty()) {
             // Sort pointers instead of shuffling candidates around
@@ -523,38 +523,38 @@ void CompletionThread::printCompletions(const vector<MatchResult *> &results, Re
                                             RTags::elispEscape(request->location.toString(Location::AbsolutePath)).constData());
         }
         for (MatchResult *result : results) {
-		CompletionCandidate *c = result->candidate;
-                const String str = String::format<128>(" %s %s %s %s %s %s\n",
-                                                       c->name.c_str(),
-                                                       c->signature.c_str(),
-                                                       c->kind.c_str(),
-                                                       c->annotation.c_str(),
-                                                       c->parent.c_str(),
-                                                       c->brief_comment.c_str());
+            CompletionCandidate *c = result->candidate;
+            const String str = String::format<128>(" %s %s %s %s %s %s\n",
+                                                   c->name.c_str(),
+                                                   c->signature.c_str(),
+                                                   c->kind.c_str(),
+                                                   c->annotation.c_str(),
+                                                   c->parent.c_str(),
+                                                   c->brief_comment.c_str());
 
 
             if (xml || raw)
-                            if (raw)
+                if (raw)
                     rawOut += str;
-                if (xml)
-                    xmlOut += str;
-                if (send_json)
-                    j["completions"] += {
-		      {"completion", c->name},
-		      {"signature", c->signature},
-		      {"kind", c->kind},
-		      {"parent", c->parent},
-		      {"brief_comment", c->brief_comment},
-		      {"annotation", c->annotation},
-		      {"priority", c->priority}
-		    };
+            if (xml)
+                xmlOut += str;
+            if (send_json)
+                j["completions"] += {
+                    {"completion", c->name},
+                    {"signature", c->signature},
+                    {"kind", c->kind},
+                    {"parent", c->parent},
+                    {"brief_comment", c->brief_comment},
+                    {"annotation", c->annotation},
+                    {"priority", c->priority}
+                };
             if (elisp) {
-                 elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\")",
+                elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\")",
                                                 RTags::elispEscape(c->name).constData(),
                                                 RTags::elispEscape(c->signature).constData(),
                                                 c->kind.c_str(),
                                                 RTags::elispEscape(c->brief_comment).constData());
-		//,
+                //,
                 // RTags::elispEscape(val->annotation).constData(),
                 // val->parent.constData(),
                 // val->briefComment.constData());
