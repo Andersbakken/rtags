@@ -66,7 +66,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         }
         dir.insert(it->fileName());
     }
-    assert(!map.contains(""));
+    assert(!map.contains(Path()));
 }
 
 void FileManager::onFileAdded(const Path &path)

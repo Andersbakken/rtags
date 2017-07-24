@@ -235,7 +235,7 @@ int StatusJob::execute()
             write("  Includepaths:");
             for (const auto &it : source.includePaths)
                 write<512>("    %s", it.toString().constData());
-            write("");
+            write(String());
         }
     }
 
