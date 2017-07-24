@@ -118,7 +118,7 @@ private:
         Completions *next, *prev;
     };
 
-    void printCompletions(const std::vector<MatchResult *> &results, Request *request);
+    void printCompletions(const List<MatchResult *> &results, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 

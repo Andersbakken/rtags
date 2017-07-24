@@ -345,8 +345,7 @@ void CompletionThread::process(Request *request)
 
             const int priority = clang_getCompletionPriority(string);
 
-
-            CompletionCandidate *candidate = new CompletionCandidate("");
+            CompletionCandidate *candidate = new CompletionCandidate;
             candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
             candidate->priority = priority;
             candidate->parent = RTags::eatString(clang_getCompletionParent(string, 0));
@@ -361,7 +360,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     candidate->name = text;
-                    if (candidate->name.empty()) {
+                    if (candidate->name.isEmpty()) {
                         ok = false;
                         break;
                     }
@@ -378,8 +377,8 @@ void CompletionThread::process(Request *request)
                 for (unsigned j=0; j<annotations; ++j) {
                     const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
                     const char *cstr = clang_getCString(annotation);
-                    if (const int len = strlen(cstr)) {
-                        if (!candidate->annotation.empty())
+                    if (strlen(cstr)) {
+                        if (!candidate->annotation.isEmpty())
                             candidate->annotation += ' ';
                         candidate->annotation + cstr;
                     }
@@ -387,9 +386,9 @@ void CompletionThread::process(Request *request)
             }
         }
 
-        vector<MatchResult *> matches = st.find_and_sort_matches(candidates, request->prefix);
+        List<MatchResult *> matches = st.find_and_sort_matches(candidates, request->prefix);
 
-        if (!matches.empty()) {
+        if (!matches.isEmpty()) {
             // Sort pointers instead of shuffling candidates around
             printCompletions(matches, request);
             processTime = sw.elapsed();
@@ -460,7 +459,7 @@ struct Output
     Flags<CompletionThread::Flag> flags;
 };
 
-void CompletionThread::printCompletions(const vector<MatchResult *> &results, Request *request)
+void CompletionThread::printCompletions(const List<MatchResult *> &results, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;

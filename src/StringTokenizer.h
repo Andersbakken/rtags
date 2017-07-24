@@ -16,12 +16,10 @@
 #ifndef StringTokenizer_h
 #define StringTokenizer_h
 
-#include <string>
-#include <vector>
+#include <rct/String.h>
+#include <rct/List.h>
 #include <cctype>
 #include <algorithm>
-
-using namespace std;
 
 enum MatchResultType {
     NO_MATCH,
@@ -32,30 +30,20 @@ enum MatchResultType {
     EXACT_MATCH_CASE_SENSITIVE
 };
 
-inline void lower(std::string &str)
-{
-    std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-}
-
-inline void upper(std::string &str)
-{
-    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-}
-
 class CompletionCandidate
 {
 public:
-    CompletionCandidate(std::string n) // ### move?
-        : name(n), priority(-1)
+    CompletionCandidate()
+        : priority(-1)
     {
     }
 
-    std::string name;
-    std::string signature;
-    std::string kind;
-    std::string parent;
-    std::string brief_comment;
-    std::string annotation;
+    String name;
+    String signature;
+    String kind;
+    String parent;
+    String brief_comment;
+    String annotation;
     int priority;
 };
 
@@ -127,30 +115,30 @@ struct MatchResultComparator {
 class StringTokenizer
 {
 public:
-    inline std::vector<std::string> break_parts_of_word(const std::string &str);
-    inline size_t common_prefix(const std::string &str1, const std::string &str2);
-    inline MatchResult *find_match(CompletionCandidate *candidate, const std::string &query);
-    inline bool is_boundary_match(const std::vector<std::string> &parts, const std::string &query, std::vector<size_t> &indices);
-    inline std::string find_identifier_prefix(const std::string &line, size_t column, size_t *start);
-    inline std::vector<MatchResult *> find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const std::string &query);
+    inline std::vector<String> break_parts_of_word(const String &str);
+    inline size_t common_prefix(const String &str1, const String &str2);
+    inline MatchResult *find_match(CompletionCandidate *candidate, const String &query);
+    inline bool is_boundary_match(const std::vector<String> &parts, const String &query, std::vector<size_t> &indices);
+    inline String find_identifier_prefix(const String &line, size_t column, size_t *start);
+    inline std::vector<MatchResult *> find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const String &query);
 
 private:
-    inline bool is_boundary_match(const std::vector<std::string> &parts,
-                                  const std::string &query,
+    inline bool is_boundary_match(const std::vector<String> &parts,
+                                  const String &query,
                                   std::vector<size_t> &indices,
                                   size_t query_start,
                                   size_t current_index);
 };
 
-std::vector<std::string> StringTokenizer::break_parts_of_word(const std::string &str)
+std::vector<String> StringTokenizer::break_parts_of_word(const String &str)
 {
-    std::vector<std::string> result;
-    std::string buffer;
+    std::vector<String> result;
+    String buffer;
 
-    for (std::string::const_iterator c = str.begin(); c != str.end(); c++) {
+    for (String::const_iterator c = str.begin(); c != str.end(); c++) {
         if (*c == '_') {
             /* Underscore symbol always break */
-            if (!buffer.empty()) {
+            if (!buffer.isEmpty()) {
                 result.push_back(buffer);
                 buffer.clear();
             }
@@ -158,9 +146,9 @@ std::vector<std::string> StringTokenizer::break_parts_of_word(const std::string 
             if (buffer.length() > 1 && isupper(buffer[buffer.length() - 1])) {
                 /* Break: XML|Do.  */
                 size_t l = buffer.length();
-                result.push_back(buffer.substr(0, l - 1));
-                buffer = buffer.substr(l - 1, 1);
-            } else if (!buffer.empty() && isdigit(buffer[buffer.length() - 1])) {
+                result.push_back(buffer.mid(0, l - 1));
+                buffer = buffer.mid(l - 1, 1);
+            } else if (!buffer.isEmpty() && isdigit(buffer[buffer.length() - 1])) {
                 /* Break: 0|D.  */
                 result.push_back(buffer);
                 buffer.clear();
@@ -169,7 +157,7 @@ std::vector<std::string> StringTokenizer::break_parts_of_word(const std::string 
             buffer += *c;
         } else if (isupper(*c)) {
             /* Break: a|D or 0|D.  */
-            if (!buffer.empty() && !isupper(buffer[buffer.length() - 1])) {
+            if (!buffer.isEmpty() && !isupper(buffer[buffer.length() - 1])) {
                 result.push_back(buffer);
                 buffer.clear();
             }
@@ -177,7 +165,7 @@ std::vector<std::string> StringTokenizer::break_parts_of_word(const std::string 
             buffer += *c;
         } else if (isdigit(*c)) {
             /* Break: a|0 or A|0.  */
-            if (!buffer.empty() && !isdigit(buffer[buffer.length() - 1])) {
+            if (!buffer.isEmpty() && !isdigit(buffer[buffer.length() - 1])) {
                 result.push_back(buffer);
                 buffer.clear();
             }
@@ -186,17 +174,17 @@ std::vector<std::string> StringTokenizer::break_parts_of_word(const std::string 
         }
     }
 
-    if (!buffer.empty())
+    if (!buffer.isEmpty())
         result.push_back(buffer);
 
     /* Lower all parts of result.  */
     for (size_t i = 0; i < result.size(); i++)
-        lower(result[i]);
+        result[i].lowerCase();
 
     return result;
 }
 
-size_t StringTokenizer::common_prefix(const std::string &str1, const std::string &str2)
+size_t StringTokenizer::common_prefix(const String &str1, const String &str2)
 {
     size_t l = std::min(str1.length(), str2.length());
 
@@ -207,17 +195,15 @@ size_t StringTokenizer::common_prefix(const std::string &str1, const std::string
     return l;
 }
 
-MatchResult *StringTokenizer::find_match(CompletionCandidate *candidate, const std::string &query)
+MatchResult *StringTokenizer::find_match(CompletionCandidate *candidate, const String &query)
 {
-    std::string c = candidate->name;
+    String c = candidate->name;
 
     if (query.length() > c.length())
         return new NoMatchResult(candidate);
 
-    std::string c_lower = c;
-    lower(c_lower);
-    std::string query_lower = query;
-    lower(query_lower);
+    String c_lower = c.toLower();
+    String query_lower = query.toLower();
 
     bool are_equal = c.length() == query.length();
     if (equal(query.begin(), query.end(), c.begin()))
@@ -226,7 +212,7 @@ MatchResult *StringTokenizer::find_match(CompletionCandidate *candidate, const s
     if (equal(query_lower.begin(), query_lower.end(), c_lower.begin()))
         return new PrefixResult(are_equal ? EXACT_MATCH_CASE_INSENSITIVE : PREFIX_MATCH_CASE_INSENSITIVE, candidate, query.length());
 
-    std::vector<std::string> words = StringTokenizer().break_parts_of_word(c);
+    std::vector<String> words = StringTokenizer().break_parts_of_word(c);
     std::vector<size_t> indices;
     bool r = is_boundary_match(words, query_lower, indices);
     if (r)
@@ -240,18 +226,18 @@ static bool isnotalnum(char c)
     return !isalnum(c);
 }
 
-bool StringTokenizer::is_boundary_match(const std::vector<std::string> &parts, const std::string &query, std::vector<size_t> &indices)
+bool StringTokenizer::is_boundary_match(const std::vector<String> &parts, const String &query, std::vector<size_t> &indices)
 {
     /* Strip non-alphanum characters from candidate.  */
     std::string stripped = query;
-    stripped.erase(remove_if(stripped.begin(), stripped.end(), isnotalnum), stripped.end());
+    stripped.erase(std::remove_if(stripped.begin(), stripped.end(), isnotalnum), stripped.end());
 
     indices.resize(parts.size());
     return is_boundary_match(parts, stripped, indices, 0, 0);
 }
 
-bool StringTokenizer::is_boundary_match(const std::vector<std::string> &parts,
-                                        const std::string &query,
+bool StringTokenizer::is_boundary_match(const std::vector<String> &parts,
+                                        const String &query,
                                         std::vector<size_t> &indices,
                                         size_t query_start,
                                         size_t current_index)
@@ -261,7 +247,7 @@ bool StringTokenizer::is_boundary_match(const std::vector<std::string> &parts,
     else if (current_index == parts.size())
         return false;
 
-    std::string to_find = query.substr(query_start, query.length() - query_start);
+    String to_find = query.mid(query_start, query.length() - query_start);
     size_t longest_prefix = common_prefix(parts[current_index], to_find);
 
     for (int i = longest_prefix; i >= 0; i--) {
@@ -274,7 +260,7 @@ bool StringTokenizer::is_boundary_match(const std::vector<std::string> &parts,
     return false;
 }
 
-std::vector<MatchResult *> StringTokenizer::find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const std::string &query)
+std::vector<MatchResult *> StringTokenizer::find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const String &query)
 {
     std::vector<MatchResult *> results;
 
