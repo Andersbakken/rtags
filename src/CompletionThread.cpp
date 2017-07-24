@@ -278,8 +278,6 @@ void CompletionThread::process(Request *request)
         }
     }
 
-    StringTokenizer st;
-
     LOG() << "line: " << request->location.line() << "column: "
           << request->location.column() << ", prefix: "
           << request->prefix;
@@ -312,7 +310,7 @@ void CompletionThread::process(Request *request)
 
     ++cache->completions;
     if (results) {
-        std::vector<CompletionCandidate *> candidates;
+        List<CompletionCandidate *> candidates;
         candidates.reserve(results->NumResults);
 
         int nodeCount = 0;
@@ -386,10 +384,9 @@ void CompletionThread::process(Request *request)
             }
         }
 
-        List<MatchResult *> matches = st.find_and_sort_matches(candidates, request->prefix);
+        List<std::unique_ptr<MatchResult> > matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
 
         if (!matches.isEmpty()) {
-            // Sort pointers instead of shuffling candidates around
             printCompletions(matches, request);
             processTime = sw.elapsed();
             LOG() << "Sent" << matches.size() << "completions for" << request->location;
@@ -399,7 +396,7 @@ void CompletionThread::process(Request *request)
 
         } else {
             LOG() << "No completions available for" << request->location;
-            printCompletions(std::vector<MatchResult *>(), request);
+            printCompletions(List<std::unique_ptr<MatchResult> >(), request);
             error() << "No completion results available" << request->location;
         }
 
@@ -459,7 +456,7 @@ struct Output
     Flags<CompletionThread::Flag> flags;
 };
 
-void CompletionThread::printCompletions(const List<MatchResult *> &results, Request *request)
+void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;
@@ -521,7 +518,7 @@ void CompletionThread::printCompletions(const List<MatchResult *> &results, Requ
             elispOut << String::format<256>("(list 'completions (list \"%s\" (list",
                                             RTags::elispEscape(request->location.toString(Location::AbsolutePath)).constData());
         }
-        for (MatchResult *result : results) {
+        for (const std::unique_ptr<MatchResult> &result : results) {
             CompletionCandidate *c = result->candidate;
             const String str = String::format<128>(" %s %s %s %s %s %s\n",
                                                    c->name.c_str(),

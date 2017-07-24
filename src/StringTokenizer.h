@@ -59,15 +59,6 @@ public:
     CompletionCandidate *candidate;
 };
 
-class NoMatchResult : public MatchResult
-{
-public:
-    NoMatchResult(CompletionCandidate *c)
-        : MatchResult(NO_MATCH, c)
-    {
-    }
-};
-
 class PrefixResult : public MatchResult
 {
 public:
@@ -82,23 +73,24 @@ public:
 class WordBoundaryMatchResult : public MatchResult
 {
 public:
-    WordBoundaryMatchResult(CompletionCandidate *c, std::vector<size_t> &i)
+    WordBoundaryMatchResult(CompletionCandidate *c, List<size_t> &i)
         : MatchResult(WORD_BOUNDARY_MATCH, c), indices(i)
     {
     }
 
-    std::vector<size_t> indices;
+    List<size_t> indices;
 };
 
-struct MatchResultComparator {
-    bool operator()(MatchResult *a, MatchResult *b)
+struct MatchResultComparator
+{
+    bool operator()(const std::unique_ptr<MatchResult> &a, const std::unique_ptr<MatchResult> &b)
     {
         if (a->type != b->type)
             return a->type > b->type;
 
         if (a->type == WORD_BOUNDARY_MATCH) {
-            WordBoundaryMatchResult *wba = static_cast<WordBoundaryMatchResult *>(a);
-            WordBoundaryMatchResult *wbb = static_cast<WordBoundaryMatchResult *>(b);
+            const WordBoundaryMatchResult *wba = static_cast<WordBoundaryMatchResult *>(a.get());
+            const WordBoundaryMatchResult *wbb = static_cast<WordBoundaryMatchResult *>(b.get());
 
             for (size_t i = 0; i < wba->indices.size(); i++)
                 if (wba->indices[i] != wbb->indices[i])
@@ -115,24 +107,25 @@ struct MatchResultComparator {
 class StringTokenizer
 {
 public:
-    inline std::vector<String> break_parts_of_word(const String &str);
-    inline size_t common_prefix(const String &str1, const String &str2);
-    inline MatchResult *find_match(CompletionCandidate *candidate, const String &query);
-    inline bool is_boundary_match(const std::vector<String> &parts, const String &query, std::vector<size_t> &indices);
-    inline String find_identifier_prefix(const String &line, size_t column, size_t *start);
-    inline std::vector<MatchResult *> find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const String &query);
+    static inline List<String> break_parts_of_word(const String &str);
+    static inline size_t common_prefix(const String &str1, const String &str2);
+    static inline std::unique_ptr<MatchResult> find_match(CompletionCandidate *candidate, const String &query);
+    static inline bool is_boundary_match(const List<String> &parts, const String &query, List<size_t> &indices);
+    static inline String find_identifier_prefix(const String &line, size_t column, size_t *start);
+    static inline List<std::unique_ptr<MatchResult> > find_and_sort_matches(List<CompletionCandidate *> &candidates, const String &query);
 
 private:
-    inline bool is_boundary_match(const std::vector<String> &parts,
-                                  const String &query,
-                                  std::vector<size_t> &indices,
-                                  size_t query_start,
-                                  size_t current_index);
+    StringTokenizer() = delete;
+    static inline bool is_boundary_match(const List<String> &parts,
+                                         const String &query,
+                                         List<size_t> &indices,
+                                         size_t query_start,
+                                         size_t current_index);
 };
 
-std::vector<String> StringTokenizer::break_parts_of_word(const String &str)
+List<String> StringTokenizer::break_parts_of_word(const String &str)
 {
-    std::vector<String> result;
+    List<String> result;
     String buffer;
 
     for (String::const_iterator c = str.begin(); c != str.end(); c++) {
@@ -195,30 +188,30 @@ size_t StringTokenizer::common_prefix(const String &str1, const String &str2)
     return l;
 }
 
-MatchResult *StringTokenizer::find_match(CompletionCandidate *candidate, const String &query)
+std::unique_ptr<MatchResult> StringTokenizer::find_match(CompletionCandidate *candidate, const String &query)
 {
     String c = candidate->name;
 
     if (query.length() > c.length())
-        return new NoMatchResult(candidate);
+        return 0;
 
     String c_lower = c.toLower();
     String query_lower = query.toLower();
 
     bool are_equal = c.length() == query.length();
     if (equal(query.begin(), query.end(), c.begin()))
-        return new PrefixResult(are_equal ? EXACT_MATCH_CASE_SENSITIVE : PREFIX_MATCH_CASE_SENSITIVE, candidate, query.length());
+        return std::unique_ptr<MatchResult>(new PrefixResult(are_equal ? EXACT_MATCH_CASE_SENSITIVE : PREFIX_MATCH_CASE_SENSITIVE, candidate, query.length()));
 
     if (equal(query_lower.begin(), query_lower.end(), c_lower.begin()))
-        return new PrefixResult(are_equal ? EXACT_MATCH_CASE_INSENSITIVE : PREFIX_MATCH_CASE_INSENSITIVE, candidate, query.length());
+        return std::unique_ptr<MatchResult>(new PrefixResult(are_equal ? EXACT_MATCH_CASE_INSENSITIVE : PREFIX_MATCH_CASE_INSENSITIVE, candidate, query.length()));
 
-    std::vector<String> words = StringTokenizer().break_parts_of_word(c);
-    std::vector<size_t> indices;
+    List<String> words = StringTokenizer::break_parts_of_word(c);
+    List<size_t> indices;
     bool r = is_boundary_match(words, query_lower, indices);
     if (r)
-        return new WordBoundaryMatchResult(candidate, indices);
+        return std::unique_ptr<MatchResult>(new WordBoundaryMatchResult(candidate, indices));
 
-    return new NoMatchResult(candidate);
+    return std::unique_ptr<MatchResult>();
 }
 
 static bool isnotalnum(char c)
@@ -226,7 +219,7 @@ static bool isnotalnum(char c)
     return !isalnum(c);
 }
 
-bool StringTokenizer::is_boundary_match(const std::vector<String> &parts, const String &query, std::vector<size_t> &indices)
+bool StringTokenizer::is_boundary_match(const List<String> &parts, const String &query, List<size_t> &indices)
 {
     /* Strip non-alphanum characters from candidate.  */
     std::string stripped = query;
@@ -236,9 +229,9 @@ bool StringTokenizer::is_boundary_match(const std::vector<String> &parts, const 
     return is_boundary_match(parts, stripped, indices, 0, 0);
 }
 
-bool StringTokenizer::is_boundary_match(const std::vector<String> &parts,
+bool StringTokenizer::is_boundary_match(const List<String> &parts,
                                         const String &query,
-                                        std::vector<size_t> &indices,
+                                        List<size_t> &indices,
                                         size_t query_start,
                                         size_t current_index)
 {
@@ -260,16 +253,15 @@ bool StringTokenizer::is_boundary_match(const std::vector<String> &parts,
     return false;
 }
 
-std::vector<MatchResult *> StringTokenizer::find_and_sort_matches(std::vector<CompletionCandidate *> &candidates, const String &query)
+List<std::unique_ptr<MatchResult> > StringTokenizer::find_and_sort_matches(List<CompletionCandidate *> &candidates, const String &query)
 {
-    std::vector<MatchResult *> results;
+    List<std::unique_ptr<MatchResult> > results;
 
-    for (std::vector<CompletionCandidate *>::const_iterator c = candidates.begin(); c != candidates.end(); c++) {
-        MatchResult *r = find_match(*c, query);
-        if (r->type != NO_MATCH)
-            results.push_back(r);
-        else
-            delete r;
+    for (List<CompletionCandidate *>::const_iterator c = candidates.begin(); c != candidates.end(); c++) {
+        std::unique_ptr<MatchResult> r = find_match(*c, query);
+        if (r) {
+            results.push_back(std::move(r));
+        }
     }
 
     sort(results.begin(), results.end(), MatchResultComparator());

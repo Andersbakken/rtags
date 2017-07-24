@@ -30,8 +30,8 @@
 #include "rct/Thread.h"
 #include "Source.h"
 #include "RTags.h"
-#include "StringTokenizer.h"
 
+struct MatchResult;
 class CompletionThread : public Thread
 {
 public:
@@ -118,7 +118,7 @@ private:
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<MatchResult *> &results, Request *request);
+    void printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 
