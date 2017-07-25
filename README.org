@@ -214,6 +214,10 @@ sudo port install clang-3.5
   *TIP:* You can run =ccmake= (CMake with an ncurses UI) instead of =cmake= to
   interactively configure the RTags build.
 
+  Note that if you're trying to test RTags by indexing RTags' own
+  source code you shouldn't build it in /tmp/ since RTags will refuse
+  to index files in /tmp/
+
 - Elpa
 
   You can install the elisp part of RTags using package.el if you add
