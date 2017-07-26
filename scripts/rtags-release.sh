@@ -33,6 +33,7 @@ if [ "$PULL" ]; then
         git stash
         UNSTASH=1
     fi
+    git submodule update
     if ! git pull --recurse-submodules > /dev/null; then
         if [ -n "$UNSTASH" ]; then
             git stash pop
