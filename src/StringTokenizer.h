@@ -30,9 +30,8 @@ enum MatchResultType {
     EXACT_MATCH_CASE_SENSITIVE
 };
 
-class CompletionCandidate
+struct CompletionCandidate
 {
-public:
     CompletionCandidate()
         : priority(-1)
     {
@@ -47,9 +46,8 @@ public:
     int priority;
 };
 
-class MatchResult
+struct MatchResult
 {
-public:
     MatchResult(MatchResultType t, CompletionCandidate *c)
         : type(t), candidate(c)
     {
@@ -137,19 +135,19 @@ List<String> StringTokenizer::break_parts_of_word(const String &str)
             }
         } else if (islower(*c)) {
             if (buffer.length() > 1 && isupper(buffer[buffer.length() - 1])) {
-                /* Break: XML|Do.  */
+                /* Break: XML|Do. */
                 size_t l = buffer.length();
                 result.push_back(buffer.mid(0, l - 1));
                 buffer = buffer.mid(l - 1, 1);
             } else if (!buffer.isEmpty() && isdigit(buffer[buffer.length() - 1])) {
-                /* Break: 0|D.  */
+                /* Break: 0|D. */
                 result.push_back(buffer);
                 buffer.clear();
             }
 
             buffer += *c;
         } else if (isupper(*c)) {
-            /* Break: a|D or 0|D.  */
+            /* Break: a|D or 0|D. */
             if (!buffer.isEmpty() && !isupper(buffer[buffer.length() - 1])) {
                 result.push_back(buffer);
                 buffer.clear();
@@ -157,7 +155,7 @@ List<String> StringTokenizer::break_parts_of_word(const String &str)
 
             buffer += *c;
         } else if (isdigit(*c)) {
-            /* Break: a|0 or A|0.  */
+            /* Break: a|0 or A|0. */
             if (!buffer.isEmpty() && !isdigit(buffer[buffer.length() - 1])) {
                 result.push_back(buffer);
                 buffer.clear();
@@ -170,7 +168,7 @@ List<String> StringTokenizer::break_parts_of_word(const String &str)
     if (!buffer.isEmpty())
         result.push_back(buffer);
 
-    /* Lower all parts of result.  */
+    /* Lower all parts of result. */
     for (size_t i = 0; i < result.size(); i++)
         result[i].lowerCase();
 
@@ -221,8 +219,8 @@ static bool isnotalnum(char c)
 
 bool StringTokenizer::is_boundary_match(const List<String> &parts, const String &query, List<size_t> &indices)
 {
-    /* Strip non-alphanum characters from candidate.  */
-    std::string stripped = query;
+    /* Strip non-alphanum characters from candidate. */
+    String stripped = query;
     stripped.erase(std::remove_if(stripped.begin(), stripped.end(), isnotalnum), stripped.end());
 
     indices.resize(parts.size());
