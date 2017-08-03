@@ -2073,10 +2073,6 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     }
     bytesWritten += fprintf(f, "Indexed at %llu\n", static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
 
-    if (!templateSpecializationTargets.isEmpty()) {
-
-    }
-
     fclose(f);
     mIndexDataMessage.setBytesWritten(bytesWritten);
     return true;
