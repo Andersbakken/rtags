@@ -71,7 +71,7 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
             (forward-line 1))
           (let (done)
             (while (not done)
-              (push (cons (buffer-substring-no-properties (point-at-bol) (point-at-eol)) (point-at-bol)) ret)
+              (setq ret (append ret (list (cons (buffer-substring-no-properties (point-at-bol) (point-at-eol)) (point-at-bol)))))
               (if (= (point-at-eol) (point-max))
                   (setq done t)
                 (forward-line 1)))))))
