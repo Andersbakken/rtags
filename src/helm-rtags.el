@@ -75,7 +75,7 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
               (if (= (point-at-eol) (point-max))
                   (setq done t)
                 (forward-line 1)))))))
-    ret))
+    (nreverse ret)))
 
 (defun helm-rtags-select (candidate)
   "Select CANDIDATE."
