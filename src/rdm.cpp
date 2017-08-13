@@ -153,6 +153,7 @@ enum OptionType {
     LargeByValueCopy,
     AllowMultipleSources,
     NoStartupProject,
+    NoLibClangIncludePath,
     NoNoUnknownWarningsOption,
     IgnoreCompiler,
     CompilerWrappers,
@@ -273,6 +274,7 @@ int main(int argc, char** argv)
         { Help, "help", 'h', CommandLineParser::NoValue, "Display this page." },
         { Version, "version", 0, CommandLineParser::NoValue, "Display version." },
         { IncludePath, "include-path", 'I', CommandLineParser::Required, "Add additional include path to clang." },
+        { NoLibClangIncludePath, "no-clang-include-path", 0, CommandLineParser::NoValue, "Don't use the include path from libclang." },
         { Isystem, "isystem", 's', CommandLineParser::Required, "Add additional system include path to clang." },
         { Define, "define", 'D', CommandLineParser::Required, "Add additional define directive to clang." },
         { DefaultArgument, "default-argument", 0, CommandLineParser::Required, "Add additional argument to clang." },
@@ -490,6 +492,9 @@ int main(int argc, char** argv)
             break; }
         case NoStartupProject: {
             serverOpts.options |= Server::NoStartupCurrentProject;
+            break; }
+        case NoLibClangIncludePath: {
+            serverOpts.options |= Server::NoLibClangIncludePath;
             break; }
         case NoNoUnknownWarningsOption: {
             serverOpts.options |= Server::NoNoUnknownWarningsOption;

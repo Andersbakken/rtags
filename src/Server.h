@@ -86,7 +86,8 @@ public:
         AllowWErrorAndWFatalErrors = (1ull << 29),
         NoRealPath = (1ull << 30),
         Separate32BitAnd64Bit = (1ull << 31),
-        SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32)
+        SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
+        NoLibClangIncludePath = (1ull << 33)
     };
     struct Options {
         Options()
