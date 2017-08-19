@@ -1,0 +1,11 @@
+[Unit]
+Description=RTags daemon
+
+Requires=rdm.socket
+
+[Service]
+Type=simple
+ExecStart=$RDM -v --inactivity-timeout 300 --log-flush
+ExecStartPost=/bin/sh -c "echo +19 > /proc/$MAINPID/autogroup"
+Nice=19
+CPUSchedulingPolicy=idle

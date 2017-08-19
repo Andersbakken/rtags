@@ -1,0 +1,8 @@
+[Unit]
+Description=RTags daemon socket
+
+[Socket]
+ListenStream=%t/rdm.socket
+
+[Install]
+WantedBy=default.target
