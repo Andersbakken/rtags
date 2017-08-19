@@ -770,7 +770,8 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             std::swap(mLastCallExprSymbol, old);
             const CXCursor ref = clang_getCursorReferenced(cursor);
             bool handled = false;
-            if (clang_getCursorKind(ref) == CXCursor_Constructor
+            const CXCursorKind refKind = clang_getCursorKind(ref);
+            if (refKind  == CXCursor_Constructor
                 && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)) {
                 handled = true;
                 for (int pos = mParents.size() - 1; pos >= 0; --pos) {
@@ -786,6 +787,8 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                     loc = createLocation(mLastCursor);
                     handleReference(mLastCursor, kind, loc, ref);
                 }
+            } else if (refKind == CXCursor_FieldDecl) {
+                handled = true;
             }
             if (!handled) {
                 handleReference(cursor, kind, loc, ref);
