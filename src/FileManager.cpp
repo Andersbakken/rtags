@@ -23,7 +23,6 @@
 FileManager::FileManager(const std::shared_ptr<Project> &project)
     : mProject(project), mLastReloadTime(0)
 {
-    mScanTimer.timeout().connect(std::bind(&FileManager::startScanThread, this, std::placeholders::_1));
 }
 
 void FileManager::load(Mode mode)
@@ -35,7 +34,7 @@ void FileManager::load(Mode mode)
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     if (mode == Asynchronous) {
-        mScanTimer.restart(5000, Timer::SingleShot);
+        startScanThread();
     } else {
         const Set<Path> paths = ScanThread::paths(project->path());
         onRecurseJobFinished(paths);
@@ -156,7 +155,7 @@ void FileManager::watch(const Path &path)
     }
 }
 
-void FileManager::startScanThread(Timer *)
+void FileManager::startScanThread()
 {
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);

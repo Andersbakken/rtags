@@ -1445,7 +1445,7 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
                 error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
             }
             if (!(mOptions.options & NoFileManager))
-                project->fileManager()->load(FileManager::Synchronous);
+                project->fileManager()->load(FileManager::Asynchronous);
             // project->diagnoseAll();
         } else {
             Path::rm(mOptions.dataDir + ".currentProject");

@@ -39,9 +39,8 @@ public:
     bool contains(const Path &path) const;
     void clearFileSystemWatcher();
 private:
-    void startScanThread(Timer *);
+    void startScanThread();
     void watch(const Path &path);
-    Timer mScanTimer;
     std::weak_ptr<Project> mProject;
     uint64_t mLastReloadTime;
     mutable std::mutex mMutex;
