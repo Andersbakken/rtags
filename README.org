@@ -563,7 +563,7 @@ also be socket acivated.
    ExecStartPost=/bin/sh -c "echo +19 > /proc/$MAINPID/autogroup"
    Nice=19
    CPUSchedulingPolicy=idle
-  #+END_EXAMPLE
+   #+END_EXAMPLE
 
  3. Replace =$RDM= with the path to your copy of =rdm=, and add any command
     line parameters you might usually use.
