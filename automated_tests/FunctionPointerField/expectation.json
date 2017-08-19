@@ -1,0 +1,5 @@
+[
+    { "name": "classes/structs instance containing a pointer pointer field should not be a reference to the function pointer",
+      "rc-command": [ "--references", "{0}/main.cpp:3:12" ],
+      "expectation": [ "{0}/main.cpp:10:7" ] }
+]
