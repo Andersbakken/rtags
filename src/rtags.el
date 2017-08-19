@@ -1292,7 +1292,8 @@ to only call this when `rtags-socket-file' is defined.
                        (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
                                       "and installing a new rtags build that modified the protocol. They need to be in sync."))))
                     ((= result rtags-exit-code-not-indexed)
-                     (message "%s not indexed" (or path "buffer"))
+                     (unless silent
+                       (message "%s not indexed" (or path "buffer")))
                      (erase-buffer)
                      (setq rtags-last-request-not-indexed t))
                     (t)))) ;; other error
@@ -1408,7 +1409,7 @@ Uses `completing-read' to ask for the project."
     (let* ((path (rtags-buffer-file-name))
            (object (with-temp-buffer
                      (and location
-                          (rtags-call-rc :path path :noerror t :silent-query silent "-U" location "--elisp"
+                          (rtags-call-rc :path path :noerror t :silent-query silent :silent silent "-U" location "--elisp"
                                          (unless relative-filenames "-K")
                                          (when parents "--symbol-info-include-parents")
                                          (when references "--symbol-info-include-references")
