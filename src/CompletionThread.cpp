@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "CompletionThread.h"
+#include "IndexDataMessage.h"
 #include "Project.h"
 
 #include "rct/StopWatch.h"
@@ -307,7 +308,7 @@ void CompletionThread::process(Request *request)
                                                           request->location.line(), request->location.column() - request->prefix.length(),
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
     completeTime = cache->codeCompleteTime = sw.restart();
-    LOG() << "Generated completions for" << request->location << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
+    LOG() << "Generated" << (results ? results->NumResults : 0) << "completions for" << request->location << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
 
     ++cache->completions;
     if (results) {
@@ -401,6 +402,7 @@ void CompletionThread::process(Request *request)
             error() << "No completion results available" << request->location;
         }
 
+        processDiagnostics(request->source.fileId, results, cache->translationUnit->unit);
         clang_disposeCodeCompleteResults(results);
     }
 }
@@ -671,4 +673,71 @@ Source CompletionThread::findSource(const Set<uint32_t> &deps) const
         }
     }
     return Source();
+}
+
+class CompletionDiagnostics : public RTags::DiagnosticsProvider
+{
+public:
+    CompletionDiagnostics(uint32_t sourceFileId, CXCodeCompleteResults *results, CXTranslationUnit unit)
+        : mSourceFileId(sourceFileId), mResults(results), mUnit(unit)
+    {}
+
+    virtual size_t unitCount() const override
+    {
+        return 1;
+    }
+
+    virtual size_t diagnosticCount(size_t) const override
+    {
+        // return clang_codeCompleteGetNumDiagnostics(mResults);
+        return clang_getNumDiagnostics(mUnit);
+    }
+
+    virtual CXDiagnostic diagnostic(size_t, size_t idx) const override
+    {
+        // return clang_codeCompleteGetDiagnostic(mResults, idx);
+        return clang_getDiagnostic(mUnit, idx);
+    }
+
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override
+    {
+        if (blocked)
+            *blocked = false;
+        // *blocked = false;
+        return Location(Location::insertFile(file), line, col);
+    }
+
+    virtual uint32_t sourceFileId() const override
+    {
+        return mSourceFileId;
+    }
+
+    virtual IndexDataMessage &indexDataMessage() override
+    {
+        return mIndexDataMessage;
+    }
+
+    virtual CXTranslationUnit unit(size_t) const override
+    {
+        return mUnit;
+    }
+
+    const uint32_t mSourceFileId;
+    CXCodeCompleteResults *const mResults;
+    CXTranslationUnit const mUnit;
+    IndexDataMessage mIndexDataMessage;
+};
+
+void CompletionThread::processDiagnostics(uint32_t fileId, CXCodeCompleteResults *results, CXTranslationUnit unit)
+{
+    std::shared_ptr<Project> project = Server::instance()->currentProject();
+    if (!project)
+        return;
+    if (!project->hasSource(fileId))
+        return;
+    LOG() << "processing diagnostics" << clang_codeCompleteGetNumDiagnostics(results) << Location::path(fileId)
+          << clang_getNumDiagnostics(unit);
+    CompletionDiagnostics diag(fileId, results, unit);
+    diag.diagnose();
+    project->updateDiagnostics(diag.indexDataMessage().diagnostics());
 }

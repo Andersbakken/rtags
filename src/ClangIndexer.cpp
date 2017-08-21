@@ -388,6 +388,11 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     return Location(id, line, col);
 }
 
+CXTranslationUnit ClangIndexer::unit(size_t u) const
+{
+    return mTranslationUnits[u]->unit;
+}
+
 static inline void tokenize(const char *buf, int start,
                             int *templateStart, int *templateEnd,
                             int *sectionCount, int sections[1024])
@@ -2136,15 +2141,13 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 
 bool ClangIndexer::diagnose()
 {
-    List<CXTranslationUnit> units;
+    DiagnosticsProvider::diagnose();
     for (size_t i=0; i<mTranslationUnits.size(); ++i) {
         mCurrentTranslationUnit = i;
         auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
         if (!tu) {
             continue;
         }
-        units.append(tu);
-
         for (const auto &it : mIndexDataMessage.files()) {
             if (it.second & IndexDataMessage::Visited) {
                 const Location loc(it.first, 0, 0);
@@ -2157,7 +2160,6 @@ bool ClangIndexer::diagnose()
         }
     }
 
-    RTags::diagnose(units, mSources.front().fileId, mIndexDataMessage, this);
     return true;
 }
 

@@ -244,14 +244,103 @@ struct CreateLocation
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) = 0;
 };
 
-
-void diagnose(const List<CXTranslationUnit> &units, uint32_t fileId, IndexDataMessage &indexDataMessage, CreateLocation *locationInterface);
-inline void diagnose(CXTranslationUnit unit, uint32_t fileId, IndexDataMessage &indexDataMessage, CreateLocation *locationInterface)
+struct DiagnosticsProvider
 {
-    List<CXTranslationUnit> units(1);
-    units[0] = unit;
-    diagnose(units, fileId, indexDataMessage, locationInterface);
-}
+    virtual ~DiagnosticsProvider() {}
+
+    inline CXFile getFile(size_t idx, const Path &path) const
+    {
+        return clang_getFile(unit(idx), path.constData());
+    }
+
+    inline CXCursor cursorAt(size_t idx, const CXSourceLocation &location) const
+    {
+        return clang_getCursor(unit(idx), location);
+    }
+
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
+    {
+        CXString fileName;
+        unsigned int line, col;
+        CXFile file;
+        clang_getSpellingLocation(location, &file, &line, &col, offset);
+        if (file) {
+            fileName = clang_getFileName(file);
+        } else {
+            if (blocked)
+                *blocked = false;
+            return Location();
+        }
+        const char *fn = clang_getCString(fileName);
+        assert(fn);
+        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
+            if (blocked)
+                *blocked = false;
+            clang_disposeString(fileName);
+            return Location();
+        }
+        const Path path = RTags::eatString(fileName);
+        const Location ret = createLocation(path, line, col, blocked);
+        return ret;
+    }
+    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
+    {
+        if (blocked)
+            *blocked = false;
+        if (!file)
+            return Location();
+
+        CXString fn = clang_getFileName(file);
+        const char *cstr = clang_getCString(fn);
+        if (!cstr) {
+            clang_disposeString(fn);
+            return Location();
+        }
+        const Path p = Path::resolved(cstr);
+        clang_disposeString(fn);
+        return createLocation(p, line, col, blocked);
+    }
+    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
+    {
+        const CXSourceLocation location = clang_getCursorLocation(cursor);
+        if (!location)
+            return Location();
+        return createLocation(location, blocked, offset);
+    }
+
+    virtual size_t unitCount() const = 0;
+    virtual size_t diagnosticCount(size_t unit) const = 0;
+    virtual CXDiagnostic diagnostic(size_t unit, size_t idx) const = 0;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) = 0;
+    virtual uint32_t sourceFileId() const = 0;
+    virtual IndexDataMessage &indexDataMessage() = 0;
+    virtual CXTranslationUnit unit(size_t unit) const = 0;
+
+    void diagnose();
+};
+
+// struct TUDiagnostics : public Diagnostics
+// {
+//     TUDiagnostics(CXTranslationUnit u)
+//         : unit(u)
+//     {}
+//     virtual size_t count() const { return clang_getNumDiagnostics(unit); }
+//     virtual CXDiagnostic get(size_t idx) const { return clang_getDiagnostic(unit, idx); }
+
+//     CXTranslationUnit unit;
+// };
+
+// struct CompletionDiagnostics : public Diagnostics
+// {
+//     CompletionDiagnostics(CXCodeCompleteResults *r)
+//         : results(r)
+//     {}
+//     virtual size_t count() const { return clang_codeCompleteGetNumDiagnostics(results); }
+//     virtual CXDiagnostic get(size_t idx) const { return clang_codeCompleteGetDiagnostic(results, idx); }
+
+//     CXCodeCompleteResults *results;
+// };
+
 
 struct Auto {
     CXCursor cursor;

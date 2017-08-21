@@ -29,7 +29,7 @@
 #include <unordered_set>
 
 struct Unit;
-class ClangIndexer : public RTags::CreateLocation
+class ClangIndexer : public RTags::DiagnosticsProvider
 {
 public:
     ClangIndexer();
@@ -51,8 +51,30 @@ private:
     CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = 0);
     static CXCursor resolveTypedef(CXCursor cursor);
 
-    using CreateLocation::createLocation;
+    // DiagnosticsProvider
+    using RTags::DiagnosticsProvider::createLocation;
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override;
+    virtual CXTranslationUnit unit(size_t u) const override;
+    virtual size_t unitCount() const override
+    {
+        return mTranslationUnits.size();
+    }
+    virtual size_t diagnosticCount(size_t unit) const override
+    {
+        if (CXTranslationUnit u = mTranslationUnits[unit]->unit) {
+            return clang_getNumDiagnostics(u);
+        }
+        return 0;
+    }
+    virtual CXDiagnostic diagnostic(size_t unit, size_t idx) const override
+    {
+        assert(mTranslationUnits[unit]->unit);
+        return clang_getDiagnostic(mTranslationUnits[unit]->unit, idx);
+    }
+
+    virtual uint32_t sourceFileId() const override { return mSources.front().fileId; }
+    virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
+
     String addNamePermutations(const CXCursor &cursor,
                                Location location,
                                RTags::CursorType cursorType);

@@ -57,6 +57,7 @@ public:
     void stop();
     String dump();
 private:
+    void processDiagnostics(uint32_t fileId, CXCodeCompleteResults *results, CXTranslationUnit unit);
     struct Request;
     void process(Request *request);
 
