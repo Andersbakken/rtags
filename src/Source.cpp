@@ -152,23 +152,6 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
     return hash;
 }
 
-static inline void addIncludeArg(List<Source::Include> &includePaths,
-                                 Source::Include::Type type,
-                                 size_t argLen,
-                                 const List<String> &args,
-                                 int &idx,
-                                 const Path &cwd)
-{
-    const String &arg = args.at(idx);
-    Path path;
-    if (arg.size() == argLen) {
-        path = Path::resolved(args.value(++idx), Path::MakeAbsolute, cwd);
-    } else {
-        path = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd);
-    }
-    includePaths.append(Source::Include(type, path));
-}
-
 static const char *valueArgs[] = {
     "--param",
     "-G",
