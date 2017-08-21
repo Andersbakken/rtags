@@ -29,7 +29,7 @@
 #include <unordered_set>
 
 struct Unit;
-class ClangIndexer
+class ClangIndexer : public RTags::CreateLocation
 {
 public:
     ClangIndexer();
@@ -51,56 +51,8 @@ private:
     CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = 0);
     static CXCursor resolveTypedef(CXCursor cursor);
 
-    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
-    {
-        CXString fileName;
-        unsigned int line, col;
-        CXFile file;
-        clang_getSpellingLocation(location, &file, &line, &col, offset);
-        if (file) {
-            fileName = clang_getFileName(file);
-        } else {
-            if (blocked)
-                *blocked = false;
-            return Location();
-        }
-        const char *fn = clang_getCString(fileName);
-        assert(fn);
-        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
-            if (blocked)
-                *blocked = false;
-            clang_disposeString(fileName);
-            return Location();
-        }
-        const Path path = RTags::eatString(fileName);
-        const Location ret = createLocation(path, line, col, blocked);
-        return ret;
-    }
-    Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
-    {
-        if (blocked)
-            *blocked = false;
-        if (!file)
-            return Location();
-
-        CXString fn = clang_getFileName(file);
-        const char *cstr = clang_getCString(fn);
-        if (!cstr) {
-            clang_disposeString(fn);
-            return Location();
-        }
-        const Path p = Path::resolved(cstr);
-        clang_disposeString(fn);
-        return createLocation(p, line, col, blocked);
-    }
-    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
-    {
-        const CXSourceLocation location = clang_getCursorLocation(cursor);
-        if (!location)
-            return Location();
-        return createLocation(location, blocked, offset);
-    }
-    Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0);
+    using CreateLocation::createLocation;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override;
     String addNamePermutations(const CXCursor &cursor,
                                Location location,
                                RTags::CursorType cursorType);

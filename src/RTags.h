@@ -55,6 +55,7 @@ class Database;
 class Project;
 struct Diagnostic;
 struct DependencyNode;
+class IndexDataMessage;
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<uint32_t, SourceList> Sources;
@@ -186,6 +187,71 @@ struct TranslationUnit {
     CXTranslationUnit unit;
     String clangLine;
 };
+
+struct CreateLocation
+{
+    virtual ~CreateLocation() {}
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
+    {
+        CXString fileName;
+        unsigned int line, col;
+        CXFile file;
+        clang_getSpellingLocation(location, &file, &line, &col, offset);
+        if (file) {
+            fileName = clang_getFileName(file);
+        } else {
+            if (blocked)
+                *blocked = false;
+            return Location();
+        }
+        const char *fn = clang_getCString(fileName);
+        assert(fn);
+        if (!*fn || !strcmp("<built-in>", fn) || !strcmp("<command line>", fn)) {
+            if (blocked)
+                *blocked = false;
+            clang_disposeString(fileName);
+            return Location();
+        }
+        const Path path = RTags::eatString(fileName);
+        const Location ret = createLocation(path, line, col, blocked);
+        return ret;
+    }
+    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
+    {
+        if (blocked)
+            *blocked = false;
+        if (!file)
+            return Location();
+
+        CXString fn = clang_getFileName(file);
+        const char *cstr = clang_getCString(fn);
+        if (!cstr) {
+            clang_disposeString(fn);
+            return Location();
+        }
+        const Path p = Path::resolved(cstr);
+        clang_disposeString(fn);
+        return createLocation(p, line, col, blocked);
+    }
+    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
+    {
+        const CXSourceLocation location = clang_getCursorLocation(cursor);
+        if (!location)
+            return Location();
+        return createLocation(location, blocked, offset);
+    }
+
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) = 0;
+};
+
+
+void diagnose(const List<CXTranslationUnit> &units, uint32_t fileId, IndexDataMessage &indexDataMessage, CreateLocation *locationInterface);
+inline void diagnose(CXTranslationUnit unit, uint32_t fileId, IndexDataMessage &indexDataMessage, CreateLocation *locationInterface)
+{
+    List<CXTranslationUnit> units(1);
+    units[0] = unit;
+    diagnose(units, fileId, indexDataMessage, locationInterface);
+}
 
 struct Auto {
     CXCursor cursor;

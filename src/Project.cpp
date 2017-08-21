@@ -713,8 +713,8 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
-    const Diagnostics changed = updateDiagnostics(msg->diagnostics());
-    if (!changed.isEmpty() || options.options & Server::Progress) {
+    updateDiagnostics(msg->diagnostics());
+    if (options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
                     QueryMessage::Flag format = QueryMessage::XML;
@@ -723,24 +723,19 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                         // true for testLog(RTags::DiagnosticsLevel)
                         format = QueryMessage::Elisp;
                     }
-                    if (!msg->diagnostics().isEmpty()) {
-                        const String log = formatDiagnostics(changed, format, false);
-                        if (!log.isEmpty()) {
-                            output->log(log);
-                        }
-                    }
-                    if (options.options & Server::Progress) {
-                        if (format == QueryMessage::XML) {
-                            output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
-                                         idx, mJobCounter);
-                        } else {
-                            std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
-                            output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
-                        }
+
+                    if (format == QueryMessage::XML) {
+                        output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                                     idx, mJobCounter);
+                    } else {
+                        std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
+                        output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
                     }
                 }
             });
     }
+
+
 
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
@@ -1263,9 +1258,9 @@ void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
     }
 }
 
-Diagnostics Project::updateDiagnostics(const Diagnostics &diagnostics)
+void Project::updateDiagnostics(const Diagnostics &diagnostics)
 {
-    Diagnostics ret;
+    Diagnostics changed;
     uint32_t lastFile = 0;
     for (const auto &it : diagnostics) {
         const uint32_t f = it.first.fileId();
@@ -1284,9 +1279,28 @@ Diagnostics Project::updateDiagnostics(const Diagnostics &diagnostics)
         }
         if (!it.second.isNull())
             mDiagnostics.insert(it);
-        ret.insert(it);
+        changed.insert(it);
     }
-    return ret;
+    const Server::Options &options = Server::instance()->options();
+
+    if (!changed.isEmpty() || options.options & Server::Progress) {
+        log([&](const std::shared_ptr<LogOutput> &output) {
+                if (output->testLog(RTags::DiagnosticsLevel)) {
+                    QueryMessage::Flag format = QueryMessage::XML;
+                    if (output->flags() & RTagsLogOutput::Elisp) {
+                        // I know this is RTagsLogOutput because it returned
+                        // true for testLog(RTags::DiagnosticsLevel)
+                        format = QueryMessage::Elisp;
+                    }
+                    if (!diagnostics.isEmpty()) {
+                        const String log = formatDiagnostics(changed, format, false);
+                        if (!log.isEmpty()) {
+                            output->log(log);
+                        }
+                    }
+                }
+            });
+    }
 }
 
 String Project::fixIts(uint32_t fileId) const
