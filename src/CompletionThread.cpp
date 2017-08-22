@@ -189,7 +189,7 @@ void CompletionThread::process(Request *request)
     SourceFile *&cache = mCacheMap[request->source.fileId];
 
     if (cache && cache->source != request->source) {
-        LOG() << "cached sourcefile doesn't matched source, discarding" << request->source.sourceFile();
+        LOG() << "cached sourcefile doesn't match source, discarding" << request->source.sourceFile();
         delete cache;
         cache = 0;
     }
