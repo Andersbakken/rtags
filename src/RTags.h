@@ -16,6 +16,18 @@
 #ifndef RTags_h
 #define RTags_h
 
+#if defined(__clang__)
+#if (__clang_major__ * 10000 + __clang_minor__ * 100 + __clang_patchlevel__) >= 30400
+#define HAS_JSON_H
+#endif
+#elif defined(__GNUC__)
+#if (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) >= 40900
+#define HAS_JSON_H
+#endif
+#else // other compiler, assume json.h is supported
+#define HAS_JSON_H
+#endif
+
 #include <assert.h>
 #include <ctype.h>
 #include <typeinfo>
@@ -96,7 +108,7 @@ String versionString();
 const LogLevel DiagnosticsLevel(-2);
 const LogLevel Statistics(-3);
 
-enum ExitCodes {
+enum ExitCode {
     Success = 0,
     GeneralFailure = 32,
     NetworkFailure = 33,

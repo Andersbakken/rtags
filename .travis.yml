@@ -13,7 +13,7 @@ git:
 
 matrix:
   include:
-    - env: COMPILER_VERSION=4.9
+    - env: COMPILER_VERSION=4.8
       os: linux
       compiler: g++
       addons:
@@ -21,7 +21,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - g++-4.8
             - gnupg
     - env: COMPILER_VERSION=3.5
       os: linux

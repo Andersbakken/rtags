@@ -187,7 +187,7 @@ class RCCommand
 public:
     RCCommand() {}
     virtual ~RCCommand() {}
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) = 0;
+    virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) = 0;
     virtual String description() const = 0;
 };
 
@@ -202,8 +202,14 @@ public:
     String query;
     Flags<QueryMessage::Flag> extraQueryFlags;
 
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
+    virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
+#ifndef HAS_JSON_H
+        if (type == QueryMessage::CodeCompleteAt && rc->queryFlags() & QueryMessage::JSON) {
+            fprintf(stdout, "{\"error\": \"JSON output for completions is not supported with this compiler\"}\n");
+            return RTags::ArgumentParseError;
+        }
+#endif
         QueryMessage msg(type);
         msg.setCommandLine(rc->commandLine());
         msg.setQuery(std::move(query));
@@ -220,7 +226,7 @@ public:
 #ifdef RTAGS_HAS_LUA
         msg.setVisitASTScripts(rc->visitASTScripts());
 #endif
-        return connection->send(msg);
+        return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
 
     virtual String description() const override
@@ -236,10 +242,10 @@ public:
         : RCCommand(), mExitCode(exit)
     {}
 
-    virtual bool exec(RClient *, const std::shared_ptr<Connection> &connection) override
+    virtual RTags::ExitCode exec(RClient *, const std::shared_ptr<Connection> &connection) override
     {
         const QuitMessage msg(mExitCode);
-        return connection->send(msg);
+        return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
     virtual String description() const override
     {
@@ -258,7 +264,7 @@ public:
         : RCCommand(), mLevel(level)
     {
     }
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
+    virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         unsigned int flags = RTagsLogOutput::None;
         if (rc->queryFlags() & QueryMessage::Elisp) {
@@ -274,7 +280,7 @@ public:
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         LogOutputMessage msg(level, flags);
         msg.setCommandLine(rc->commandLine());
-        return connection->send(msg);
+        return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
     virtual String description() const override
     {
@@ -298,7 +304,7 @@ public:
     String args;
     Path cwd;
     Path compileCommands;
-    virtual bool exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
+    virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         IndexMessage msg;
         msg.setCommandLine(rc->commandLine());
@@ -310,7 +316,7 @@ public:
         if (!rc->projectRoot().isEmpty())
             msg.setProjectRoot(rc->projectRoot());
 
-        return connection->send(msg);
+        return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
     virtual String description() const override
     {
@@ -407,8 +413,8 @@ void RClient::exec()
     for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
-        if (!cmd->exec(this, connection)) {
-            mExitCode = RTags::NetworkFailure;
+        mExitCode = cmd->exec(this, connection);
+        if (mExitCode != RTags::Success) {
             break;
         } else if (loop->exec(timeout()) != EventLoop::Success) {
             mExitCode = RTags::TimeoutFailure;

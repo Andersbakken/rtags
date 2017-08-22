@@ -24,9 +24,10 @@
 #include <sstream>
 #include <fstream>
 #include "StringTokenizer.h"
+#ifdef HAS_JSON_H
 #include "rct/json/json.hpp"
-
 using namespace nlohmann;
+#endif
 
 static uint64_t start = 0;
 #define LOG()                                                           \
@@ -464,8 +465,10 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
     bool xml = false;
     bool elisp = false;
     bool raw = false;
+#ifdef HAS_JSON_H
     bool send_json = false;
     json j = {{"completions", json::array()}};
+#endif
     if (request->conn) {
         auto output = std::make_shared<Output>();
         output->connection = request->conn;
@@ -475,14 +478,16 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
             elisp = true;
         } else if (request->flags & XML) {
             xml = true;
+#ifdef HAS_JSON_H
         } else if (request->flags & JSON) {
             send_json = true;
+#endif
         } else {
             raw = true;
         }
         request->conn.reset();
     } else {
-        log([&xml, &elisp, &outputs, &raw, &send_json](const std::shared_ptr<LogOutput> &output) {
+        log([&](const std::shared_ptr<LogOutput> &output) {
                 // error() << "Got a dude" << output->testLog(RTags::DiagnosticsLevel);
                 if (output->testLog(RTags::DiagnosticsLevel)) {
                     auto out = std::make_shared<Output>();
@@ -493,9 +498,11 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                     } else if (output->flags() & RTagsLogOutput::XML) {
                         out->flags |= CompletionThread::XML;
                         xml = true;
+#ifdef HAS_JSON_H
                     } else if (output->flags() & RTagsLogOutput::JSON) {
                         out->flags |= CompletionThread::JSON;
                         send_json = true;
+#endif
                     } else {
                         raw = true;
                     }
@@ -505,7 +512,10 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
     }
 
     if (!outputs.isEmpty()) {
-        String rawOut, xmlOut, jsonOut, elispOut;
+        String rawOut, xmlOut, elispOut;
+#ifdef HAS_JSON_H
+        String jsonOut;
+#endif
         if (raw)
             rawOut.reserve(16384);
         if (xml) {
@@ -534,7 +544,8 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                     rawOut += str;
             if (xml)
                 xmlOut += str;
-            if (send_json)
+#ifdef HAS_JSON_H
+            if (send_json) {
                 j["completions"] += {
                     {"completion", c->name},
                     {"signature", c->signature},
@@ -544,6 +555,8 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                     {"annotation", c->annotation},
                     {"priority", c->priority}
                 };
+            }
+#endif
             if (elisp) {
                 elispOut += String::format<128>(" (list \"%s\" \"%s\" \"%s\" \"%s\")",
                                                 RTags::elispEscape(c->name).constData(),
@@ -560,17 +573,25 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
             elispOut += ")))";
         if (xml)
             xmlOut += "]]></completions>\n";
+#ifdef HAS_JSON_H
         if (send_json)
             jsonOut = j.dump(4);
+#endif
 
-        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut, jsonOut]() {
+        EventLoop::mainEventLoop()->callLater([outputs, xmlOut, elispOut, rawOut
+#ifdef HAS_JSON_H
+                                               , jsonOut
+#endif
+                                                  ]() {
                 for (auto &it : outputs) {
                     if (it->flags & Elisp) {
                         it->send(elispOut);
                     } else if (it->flags & XML) {
                         it->send(xmlOut);
+#ifdef HAS_JSON_H
                     } else if (it->flags & JSON) {
                         it->send(jsonOut);
+#endif
                     } else {
                         it->send(rawOut);
                     }
