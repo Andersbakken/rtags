@@ -66,7 +66,9 @@ void encodePath(Path &path)
 
 void decodePath(Path &path)
 {
-    Sandbox::decode(path);
+    bool sbrootRep = Sandbox::decode(path);
+    if (sbrootRep) return;
+    
     int i = 0;
     int size = path.size();
     while (i < size) {

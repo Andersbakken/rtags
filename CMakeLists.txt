@@ -78,4 +78,8 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
     include(CPack)
 endif ()
 
+include(CTest)
+
+add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${CMAKE_INSTALL_PREFIX}/bin")
+
 feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)

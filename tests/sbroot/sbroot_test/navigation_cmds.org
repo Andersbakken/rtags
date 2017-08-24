@@ -1,0 +1,6 @@
+#+STARTUP: showall
+
+#+BEGIN_SRC C++
+ // rc --references-name TWO => sub1/sub1.cpp:        return arg*@TWO*THREE;
+ //                          => sub1/sub1.cpp:        return p1*@TWO;
+#+END_SRC

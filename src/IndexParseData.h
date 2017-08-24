@@ -87,7 +87,7 @@ inline Deserializer &operator>>(Deserializer &s, IndexParseData::CompileCommands
 
 inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
 {
-    s << data.project << static_cast<uint32_t>(data.compileCommands.size());
+    s << Sandbox::encoded(data.project) << static_cast<uint32_t>(data.compileCommands.size());
     for (const auto &pair : data.compileCommands) {
         s << Location::path(pair.first) << pair.second;
     }
