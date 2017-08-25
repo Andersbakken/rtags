@@ -775,11 +775,13 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                 && (clang_getCursorKind(mLastCursor) == CXCursor_TypeRef || clang_getCursorKind(mLastCursor) == CXCursor_TemplateRef)) {
                 handled = true;
                 for (int pos = mParents.size() - 1; pos >= 0; --pos) {
-                    const CXCursorKind k = clang_getCursorKind(mParents[pos]);
+                    const CXCursor &parent = mParents[pos];
+                    const CXCursorKind k = clang_getCursorKind(parent);
                     if (k == CXCursor_VarDecl) {
                         handled = false;
                         break;
-                    } else if (k != CXCursor_UnexposedExpr) {
+                    } else if (k != CXCursor_UnexposedExpr
+                               && (k != CXCursor_CallExpr || !clang_isInvalid(clang_getCursorKind(clang_getCursorReferenced(parent))))) {
                         break;
                     }
                 }
