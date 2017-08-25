@@ -780,8 +780,12 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                     if (k == CXCursor_VarDecl) {
                         handled = false;
                         break;
-                    } else if (k != CXCursor_UnexposedExpr
-                               && (k != CXCursor_CallExpr || !clang_isInvalid(clang_getCursorKind(clang_getCursorReferenced(parent))))) {
+                    } else if (k == CXCursor_CallExpr) {
+                        if (!clang_isInvalid(clang_getCursorKind(clang_getCursorReferenced(parent)))) {
+                            handled = false;
+                            break;
+                        }
+                    } else if (k != CXCursor_UnexposedExpr) {
                         break;
                     }
                 }
