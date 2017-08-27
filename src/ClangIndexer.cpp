@@ -473,6 +473,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
                 // namespaces can include all namespaces in their symbolname
                 if (originalKind == CXCursor_Namespace)
                     break;
+                [[gnu::fallthrough]];
             default:
                 cutoff = pos;
                 break;

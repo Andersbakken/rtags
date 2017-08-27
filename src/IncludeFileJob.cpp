@@ -76,6 +76,7 @@ int IncludeFileJob::execute()
                 case CXCursor_TypedefDecl:
                     if (!sym.isDefinition())
                         break;
+                    [[gnu::fallthrough]];
                 case CXCursor_FunctionDecl:
                 case CXCursor_FunctionTemplate: {
                     List<String> alternatives;
