@@ -34,6 +34,9 @@
 (require 'company)
 (require 'company-template)
 
+(eval-when-compile
+  (require 'cl))
+
 (declare-function company-doc-buffer "ext:company")
 (declare-function company-manual-begin "ext:company")
 
