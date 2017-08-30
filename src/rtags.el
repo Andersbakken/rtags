@@ -177,7 +177,7 @@
 
 (defcustom rtags-reindex-on-save nil
   "Explicitly reindex files on save.
-This is only be useful, if your file system watching is not working."
+This is only useful if your file system watching is not working."
   :group 'rtags
   :type 'boolean
   :safe 'booleanp)
