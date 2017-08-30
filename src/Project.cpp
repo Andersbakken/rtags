@@ -1559,6 +1559,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         case CXCursor_StructDecl:
             if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
                 return ret;
+            [[gnu::fallthrough]];
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
         case CXCursor_Destructor:
