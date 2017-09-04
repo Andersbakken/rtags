@@ -360,6 +360,11 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :type 'string
   :safe 'stringp)
 
+(defcustom rtags-error-message-function 'rtags-error-message-default
+  "Function rtags.el calls to produce errors messages"
+  :group 'rtags
+  :type 'function)
+
 (defcustom rtags-find-file-prompt "Find files"
   "What prompt to use for ‘rtags-find-file’."
   :group 'rtags
@@ -5077,6 +5082,36 @@ the user enter missing field manually."
       (setq rtags-install-process (start-process "*RTags install*" (current-buffer) "bash" (concat dir "/install-rtags.sh")))
       (set-process-sentinel rtags-install-process 'rtags-install-process-sentinel)
       (set-process-filter rtags-install-process 'rtags-install-process-filter))))
+
+
+(defun rtags-error-message-default (type)
+  (cond ((eq type 'rtags-socket-file-doesnt-exist) "RTags: %S does not exist")
+        ((eq type 'rtags-cant-find-rc) "RTags: Can't fidn rc")
+        ((eq type 'rtags-cant-connecto-to-server) "RTags: Can't seem to connect to server. Is rdm running?")
+        ((eq type 'rtags-no-file-chosen) "RTags: No file chosen")
+        ((eq type 'rtags-no-file-here) "RTags: No file here")
+        ((eq type 'rtags-line-is-already) "RTags: line is already %s")
+        ((eq type 'rtags-not-sure-what-to-rename) "RTags: Not use what to rename")
+        ((eq type 'rtags-have-to-replace-with-something) "RTags: You have to replace with something")
+        ((eq type 'rtags-cant-open-file) "RTags: Can't open file %s")
+        ((eq type 'rtags-rename-gone-awry) "RTags: Rename gone awry. Refusing to rename %s (%s) to %s")
+        ((eq type 'rtags-tagslist-must-be-run-from-file) "RTags: rtags-tagslist must be run from buffer visiting a file")
+        ((eq type 'rtags-cant-start-process) "RTags: Can't start the process `%s'. Please check the value of the variable `rtags-path'.")
+        ((eq type 'rtags-malines-doesnt-work-with-location-length) "RTags: maxlines doesn't work with location/length")
+        ((eq type 'rtags-buffer-is-not-visiting-a-file) "RTags: Buffer is not visiting a file")
+        ((eq type 'rtags-no-valid-incudes) "RTags: No valid includes found")
+        ((eq type 'rtags-no-appropriate-symbol-that-I-know-of) "RTags: No appropriate symbol here that I know of")
+        ((eq type 'rtags-is-already-implemented) "RTags: %s is already implemented here: %s")
+        ((eq type 'rtags-cant-find-the-range) "RTags: Can't find the range")
+        ((eq type 'rtags-cant-find-the-location-for-this-function) "RTags: Can't find the location for this function")
+        ((eq type 'rtags-cant-find-rc) "RTags: Can't find rc")
+        ((eq type 'rtags-you-need-to-call-rtags-check-includes-from-an-actual-file) "RTags: You need to call rtags-check-includes from an actual file")
+        ((eq type 'rtags-tokens-must-be-run-from-a-buffer-visiting-a-file) "RTags: rtags-tokens must be run from a buffer visiting a file")
+        ((eq type 'rtags-callback-must-be-a-function) "RTags: Callback must be a function")
+        ((eq type 'rtags-cant-find-symbol-here) "RTags: Can't find symbol here")
+        ((eq type 'rtags-howhere-to-install) "RTags: Nowhere to install")))
+
+
 
 (provide 'rtags)
 
