@@ -274,6 +274,17 @@ bool ClangIndexer::exec(const String &data)
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
         error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
 
+    if (mSerializeTU) {
+        Path path = mDataDir + "tucache/";
+        Path::mkdir(path, Path::Recursive);
+        path << mSources.front().fileId;
+        Path tmp = path;
+        tmp << ".tmp";
+        StopWatch sw2;
+        clang_saveTranslationUnit(mSerializeTU->unit, tmp.constData(), clang_defaultSaveOptions(mSerializeTU->unit));
+        rename(tmp.constData(), path.constData());
+        error() << "SAVED CACHED FILE FOR" << mSourceFile << path << sw2.elapsed();
+    }
     return true;
 }
 
@@ -1858,6 +1869,13 @@ bool ClangIndexer::parse()
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
+    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
+        flags |= CXTranslationUnit_ForSerialization;
+        flags |= CXTranslationUnit_PrecompiledPreamble;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
+        flags |= CXTranslationUnit_CreatePreambleOnFirstParse;
+#endif
+    }
 #if CINDEX_VERSION_MINOR > 33
     flags |= CXTranslationUnit_KeepGoing;
 #endif
@@ -1897,12 +1915,29 @@ bool ClangIndexer::parse()
         if (usedPch)
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
-        auto unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags);
+        std::shared_ptr<RTags::TranslationUnit> unit;
+        if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
+            Path path = mDataDir + "tucache/";
+            Path::mkdir(path, Path::Recursive);
+            path << mSources.front().fileId;
+            StopWatch sw2;
+            unit = RTags::TranslationUnit::load(path);
+            if (unit) {
+                error() << "loaded cached unit in" << sw2.restart();
+                if (!unit->reparse(&unsavedFiles[0], unsavedIndex)) {
+                    unit.reset();
+                } else {
+                    error() << "reparsed cached unit in" << sw2.restart();
+                }
+            }
+        }
+
+        if (!unit)
+            unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags);
         mTranslationUnits.push_back(unit);
 
         warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
         if (unit->unit) {
-            ok = true;
             if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
                 Path path = RTags::encodeSourceFilePath(mDataDir, mProject, source.fileId);
                 Path::mkdir(path, Path::Recursive);
@@ -1912,7 +1947,11 @@ bool ClangIndexer::parse()
                 clang_saveTranslationUnit(unit->unit, tmp.constData(), clang_defaultSaveOptions(unit->unit));
                 rename(tmp.constData(), path.constData());
                 warning() << "SAVED PCH" << path;
+            } else if (!mSerializeTU && mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
+                mSerializeTU = unit;
             }
+
+            ok = true;
             mParseDuration = sw.elapsed();
         } else {
             error() << "Failed to parse" << unit->clangLine;

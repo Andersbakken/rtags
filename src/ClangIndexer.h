@@ -210,6 +210,7 @@ private:
     };
     List<Loop> mLoopStack;
 
+    std::shared_ptr<RTags::TranslationUnit> mSerializeTU;
     List<CXCursor> mParents;
     std::unordered_set<CXCursor> mTemplateSpecializations;
     size_t mInTemplateFunction;

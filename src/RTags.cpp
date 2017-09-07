@@ -509,6 +509,18 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
     return ret;
 }
 
+std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
+{
+    auto ret = std::make_shared<TranslationUnit>();
+    ret->index = clang_createIndex(0, false);
+    CXErrorCode error = clang_createTranslationUnit2(ret->index, path.constData(), &ret->unit);
+    if (error != CXError_Success) {
+        ret.reset();
+        ::error() << "Failed to load" << path << error << path.exists();
+    }
+    return ret;
+}
+
 std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const List<String> &args,
                                                          CXUnsavedFile *unsaved, int unsavedCount,
                                                          Flags<CXTranslationUnit_Flags> translationUnitFlags,
@@ -557,7 +569,8 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
 bool TranslationUnit::reparse(CXUnsavedFile *unsaved, int unsavedCount)
 {
     assert(unit);
-    if (clang_reparseTranslationUnit(unit, unsavedCount, unsaved, clang_defaultReparseOptions(unit)) != 0) {
+    const int ret = clang_reparseTranslationUnit(unit, unsavedCount, unsaved, clang_defaultReparseOptions(unit));
+    if (ret) {
         clang_disposeTranslationUnit(unit);
         unit = 0;
         return false;

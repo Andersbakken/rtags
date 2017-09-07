@@ -1868,6 +1868,17 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
         } else {
             conn->write<32>("We still have %zu buffers", oldCount);
         }
+
+        if (mOptions.options & TranslationUnitCache && mode <= 0) {
+            const Path cacheDir = mOptions.dataDir + "tucache";
+            cacheDir.visit([this](const Path &path) -> Path::VisitResult {
+                    if (path.isFile() && !mActiveBuffers.contains(std::stol(path.fileName()))) {
+                        error() << "Don't want" << path << "no more" << Location::path(std::stol(path.fileName()));
+                        Path::rm(path);
+                    }
+                    return Path::Continue;
+                });
+        }
     }
     mJobScheduler->sort();
     conn->finish();

@@ -173,8 +173,11 @@ String IndexerJob::encode() const
             copy.encode(serializer, Source::IgnoreSandbox);
         }
         assert(proj);
+        Flags<Flag> f = flags;
+        if (Server::instance()->isActiveBuffer(fileId()))
+            f |= Active;
         serializer << sourceFile
-                   << flags
+                   << f
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexDataMessageTimeout)
                    << static_cast<uint32_t>(options.rpConnectTimeout)

@@ -34,6 +34,7 @@ public:
         Aborted = 0x040,
         Complete = 0x080,
         NoAbort = 0x100,
+        Active = 0x200,
         Type_Mask = Dirty|Compile|Reindex
     };
 

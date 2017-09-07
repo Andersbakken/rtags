@@ -207,6 +207,7 @@ enum OptionType {
     SandboxRoot,
     PollTimer,
     NoRealPath,
+    TranslationUnitCache,
     Noop
 };
 
@@ -355,6 +356,7 @@ int main(int argc, char** argv)
         { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
         { PollTimer, "poll-timer", 0, CommandLineParser::Required, "Poll the database of the current project every <arg> seconds. " },
         { NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't use realpath(3) for files" },
+        { TranslationUnitCache, "translation-unit-cache", 0, CommandLineParser::NoValue, "Cache translation units. Not working yet." },
         { Noop, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
         { Noop, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
     };
@@ -708,6 +710,9 @@ int main(int argc, char** argv)
         case NoRealPath: {
             Path::setRealPathEnabled(false);
             serverOpts.options |= Server::NoRealPath;
+            break; }
+        case TranslationUnitCache: {
+            serverOpts.options |= Server::TranslationUnitCache;
             break; }
         }
 

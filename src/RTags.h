@@ -180,6 +180,8 @@ struct TranslationUnit {
                                                    Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
                                                    bool displayDiagnostics = true);
 
+    static std::shared_ptr<TranslationUnit> load(const Path &path);
+
     CXIndex index;
     CXTranslationUnit unit;
     String clangLine;

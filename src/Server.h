@@ -74,7 +74,7 @@ public:
         Progress = (1ull << 17),
         Weverything = (1ull << 18),
         NoComments = (1ull << 19),
-        Launchd = (1ull << 20),     /* Only valid for Darwin... but you're not out of bits yet. */
+        Launchd = (1ull << 20),
         RPLogToSyslog = (1ull << 21),
         CompletionsNoFilter = (1ull << 22),
         WatchSourcesOnly = (1ull << 23),
@@ -87,7 +87,8 @@ public:
         NoRealPath = (1ull << 30),
         Separate32BitAnd64Bit = (1ull << 31),
         SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
-        NoLibClangIncludePath = (1ull << 33)
+        NoLibClangIncludePath = (1ull << 33),
+        TranslationUnitCache = (1ull << 34)
     };
     struct Options {
         Options()
