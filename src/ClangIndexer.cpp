@@ -1967,8 +1967,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             FILE *f = fopen((unitRoot + "/info").constData(), "w");
             if (!f)
                 return false;
+            Path rpath = path;
+            Sandbox::encode(rpath);
             bytesWritten += fprintf(f, "%s\nIndexed by %s at %llu\n",
-                                    path.constData(),
+                                    rpath.constData(),
                                     p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
             fclose(f);
         }

@@ -66,7 +66,9 @@ void encodePath(Path &path)
 
 void decodePath(Path &path)
 {
-    Sandbox::decode(path);
+    if (Sandbox::decode(path))
+        return;
+
     int i = 0;
     int size = path.size();
     while (i < size) {
@@ -82,7 +84,6 @@ void decodePath(Path &path)
         ++i;
     }
 }
-
 
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
 {
