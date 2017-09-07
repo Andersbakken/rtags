@@ -1858,6 +1858,9 @@ bool ClangIndexer::parse()
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
+#if CINDEX_VERSION_MINOR > 33
+    flags |= CXTranslationUnit_KeepGoing;
+#endif
     bool pch;
     switch (mSources.front().language) {
     case Source::CPlusPlus11Header:

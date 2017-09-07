@@ -51,3 +51,5 @@ compile_commands.json
 /emake.data
 /.emake/sched/Linux/emake.sched
 /src/lua-prefix
+/CTestTestfile.cmake
+/DartConfiguration.tcl
