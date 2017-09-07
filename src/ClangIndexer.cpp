@@ -1870,15 +1870,16 @@ bool ClangIndexer::parse()
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
-        flags |= CXTranslationUnit_ForSerialization;
         flags |= CXTranslationUnit_PrecompiledPreamble;
+        flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
         flags |= CXTranslationUnit_CreatePreambleOnFirstParse;
 #endif
-    }
+    } else {
 #if CINDEX_VERSION_MINOR > 33
-    flags |= CXTranslationUnit_KeepGoing;
+        flags |= CXTranslationUnit_KeepGoing;
 #endif
+    }
     bool pch;
     switch (mSources.front().language) {
     case Source::CPlusPlus11Header:
@@ -1925,6 +1926,7 @@ bool ClangIndexer::parse()
             if (unit) {
                 error() << "loaded cached unit in" << sw2.restart();
                 if (!unit->reparse(&unsavedFiles[0], unsavedIndex)) {
+                    error() << "Failed to reparse";
                     unit.reset();
                 } else {
                     error() << "reparsed cached unit in" << sw2.restart();

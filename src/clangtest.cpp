@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 static void printString(const char *name, CXString string)
 {
@@ -64,12 +66,40 @@ int main(int argc, char **argv)
     if (argc < 2)
         return 1;
     CXIndex index = clang_createIndex(1, 1);
+    CXTranslationUnit unit = 0;
     const char * const *args = 0;
-    if (argc > 2)
-        args = (const char *const *)&argv[2];
+    const char *saved = "/tmp/unit";
+    if (argc > 2) {
+        if (!strcmp("--load", argv[2])) {
+            int error = clang_createTranslationUnit2(index, saved, &unit);
+            printf("GOT ERROR %d -> %p\n", error, unit);
+            if (unit) {
+                error = clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit));
+                printf("GOT REPARSE RROR %d -> %p\n", error, unit);
+                if (error) {
+                    clang_disposeTranslationUnit(unit);
+                    unit = 0;
+                }
+            }
+            --argc;
+        } else {
+            args = (const char *const *)&argv[2];
+        }
+    }
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, argv[1], args, argc - 2,
-                                                        0, 0, clang_defaultEditingTranslationUnitOptions());
+    if (!unit) {
+        unit = clang_parseTranslationUnit(index, argv[1], args, argc - 2,
+                                          0, 0, clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord  |  CXTranslationUnit_ForSerialization );
+        // FILE *f = fopen(argv[1], "a");
+        // fprintf(f, " "); //namespace { int shitty() { return 0; } }\n");
+        // fclose(f);
+        // int error = clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit));
+        // printf("GOT REPARSE RROR %d -> %p\n", error, unit);
+        // if (error) {
+        //     clang_disposeTranslationUnit(unit);
+        //     unit = 0;
+        // }
+    }
     if (unit) {
         int indent = 0;
         clang_visitChildren(clang_getTranslationUnitCursor(unit), visit, &indent);
@@ -90,6 +120,7 @@ int main(int argc, char **argv)
                 printf("%s\n", cstr);
             clang_disposeString(diagnosticText);
         }
+        clang_saveTranslationUnit(unit, saved, clang_defaultSaveOptions(unit));
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(index);

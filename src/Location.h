@@ -265,17 +265,25 @@ public:
             func(it.first, it.second);
         }
     }
-    static void init(const Hash<Path, uint32_t> &pathsToIds)
+    static bool init(const Hash<Path, uint32_t> &pathsToIds)
     {
         LOCK();
         sPathsToIds = pathsToIds;
         sIdsToPaths.clear();
         sLastId = 0;
         for (const auto &it : sPathsToIds) {
-            sIdsToPaths[it.second] = it.first;
             assert(!it.first.isEmpty());
+            Path &ref = sIdsToPaths[it.second];
+            if (!ref.isEmpty())  {
+                sPathsToIds = pathsToIds;
+                sIdsToPaths.clear();
+                sLastId = 0;
+                return false;
+            }
+            ref = it.first;
             sLastId = std::max(sLastId, it.second);
         }
+        return true;
     }
 
     static void init(const Hash<uint32_t, Path> &idsToPaths)
@@ -294,10 +302,15 @@ public:
     static void set(const Path &path, uint32_t fileId)
     {
         LOCK();
-        sPathsToIds[path] = fileId;
+        uint32_t &refId = sPathsToIds[path];
+        assert(!refId || refId == fileId);
+        refId = fileId;
         Path &p = sIdsToPaths[fileId];
-        if (p.isEmpty())
+        if (p.isEmpty()) {
             p = path;
+        } else {
+            assert(p == path || path.resolved() == p);
+        }
         sLastId = std::max(sLastId, fileId);
     }
 private:

@@ -322,6 +322,6 @@ if (NOT RTAGS_NO_ELISP_FILES)
 endif ()
 
 if (CLANGTEST_ENABLED)
-    add_executable(clangtest clangtest.c)
+    add_executable(clangtest clangtest.cpp)
     target_link_libraries(clangtest ${LIBCLANG_LIBRARIES})
 endif ()

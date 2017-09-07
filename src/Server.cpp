@@ -2019,7 +2019,11 @@ bool Server::load()
 
         Sandbox::decode(pathsToIds);
 
-        Location::init(pathsToIds);
+        if (!Location::init(pathsToIds)) {
+            error() << "Corrupted file ids. You have to start over";
+            clearProjects(Clear_All);
+            return true;
+        }
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
