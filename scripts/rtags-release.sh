@@ -34,11 +34,11 @@ while [ -n "$1" ]; do
 done
 
 if [ ! -d "$REPO" ]; then
-    git clone git@github.com:Andersbakken/rtags.git "$REPO" --recurse-submodules || exit 1
+    git clone git@github.com:Andersbakken/rtags.git "$REPO" --recursive || exit 1
 else
     cd "$REPO"
     git checkout -f master
-    git pull --autostash --recursive || exit 1
+    git pull --autostash --recurse-submodules || exit 1
 fi
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
