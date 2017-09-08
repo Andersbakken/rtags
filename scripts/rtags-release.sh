@@ -8,7 +8,7 @@ RELEASES_REPO=~/Downloads/rtags-releases
 CMAKE_ARGS="-DRTAGS_ENABLE_DEV_OPTIONS=1"
 FORCE=
 
-while [ -n "$1" ]; do 
+while [ -n "$1" ]; do
     case "$1" in
         --repo|-r)
             shift
@@ -38,7 +38,7 @@ if [ ! -d "$REPO" ]; then
 else
     cd "$REPO"
     git checkout -f master
-    git pull --autostash || exit 1
+    git pull --autostash --recursive || exit 1
 fi
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
@@ -77,4 +77,4 @@ echo "$commit" > commit
 git add *.tar.gz *.tar.bz2 commit >/dev/null
 git commit --amend -m "Release for $commit" >/dev/null
 git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
-git clean -xfd 
+git clean -xfd
