@@ -34,7 +34,7 @@ while [ -n "$1" ]; do
 done
 
 if [ ! -d "$REPO" ]; then
-    git clone git@github.com:Andersbakken/rtags.git "$REPO" --recursive || exit 1
+    git clone git@github.com:Andersbakken/rtags.git "$REPO" --recurse-submodules || exit 1
 else
     cd "$REPO"
     git checkout -f master
