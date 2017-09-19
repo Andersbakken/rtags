@@ -4585,11 +4585,12 @@ set of buffers we are visiting."
           (setq rtags-pending-remove-buffers-timer
                 (run-with-idle-timer 1 nil
                                      (lambda ()
+                                       (setq rtags-pending-remove-buffers-timer nil)
                                        (with-temp-buffer
-                                         (insert (mapconcat 'identity rtags-pending-dead-buffers "\n"))
-                                         (setq rtags-pending-dead-buffers nil)
-                                         (setq rtags-pending-remove-buffers-timer nil)
-                                         (rtags-call-rc :noerror t :silent-query t :unsaved (current-buffer) "--remove-buffers" "-")))))))))
+                                         (when rtags-pending-dead-buffers
+                                           (insert (mapconcat 'identity rtags-pending-dead-buffers "\n"))
+                                           (setq rtags-pending-dead-buffers nil)
+                                           (rtags-call-rc :noerror t :silent-query t :unsaved (current-buffer) "--remove-buffers" "-"))))))))))
   t)
 
 (add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
@@ -4616,11 +4617,12 @@ so it knows what files may be queried which helps with responsiveness.
   (interactive)
   (condition-case nil
       (let ((name (rtags-buffer-file-name)))
-        (and rtags-enabled
-             name
-             (funcall rtags-is-indexable (current-buffer))
-             (with-temp-buffer
-               (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name))))
+        (when (and rtags-enabled
+                   name
+                   (funcall rtags-is-indexable (current-buffer)))
+          (setq rtags-pending-dead-buffers (delete name rtags-pending-dead-buffers))
+          (with-temp-buffer
+            (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name))))
     (error
      t))
     t)
