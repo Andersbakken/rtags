@@ -502,7 +502,16 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
         CXString str = clang_CompileCommand_getDirectory(cmd);
-        const Path compileDir = clang_getCString(str);
+        Path compileDir = clang_getCString(str);
+        if (!compileDir.isAbsolute() || !compileDir.exists()) {
+            bool resolveOk = false;
+            debug() << "compileDir doesn't exist: " << compileDir;
+            Path resolvedCompileDir = compileDir.resolved(Path::MakeAbsolute, data.project, &resolveOk);
+            if (resolveOk) {
+                compileDir = resolvedCompileDir;
+                debug() << "    resolved to: " << compileDir;
+            }
+        }
         clang_disposeString(str);
         const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
         for (unsigned int j = 0; j < num; ++j) {
