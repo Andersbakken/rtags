@@ -713,7 +713,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     const int idx = mJobCounter - mActiveJobs.size();
-    updateDiagnostics(msg->diagnostics());
+    updateDiagnostics(fileId, msg->diagnostics());
     if (options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
@@ -1258,7 +1258,7 @@ void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
     }
 }
 
-void Project::updateDiagnostics(const Diagnostics &diagnostics)
+void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
 {
     Diagnostics changed;
     uint32_t lastFile = 0;

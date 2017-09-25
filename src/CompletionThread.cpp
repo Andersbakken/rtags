@@ -739,5 +739,5 @@ void CompletionThread::processDiagnostics(uint32_t fileId, CXCodeCompleteResults
           << clang_getNumDiagnostics(unit);
     CompletionDiagnostics diag(fileId, results, unit);
     diag.diagnose();
-    project->updateDiagnostics(diag.indexDataMessage().diagnostics());
+    project->updateDiagnostics(fileId, diag.indexDataMessage().diagnostics());
 }

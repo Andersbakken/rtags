@@ -273,7 +273,7 @@ public:
     void forEachSource(std::function<VisitResult(const Source &source)> cb) const { forEachSource(mIndexParseData, cb); }
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
     void validateAll();
-    void updateDiagnostics(const Diagnostics &diagnostics);
+    void updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics);
 private:
     void reloadCompileCommands();
     void onFileAddedOrModified(const Path &path);
