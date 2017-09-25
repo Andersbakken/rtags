@@ -75,8 +75,8 @@ and `c-electric-colon', for automatic completion right after \">\" and
   (let ((symbol (company-grab-symbol)))
     (if symbol
         (cond ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (point-at-bol)) (match-string 1))
+              ((company-in-string-or-comment) nil)
               ((and company-rtags-begin-after-member-access
-                    (not (company-in-string-or-comment))
                     (save-excursion
                       (forward-char (- (length symbol)))
                       (cond ((looking-back "\\." (1- (point))))
