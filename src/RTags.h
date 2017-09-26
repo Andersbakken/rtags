@@ -315,6 +315,7 @@ struct DiagnosticsProvider
     virtual uint32_t sourceFileId() const = 0;
     virtual IndexDataMessage &indexDataMessage() = 0;
     virtual CXTranslationUnit unit(size_t unit) const = 0;
+    virtual bool isTemplateDiagnostic(size_t, CXSourceLocation) const { return false; }
 
     void diagnose();
 };

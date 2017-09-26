@@ -57,8 +57,8 @@ public:
     void stop();
     String dump();
 private:
-    void processDiagnostics(uint32_t fileId, CXCodeCompleteResults *results, CXTranslationUnit unit);
     struct Request;
+    void processDiagnostics(const Request *request, CXCodeCompleteResults *results, CXTranslationUnit unit);
     void process(Request *request);
 
     Set<uint32_t> mWatched;

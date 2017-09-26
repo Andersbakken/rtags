@@ -256,7 +256,7 @@ void CompletionThread::process(Request *request)
 
         cache->translationUnit = RTags::TranslationUnit::create(sourceFile,
                                                                 request->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
-                                                                &unsaved, request->unsaved.size() ? 1 : 0, flags);
+                                                                &unsaved, request->unsaved.size() ? 1 : 0, flags, true);
         // error() << "PARSING" << clangLine;
         parseTime = cache->parseTime = sw.elapsed();
         // with clang 3.8 it definitely seems like we have to reparse once to
@@ -402,7 +402,7 @@ void CompletionThread::process(Request *request)
             error() << "No completion results available" << request->location;
         }
 
-        processDiagnostics(request->source.fileId, results, cache->translationUnit->unit);
+        processDiagnostics(request, results, cache->translationUnit->unit);
         clang_disposeCodeCompleteResults(results);
     }
 }
@@ -678,9 +678,11 @@ Source CompletionThread::findSource(const Set<uint32_t> &deps) const
 class CompletionDiagnostics : public RTags::DiagnosticsProvider
 {
 public:
-    CompletionDiagnostics(uint32_t sourceFileId, CXCodeCompleteResults *results, CXTranslationUnit unit)
+    CompletionDiagnostics(uint32_t sourceFileId, uint32_t completionFileId, CXCodeCompleteResults *results, CXTranslationUnit unit)
         : mSourceFileId(sourceFileId), mResults(results), mUnit(unit)
-    {}
+    {
+        mIndexDataMessage.files()[completionFileId] = IndexDataMessage::Visited;
+    }
 
     virtual size_t unitCount() const override
     {
@@ -689,14 +691,14 @@ public:
 
     virtual size_t diagnosticCount(size_t) const override
     {
-        // return clang_codeCompleteGetNumDiagnostics(mResults);
-        return clang_getNumDiagnostics(mUnit);
+        return clang_codeCompleteGetNumDiagnostics(mResults);
+        // return clang_getNumDiagnostics(mUnit);
     }
 
     virtual CXDiagnostic diagnostic(size_t, size_t idx) const override
     {
-        // return clang_codeCompleteGetDiagnostic(mResults, idx);
-        return clang_getDiagnostic(mUnit, idx);
+        return clang_codeCompleteGetDiagnostic(mResults, idx);
+        // return clang_getDiagnostic(mUnit, idx);
     }
 
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override
@@ -728,16 +730,21 @@ public:
     IndexDataMessage mIndexDataMessage;
 };
 
-void CompletionThread::processDiagnostics(uint32_t fileId, CXCodeCompleteResults *results, CXTranslationUnit unit)
+void CompletionThread::processDiagnostics(const Request *request, CXCodeCompleteResults *results, CXTranslationUnit unit)
 {
+    assert(request);
     std::shared_ptr<Project> project = Server::instance()->currentProject();
-    if (!project)
+    if (!project) {
         return;
-    if (!project->hasSource(fileId))
+    }
+    const uint32_t sourceFileId = request->source.fileId;
+    if (!project->hasSource(sourceFileId)) {
         return;
-    LOG() << "processing diagnostics" << clang_codeCompleteGetNumDiagnostics(results) << Location::path(fileId)
-          << clang_getNumDiagnostics(unit);
-    CompletionDiagnostics diag(fileId, results, unit);
+    }
+    LOG() << "processing diagnostics" << clang_codeCompleteGetNumDiagnostics(results)
+          << clang_getNumDiagnostics(unit) << request->location << Location::path(request->source.fileId);
+    CompletionDiagnostics diag(sourceFileId, request->location.fileId(), results, unit);
     diag.diagnose();
-    project->updateDiagnostics(fileId, diag.indexDataMessage().diagnostics());
+    error() << "got diagnostics" << diag.indexDataMessage().diagnostics().size();
+    project->updateDiagnostics(sourceFileId, diag.indexDataMessage().diagnostics());
 }

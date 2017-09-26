@@ -513,8 +513,27 @@ bool Project::match(const Match &p, bool *indexed) const
 }
 
 static const char *severities[] = { "none", "warning", "error", "fixit", "note", "skipped" };
-static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, uint32_t fileId = 0)
+static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, const Set<uint32_t> &filter = Set<uint32_t>())
 {
+    Diagnostics::const_iterator it;
+    Diagnostics::const_iterator end;
+    switch (filter.size()) {
+    case 0:
+        it = diagnostics.begin();
+        end = diagnostics.end();
+        break;
+    case 1: {
+        uint32_t fileId = *filter.begin();
+        it = diagnostics.lower_bound(Location(fileId, 0, 0));
+        end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
+        break; }
+    default:
+        it = diagnostics.lower_bound(Location(*filter.begin(), 0, 0));
+        auto e = filter.end();
+        --e;
+        end = diagnostics.lower_bound(Location(*e, 0, 0));
+    }
+
     if (flags & QueryMessage::JSON) {
         std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue, flags](uint32_t file, Location loc, const Diagnostic &diagnostic) {
             Value value;
@@ -536,30 +555,20 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             return value;
         };
 
-
-        Diagnostics::const_iterator it;
-        Diagnostics::const_iterator end;
-        if (fileId) {
-            it = diagnostics.lower_bound(Location(fileId, 0, 0));
-            end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
-        } else {
-            it = diagnostics.begin();
-            end = diagnostics.end();
-        }
-
         Value val;
         Value &checkStyle = val["checkStyle"];
         Value *currentFile = 0;
         uint32_t lastFileId = 0;
-        while (it != diagnostics.end()) {
-            if (it->first.fileId() != lastFileId) {
-                lastFileId = it->first.fileId();
-                if (fileId && lastFileId != fileId)
-                    break;
-                currentFile = &checkStyle[it->first.path()];
-            }
+        while (it != end) {
+            const uint32_t cur = it->first.fileId();
+            if (filter.size() > 1 && !filter.contains(cur)) {
+                if (cur != lastFileId) {
+                    lastFileId = cur;
+                    currentFile = &checkStyle[it->first.path()];
+                }
 
-            currentFile->push_back(toValue(lastFileId, it->first, it->second));
+                currentFile->push_back(toValue(lastFileId, it->first, it->second));
+            }
             ++it;
         }
         return val.toJSON();
@@ -594,11 +603,11 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
     if (format == Diagnostics_XML) {
         formatDiagnostic = [](Location loc, const Diagnostic &diagnostic, uint32_t) {
-            return String::format<256>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                       loc.line(), loc.column(),
-                                       (diagnostic.length <= 0 ? ""
-                                        : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                       severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
+            return String::format<1024>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
+                                        loc.line(), loc.column(),
+                                        (diagnostic.length <= 0 ? ""
+                                         : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
+                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
         formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file) {
@@ -613,64 +622,55 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                 children = "nil";
             }
             const bool fn = (loc.fileId() != file);
-            return String::format<256>(" (list %s%s%s %d %d %s '%s \"%s\" %s)",
-                                       fn ? "\"" : "",
-                                       fn ? loc.path().constData() : "nil",
-                                       fn ? "\"" : "",
-                                       loc.line(),
-                                       loc.column(),
-                                       diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
-                                       severities[diagnostic.type],
-                                       RTags::elispEscape(diagnostic.message).constData(),
-                                       children.constData());
+            return String::format<1024>(" (list %s%s%s %d %d %s '%s \"%s\" %s)",
+                                        fn ? "\"" : "",
+                                        fn ? loc.path().constData() : "nil",
+                                        fn ? "\"" : "",
+                                        loc.line(),
+                                        loc.column(),
+                                        diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
+                                        severities[diagnostic.type],
+                                        RTags::elispEscape(diagnostic.message).constData(),
+                                        children.constData());
         };
     }
     String ret;
-    if (fileId) {
-        const Path path = Location::path(fileId);
-        ret << header[format];
-
-        Diagnostics::const_iterator it = diagnostics.lower_bound(Location(fileId, 0, 0));
-        bool found = false;
-        while (it != diagnostics.end() && it->first.fileId() == fileId) {
-            if (!found) {
-                found = true;
-                ret << String::format<256>(startFile[format], path.constData());
+    uint32_t lastFileId = 0;
+    bool first = true;
+    const Set<uint32_t> active = Server::instance()->activeBuffers();
+    while (it != end) {
+        const auto &entry = *it++;
+        Location loc = entry.first;
+        const uint32_t f = loc.fileId();
+        if (!active.isEmpty() && !active.contains(f)) {
+            continue;
+        }
+        if (!filter.isEmpty() && !filter.contains(f)) {
+            continue;
+        }
+        const Diagnostic &diagnostic = entry.second;
+        if (f != lastFileId) {
+            if (first) {
+                ret = header[format];
+                first = false;
             }
-
-            ret << formatDiagnostic(it->first, it->second, fileId);
-            ++it;
+            if (lastFileId)
+                ret << endFile[format];
+            lastFileId = loc.fileId();
+            ret << String::format<1024>(startFile[format], loc.path().constData());
         }
-        if (!found) {
-            ret << String::format<256>(fileEmpty[format], path.constData());
-        }
-        ret << endFile[format] << trailer[format];
-    } else {
-        uint32_t lastFileId = 0;
-        bool first = true;
-        const Set<uint32_t> active = Server::instance()->activeBuffers();
-        for (const auto &entry : diagnostics) {
-            Location loc = entry.first;
-            if (!active.isEmpty() && !active.contains(loc.fileId()))
-                continue;
-            const Diagnostic &diagnostic = entry.second;
-            if (loc.fileId() != lastFileId) {
-                if (first) {
-                    ret = header[format];
-                    first = false;
-                }
-                if (lastFileId)
-                    ret << endFile[format];
-                lastFileId = loc.fileId();
-                ret << String::format<256>(startFile[format], loc.path().constData());
-            }
-            ret << formatDiagnostic(loc, diagnostic, lastFileId);
-        }
-        if (lastFileId)
-            ret << endFile[format];
-        if (!first)
-            ret << trailer[format];
+        ret << formatDiagnostic(loc, diagnostic, lastFileId);
     }
+    if (lastFileId) {
+        ret << endFile[format];
+    } else if (filter.size() == 1) {
+        const Path path = Location::path(*filter.begin());
+        ret << header[format]
+            << String::format<256>(fileEmpty[format], path.constData())
+            << endFile[format] << trailer[format];
+    }
+    if (!first)
+        ret << trailer[format];
     return ret;
 }
 
@@ -789,7 +789,10 @@ void Project::diagnose(uint32_t fileId)
                     // true for testLog(RTags::DiagnosticsLevel)
                     format = QueryMessage::Elisp;
                 }
-                const String log = formatDiagnostics(mDiagnostics, format, fileId);
+                Set<uint32_t> filter;
+                if (fileId)
+                    filter.insert(fileId);
+                const String log = formatDiagnostics(mDiagnostics, format, filter);
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -815,7 +818,10 @@ void Project::diagnoseAll()
 
 String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
 {
-    return formatDiagnostics(mDiagnostics, flags, fileId);
+    Set<uint32_t> filter;
+    if (fileId)
+        filter.insert(fileId);
+    return formatDiagnostics(mDiagnostics, flags, filter);
 }
 
 bool Project::save()
@@ -1260,30 +1266,39 @@ void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
 
 void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
 {
-    Diagnostics changed;
-    uint32_t lastFile = 0;
-    for (const auto &it : diagnostics) {
-        const uint32_t f = it.first.fileId();
-        if (f != lastFile) {
-            Diagnostics::iterator old = mDiagnostics.lower_bound(Location(f, 0, 0));
-            bool found = false;
-            while (old != mDiagnostics.end() && old->first.fileId() == f) {
-                found = true;
-                mDiagnostics.erase(old++);
-            }
-            lastFile = f;
-
-            if (it.second.isNull() && !found) {
-                continue;
+    Set<uint32_t> files;
+    {
+        auto it = mDiagnostics.begin();
+        const auto end = mDiagnostics.end();
+        uint32_t lastFileId = 0;
+        while (it != end) {
+            if (it->second.sourceFileId == fileId) {
+                const uint32_t f = it->first.fileId();
+                if (f != lastFileId) {
+                    files.insert(f);
+                    lastFileId = f;
+                }
+                mDiagnostics.erase(it++);
+            } else {
+                ++it;
             }
         }
-        if (!it.second.isNull())
+    }
+
+    {
+        uint32_t lastFileId = 0;
+        for (const auto &it : diagnostics) {
+            const uint32_t f = it.first.fileId();
+            if (lastFileId != f) {
+                files.insert(f);
+                lastFileId = f;
+            }
             mDiagnostics.insert(it);
-        changed.insert(it);
+        }
     }
     const Server::Options &options = Server::instance()->options();
 
-    if (!changed.isEmpty() || options.options & Server::Progress) {
+    if (!files.isEmpty() || options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
                     QueryMessage::Flag format = QueryMessage::XML;
@@ -1293,7 +1308,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
                         format = QueryMessage::Elisp;
                     }
                     if (!diagnostics.isEmpty()) {
-                        const String log = formatDiagnostics(changed, format, false);
+                        const String log = formatDiagnostics(mDiagnostics, format, files);
                         if (!log.isEmpty()) {
                             output->log(log);
                         }
@@ -1923,16 +1938,16 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
 
         if (!node->includes.isEmpty() && (args.isEmpty() || args.contains("includes"))) {
             if (args.size() != 1)
-                ret += String::format<256>("  %s includes:\n", Location::path(fileId).constData());
+                ret += String::format<1024>("  %s includes:\n", Location::path(fileId).constData());
             for (const auto &include : node->includes) {
-                ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+                ret += String::format<1024>("    %s\n", Location::path(include.first).constData());
             }
         }
         if (!node->dependents.isEmpty() && (args.isEmpty() || args.contains("included-by"))) {
             if (args.size() != 1)
-                ret += String::format<256>("  %s is included by:\n", Location::path(fileId).constData());
+                ret += String::format<1024>("  %s is included by:\n", Location::path(fileId).constData());
             for (const auto &include : node->dependents) {
-                ret += String::format<256>("    %s\n", Location::path(include.first).constData());
+                ret += String::format<1024>("    %s\n", Location::path(include.first).constData());
             }
         }
 
@@ -1943,9 +1958,9 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                     continue;
                 if (first) {
                     first = false;
-                    ret += String::format<256>("  %s depends on:\n", Location::path(fileId).constData());
+                    ret += String::format<1024>("  %s depends on:\n", Location::path(fileId).constData());
                 }
-                ret += String::format<256>("    %s\n", Location::path(dep).constData());
+                ret += String::format<1024>("    %s\n", Location::path(dep).constData());
             }
         }
 
@@ -1956,9 +1971,9 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                     continue;
                 if (first) {
                     first = false;
-                    ret += String::format<256>("  %s is depended on by:\n", Location::path(fileId).constData());
+                    ret += String::format<1024>("  %s is depended on by:\n", Location::path(fileId).constData());
                 }
-                ret += String::format<256>("    %s\n", Location::path(dep).constData());
+                ret += String::format<1024>("    %s\n", Location::path(dep).constData());
             }
         }
 
@@ -1970,11 +1985,11 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                 int startDepth = 1;
                 if (args.size() != 1) {
                     ++startDepth;
-                    ret += String::format<256>("  %s include tree:\n", Location::path(fileId).constData());
+                    ret += String::format<1024>("  %s include tree:\n", Location::path(fileId).constData());
                 }
 
                 std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
-                    ret += String::format<256>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
+                    ret += String::format<1024>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
 
                     if (seen.insert(n) && !n->includes.isEmpty()) {
                         ret += " includes:\n";

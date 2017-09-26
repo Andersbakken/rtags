@@ -29,13 +29,14 @@ struct Diagnostic
     enum Type { None, Warning, Error, Fixit, Note, Skipped };
 
     Diagnostic()
-        : type(None), length(-1)
+        : type(None), length(-1), sourceFileId(0)
     {
     }
 
     Type type;
     String message;
     int length;
+    uint32_t sourceFileId;
 
     Map<Location, int> ranges;
     Diagnostics children;
@@ -46,7 +47,7 @@ template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)
 {
     // SBROOT
     String tmessage = Sandbox::encoded(d.message);
-    s << static_cast<uint8_t>(d.type) << tmessage << d.length << d.ranges << d.children;
+    s << static_cast<uint8_t>(d.type) << tmessage << d.length << d.sourceFileId << d.ranges << d.children;
     return s;
 }
 
@@ -54,7 +55,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Diagnostic &d)
 {
     uint8_t type;
     String tmessage;
-    s >> type >> tmessage >> d.length >> d.ranges >> d.children;
+    s >> type >> tmessage >> d.length >> d.sourceFileId >> d.ranges >> d.children;
     // SBROOT
     d.message = Sandbox::decoded(tmessage);
     d.type = static_cast<Diagnostic::Type>(type);

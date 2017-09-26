@@ -1940,7 +1940,7 @@ bool ClangIndexer::parse()
         }
 
         if (!unit)
-            unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags);
+            unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags, false);
         mTranslationUnits.push_back(unit);
 
         warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
@@ -2407,4 +2407,9 @@ CXCursor ClangIndexer::resolveTypedef(CXCursor cursor)
         }
     }
     return cursor;
+}
+
+bool ClangIndexer::isTemplateDiagnostic(size_t unit, CXSourceLocation location) const
+{
+    return clang_Cursor_getNumTemplateArguments(clang_getCursor(mTranslationUnits[unit]->unit, location)) > 0;
 }

@@ -657,33 +657,37 @@ static inline bool compareFile(CXFile l, CXFile r)
     return ret;
 }
 
+enum DiagnosticFlag {
+    None = 0x0,
+    DisplayCategory = 0x1,
+    OnlyTemplates = 0x2
+};
+
+RCT_FLAGS(DiagnosticFlag);
+
 void DiagnosticsProvider::diagnose()
 {
     const uint32_t sourceFile = sourceFileId();
 
-    std::function<void(CXDiagnostic, Diagnostics &, bool)> process = [&](CXDiagnostic d, Diagnostics &m, bool displayCategory) {
+    std::function<void(uint32_t, CXDiagnostic, Diagnostics &, Flags<DiagnosticFlag>)> process;
+    process = [&](uint32_t u, CXDiagnostic d, Diagnostics &m, Flags<DiagnosticFlag> flags) {
         const Diagnostic::Type type = convertDiagnosticType(clang_getDiagnosticSeverity(d));
         if (type != Diagnostic::None) {
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(d);
-            const uint32_t fileId = createLocation(diagLoc, 0).fileId();
-
-            Location location;
-            int length = -1;
-            Map<Location, int> ranges;
-            String message;
-            if (displayCategory)
-                message << RTags::eatString(clang_getDiagnosticCategoryText(d));
-            if (!message.isEmpty())
-                message << ": ";
-            message << RTags::eatString(clang_getDiagnosticSpelling(d));
-
-            const String option = RTags::eatString(clang_getDiagnosticOption(d, 0));
-            if (!option.isEmpty()) {
-                message << ": " << option;
+            if (flags & OnlyTemplates && !isTemplateDiagnostic(u, diagLoc)) {
+                // error() << "ditching diagnostic" << createLocation(diagLoc, 0);
+                return;
             }
 
+
+            Location location = createLocation(diagLoc, 0);
+            const uint32_t fileId = location.fileId();
+
+            int length = -1;
+            Map<Location, int> ranges;
+
             const unsigned int rangeCount = clang_getDiagnosticNumRanges(d);
-            bool ok = false;
+            bool first = true;
             for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
                 const CXSourceRange range = clang_getDiagnosticRange(d, rangePos);
                 const CXSourceLocation start = clang_getRangeStart(range);
@@ -696,20 +700,26 @@ void DiagnosticsProvider::diagnose()
                     unsigned int line, column;
                     clang_getSpellingLocation(start, 0, &line, &column, 0);
                     const Location l(fileId, line, column);
-                    if (!ok) {
-                        ok = true;
+                    if (first) {
+                        first = false;
                         location = l;
                         length = endOffset - startOffset;
                     } else {
                         ranges[l] = endOffset - startOffset;
                     }
-                    ok = true;
                 }
             }
-            if (!ok) {
-                unsigned int line, column;
-                clang_getSpellingLocation(diagLoc, 0, &line, &column, 0);
-                location = Location(fileId, line, column);
+
+            String message;
+            if (flags & DisplayCategory)
+                message << RTags::eatString(clang_getDiagnosticCategoryText(d));
+            if (!message.isEmpty())
+                message << ": ";
+            message << RTags::eatString(clang_getDiagnosticSpelling(d));
+
+            const String option = RTags::eatString(clang_getDiagnosticOption(d, 0));
+            if (!option.isEmpty()) {
+                message << ": " << option;
             }
 
             Diagnostic &diagnostic = m[location];
@@ -717,11 +727,12 @@ void DiagnosticsProvider::diagnose()
             diagnostic.message = std::move(message);
             diagnostic.ranges = std::move(ranges);
             diagnostic.length = length;
+            diagnostic.sourceFileId = sourceFile;
 
             if (CXDiagnosticSet children = clang_getChildDiagnostics(d)) {
                 const unsigned int childCount = clang_getNumDiagnosticsInSet(children);
                 for (unsigned j=0; j<childCount; ++j) {
-                    process(clang_getDiagnosticInSet(children, j), diagnostic.children, false);
+                    process(u, clang_getDiagnosticInSet(children, j), diagnostic.children, flags &= ~(DisplayCategory|OnlyTemplates));
                 }
                 clang_disposeDiagnosticSet(children);
             }
@@ -753,8 +764,8 @@ void DiagnosticsProvider::diagnose()
             if (inclusionError)
                 indexData.setFlag(IndexDataMessage::InclusionError);
             assert(fileId);
-            Flags<IndexDataMessage::FileFlag> &flags = indexData.files()[fileId];
-            if (fileId != sourceFile && !inclusionError && sev >= CXDiagnostic_Error && !(flags & IndexDataMessage::HeaderError)) {
+            Flags<IndexDataMessage::FileFlag> &fileFlags = indexData.files()[fileId];
+            if (fileId != sourceFile && !inclusionError && sev >= CXDiagnostic_Error && !(fileFlags & IndexDataMessage::HeaderError)) {
                 // We don't treat inclusions or code inside a macro expansion as a
                 // header error
                 CXFile expFile, spellingFile;
@@ -762,10 +773,14 @@ void DiagnosticsProvider::diagnose()
                 clang_getExpansionLocation(diagLoc, &expFile, &expLine, &expColumn, 0);
                 clang_getSpellingLocation(diagLoc, &spellingFile, &spellingLine, &spellingColumn, 0);
                 if (expLine == spellingLine && expColumn == spellingColumn && compareFile(expFile, spellingFile))
-                    flags |= IndexDataMessage::HeaderError;
+                    fileFlags |= IndexDataMessage::HeaderError;
             }
-            if (flags & IndexDataMessage::Visited) {
-                process(diag, indexData.diagnostics(), true);
+            {
+                Flags<DiagnosticFlag> f = DisplayCategory;
+                if (!(fileFlags & IndexDataMessage::Visited)) {
+                    f |= OnlyTemplates;
+                }
+                process(u, diag, indexData.diagnostics(), f);
             }
             // logDirect(RTags::DiagnosticsLevel, message.constData());
 
@@ -804,6 +819,7 @@ void DiagnosticsProvider::diagnose()
                     }
                     Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
                     entry.type = Diagnostic::Fixit;
+                    entry.sourceFileId = sourceFile;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
                     }
@@ -830,6 +846,7 @@ void DiagnosticsProvider::diagnose()
                             clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
                             Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
                             if (entry.type == Diagnostic::None) {
+                                entry.sourceFileId = sourceFile;
                                 CXSourceLocation end = clang_getRangeEnd(skipped->ranges[j]);
                                 clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
                                 entry.type = Diagnostic::Skipped;
@@ -845,6 +862,7 @@ void DiagnosticsProvider::diagnose()
             }
         }
     }
+#if 0
     for (const auto &it : indexData.files()) {
         if (it.second & IndexDataMessage::Visited) {
             const Location loc(it.first, 0, 0);
@@ -854,6 +872,7 @@ void DiagnosticsProvider::diagnose()
             }
         }
     }
+#endif
 }
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
