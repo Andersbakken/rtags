@@ -247,7 +247,6 @@ If you're running Emacs in cygwin you might have to set this to nil."
           (run-with-idle-timer rtags-periodic-reparse-timeout t
                                #'rtags-reparse-file-if-needed nil t))))
 
-(defvar rtags-periodic-reparse-timer nil)
 ;;;###autoload
 (defun rtags-set-periodic-reparse-timeout (time)
   "Set `rtags-periodic-reparse-timeout' to TIME."
