@@ -269,7 +269,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
     auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
-        auto formatLocation = [locationToStringFlags,&filterPiece, &ret](const Location &loc, const char *key, const char *ctxKey,
+        auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
                                                                          const char *keyFilter = 0,
                                                                          const char *ctxKeyFilter = 0,
                                                                          Value *val = 0) {
