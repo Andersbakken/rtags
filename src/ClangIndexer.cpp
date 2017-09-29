@@ -382,9 +382,8 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
     if (resolved != sourceFile)
         Location::set(sourceFile, id);
 
-    if (blockedPtr && !mVisitFileResponseMessageVisit) {
-        *blockedPtr = true;
-    }
+    if (blockedPtr)
+        *blockedPtr = !mVisitFileResponseMessageVisit;
     return Location(id, line, col);
 }
 
