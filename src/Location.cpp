@@ -144,3 +144,37 @@ void Location::saveFileIds()
     assert(Server::instance());
     Server::instance()->saveFileIds();
 }
+
+bool Location::init(const Hash<Path, uint32_t> &pathsToIds)
+{
+    LOCK();
+    sPathsToIds = pathsToIds;
+    sIdsToPaths.clear();
+    sLastId = 0;
+    for (const auto &it : sPathsToIds) {
+        assert(!it.first.isEmpty());
+        Path &ref = sIdsToPaths[it.second];
+        if (!ref.isEmpty())  {
+            sPathsToIds.clear();
+            sIdsToPaths.clear();
+            sLastId = 0;
+            return false;
+        }
+        ref = it.first;
+        sLastId = std::max(sLastId, it.second);
+    }
+    return true;
+}
+
+void Location::init(const Hash<uint32_t, Path> &idsToPaths)
+{
+    LOCK();
+    sIdsToPaths = idsToPaths;
+    sPathsToIds.clear();
+    sLastId = 0;
+    for (const auto &it : sIdsToPaths) {
+        sPathsToIds[it.second] = it.first;
+        assert(!it.second.isEmpty());
+        sLastId = std::max(sLastId, it.first);
+    }
+}
