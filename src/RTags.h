@@ -315,33 +315,9 @@ struct DiagnosticsProvider
     virtual uint32_t sourceFileId() const = 0;
     virtual IndexDataMessage &indexDataMessage() = 0;
     virtual CXTranslationUnit unit(size_t unit) const = 0;
-    virtual bool isTemplateDiagnostic(size_t, CXSourceLocation) const { return false; }
 
     void diagnose();
 };
-
-// struct TUDiagnostics : public Diagnostics
-// {
-//     TUDiagnostics(CXTranslationUnit u)
-//         : unit(u)
-//     {}
-//     virtual size_t count() const { return clang_getNumDiagnostics(unit); }
-//     virtual CXDiagnostic get(size_t idx) const { return clang_getDiagnostic(unit, idx); }
-
-//     CXTranslationUnit unit;
-// };
-
-// struct CompletionDiagnostics : public Diagnostics
-// {
-//     CompletionDiagnostics(CXCodeCompleteResults *r)
-//         : results(r)
-//     {}
-//     virtual size_t count() const { return clang_codeCompleteGetNumDiagnostics(results); }
-//     virtual CXDiagnostic get(size_t idx) const { return clang_codeCompleteGetDiagnostic(results, idx); }
-
-//     CXCodeCompleteResults *results;
-// };
-
 
 struct Auto {
     CXCursor cursor;
