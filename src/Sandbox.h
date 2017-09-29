@@ -112,6 +112,13 @@ T encoded(const T &t, ReplaceMode mode = Everywhere)
     return copy;
 }
 
+template <typename T>
+T encoded(T &&t, ReplaceMode mode = Everywhere)
+{
+    encode(t, mode);
+    return t;
+}
+
 template <typename T, typename std::enable_if<std::is_convertible<String, T>::value, T>::type * = nullptr>
 bool decode(T &t, ReplaceMode mode = Everywhere)
 {
@@ -191,6 +198,14 @@ T decoded(const T &t, ReplaceMode mode = Everywhere)
     decode(copy, mode);
     return copy;
 }
+
+template <typename T>
+T decoded(T &&t, ReplaceMode mode = Everywhere)
+{
+    decode(t, mode);
+    return t;
+}
+
 }
 
 #endif

@@ -318,7 +318,7 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
     if (Sandbox::hasRoot()) {
         forEachSource(data, [](Source &source) {
                 for (String &arg : source.arguments) {
-                    arg = Sandbox::decoded(arg);
+                    Sandbox::decode(arg);
                 }
                 return Continue;
             });
