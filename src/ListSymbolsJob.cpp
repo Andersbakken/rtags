@@ -132,16 +132,50 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
     return out;
 }
 
+namespace {
+
+struct SymbolHash
+{
+    std::size_t operator()(const Symbol &x) const
+    {
+        return std::hash<uint64_t>{}(x.location.value);
+    }
+};
+
+struct SymbolEqual
+{
+    bool operator()(const Symbol &lhs, const Symbol &rhs) const
+    {
+        return lhs.location == rhs.location;
+    }
+};
+
+} // namespace
+
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
 {
     const bool hasFilter = QueryJob::hasFilter();
     const bool hasKindFilter = QueryJob::hasKindFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
 
-    Set<String> out;
-    auto inserter = [this, &project, hasFilter, hasKindFilter, stripParentheses, &out](Project::SymbolMatchType,
-                                                                                       const String &str,
-                                                                                       const Set<Location> &locations) {
+    std::unordered_map<Symbol, String, SymbolHash, SymbolEqual> tmp;
+    const auto insertOrUpdate = [&tmp](const Symbol &sym, const String &name) {
+      auto it = tmp.insert({sym, name});
+      if (it.second) { return; }
+      if (name.size() < it.first->second.size()) { return; }
+      it.first->second = name;
+    };
+
+    auto inserter = [
+        this,
+        &project,
+        hasFilter,
+        hasKindFilter,
+        stripParentheses,
+        &insertOrUpdate](Project::SymbolMatchType,
+                         const String &str,
+                         const Set<Location> &locations)
+    {
         if (hasFilter) {
             bool ok = false;
             for (const auto &l : locations) {
@@ -153,22 +187,28 @@ Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project)
             if (!ok)
                 return;
         }
+        const Symbol sym = project->findSymbol(*locations.begin());
         if (hasKindFilter) {
-            const Symbol sym = project->findSymbol(*locations.begin());
             if (!filterKind(sym))
                 return;
         }
-        const int paren = str.indexOf('(');
-        if (paren == -1) {
-            out.insert(str);
+        const auto paren = str.indexOf('(');
+        if (paren == String::npos) {
+            insertOrUpdate(sym, str);
         } else {
             if (!RTags::isFunctionVariable(str))
-                out.insert(str.left(paren));
+                insertOrUpdate(sym, str.left(paren));
             if (!stripParentheses)
-                out.insert(str);
+                insertOrUpdate(sym, str);
         }
     };
 
     project->findSymbols(string, inserter, queryFlags());
+
+    Set<String> out;
+    for (const auto &x: tmp) {
+        out.insert(x.second);
+    }
+
     return out;
 }
