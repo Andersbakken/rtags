@@ -663,8 +663,8 @@ Sublime Text: https://github.com/rampage644/sublime-rtags
 
 Atom: https://github.com/artagnon/atomic-rtags, https://github.com/rajendrant/atom-rtags and https://github.com/sphaerophoria/atom-rtags-plus
 
-=rc= has a vast number of commands and options and we intend to write a man
-page at some point. Most users will have limited interest in ever calling them
+=rc= has a vast number of commands and options and we have written a
+man page for it. Most users will have limited interest in ever calling them
 manually and would rather just use the interactive elisp functions.
 
 * Elisp
