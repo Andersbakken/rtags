@@ -513,11 +513,19 @@ std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
 {
     auto ret = std::make_shared<TranslationUnit>();
     ret->index = clang_createIndex(0, false);
+#if CINDEX_VERSION_MINOR >= 23
     CXErrorCode error = clang_createTranslationUnit2(ret->index, path.constData(), &ret->unit);
     if (error != CXError_Success) {
         ret.reset();
         ::error() << "Failed to load" << path << error << path.exists();
     }
+#else
+    ret->unit = clang_createTranslationUnit(ret->index, path.constData());
+    if (!ret->unit) {
+        ret.reset();
+        ::error() << "Failed to load" << path << path.exists();
+    }
+#endif
     return ret;
 }
 
