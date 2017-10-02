@@ -1309,6 +1309,8 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     {
         uint32_t lastFileId = 0;
         for (const auto &it : diagnostics) {
+            // if (it.second.flags & Diagnostic::TemplateOnly)
+            //     error() << "checking for" << Location::path(fileId) << it.first;
             if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it))
                 continue;
 
@@ -2866,17 +2868,22 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
 {
     const uint32_t fileId = diagnostic.first.fileId();
     auto symbols = openSymbols(fileId);
-    if (!symbols || !symbols->count())
+    if (!symbols || !symbols->count()) {
         return true;
+    }
 
     bool exact = false;
     uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
+    if (idx == std::numeric_limits<uint32_t>::max()) {
+        return true;
+    }
     while (true) {
         Symbol sym = symbols->valueAt(idx);
-        error() << "got symbol" << sym;
         if (RTags::isFunction(sym.kind)) {
-            error() << "got function" << sym;
-            // return sym.flag
+            if (!(sym.flags & Symbol::TemplateFunction)) {
+                // error() << "no template here" << diagnostic.first << sym.location << sym.flags;
+                return false;
+            }
             return true;
         }
         if (idx > 0) {

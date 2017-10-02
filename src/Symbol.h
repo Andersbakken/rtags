@@ -90,7 +90,8 @@ struct Symbol
         ImplicitDestruction    = 0x0400,
         TemplateReference      = 0x0800,
         Definition             = 0x1000,
-        FileSymbol             = 0x2000
+        FileSymbol             = 0x2000,
+        TemplateFunction       = 0x4000
     };
     String briefComment, xmlComment;
     uint16_t flags;

@@ -1783,9 +1783,20 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 #endif
 
         cursors = addOverriddenCursors(cursor, location);
+        switch (clang_getCursorKind(clang_getCursorSemanticParent(cursor))) {
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplatePartialSpecialization:
+            c.flags |= Symbol::TemplateFunction;
+            break;
+        default:
+            break;
+        }
+
         // fall through
     case CXCursor_FunctionDecl:
     case CXCursor_FunctionTemplate:
+        if (c.kind == CXCursor_FunctionTemplate)
+            c.flags |= Symbol::TemplateFunction;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 19)
         if (clang_Cursor_isVariadic(cursor))
             c.flags |= Symbol::Variadic;
@@ -1803,11 +1814,22 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     case CXCursor_Constructor:
         extractArguments(&c.arguments, cursor);
         // fall through
-    case CXCursor_Destructor:
+    case CXCursor_Destructor: {
+        CXCursor parent = clang_getCursorSemanticParent(cursor);
+
+        switch (clang_getCursorKind(parent)) {
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassTemplatePartialSpecialization:
+            c.flags |= Symbol::TemplateFunction;
+            break;
+        default:
+            break;
+        }
+
         // these are for joining constructors/destructor with their classes (for renaming symbols)
-        assert(!::usr(clang_getCursorSemanticParent(cursor)).isEmpty());
-        unit(location)->targets[location][::usr(clang_getCursorSemanticParent(cursor))] = 0;
-        break;
+        assert(!::usr(parent).isEmpty());
+        unit(location)->targets[location][::usr(parent)] = 0;
+        break; }
     case CXCursor_ClassTemplate:
     case CXCursor_StructDecl:
     case CXCursor_ClassDecl: {

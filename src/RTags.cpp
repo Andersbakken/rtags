@@ -767,7 +767,6 @@ void DiagnosticsProvider::diagnose()
             {
                 Flags<Diagnostic::Flag> f = Diagnostic::DisplayCategory;
                 if (!(fileFlags & IndexDataMessage::Visited)) {
-                    error() << "dude" << cursor;
                     templateOnly = true;
                     f |= Diagnostic::TemplateOnly;
                 }
