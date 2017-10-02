@@ -2533,7 +2533,7 @@ If called with prefix, open first match in other window"
                  (with-temp-buffer
                    (insert (car results))
                    (goto-char (point-min))
-                   (rtags-handle-results-buffer tagname nil nil fn otherwindow 'find-symbol-at-point)))
+                   (rtags-handle-results-buffer tagname nil nil fn otherwindow 'find-symbol-at-point t)))
                 (t
                  (rtags-delete-rtags-windows)
                  (with-current-buffer (rtags-get-buffer)
@@ -3474,7 +3474,7 @@ This includes both declarations and definitions."
 (make-variable-buffer-local 'rtags-results-buffer-type)
 (put 'rtags-results-buffer-type 'permanent-local t)
 
-(defun rtags-handle-results-buffer (&optional token noautojump quiet path other-window type)
+(defun rtags-handle-results-buffer (&optional token noautojump quiet path other-window type nobookmarks)
   "Handle results from RTags. Should be called with the results buffer
 as current.
 
@@ -3482,7 +3482,8 @@ The option OTHER-WINDOW is only applicable if RTags is configured not to
 show the results immediately. If non-nil, show the first match in the
 other window instead of the current one."
   (setq rtags-results-buffer-type type)
-  (rtags-reset-bookmarks)
+  (unless nobookmarks
+    (rtags-reset-bookmarks))
   (set-text-properties (point-min) (point-max) nil)
   (when path
     (setq rtags-current-file path))
