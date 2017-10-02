@@ -692,20 +692,17 @@ public:
     virtual size_t diagnosticCount(size_t) const override
     {
         return clang_codeCompleteGetNumDiagnostics(mResults);
-        // return clang_getNumDiagnostics(mUnit);
     }
 
     virtual CXDiagnostic diagnostic(size_t, size_t idx) const override
     {
         return clang_codeCompleteGetDiagnostic(mResults, idx);
-        // return clang_getDiagnostic(mUnit, idx);
     }
 
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override
     {
         if (blocked)
             *blocked = false;
-        // *blocked = false;
         return Location(Location::insertFile(file), line, col);
     }
 
@@ -745,6 +742,6 @@ void CompletionThread::processDiagnostics(const Request *request, CXCodeComplete
           << clang_getNumDiagnostics(unit) << request->location << Location::path(request->source.fileId);
     CompletionDiagnostics diag(sourceFileId, request->location.fileId(), results, unit);
     diag.diagnose();
-    error() << "got diagnostics" << diag.indexDataMessage().diagnostics().size();
+    // error() << "got diagnostics" << diag.indexDataMessage().diagnostics().size();
     project->updateDiagnostics(sourceFileId, diag.indexDataMessage().diagnostics());
 }
