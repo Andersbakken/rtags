@@ -26,39 +26,58 @@ typedef Map<Location, Diagnostic> Diagnostics;
 
 struct Diagnostic
 {
-    enum Type { None, Warning, Error, Fixit, Note, Skipped };
+    enum Flag {
+        None = 0x00,
+        Warning = 0x01,
+        Error = 0x02,
+        Fixit = 0x04,
+        Note = 0x08,
+        Skipped = 0x10,
+        Type_Mask = Warning|Error|Fixit|Note|Skipped,
+        TemplateOnly = 0x20,
+        DisplayCategory = 0x40
+    };
 
     Diagnostic()
-        : type(None), length(-1), sourceFileId(0)
+        : length(-1), sourceFileId(0)
     {
     }
 
-    Type type;
+    Flag type() const;
+
     String message;
     int length;
     uint32_t sourceFileId;
 
     Map<Location, int> ranges;
     Diagnostics children;
-    bool isNull() const { return type == None; }
+    Flags<Flag> flags;
+    bool isNull() const { return type() == None; }
 };
+
+RCT_FLAGS(Diagnostic::Flag);
+
+inline Diagnostic::Flag Diagnostic::type() const
+{
+    return (flags & Type_Mask).cast<Flag>();
+}
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)
 {
     // SBROOT
     String tmessage = Sandbox::encoded(d.message);
-    s << static_cast<uint8_t>(d.type) << tmessage << d.length << d.sourceFileId << d.ranges << d.children;
+    s << d.flags.cast<uint8_t>() << tmessage << d.length << d.sourceFileId << d.ranges << d.children;
     return s;
 }
 
 template <> inline Deserializer &operator>>(Deserializer &s, Diagnostic &d)
 {
-    uint8_t type;
+    uint8_t flags;
     String tmessage;
-    s >> type >> tmessage >> d.length >> d.sourceFileId >> d.ranges >> d.children;
+    s >> flags >> tmessage >> d.length >> d.sourceFileId >> d.ranges >> d.children;
     // SBROOT
-    d.message = Sandbox::decoded(tmessage);
-    d.type = static_cast<Diagnostic::Type>(type);
+    d.message = Sandbox::decoded(std::move(tmessage));
+    d.flags = static_cast<Diagnostic::Flag>(flags);
     return s;
 }
 

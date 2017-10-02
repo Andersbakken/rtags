@@ -72,8 +72,6 @@ private:
         return clang_getDiagnostic(mTranslationUnits[unit]->unit, idx);
     }
 
-    virtual bool isTemplateDiagnostic(size_t unit, CXSourceLocation location) const override;
-
     virtual uint32_t sourceFileId() const override { return mSources.front().fileId; }
     virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
 

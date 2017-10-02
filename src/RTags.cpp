@@ -622,9 +622,9 @@ bool resolveAuto(const CXCursor &cursor, Auto *a)
 
 #undef l
 
-static inline Diagnostic::Type convertDiagnosticType(CXDiagnosticSeverity sev)
+static inline Diagnostic::Flag convertDiagnosticType(CXDiagnosticSeverity sev)
 {
-    Diagnostic::Type type = Diagnostic::None;
+    Diagnostic::Flag type = Diagnostic::None;
     switch (sev) {
     case CXDiagnostic_Warning:
         type = Diagnostic::Warning;
@@ -635,6 +635,7 @@ static inline Diagnostic::Type convertDiagnosticType(CXDiagnosticSeverity sev)
         break;
     case CXDiagnostic_Note:
         type = Diagnostic::Note;
+        break;
     default:
         break;
     }
@@ -657,29 +658,15 @@ static inline bool compareFile(CXFile l, CXFile r)
     return ret;
 }
 
-enum DiagnosticFlag {
-    None = 0x0,
-    DisplayCategory = 0x1,
-    OnlyTemplates = 0x2
-};
-
-RCT_FLAGS(DiagnosticFlag);
-
 void DiagnosticsProvider::diagnose()
 {
     const uint32_t sourceFile = sourceFileId();
 
-    std::function<void(uint32_t, CXDiagnostic, Diagnostics &, Flags<DiagnosticFlag>)> process;
-    process = [&](uint32_t u, CXDiagnostic d, Diagnostics &m, Flags<DiagnosticFlag> flags) {
-        const Diagnostic::Type type = convertDiagnosticType(clang_getDiagnosticSeverity(d));
-        if (type != Diagnostic::None) {
+    std::function<void(uint32_t, CXDiagnostic, Diagnostics &, Flags<Diagnostic::Flag>)> process;
+    process = [&](uint32_t u, CXDiagnostic d, Diagnostics &m, Flags<Diagnostic::Flag> flags) {
+        flags |= convertDiagnosticType(clang_getDiagnosticSeverity(d));
+        if ((flags & Diagnostic::Type_Mask) != Diagnostic::None) {
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(d);
-            if (flags & OnlyTemplates && !isTemplateDiagnostic(u, diagLoc)) {
-                // error() << "ditching diagnostic" << createLocation(diagLoc, 0);
-                return;
-            }
-
-
             Location location = createLocation(diagLoc, 0);
             const uint32_t fileId = location.fileId();
 
@@ -711,7 +698,7 @@ void DiagnosticsProvider::diagnose()
             }
 
             String message;
-            if (flags & DisplayCategory)
+            if (flags & Diagnostic::DisplayCategory)
                 message << RTags::eatString(clang_getDiagnosticCategoryText(d));
             if (!message.isEmpty())
                 message << ": ";
@@ -723,7 +710,7 @@ void DiagnosticsProvider::diagnose()
             }
 
             Diagnostic &diagnostic = m[location];
-            diagnostic.type = type;
+            diagnostic.flags = flags;
             diagnostic.message = std::move(message);
             diagnostic.ranges = std::move(ranges);
             diagnostic.length = length;
@@ -732,7 +719,7 @@ void DiagnosticsProvider::diagnose()
             if (CXDiagnosticSet children = clang_getChildDiagnostics(d)) {
                 const unsigned int childCount = clang_getNumDiagnosticsInSet(children);
                 for (unsigned j=0; j<childCount; ++j) {
-                    process(u, clang_getDiagnosticInSet(children, j), diagnostic.children, flags &= ~(DisplayCategory|OnlyTemplates));
+                    process(u, clang_getDiagnosticInSet(children, j), diagnostic.children, NullFlags);
                 }
                 clang_disposeDiagnosticSet(children);
             }
@@ -760,6 +747,7 @@ void DiagnosticsProvider::diagnose()
             // error() << "Got a dude" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
             //         << sev << CXDiagnostic_Error;
             const CXCursor cursor = cursorAt(u, diagLoc);
+
             const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
             if (inclusionError)
                 indexData.setFlag(IndexDataMessage::InclusionError);
@@ -775,10 +763,13 @@ void DiagnosticsProvider::diagnose()
                 if (expLine == spellingLine && expColumn == spellingColumn && compareFile(expFile, spellingFile))
                     fileFlags |= IndexDataMessage::HeaderError;
             }
+            bool templateOnly = false;
             {
-                Flags<DiagnosticFlag> f = DisplayCategory;
+                Flags<Diagnostic::Flag> f = Diagnostic::DisplayCategory;
                 if (!(fileFlags & IndexDataMessage::Visited)) {
-                    f |= OnlyTemplates;
+                    error() << "dude" << cursor;
+                    templateOnly = true;
+                    f |= Diagnostic::TemplateOnly;
                 }
                 process(u, diag, indexData.diagnostics(), f);
             }
@@ -818,7 +809,9 @@ void DiagnosticsProvider::diagnose()
                               endOffset - startOffset > 1 ? "s" : "", string);
                     }
                     Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
-                    entry.type = Diagnostic::Fixit;
+                    entry.flags = Diagnostic::Fixit;
+                    if (templateOnly)
+                        entry.flags |= Diagnostic::TemplateOnly;
                     entry.sourceFileId = sourceFile;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
@@ -845,11 +838,11 @@ void DiagnosticsProvider::diagnose()
                             unsigned int line, column, startOffset, endOffset;
                             clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
                             Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
-                            if (entry.type == Diagnostic::None) {
+                            if (entry.type() == Diagnostic::None) {
                                 entry.sourceFileId = sourceFile;
                                 CXSourceLocation end = clang_getRangeEnd(skipped->ranges[j]);
                                 clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                                entry.type = Diagnostic::Skipped;
+                                entry.flags = Diagnostic::Skipped;
                                 entry.length = endOffset - startOffset;
                                 // error() << line << column << startOffset << endOffset;
                             }

@@ -2407,8 +2407,3 @@ CXCursor ClangIndexer::resolveTypedef(CXCursor cursor)
     }
     return cursor;
 }
-
-bool ClangIndexer::isTemplateDiagnostic(size_t unit, CXSourceLocation location) const
-{
-    return clang_Cursor_getNumTemplateArguments(clang_getCursor(mTranslationUnits[unit]->unit, location)) > 0;
-}

@@ -512,7 +512,22 @@ bool Project::match(const Match &p, bool *indexed) const
     return ret;
 }
 
-static const char *severities[] = { "none", "warning", "error", "fixit", "note", "skipped" };
+inline static const char *severityToString(Diagnostic::Flag type)
+{
+    switch (type) {
+    case Diagnostic::None: return "none";
+    case Diagnostic::Warning: return "warning";
+    case Diagnostic::Fixit: return "fixit";
+    case Diagnostic::Error: return "error";
+    case Diagnostic::Note: return "note";
+    case Diagnostic::Skipped: return "skipped";
+    default:
+        error() << "bad boy" << type;
+        assert(0);
+    }
+    return 0;
+}
+
 static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, const Set<uint32_t> &filter = Set<uint32_t>())
 {
     Diagnostics::const_iterator it;
@@ -543,7 +558,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             value["column"] = loc.column();
             if (diagnostic.length > 0)
                 value["length"] = diagnostic.length;
-            value["type"] = severities[diagnostic.type];
+            value["type"] = severityToString(diagnostic.type());
             if (!diagnostic.message.isEmpty())
                 value["message"] = diagnostic.message;
             if (!diagnostic.children.isEmpty()) {
@@ -607,7 +622,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                                         loc.line(), loc.column(),
                                         (diagnostic.length <= 0 ? ""
                                          : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                        severities[diagnostic.type], RTags::xmlEscape(diagnostic.message).constData());
+                                        severityToString(diagnostic.type()), RTags::xmlEscape(diagnostic.message).constData());
         };
     } else {
         formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file) {
@@ -629,7 +644,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                                         loc.line(),
                                         loc.column(),
                                         diagnostic.length > 0 ? String::number(diagnostic.length).constData() : "nil",
-                                        severities[diagnostic.type],
+                                        severityToString(diagnostic.type()),
                                         RTags::elispEscape(diagnostic.message).constData(),
                                         children.constData());
         };
@@ -676,6 +691,12 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
+    struct Scope {
+        Scope(Project *p) : project(p) { project->beginScope(); }
+        ~Scope() { project->endScope(); }
+        Project *project;
+    } scope(this);
+
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = job->fileId();
@@ -1288,6 +1309,9 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     {
         uint32_t lastFileId = 0;
         for (const auto &it : diagnostics) {
+            if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it))
+                continue;
+
             const uint32_t f = it.first.fileId();
             if (lastFileId != f) {
                 files.insert(f);
@@ -2836,4 +2860,30 @@ void Project::validateAll()
     }
     if (!clean)
         startDirtyJobs(&dirty, IndexerJob::Dirty);
+}
+
+bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic)
+{
+    const uint32_t fileId = diagnostic.first.fileId();
+    auto symbols = openSymbols(fileId);
+    if (!symbols || !symbols->count())
+        return true;
+
+    bool exact = false;
+    uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
+    while (true) {
+        Symbol sym = symbols->valueAt(idx);
+        error() << "got symbol" << sym;
+        if (RTags::isFunction(sym.kind)) {
+            error() << "got function" << sym;
+            // return sym.flag
+            return true;
+        }
+        if (idx > 0) {
+            --idx;
+        } else {
+            return true;
+        }
+    }
+    return false;
 }
