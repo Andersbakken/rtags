@@ -76,6 +76,7 @@ public:
     std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
     Path path() const { return mPath; }
+    Path projectDataDir() const { return mProjectDataDir; }
     bool match(const Match &match, bool *indexed = 0) const;
 
     enum FileMapType {
@@ -406,7 +407,7 @@ private:
 
     std::shared_ptr<FileMapScope> mFileMapScope;
 
-    const Path mPath, mSourceFilePathBase;
+    const Path mPath, mProjectDataDir;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;
@@ -470,7 +471,7 @@ inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
 
 inline Path Project::sourceFilePath(uint32_t fileId, const char *type) const
 {
-    return String::format<1024>("%s%d/%s", mSourceFilePathBase.constData(), fileId, type);
+    return String::format<1024>("%s%d/%s", mProjectDataDir.constData(), fileId, type);
 }
 
 #endif

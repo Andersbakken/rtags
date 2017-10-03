@@ -89,7 +89,7 @@ inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
 {
     s << Sandbox::encoded(data.project) << static_cast<uint32_t>(data.compileCommands.size());
     for (const auto &pair : data.compileCommands) {
-        s << Location::path(pair.first) << pair.second;
+        s << Location::path(pair.first) << pair.first << pair.second;
     }
     s << data.sources << Sandbox::encoded(data.environment);
     return s;
@@ -104,7 +104,10 @@ inline Deserializer &operator>>(Deserializer &s, IndexParseData &data)
     while (size-- > 0) {
         Path file;
         s >> file;
-        s >> data.compileCommands[Location::insertFile(file)];
+        uint32_t fileId;
+        s >> fileId;
+        Location::set(file, fileId);
+        s >> data.compileCommands[fileId];
     }
     s >> data.sources >> data.environment;
     Sandbox::decode(data.environment);

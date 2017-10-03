@@ -185,10 +185,12 @@ bool Server::init(const Options &options)
     {
         Log l(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine);
         l << "Running with" << mOptions.jobCount << "jobs, using args:"
-          << String::join(mOptions.defaultArguments, ' ') << '\n';
-        l << "Includepaths:";
-        for (const auto &inc : mOptions.includePaths)
-            l << inc.toString();
+          << String::join(mOptions.defaultArguments, ' ');
+        if (!mOptions.includePaths.isEmpty()) {
+            l << "\nIncludepaths:";
+            for (const auto &inc : mOptions.includePaths)
+                l << inc.toString();
+        }
     }
 
     if (mOptions.options & ClearProjects) {
@@ -332,7 +334,9 @@ std::shared_ptr<Project> Server::addProject(const Path &path)
     std::shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
-        project->init();
+        if (!project->init()) {
+            Path::rmdir(project->projectDataDir());
+        }
     }
     return project;
 }
@@ -638,10 +642,12 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         conn->finish(ret ? 0 : 1);
     if (ret) {
         auto proj = addProject(data.project);
-        assert(proj);
-        proj->processParseData(std::move(data));
-        if (!currentProject())
-            setCurrentProject(proj);
+        if (proj) {
+            assert(proj);
+            proj->processParseData(std::move(data));
+            if (!currentProject())
+                setCurrentProject(proj);
+        }
     }
 }
 
@@ -2103,8 +2109,10 @@ bool Server::load()
         }
         for (auto &s : projects) {
             auto p = addProject(s.first);
-            p->processParseData(std::move(s.second));
-            p->save();
+            if (p) {
+                p->processParseData(std::move(s.second));
+                p->save();
+            }
         }
     }
     return true;

@@ -225,7 +225,7 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
 
 void IndexerJob::recalculatePriority()
 {
-#warning should consider current project to be of higher priority
+// #warning should consider current project to be of higher priority
     mCachedPriority = INT_MIN;
     priority();
 }

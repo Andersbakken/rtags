@@ -257,15 +257,11 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 }
 
 Project::Project(const Path &path)
-    : mPath(path), mSourceFilePathBase(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
+    : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
       mJobCounter(0), mJobsStarted(0), mBytesWritten(0), mSaveDirty(false)
 {
-    Path srcPath = mPath;
-    RTags::encodePath(srcPath);
-    const Server::Options &options = Server::instance()->options();
-    const Path tmp = options.dataDir + srcPath;
-    mProjectFilePath = tmp + "/project";
-    mSourcesFilePath = tmp + "/sources";
+    mProjectFilePath = mProjectDataDir + "project";
+    mSourcesFilePath = mProjectDataDir + "sources";
 }
 
 Project::~Project()
@@ -851,10 +847,14 @@ bool Project::save()
     {
         DataFile file(mSourcesFilePath, RTags::SourcesFileVersion);
         if (!file.open(DataFile::Write)) {
-            error("Save error %s: %s", mProjectFilePath.constData(), file.error().constData());
+            error("Save error %s: %s", mSourcesFilePath.constData(), file.error().constData());
             return false;
         }
         file << mIndexParseData;
+        if (!file.flush()) {
+            error("Save error %s: %s", mSourcesFilePath.constData(), file.error().constData());
+            return false;
+        }
     }
     {
         DataFile file(mProjectFilePath, RTags::DatabaseVersion);
