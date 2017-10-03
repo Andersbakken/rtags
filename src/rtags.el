@@ -3172,6 +3172,8 @@ This includes both declarations and definitions."
 ;;;###autoload
 (defun rtags-fix-fixit-at-point ()
   (interactive)
+  (unless (rtags-has-diagnostics)
+    (error "rtags-fix-fixit-at-point requires diagnostics to be running. Consider setting rtags-autostart-diagnostics to t"))
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((current-overlays (overlays-at (point))))
       (while (and current-overlays (not (rtags-fix-fixit-overlay (car current-overlays))))
