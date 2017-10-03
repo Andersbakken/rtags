@@ -2283,6 +2283,16 @@ See `rtags-current-location' for loc-arg format."
       (run-hooks 'rtags-jump-hook))))
 
 ;;;###autoload
+(defun rtags-location-stack-filter (path/lambda/rx)
+  (setq rtags-location-stack (cl-remove-if (cond ((functionp path/lambda/rx) path/lambda/rx)
+                                                 ((file-name-absolute-p path/lambda/rx)
+                                                  (lambda (item)
+                                                    (and (string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
+                                                         (string= item (match-string-no-properties 1 location)))))
+                                                 (t (lambda (item) (string-match path/lambda/rx item))))
+                                           rtags-location-stack)))
+
+;;;###autoload
 (defun rtags-location-stack-jump (by)
   (interactive)
   (let (;; copy of repeat-on-final-keystroke functionality from repeat.el
