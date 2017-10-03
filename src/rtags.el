@@ -493,6 +493,12 @@ return t if RTags is allowed to modify this file."
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
 
+(defcustom rtags-rc-config-path nil
+  "Path to for configuration file for rc."
+  :group 'rtags
+  :type '(choice (const :tag "Unset" nil) directory)
+  :risky t)
+
 (defcustom rtags-install-path nil
   "Path to install rtags using rtags-package-install RTags executables."
   :group 'rtags
@@ -1227,6 +1233,8 @@ to only call this when `rtags-socket-file' is defined.
                         (with-current-buffer unsaved
                           (rtags-buffer-size)))
                 arguments))
+        (when rtags-rc-config-path
+          (push (concat "--config=" (expand-file-name rtags-rc-config-path)) arguments))
         (when rtags-completions-enabled
           (push "-b" arguments))
         (when silent
