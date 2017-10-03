@@ -2293,13 +2293,13 @@ The argument can either be:
   (let ((old (length rtags-location-stack)))
     (setq rtags-location-stack (cl-remove-if (cond ((functionp path/lambda/rx) path/lambda/rx)
                                                    ((file-name-absolute-p path/lambda/rx)
-                                                    (lambda (item)
+                                                    (lambda (location)
                                                       (and (string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
-                                                           (string= item (match-string-no-properties 1 location)))))
-                                                   (t (lambda (item) (string-match path/lambda/rx item))))
+                                                           (string= location (match-string-no-properties 1 location)))))
+                                                   (t (lambda (location) (string-match path/lambda/rx location))))
                                              rtags-location-stack))
     (when (rtags-called-interactively-p)
-      (message "Removed %d locations" (- old (length rtags-location-stack))))))
+      (message "Removed %d locations" (- old (length rtags-location-stack))))))1
 
 ;;;###autoload
 (defun rtags-location-stack-jump (by)
