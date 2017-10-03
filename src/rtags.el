@@ -2284,13 +2284,22 @@ See `rtags-current-location' for loc-arg format."
 
 ;;;###autoload
 (defun rtags-location-stack-filter (path/lambda/rx)
-  (setq rtags-location-stack (cl-remove-if (cond ((functionp path/lambda/rx) path/lambda/rx)
-                                                 ((file-name-absolute-p path/lambda/rx)
-                                                  (lambda (item)
-                                                    (and (string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
-                                                         (string= item (match-string-no-properties 1 location)))))
-                                                 (t (lambda (item) (string-match path/lambda/rx item))))
-                                           rtags-location-stack)))
+  (interactive "Mregex or path: ")
+  "Filter out undesired entries from rtags-location-stack.
+The argument can either be:
+- An absolute path which gets compared against the path component of each location,
+- A string which is used as a regex to match the whole location
+- A defun which gets passed a single argument of the whole location and which should return non-nil to filter the location out"
+  (let ((old (length rtags-location-stack)))
+    (setq rtags-location-stack (cl-remove-if (cond ((functionp path/lambda/rx) path/lambda/rx)
+                                                   ((file-name-absolute-p path/lambda/rx)
+                                                    (lambda (item)
+                                                      (and (string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
+                                                           (string= item (match-string-no-properties 1 location)))))
+                                                   (t (lambda (item) (string-match path/lambda/rx item))))
+                                             rtags-location-stack))
+    (when (rtags-called-interactively-p)
+      (message "Removed %d locations" (- old (length rtags-location-stack))))))
 
 ;;;###autoload
 (defun rtags-location-stack-jump (by)
