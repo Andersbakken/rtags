@@ -704,6 +704,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
     for (uint32_t f : filter) {
         const Path path = Location::path(f);
+        // error() << "empty diags for" << path;
         first = true;
         ret << header[format]
             << String::format<256>(fileEmpty[format], path.constData())
@@ -1335,6 +1336,9 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
                     files.insert(f);
                     lastFileId = f;
                 }
+                // if (debug) {
+                //     error() << "erasing" << it->first << "for" << Location::path(fileId);
+                // }
                 mDiagnostics.erase(it++);
             } else {
                 ++it;
@@ -1345,16 +1349,22 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     {
         uint32_t lastFileId = 0;
         for (const auto &it : diagnostics) {
-            // if (it.second.flags & Diagnostic::TemplateOnly)
+            // if (debug && it.second.flags & Diagnostic::TemplateOnly)
             //     error() << "checking for" << Location::path(fileId) << it.first;
-            if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it))
+            if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it)) {
+                // if (debug)
+                //     error() << "continuing";
                 continue;
+            }
 
             const uint32_t f = it.first.fileId();
             if (lastFileId != f) {
                 files.insert(f);
                 lastFileId = f;
             }
+            // if (debug) {
+            //     error() << "inserting" << it.first << "for" << Location::path(fileId);
+            // }
 
             mDiagnostics[it.first] = it.second;
         }
