@@ -1355,7 +1355,8 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
                 files.insert(f);
                 lastFileId = f;
             }
-            mDiagnostics.insert(it);
+
+            mDiagnostics[it.first] = it.second;
         }
     }
 
