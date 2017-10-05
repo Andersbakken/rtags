@@ -97,6 +97,9 @@ int IndexerJob::priority() const
                         ret += 2;
                 }
             }
+
+            if (p && server->currentProject() == p)
+                ++ret;
         }
         mCachedPriority = ret;
     }
@@ -225,7 +228,6 @@ String IndexerJob::dumpFlags(Flags<Flag> flags)
 
 void IndexerJob::recalculatePriority()
 {
-// #warning should consider current project to be of higher priority
     mCachedPriority = INT_MIN;
     priority();
 }
