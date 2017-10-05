@@ -551,11 +551,12 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         it = diagnostics.lower_bound(Location(fileId, 0, 0));
         end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
         break; }
-    default:
+    default: {
         it = diagnostics.lower_bound(Location(*filter.begin(), 0, 0));
         auto e = filter.end();
         --e;
         end = diagnostics.lower_bound(Location(*e, 0, 0));
+        break; }
     }
 
     if (flags & QueryMessage::JSON) {
