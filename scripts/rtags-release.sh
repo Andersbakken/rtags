@@ -38,7 +38,9 @@ if [ ! -d "$REPO" ]; then
 else
     cd "$REPO"
     git checkout -f master
+    git submodule foreach git fetch --tags
     git pull --rebase --autostash --recurse-submodules || exit 1
+    git submodule update --recursive
 fi
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
@@ -69,10 +71,10 @@ fi
 
 rm -rf .git/hooks/*
 
-cmake "$REPO" $CMAKE_ARGS >/dev/null 2>&1
-make package_source >/dev/null
-cmake "$REPO" $CMAKE_ARGS -DCPACK_GENERATOR=TBZ2 >/dev/null 2>&1
-make package_source >/dev/null
+cmake "$REPO" $CMAKE_ARGS >/dev/null || exit 1
+make package_source >/dev/null || exit 1
+cmake "$REPO" $CMAKE_ARGS -DCPACK_GENERATOR=TBZ2 >/dev/null 2>&1 || exit 1
+make package_source >/dev/null || exit 1
 echo "$commit" > commit
 git add *.tar.gz *.tar.bz2 commit >/dev/null
 git commit --amend -m "Release for $commit" >/dev/null
