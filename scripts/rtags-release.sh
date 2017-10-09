@@ -77,4 +77,5 @@ echo "$commit" > commit
 git add *.tar.gz *.tar.bz2 commit >/dev/null
 git commit --amend -m "Release for $commit" >/dev/null
 git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
+git reset origin/gh-pages --hard
 git clean -xfd
