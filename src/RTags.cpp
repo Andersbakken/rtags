@@ -867,6 +867,22 @@ void DiagnosticsProvider::diagnose()
 #endif
 }
 
+Location DiagnosticsProvider::createLocation(const CXCursor &cursor, CXCursorKind kind, bool *blocked, unsigned *offset)
+{
+    if (kind == CXCursor_FirstInvalid)
+        kind = clang_getCursorKind(cursor);
+    CXSourceLocation location;
+    if (clang_isStatement(kind)) {
+        location = clang_getCursorLocation(cursor);
+    } else {
+        CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
+        location = clang_getRangeStart(range);
+    }
+    if (!location)
+        return Location();
+    return createLocation(location, blocked, offset);
+}
+
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     *reinterpret_cast<CXCursor*>(data) = cursor;
@@ -1144,4 +1160,3 @@ String toElisp(const Value &value)
     return ElispFormatter().toString(value);
 }
 }
-

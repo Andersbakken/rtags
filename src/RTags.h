@@ -300,14 +300,7 @@ struct DiagnosticsProvider
         clang_disposeString(fn);
         return createLocation(p, line, col, blocked);
     }
-    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
-    {
-        const CXSourceLocation location = clang_getCursorLocation(cursor);
-        if (!location)
-            return Location();
-        return createLocation(location, blocked, offset);
-    }
-
+    Location createLocation(const CXCursor &cursor, CXCursorKind kind = CXCursor_FirstInvalid, bool *blocked = 0, unsigned *offset = 0);
     virtual size_t unitCount() const = 0;
     virtual size_t diagnosticCount(size_t unit) const = 0;
     virtual CXDiagnostic diagnostic(size_t unit, size_t idx) const = 0;

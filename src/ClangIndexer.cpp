@@ -706,7 +706,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
 
     bool blocked = false;
 
-    Location loc = createLocation(cursor, &blocked);
+    Location loc = createLocation(cursor, kind, &blocked);
     if (blocked) {
         ++mBlocked;
         return CXChildVisit_Continue;
@@ -819,7 +819,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             extractArguments(&destArguments, ref);
             visit(cursor);
             if (mLastCallExprSymbol && !arguments.isEmpty()) {
-                const Location invokedLocation = createLocation(ref);
+                const Location invokedLocation = createLocation(ref, refKind);
                 auto u = unit(loc);
                 size_t idx = 0;
                 for (const auto &arg : arguments) {
@@ -962,7 +962,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         return false;
     }
 
-    Location refLoc = createLocation(ref);
+    Location refLoc = createLocation(ref, refKind);
     if (!refLoc.isValid()) {
         // ### THIS IS NOT SOLVED
         // if (kind == CXCursor_ObjCMessageExpr) {
@@ -2269,7 +2269,7 @@ bool ClangIndexer::visit()
 
             // error() << "considering" << cursor << "for" << ref;
             bool ignored;
-            const Location loc = createLocation(cursor, &ignored);
+            const Location loc = createLocation(cursor, kind, &ignored);
             if (!loc.isNull()) {
                 const String refUsr = usr(resolveTemplate(ref));
                 if (!refUsr.isEmpty()) {
