@@ -1079,7 +1079,7 @@ to case differences."
 
 (defun rtags-combine-strings (list)
   (mapconcat (lambda (str)
-               (cond ((string-match "\"" str) (concat "\"" (replace-regexp-in-string "\"" "\\\"" str) "\""))
+               (cond ((string-match "\"" str) (concat "\"" (replace-regexp-in-string "\"" "\\\\\"" str) "\""))
                      ((string-match " " str) (concat "\"" str "\""))
                      (t str)))
              list
