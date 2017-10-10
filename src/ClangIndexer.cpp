@@ -538,10 +538,10 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     if (!type.isEmpty()) {
         ret = type;
         ret.append(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
-        if (!trailer.isEmpty()) {
+        if (!trailer.isEmpty())
             ret += trailer;
-            if (cursorType != RTags::Type_Reference)
-                unit(location.fileId())->symbolNames[ret].insert(location);
+        if (cursorType != RTags::Type_Reference) {
+            unit(location.fileId())->symbolNames[ret].insert(location);
         }
     } else {
         ret.assign(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
