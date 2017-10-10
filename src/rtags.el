@@ -137,6 +137,12 @@
          (set var val)
          (rtags-set-suspend-during-compilation-enabled)))
 
+(defcustom rtags-use-mark-as-current-symbol nil
+  "Use mark, when visible as default for rtags-find-symbol."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 (rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-use-bookmarks t
@@ -1403,7 +1409,9 @@ Uses `completing-read' to ask for the project."
       (find-file project))))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
-  (or (and mark-active (buffer-substring-no-properties (point) (mark)))
+  (or (and rtags-use-mark-as-current-symbol
+           mark-active
+           (buffer-substring-no-properties (point) (mark)))
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
