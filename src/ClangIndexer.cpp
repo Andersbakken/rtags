@@ -562,10 +562,17 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     for (int i=0; i<2; ++i) {
         for (int j=0; j<colonColonCount; ++j) {
             const char *ch = buf + colonColons[j];
-            const String name(ch, std::max<int>(0, sizeof(buf) - (ch - buf) - 1));
+            String name(ch, std::max<int>(0, sizeof(buf) - (ch - buf) - 1));
             if (name.isEmpty())
                 continue;
             unit(location.fileId())->symbolNames[name].insert(location);
+            if (originalKind == CXCursor_ObjCClassMethodDecl) {
+                const size_t idx = name.indexOf(':');
+                if (idx != String::npos && idx > 0) {
+                    name.resize(idx);
+                    unit(location.fileId())->symbolNames[name].insert(location);
+                }
+            }
             if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
                 // We only want to add the type to the final declaration for ParmDecls
                 // e.g.
