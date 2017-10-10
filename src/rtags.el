@@ -1423,8 +1423,10 @@ Uses `completing-read' to ask for the project."
                                           (base-classes nil)
                                           (piece nil)
                                           (relative-filenames nil)
-                                          (location (rtags-current-location))
+                                          (location nil)
                                           (silent nil))
+  (unless location
+    (setq location (rtags-current-location)))
   (when location
     (let* ((path (rtags-buffer-file-name))
            (object (with-temp-buffer
