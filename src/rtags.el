@@ -647,6 +647,13 @@ Effected interactive functions:
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-use-multiple-cursors nil
+  "When non-nil, commands like `rtags-rename-symbol' may use features
+of the package `multiple-cursors', if it is installed."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
@@ -2688,77 +2695,151 @@ This includes both declarations and definitions."
         (set-text-properties (point) (+ (point) (or prevlen (length (rtags-current-token)))) (list 'face 'rtags-argument-face))))
     (buffer-string)))
 
+(defun rtags--get-rename-data ()
+  "Get list of locations for renaming symbol at point.
+Returns a cons cell (symbol . locations).  The car of that cell is the symbol
+to replace returned from `rtags-current-token'.  The cdr is a list of locations
+of the form (filename line column)."
+  (let* ((prev (let ((token (rtags-current-token)))
+		 (unless token
+		   (error "Not sure what to rename"))
+		 (cond ((string-match "^~" token) (substring token 1))
+		       (token))))
+	 (len (and prev (length prev)))
+	 (file (rtags-buffer-file-name))
+	 (location (rtags-current-location))
+	 result)
+    (save-excursion
+      (with-temp-buffer
+	(rtags-call-rc :path file "-e" "--rename" "-N" "-r" location "-K")
+	;; (message "Got renames %s" (buffer-string))
+	(dolist (string (split-string (buffer-string) "\n" t))
+	  (when (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" string)
+	    (let* ((filename (rtags-trampify (match-string-no-properties 1 string)))
+		   (line (string-to-number (match-string-no-properties 2 string)))
+		   (col (string-to-number (match-string-no-properties 3 string))))
+	      (add-to-list 'result (list filename line col) t))))))
+    (unless result
+      (error "Not sure what to rename"))
+    (cons prev result)))
+
+(defun rtags--should-rename-with-mc (locations)
+  "Return non-nil if renaming symbols at LOCATIONS should be done with multiple-cursors."
+  (let ((first-file (caar locations)))
+    (and rtags-use-multiple-cursors
+	 (require 'multiple-cursors nil t)
+	 (cl-every (lambda (f) (string-equal f first-file)) (mapcar 'car locations)))))
+
+(defun rtags--rename-with-multiple-cursors (symbol locations)
+  (require 'multiple-cursors)
+  ;; sort locations by distance to point
+  (widen)
+  (setq locations
+	(sort (mapcar 'cdr locations)
+	      (lambda (a b)
+		(< (abs (- (rtags-offset-for-line-column (car a) (cadr a)) (point)))
+		   (abs (- (rtags-offset-for-line-column (car b) (cadr b)) (point)))))))
+  (let ((nearest-location (car locations)))
+    (rtags-goto-line-col (nth 0 nearest-location) (nth 1 nearest-location)))
+  (dolist (location (cdr locations))
+    (let ((line (nth 0 location))
+	  (col (nth 1 location)))
+      (save-excursion
+	(rtags-goto-line-col line col)
+	(mc/create-fake-cursor-at-point))))
+  (run-with-idle-timer 0 nil
+		       (lambda ()
+			 (mc/maybe-multiple-cursors-mode)
+			 (mc/execute-command-for-all-cursors
+			  (lambda ()
+			    (interactive)
+			    (set-mark-command nil)
+			    (forward-char (length symbol)))))))
+
+(defun rtags--rename-standard (symbol locations &optional no-confirm)
+  "Perform traditional rename (with asking in minibuffer)."
+  (let* ((prev symbol)
+	 (len (and prev (length prev)))
+	 (file (rtags-buffer-file-name))
+	 (replacewith (read-from-minibuffer
+		       (if len
+			   (format "Replace '%s' with: " prev)
+			 "Replace with: ")))
+	 (modifications 0)
+	 (confirmbuffer (and (not no-confirm) (rtags-get-buffer "*RTags rename symbol*")))
+	 (filesopened 0)
+	 (location (rtags-current-location))
+	 (confirms)
+	 replacements)
+    (save-excursion
+      (when (equal replacewith "")
+	(error "You have to replace with something"))
+      (dolist (loc locations)
+	(let* ((filename (nth 0 loc))
+	       (line (nth 1 loc))
+	       (col (nth 2 loc))
+	       (buf (or (find-buffer-visiting filename)
+			(let ((b (find-file-noselect filename)))
+			  (and b (incf filesopened) b)))))
+	  (unless (bufferp buf)
+	    (error "Can't open file %s" filename))
+	  (with-current-buffer buf
+	    (save-excursion
+	      (rtags-goto-line-col line col)
+	      (when (cond ((looking-at prev))
+			  ((looking-at (concat "~" prev)) (forward-char) t)
+			  ((looking-at "auto ") nil)
+			  (t (error "Rename gone awry. Refusing to rename %s (%s) to %s"
+				    (rtags-current-token)
+				    (rtags-current-location)
+				    replacewith)))
+		(when confirmbuffer
+		  (push (list (cons 'filename filename)
+			      (cons 'line line)
+			      (cons 'col col)
+			      (cons 'contents (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+			confirms))
+		(push (cons (current-buffer) (point)) replacements))))))
+      (unless no-confirm
+	(rtags-switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
+	(insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (rtags-rename-confirm-text (nreverse confirms) len) "\n")
+	(goto-char (point-min))
+	(unless (y-or-n-p (format "RTags: Confirm %d renames? " (length replacements)))
+	  (setq replacements nil))
+	(kill-buffer (current-buffer)))
+      (dolist (value replacements)
+	(with-current-buffer (car value)
+	  (when (run-hook-with-args-until-failure 'rtags-edit-hook)
+	    (incf modifications)
+	    (goto-char (cdr value))
+	    ;; (message "about to insert at %s" (rtags-current-location))
+	    (delete-char (or len (length (rtags-current-token))))
+	    (insert replacewith)
+	    (basic-save-buffer))))
+      (message (format "Opened %d new files and made %d modifications" filesopened modifications)))))
+
 ;;;###autoload
 (defun rtags-rename-symbol (&optional no-confirm)
+  "Rename symbol (identifier) at point.
+
+Normally this function will ask the user (via minibuffer) for the
+replacement and then ask for confirmation.  However, when the scope
+of the symbol at point is just one file (the file that's being
+visited by current buffer), the variable `rtags-use-multiple-cursors'
+is non-nil and the `multiple-cursors' package is available, then this
+function will create fake cursors at all occurances of the symbol.
+
+The optional argument NO-CONFIRM means agree to all replacements and
+can be specified with a prefix argument."
   (interactive "P")
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
-    (let* ((prev (let ((token (rtags-current-token)))
-                   (cond ((string-match "^~" token) (substring token 1))
-                         (token)
-                         (t (error "Not sure what to rename")))))
-           (len (and prev (length prev)))
-           (file (rtags-buffer-file-name))
-           (replacewith (read-from-minibuffer
-                         (if len
-                             (format "Replace '%s' with: " prev)
-                           "Replace with: ")))
-           (modifications 0)
-           (confirmbuffer (and (not no-confirm) (rtags-get-buffer "*RTags rename symbol*")))
-           (filesopened 0)
-           (location (rtags-current-location))
-           (confirms)
-           replacements)
-      (save-excursion
-        (when (equal replacewith "")
-          (error "You have to replace with something"))
-        (with-temp-buffer
-          (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location "-K")
-          ;; (message "Got renames %s" (buffer-string))
-          (dolist (string (split-string (buffer-string) "\n" t))
-            (when (string-match "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$" string)
-              (let* ((filename (rtags-trampify (match-string-no-properties 1 string)))
-                     (line (string-to-number (match-string-no-properties 2 string)))
-                     (col (string-to-number (match-string-no-properties 3 string)))
-                     (buf (or (find-buffer-visiting filename)
-                              (let ((b (find-file-noselect filename)))
-                                (and b (incf filesopened) b)))))
-                (unless (bufferp buf)
-                  (error "Can't open file %s" filename))
-                (with-current-buffer buf
-                  (save-excursion
-                    (rtags-goto-line-col line col)
-                    (when (cond ((looking-at prev))
-                                ((looking-at (concat "~" prev)) (forward-char) t)
-                                ((looking-at "auto ") nil)
-                                (t (error "Rename gone awry. Refusing to rename %s (%s) to %s"
-                                          (rtags-current-token)
-                                          (rtags-current-location)
-                                          replacewith)))
-                      (when confirmbuffer
-                        (push (list (cons 'filename filename)
-                                    (cons 'line line)
-                                    (cons 'col col)
-                                    (cons 'contents (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
-                              confirms))
-                      (push (cons (current-buffer) (point)) replacements))))))))
-        (unless no-confirm
-          (rtags-switch-to-buffer (rtags-get-buffer "*RTags rename symbol*"))
-          (insert (propertize (concat "Change to '" replacewith) 'face 'rtags-context-face) "'\n" (rtags-rename-confirm-text (nreverse confirms) len) "\n")
-          (goto-char (point-min))
-          (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length replacements)))
-            (setq replacements nil))
-          (kill-buffer (current-buffer)))
-        (dolist (value replacements)
-          (with-current-buffer (car value)
-            (when (run-hook-with-args-until-failure 'rtags-edit-hook)
-              (incf modifications)
-              (goto-char (cdr value))
-              ;; (message "about to insert at %s" (rtags-current-location))
-              (delete-char (or len (length (rtags-current-token))))
-              (insert replacewith)
-              (basic-save-buffer))))
-        (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
+    (let* ((rename-data (rtags--get-rename-data))
+	   (prev (car rename-data))
+	   (locations (cdr rename-data)))
+      (if (rtags--should-rename-with-mc locations)
+	  (rtags--rename-with-multiple-cursors prev locations)
+	(rtags--rename-standard prev locations no-confirm)))))
 
 ;;;###autoload
 (defun rtags-find-symbol (&optional prefix)
