@@ -62,6 +62,9 @@
 (declare-function package-desc-dir "ext:package" t)
 (declare-function helm-rtags-get-candidate-line 'rtags (candidate))
 (declare-function create-helm-rtags-source "ext:helm-rtags" t)
+(declare-function mc/create-fake-cursor-at-point "ext:multiple-cursors")
+(declare-function mc/maybe-multiple-cursors-mode "ext:multiple-cursors")
+(declare-function mc/execute-command-for-all-cursors "ext:multiple-cursors")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2705,10 +2708,9 @@ of the form (filename line column)."
                    (error "Not sure what to rename"))
                  (cond ((string-match "^~" token) (substring token 1))
                        (token))))
-         (len (and prev (length prev)))
          (file (rtags-buffer-file-name))
          (location (rtags-current-location))
-         result)
+         (result))
     (save-excursion
       (with-temp-buffer
         (rtags-call-rc :path file "-e" "--rename" "-N" "-r" location "-K")
@@ -2718,10 +2720,11 @@ of the form (filename line column)."
             (let* ((filename (rtags-trampify (match-string-no-properties 1 string)))
                    (line (string-to-number (match-string-no-properties 2 string)))
                    (col (string-to-number (match-string-no-properties 3 string))))
-              (add-to-list 'result (list filename line col) t))))))
+              (push (list filename line col) result))))))
     (unless result
       (error "Not sure what to rename"))
-    (cons prev result)))
+    (cons prev (nreverse result))))
+
 
 (defun rtags--should-rename-with-mc (locations)
   "Return non-nil if renaming symbols at LOCATIONS should be done with multiple-cursors."
@@ -2760,7 +2763,6 @@ of the form (filename line column)."
   "Perform traditional rename (with asking in minibuffer)."
   (let* ((prev symbol)
          (len (and prev (length prev)))
-         (file (rtags-buffer-file-name))
          (replacewith (read-from-minibuffer
                        (if len
                            (format "Replace '%s' with: " prev)
@@ -2768,7 +2770,6 @@ of the form (filename line column)."
          (modifications 0)
          (confirmbuffer (and (not no-confirm) (rtags-get-buffer "*RTags rename symbol*")))
          (filesopened 0)
-         (location (rtags-current-location))
          (confirms)
          replacements)
     (save-excursion
