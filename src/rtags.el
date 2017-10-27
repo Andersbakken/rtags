@@ -4221,13 +4221,14 @@ definition."
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (setq tagname input))
-    (with-current-buffer (rtags-get-buffer)
-      (rtags-call-rc :path path switch tagname :path-filter filter
-                     :path-filter-regex regexp-filter
-                     (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
-                     (when rtags-symbolnames-case-insensitive "-I")
-                     (unless rtags-print-filenames-relative "-K"))
-      (rtags-handle-results-buffer tagname nil nil path other-window 'find-symbols-by-name-internal))))
+    (when (not (equal "" tagname))
+      (with-current-buffer (rtags-get-buffer)
+        (rtags-call-rc :path path switch tagname :path-filter filter
+                       :path-filter-regex regexp-filter
+                       (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                       (when rtags-symbolnames-case-insensitive "-I")
+                       (unless rtags-print-filenames-relative "-K"))
+        (rtags-handle-results-buffer tagname nil nil path other-window 'find-symbols-by-name-internal)))))
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
