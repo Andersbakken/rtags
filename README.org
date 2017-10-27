@@ -191,11 +191,11 @@ sudo port install clang-3.5
 
   You can also download the sources from here:
 
-  https://andersbakken.github.io/rtags-releases/rtags-2.14.tar.bz2
+  https://andersbakken.github.io/rtags-releases/rtags-2.15.tar.bz2
 
   or
 
-  https://andersbakken.github.io/rtags-releases/rtags-2.14.tar.gz
+  https://andersbakken.github.io/rtags-releases/rtags-2.15.tar.gz
 
 - Building RTags
 
