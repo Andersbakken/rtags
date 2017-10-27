@@ -102,7 +102,10 @@ while [ -n "$1" ]; do
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_ELISP_BYTECOMPILE=1"
             ;;
         --asan)
-            CMAKE_ARGS="${CMAKE_ARGS} -DASAN=1"
+            CMAKE_ARGS="${CMAKE_ARGS} -DASAN=address,undefined"
+            ;;
+        --asan=*)
+            CMAKE_ARGS="${CMAKE_ARGS} -DASAN=`echo $1 | sed -e 's,--asan=,,'`"
             ;;
         --elisp-install-location)
             shift
