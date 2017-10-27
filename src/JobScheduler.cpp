@@ -34,6 +34,7 @@ JobScheduler::~JobScheduler()
     if (!mActiveByProcess.isEmpty()) {
         for (const auto &job : mActiveByProcess) {
             job.first->kill();
+            delete job.first;
         }
     }
 }
