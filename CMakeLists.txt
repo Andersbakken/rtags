@@ -17,6 +17,8 @@ endif ()
 if (ASAN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+    # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=leak")
+    # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=leak")
 endif ()
 
 if (NOT CMAKE_BUILD_TYPE)
