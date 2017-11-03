@@ -96,7 +96,8 @@ public:
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
-              maxFileMapScopeCacheSize(512), pollTimer(0), tcpPort(0)
+              maxFileMapScopeCacheSize(512), pollTimer(0), maxSocketWriteBufferSize(0),
+              tcpPort(0)
         {
         }
 
@@ -106,7 +107,7 @@ public:
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit,
-            pollTimer;
+            pollTimer, maxSocketWriteBufferSize;
         uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
