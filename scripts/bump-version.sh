@@ -20,3 +20,6 @@ SED=sed
 $SED -i"" -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR)," -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR)," "$DIR/../CMakeLists.txt"
 $SED -i"" -e "s,^(defconst rtags-package-version \"[0-9]\+\.[0-9]\+\"),(defconst rtags-package-version \"${MAJOR}.${MINOR}\")," "$DIR/../src/rtags.el"
 $SED -i"" -e "s,https://andersbakken\.github\.io/rtags-releases/rtags-[0-9]\+\.[0-9]\+\.tar\.,https://andersbakken.github.io/rtags-releases/rtags-$MAJOR.$MINOR.tar.,g" "$DIR/../README.org"
+
+git commit -m "Bump version to ${MAJOR}.${MINOR}" $DIR/../README.org $DIR/../CMakeLists.txt $DIR/../src/rtags.el 
+git tag "v${MAJOR}.${MINOR}"
