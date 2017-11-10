@@ -16,15 +16,7 @@ function dnload()
 {
     local FILE=$1-${VERSION}.src.tar.xz
     local URL=http://llvm.org/releases/${VERSION}/${FILE}
-    STATUS=`curl -w "%{http_code}" -z ${FILE} http://llvm.org/releases/${VERSION}/${FILE} -o ${FILE} 2>/dev/null`
-    if [ "${STATUS}" == 200 ] || [ "${STATUS}" == 304 ]; then
-        local CHECKSUM=`cat "${CHECKSUMDIR}/${FILE}.sha512"`
-        local ACTUAL=`sha512sum $FILE | awk '{print $1}'`
-        if [ "${CHECKSUM}" != "$ACTUAL" ]; then
-            echo -e "Invalid checksum, expected:\n${CHECKSUM}\nGot:\n${ACTUAL}\n" >&2
-            exit 1
-        fi
-    fi
+    STATUS=`curl -L -w "%{http_code}" -z ${FILE} https://releases.llvm.org/${VERSION}/${FILE} -o ${FILE} 2>/dev/null`
     echo ${STATUS}
 }
 

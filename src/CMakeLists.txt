@@ -4,14 +4,17 @@ set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 include(ExternalProject)
 
+message(STATUS "BALLS ${RTAGS_BUILD_CLANG}")
 if (RTAGS_BUILD_CLANG)
+    set(LIBCLANG_VERSION_STRING "5.0.0")
+    message(STATUS "BALLS 2 ${RTAGS_BUILD_CLANG}")
     if (RTAGS_NO_INSTALL)
         set(CLANG_INSTALL_PATH ${CMAKE_CURRENT_BINARY_DIR}/llvmclang-prefix/install)
     else ()
         set(CLANG_INSTALL_PATH ${CMAKE_INSTALL_PREFIX}/rtags-llvmclang)
     endif ()
     ExternalProject_Add(llvmclang
-        DOWNLOAD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/getclang.sh 3.8.1
+        DOWNLOAD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/getclang.sh "${LIBCLANG_VERSION_STRING}"
         SOURCE_DIR llvmclang-prefix/src/llvm
         CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${CLANG_INSTALL_PATH} -DLLVM_BUILD_TOOLS=1
         LOG_DOWNLOAD 1            # Wrap download in script to log output
@@ -22,10 +25,16 @@ if (RTAGS_BUILD_CLANG)
         LOG_INSTALL 1             # Wrap install in script to log output
         )
     if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        set(CLANG_LIBRARY_NAME "libclang.dylib")
         add_definitions("-DCLANG_INCLUDE=${CLANG_INSTALL_PATH}/include/c++/v1") # add libcxx include
+    else ()
+        set(CLANG_LIBRARY_NAME "libclang.so")
     endif ()
-    set(LIBCLANG_LLVM_CONFIG_EXECUTABLE ${CLANG_INSTALL_PATH}/bin/llvm-config)
+    set(LIBCLANG_LIBRARIES ${CLANG_INSTALL_PATH}/lib/${CLANG_LIBRARY_NAME})
+    set(LIBCLANG_LIBDIR ${CLANG_INSTALL_PATH}/lib)
+    set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include")
 endif ()
+message(STATUS "BALLS3 ${RTAGS_BUILD_CLANG}")
 
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
