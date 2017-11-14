@@ -90,9 +90,12 @@ struct MatchResultComparator
             const WordBoundaryMatchResult *wba = static_cast<WordBoundaryMatchResult *>(a.get());
             const WordBoundaryMatchResult *wbb = static_cast<WordBoundaryMatchResult *>(b.get());
 
-            for (size_t i = 0; i < wba->indices.size(); i++)
-                if (wba->indices[i] != wbb->indices[i])
-                    return wba->indices[i] > wbb->indices[i];
+            for (const auto& ita = wba->indices.constBegin(), itb = wbb->indices.constBegin();
+                 ita != wba->indices.constEnd() && itb != wbb->indices.constEnd();
+                 std::next(ita), std::next(itb)) {
+                   if (*ita != *itb)
+                      return *ita > *itb;
+                 }
         }
 
         if (a->candidate->priority != b->candidate->priority)
