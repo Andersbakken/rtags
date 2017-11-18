@@ -18,6 +18,7 @@
 #include <fnmatch.h>
 #include <memory>
 #include <regex>
+#include <utility>
 
 #include "Diagnostic.h"
 #include "FileManager.h"
@@ -524,7 +525,7 @@ inline static const char *severityToString(Diagnostic::Flag type)
     return 0;
 }
 
-static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, Set<uint32_t> &&filter = Set<uint32_t>())
+static String formatDiagnostics(const Diagnostics &diagnostics, const Flags<QueryMessage::Flag>& flags, Set<uint32_t> &&filter = Set<uint32_t>())
 {
     Diagnostics::const_iterator it;
     Diagnostics::const_iterator end;
@@ -870,7 +871,7 @@ void Project::diagnoseAll()
         });
 }
 
-String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
+String Project::diagnosticsToString(const Flags<QueryMessage::Flag>& flags, uint32_t fileId)
 {
     Set<uint32_t> filter;
     if (fileId)
@@ -1072,7 +1073,7 @@ bool Project::dependsOn(uint32_t source, uint32_t header) const
             return false;
         if (node->dependents.contains(source))
             return true;
-        for (const std::pair<uint32_t, DependencyNode*> &n : node->dependents) {
+        for (const auto &n : node->dependents) {
             if (dep(n.second))
                 return true;
         }
@@ -1412,7 +1413,7 @@ String Project::fixIts(uint32_t fileId) const
 
 void Project::findSymbols(const String &unencoded,
                           const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
-                          Flags<QueryMessage::Flag> queryFlags,
+                          const Flags<QueryMessage::Flag>& queryFlags,
                           uint32_t fileFilter)
 {
     const String string = Sandbox::encoded(unencoded);
@@ -1491,7 +1492,7 @@ void Project::findSymbols(const String &unencoded,
     }
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryMessage::Flag> flags)
+List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, const Flags<QueryMessage::Flag>& flags)
 {
     List<RTags::SortedSymbol> sorted;
     sorted.reserve(symbols.size());
@@ -1547,7 +1548,7 @@ void Project::watchFile(uint32_t fileId)
     watch(Location::path(fileId).parentDir(), mode);
 }
 
-void Project::clearWatch(Flags<WatchMode> mode)
+void Project::clearWatch(const Flags<WatchMode>& mode)
 {
     auto it = mWatchedPaths.begin();
     while (it != mWatchedPaths.end()) {
@@ -1823,7 +1824,7 @@ static Set<Symbol> findReferences(const Symbol &in,
     }
     if (inputsPtr)
         *inputsPtr = inputs;
-    return findReferences(inputs, project, filter);
+    return findReferences(inputs, project, std::move(filter));
 }
 
 Set<Symbol> Project::findCallers(const Symbol &symbol)
@@ -1984,7 +1985,7 @@ static String addDeps(const Dependencies &deps)
     return ret;
 }
 
-String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
+String Project::dumpDependencies(uint32_t fileId, const List<String> &args, const Flags<QueryMessage::Flag>& flags) const
 {
     String ret;
 
@@ -2081,7 +2082,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                 assert(depNode);
                 if (!all.insert(depNode))
                     return;
-                for (const std::pair<uint32_t, DependencyNode*> &n : depNode->includes) {
+                for (const auto &n : depNode->includes) {
                     add(n.second);
                 }
             };
@@ -2551,7 +2552,7 @@ void Project::fixPCH(Source &source)
     }
 }
 
-void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
+void Project::includeCompletions(const Flags<QueryMessage::Flag>& flags, const std::shared_ptr<Connection> &conn, Source &&source) const
 {
     CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
     source.includePaths.append(Server::instance()->options().includePaths);
@@ -2739,7 +2740,7 @@ void Project::forEachSourceList(IndexParseData &data, std::function<VisitResult(
         });
 }
 
-void Project::forEachSourceList(Sources &sources, std::function<VisitResult(SourceList &source)> cb)
+void Project::forEachSourceList(Sources &sources, const std::function<VisitResult(SourceList &source)>& cb)
 {
     auto it = sources.begin();
     while (it != sources.end()) {
@@ -2754,7 +2755,7 @@ void Project::forEachSourceList(Sources &sources, std::function<VisitResult(Sour
     }
 }
 
-void Project::forEachSourceList(const Sources &sources, std::function<VisitResult(const SourceList &sourceList)> cb)
+void Project::forEachSourceList(const Sources &sources, const std::function<VisitResult(const SourceList &sourceList)>& cb)
 {
     auto it = sources.begin();
     while (it != sources.end()) {
@@ -2768,7 +2769,7 @@ void Project::forEachSourceList(const Sources &sources, std::function<VisitResul
     }
 }
 
-void Project::forEachSource(const Sources &sources, std::function<VisitResult(const Source &source)> cb)
+void Project::forEachSource(const Sources &sources, const std::function<VisitResult(const Source &source)>& cb)
 {
     for (auto &src : sources) {
         for (const Source &s : src.second) {
@@ -2780,7 +2781,7 @@ void Project::forEachSource(const Sources &sources, std::function<VisitResult(co
     }
 }
 
-void Project::forEachSource(Sources &sources, std::function<VisitResult(Source &source)> cb)
+void Project::forEachSource(Sources &sources, const std::function<VisitResult(Source &source)>& cb)
 {
     Sources::iterator sit = sources.begin();
     while (sit != sources.end()) {
@@ -2808,7 +2809,7 @@ void Project::forEachSource(Sources &sources, std::function<VisitResult(Source &
     }
 }
 
-void Project::forEachSources(const IndexParseData &data, std::function<VisitResult(const Sources &sources)> cb)
+void Project::forEachSources(const IndexParseData &data, const std::function<VisitResult(const Sources &sources)>& cb)
 {
     for (const auto &compileCommands : data.compileCommands) {
         const auto ret = cb(compileCommands.second.sources);
@@ -2821,7 +2822,7 @@ void Project::forEachSources(const IndexParseData &data, std::function<VisitResu
     assert(ret != Remove);
 }
 
-void Project::forEachSources(IndexParseData &data, std::function<VisitResult(Sources &sources)> cb)
+void Project::forEachSources(IndexParseData &data, const std::function<VisitResult(Sources &sources)>& cb)
 {
     auto it = data.compileCommands.begin();
     while (it != data.compileCommands.end()) {

@@ -231,7 +231,7 @@ public:
 
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
     static Flag flagFromString(const String &string);
-    static Flags<Location::ToStringFlag> locationToStringFlags(Flags<Flag> queryFlags);
+    static Flags<Location::ToStringFlag> locationToStringFlags(const Flags<Flag>& queryFlags);
     inline Flags<Location::ToStringFlag> locationToStringFlags() const { return locationToStringFlags(mFlags); }
 
     virtual void encode(Serializer &serializer) const override;

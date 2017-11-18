@@ -36,8 +36,8 @@ static inline const char *linkageSpelling(CXLinkageKind kind)
 }
 
 String Symbol::toString(const std::shared_ptr<Project> &project,
-                        Flags<ToStringFlag> cursorInfoFlags,
-                        Flags<Location::ToStringFlag> locationToStringFlags,
+                        const Flags<ToStringFlag>& cursorInfoFlags,
+                        const Flags<Location::ToStringFlag>& locationToStringFlags,
                         const Set<String> &pieceFilters) const
 {
     auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
@@ -262,7 +262,7 @@ bool Symbol::isContainer() const
 }
 
 Value Symbol::toValue(const std::shared_ptr<Project> &project,
-                      Flags<ToStringFlag> toStringFlags,
+                      const Flags<ToStringFlag>& toStringFlags,
                       Flags<Location::ToStringFlag> locationToStringFlags,
                       const Set<String> &pieceFilters) const
 {

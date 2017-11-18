@@ -96,7 +96,7 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fil
     return str;
 }
 
-Path findAncestor(Path path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache)
+Path findAncestor(const Path& path, const String &fn, const Flags<FindAncestorFlag>& flags, SourceCache *cache)
 {
     Path *cacheResult = 0;
     if (cache) {
@@ -174,7 +174,7 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
         if (cache) {
             auto it = cache->rtagsConfigCache.find(dir);
             if (it != cache->rtagsConfigCache.end()) {
-                for (const auto entry : it->second) {
+                for (const auto &entry : it->second) {
                     auto &ref = ret[entry.first];
                     if (ref.isEmpty())
                         ref = entry.second;
@@ -429,7 +429,7 @@ String eatString(CXString str)
     return ret;
 }
 
-String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> flags)
+String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags>& flags)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
     String ret;
@@ -531,7 +531,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
 
 std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const List<String> &args,
                                                          CXUnsavedFile *unsaved, int unsavedCount,
-                                                         Flags<CXTranslationUnit_Flags> translationUnitFlags,
+                                                         const Flags<CXTranslationUnit_Flags>& translationUnitFlags,
                                                          bool displayDiagnostics)
 
 {

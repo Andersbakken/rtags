@@ -26,7 +26,7 @@
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
-                   Flags<JobFlag> jobFlags)
+                   const Flags<JobFlag>& jobFlags)
     : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
 {
     if (mProject)
@@ -62,7 +62,7 @@ QueryJob::~QueryJob()
         mProject->endScope();
 }
 
-bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
+bool QueryJob::write(const String &out, const Flags<WriteFlag>& flags)
 {
     if ((mJobFlags & WriteUnfiltered) || (flags & Unfiltered) || filter(out)) {
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
@@ -94,7 +94,7 @@ bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
     return true;
 }
 
-bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
+bool QueryJob::writeRaw(const String &out, const Flags<WriteFlag>& flags)
 {
     assert(mConnection);
     if (!(flags & IgnoreMax) && mQueryMessage) {
@@ -122,7 +122,7 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
 
 bool QueryJob::locationToString(Location location,
                                 const std::function<void(LocationPiece, const String &)> &cb,
-                                Flags<WriteFlag> writeFlags)
+                                const Flags<WriteFlag>& writeFlags)
 {
     if (location.isNull())
         return false;
@@ -207,7 +207,7 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
     return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
+bool QueryJob::write(const Symbol &symbol, const Flags<WriteFlag>& writeFlags)
 {
     Flags<Symbol::ToStringFlag> toStringFlags;
     if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)

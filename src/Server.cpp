@@ -417,7 +417,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     Set<Path> includePaths;
     List<String> ret;
     bool hasInput = false;
-    Set<String> roots;
+    Set<Path> roots;
     if (!projectRootOverride.isEmpty())
         roots.insert(projectRootOverride.ensureTrailingSlash());
     ret << "/usr/bin/g++"; // this should be clang on mac
