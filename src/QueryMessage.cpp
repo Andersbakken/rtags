@@ -45,7 +45,7 @@ void QueryMessage::decode(Deserializer &deserializer)
         ;
 }
 
-Flags<Location::ToStringFlag> QueryMessage::locationToStringFlags(Flags<Flag> queryFlags)
+Flags<Location::ToStringFlag> QueryMessage::locationToStringFlags(const Flags<Flag>& queryFlags)
 {
     Flags<Location::ToStringFlag> ret;
     if (!(queryFlags & NoContext))

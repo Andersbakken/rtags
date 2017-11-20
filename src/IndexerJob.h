@@ -38,10 +38,10 @@ public:
         Type_Mask = Dirty|Compile|Reindex
     };
 
-    static String dumpFlags(Flags<Flag> flags);
+    static String dumpFlags(const Flags<Flag>& flags);
 
     IndexerJob(const SourceList &sources,
-               Flags<Flag> flags,
+               const Flags<Flag>& flags,
                const std::shared_ptr<Project> &project,
                const UnsavedFiles &unsavedFiles = UnsavedFiles());
     ~IndexerJob();

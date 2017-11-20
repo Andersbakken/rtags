@@ -342,7 +342,7 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessage::Flag> extraQueryFlags)
+void RClient::addQuery(QueryMessage::Type type, String &&query, const Flags<QueryMessage::Flag>& extraQueryFlags)
 {
     auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;
@@ -705,7 +705,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             break; }
         case UnsavedFile: {
-            const String arg(value);
+            const String& arg(value);
             const int colon = arg.lastIndexOf(':');
             if (colon == -1) {
                 return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };

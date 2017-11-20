@@ -197,7 +197,7 @@ public:
 #endif
 private:
     void addQuery(QueryMessage::Type t, String &&query = String(),
-                  Flags<QueryMessage::Flag> extraQueryFlags = Flags<QueryMessage::Flag>());
+                  const Flags<QueryMessage::Flag>& extraQueryFlags = Flags<QueryMessage::Flag>());
     void addQuitCommand(int exitCode);
 
     void addLog(LogLevel level);

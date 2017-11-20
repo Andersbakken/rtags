@@ -21,7 +21,7 @@
 #include "RTags.h"
 #include "Server.h"
 
-static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
+static inline Flags<QueryJob::JobFlag> jobFlags(const Flags<QueryMessage::Flag>& queryFlags)
 {
     return (queryFlags & QueryMessage::Elisp
             ? QueryJob::QuoteOutput|QueryJob::QuietJob
