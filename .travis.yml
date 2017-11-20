@@ -23,6 +23,7 @@ matrix:
           packages:
             - g++-4.8
             - gnupg
+            - clang-dev
     - env: COMPILER_VERSION=3.5
       os: linux
       compiler: clang++
@@ -34,6 +35,7 @@ matrix:
           packages:
             - clang-3.5
             - gnupg
+            - clang-dev
 
 install:
   - pip install --user --upgrade nose
