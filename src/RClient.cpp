@@ -342,7 +342,7 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type type, String &&query, const Flags<QueryMessage::Flag>& extraQueryFlags)
+void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessage::Flag> extraQueryFlags)
 {
     auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;

@@ -32,7 +32,7 @@ enum Flag {
     IncludeIncludePaths = 0x2
 };
 RCT_FLAGS(Flag);
-void applyToSource(Source &source, const Flags<Flag>& flags);
+void applyToSource(Source &source, Flags<Flag> flags);
 }
 
 #endif

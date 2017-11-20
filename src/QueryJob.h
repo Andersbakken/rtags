@@ -42,7 +42,7 @@ public:
     enum { Priority = 10 };
     QueryJob(const std::shared_ptr<QueryMessage> &msg,
              const std::shared_ptr<Project> &proj,
-             const Flags<JobFlag>& jobFlags = Flags<JobFlag>());
+             Flags<JobFlag> jobFlags = Flags<JobFlag>());
     virtual ~QueryJob();
 
     bool hasFilter() const { return mFileFilter || !mFilters.isEmpty(); }
@@ -64,8 +64,8 @@ public:
         Unfiltered = 0x04,
         NoContext = 0x08
     };
-    bool write(const String &out, const Flags<WriteFlag>& flags = Flags<WriteFlag>());
-    bool write(const Symbol &symbol, const Flags<WriteFlag>& writeFlags = Flags<WriteFlag>());
+    bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
+    bool write(const Symbol &symbol, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     bool write(Location location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     enum LocationPiece {
         Piece_Location,
@@ -77,7 +77,7 @@ public:
     };
     bool locationToString(Location location,
                           const std::function<void(LocationPiece, const String &)> &cb,
-                          const Flags<WriteFlag>& writeFlags = Flags<WriteFlag>());
+                          Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
 
     template <int StaticBufSize>
     bool write(Flags<WriteFlag> writeFlags, const char *format, ...) RCT_PRINTF_WARNING(3, 4);
@@ -137,7 +137,7 @@ private:
     mutable std::mutex mMutex;
     bool mAborted;
     int mLinesWritten;
-    bool writeRaw(const String &out, const Flags<WriteFlag>& flags);
+    bool writeRaw(const String &out, Flags<WriteFlag> flags);
     std::shared_ptr<QueryMessage> mQueryMessage;
     Flags<JobFlag> mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;

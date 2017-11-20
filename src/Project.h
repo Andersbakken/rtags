@@ -135,7 +135,7 @@ public:
     bool dependsOn(uint32_t source, uint32_t header) const;
     String dumpDependencies(uint32_t fileId,
                             const List<String> &args = List<String>(),
-                            const Flags<QueryMessage::Flag>& flags = Flags<QueryMessage::Flag>()) const;
+                            Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
 
@@ -148,7 +148,7 @@ public:
     };
     void findSymbols(const String &symbolName,
                      const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &func,
-                     const Flags<QueryMessage::Flag>& queryFlags,
+                     Flags<QueryMessage::Flag> queryFlags,
                      uint32_t fileFilter = 0);
 
     static bool matchSymbolName(const String &pattern, const String &symbolName, String::CaseSensitivity cs)
@@ -176,7 +176,7 @@ public:
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 
     List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols,
-                                   const Flags<QueryMessage::Flag>& flags = Flags<QueryMessage::Flag>());
+                                   Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>());
 
     const Files &files() const { return mFiles; }
     Files &files() { return mFiles; }
@@ -215,7 +215,7 @@ public:
 
     void watch(const Path &dir, WatchMode mode);
     void unwatch(const Path &dir, WatchMode mode);
-    void clearWatch(const Flags<WatchMode>& mode);
+    void clearWatch(Flags<WatchMode> mode);
     Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
 
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
@@ -242,12 +242,12 @@ public:
     bool save();
     void prepare(uint32_t fileId);
     String estimateMemory() const;
-    String diagnosticsToString(const Flags<QueryMessage::Flag>& flags, uint32_t fileId);
+    String diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId);
     void diagnose(uint32_t fileId);
     void diagnoseAll();
     uint32_t fileMapOptions() const;
     void fixPCH(Source &source);
-    void includeCompletions(const Flags<QueryMessage::Flag>& flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
+    void includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const;
     size_t bytesWritten() const { return mBytesWritten; }
     void destroy() { mSaveDirty = false; }
     enum VisitResult {

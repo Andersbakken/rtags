@@ -49,7 +49,7 @@ List<Path> compilers()
     return sCompilers.keys();
 }
 
-void applyToSource(Source &source, const Flags<CompilerManager::Flag>& flags)
+void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
 {
     std::lock_guard<std::mutex> lock(sMutex);
     Path cpath = source.compiler();

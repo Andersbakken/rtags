@@ -128,7 +128,7 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
-static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot, const Flags<Server::Option>& flags)
+static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot, Flags<Server::Option> flags)
 {
     size_t hash = 0;
     std::hash<Path> hasher;
@@ -716,7 +716,7 @@ SourceList Source::parse(const String &cmdLine,
             if (buildRoot.isDir())
                 buildRootId = Location::insertFile(buildRoot);
         }
-        const Flags<Server::Option> serverFlags = Server::instance() ? Server::instance()->options().options : NullFlags;
+        Flags<Server::Option> serverFlags = Server::instance() ? Server::instance()->options().options : NullFlags;
         includePathHash = ::hashIncludePaths(includePaths, buildRoot, serverFlags);
 
         ret.reserve(inputs.size());
@@ -780,7 +780,7 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
 
 static bool nextArg(List<String>::const_iterator &it,
                     const List<String>::const_iterator end,
-                    const Flags<Server::Option>& flags)
+                    const Flags<Server::Option> flags)
 {
     while (it != end) {
         if (isBlacklisted(*it)) {

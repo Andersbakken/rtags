@@ -25,7 +25,7 @@
 
 uint64_t IndexerJob::sNextId = 1;
 IndexerJob::IndexerJob(const SourceList &s,
-                       const Flags<Flag>& f,
+                       Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
     : id(0), flags(f),
@@ -198,7 +198,7 @@ String IndexerJob::encode() const
     return ret;
 }
 
-String IndexerJob::dumpFlags(const Flags<Flag>& flags)
+String IndexerJob::dumpFlags(Flags<Flag> flags)
 {
     List<String> ret;
     if (flags & Dirty) {

@@ -38,7 +38,7 @@ const uint64_t Location::FILEID_MASK = createMask(0, FileBits);
 const uint64_t Location::LINE_MASK = createMask(FileBits, LineBits);
 const uint64_t Location::COLUMN_MASK = createMask(FileBits + LineBits, ColumnBits);
 
-String Location::toString(const Flags<ToStringFlag>& flags, Hash<Path, String> *contextCache) const
+String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *contextCache) const
 {
     if (isNull())
         return String();
@@ -73,7 +73,7 @@ String Location::toString(const Flags<ToStringFlag>& flags, Hash<Path, String> *
     return ret;
 }
 
-String Location::context(const Flags<ToStringFlag>& flags, Hash<Path, String> *cache) const
+String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) const
 {
     String copy;
     String *code = 0;

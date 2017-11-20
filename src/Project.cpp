@@ -525,7 +525,7 @@ inline static const char *severityToString(Diagnostic::Flag type)
     return 0;
 }
 
-static String formatDiagnostics(const Diagnostics &diagnostics, const Flags<QueryMessage::Flag>& flags, Set<uint32_t> &&filter = Set<uint32_t>())
+static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, Set<uint32_t> &&filter = Set<uint32_t>())
 {
     Diagnostics::const_iterator it;
     Diagnostics::const_iterator end;
@@ -871,7 +871,7 @@ void Project::diagnoseAll()
         });
 }
 
-String Project::diagnosticsToString(const Flags<QueryMessage::Flag>& flags, uint32_t fileId)
+String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
 {
     Set<uint32_t> filter;
     if (fileId)
@@ -1413,7 +1413,7 @@ String Project::fixIts(uint32_t fileId) const
 
 void Project::findSymbols(const String &unencoded,
                           const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
-                          const Flags<QueryMessage::Flag>& queryFlags,
+                          Flags<QueryMessage::Flag> queryFlags,
                           uint32_t fileFilter)
 {
     const String string = Sandbox::encoded(unencoded);
@@ -1492,7 +1492,7 @@ void Project::findSymbols(const String &unencoded,
     }
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, const Flags<QueryMessage::Flag>& flags)
+List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryMessage::Flag> flags)
 {
     List<RTags::SortedSymbol> sorted;
     sorted.reserve(symbols.size());
@@ -1548,7 +1548,7 @@ void Project::watchFile(uint32_t fileId)
     watch(Location::path(fileId).parentDir(), mode);
 }
 
-void Project::clearWatch(const Flags<WatchMode>& mode)
+void Project::clearWatch(Flags<WatchMode> mode)
 {
     auto it = mWatchedPaths.begin();
     while (it != mWatchedPaths.end()) {
@@ -1985,7 +1985,7 @@ static String addDeps(const Dependencies &deps)
     return ret;
 }
 
-String Project::dumpDependencies(uint32_t fileId, const List<String> &args, const Flags<QueryMessage::Flag>& flags) const
+String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
 {
     String ret;
 
@@ -2552,7 +2552,7 @@ void Project::fixPCH(Source &source)
     }
 }
 
-void Project::includeCompletions(const Flags<QueryMessage::Flag>& flags, const std::shared_ptr<Connection> &conn, Source &&source) const
+void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
 {
     CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
     source.includePaths.append(Server::instance()->options().includePaths);

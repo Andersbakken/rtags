@@ -49,7 +49,7 @@ public:
         NoWait = 0x20
     };
     bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
-    void completeAt(Source &&source, Location location, const Flags<Flag>& flags,
+    void completeAt(Source &&source, Location location, Flags<Flag> flags,
                     String &&unsaved, const String &prefix,
                     const std::shared_ptr<Connection> &conn);
     void prepare(Source &&source, String &&unsaved);

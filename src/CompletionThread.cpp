@@ -101,7 +101,7 @@ void CompletionThread::run()
 }
 
 void CompletionThread::completeAt(Source &&source, Location location,
-                                  const Flags<Flag>& flags, String &&unsaved,
+                                  Flags<Flag> flags, String &&unsaved,
                                   const String &prefix,
                                   const std::shared_ptr<Connection> &conn)
 {

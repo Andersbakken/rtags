@@ -145,7 +145,7 @@ enum CursorToStringFlags {
     AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
 };
 RCT_FLAGS(CursorToStringFlags);
-String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags>& = DefaultCursorToStringFlags);
+String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCursorToStringFlags);
 
 RCT_FLAGS(CXTranslationUnit_Flags);
 
@@ -178,7 +178,7 @@ struct TranslationUnit {
                                                    const List<String> &args,
                                                    CXUnsavedFile *unsaved,
                                                    int unsavedCount,
-                                                   const Flags<CXTranslationUnit_Flags>& translationUnitFlags = CXTranslationUnit_None,
+                                                   Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
                                                    bool displayDiagnostics = true);
 
     static std::shared_ptr<TranslationUnit> load(const Path &path);
@@ -765,7 +765,7 @@ enum FindAncestorFlag {
     Authoritative = 0x4
 };
 RCT_FLAGS(FindAncestorFlag);
-Path findAncestor(const Path& path, const String &fn, const Flags<FindAncestorFlag>& flags, SourceCache *cache = 0);
+Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache = 0);
 Map<String, String> rtagsConfig(const Path &path, SourceCache *cache = 0);
 
 enum { DefinitionBit = 0x1000 };
