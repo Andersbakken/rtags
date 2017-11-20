@@ -479,11 +479,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             mTcpHost = std::move(value);
             const int colon = mTcpHost.lastIndexOf(':');
             if (colon == -1) {
-                return { String::format<1024>("invalid --socket-address %s\n", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("invalid --socket-address %s\n", mTcpHost.constData()), CommandLineParser::Parse_Error };
             }
             mTcpPort = atoi(value.constData() + colon + 1);
             if (!mTcpPort) {
-                return { String::format<1024>("invalid --socket-address %s", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("invalid --socket-address %s", mTcpHost.constData()), CommandLineParser::Parse_Error };
             }
             mTcpHost.truncate(colon);
             break; }
@@ -705,30 +705,23 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             break; }
         case UnsavedFile: {
-            const String& arg(value);
-            const int colon = arg.lastIndexOf(':');
+            const int colon = value.lastIndexOf(':');
             if (colon == -1) {
                 return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
             }
-            const int bytes = atoi(arg.constData() + colon + 1);
+            const int bytes = atoi(value.constData() + colon + 1);
             if (!bytes) {
                 return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
             }
-            const Path path = arg.left(colon);
+            const Path path = value.left(colon);
             if (!path.isFile()) {
-                return {
-                    String::format<1024>("Can't open [%s] for reading", arg.left(colon).nullTerminated()),
-                    CommandLineParser::Parse_Error
-                    };
+                return { String::format<1024>("Can't open [%s] for reading", path.nullTerminated()), CommandLineParser::Parse_Error };
             }
 
             String contents(bytes, '\0');
             const int r = fread(contents.data(), 1, bytes, stdin);
             if (r != bytes) {
-                return {
-                    String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes),
-                    CommandLineParser::Parse_Error
-                    };
+                return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
             }
             mUnsavedFiles[path] = contents;
             break; }
