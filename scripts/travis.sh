@@ -25,7 +25,7 @@
 #  - LUA_VERSION (default value is "5.3.2")
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
-ASAN=${ASAN:-"1"}
+ASAN=${ASAN:-"address,undefined"}
 declare -a CMAKE_PARAMS=("-DASAN=$ASAN"
                          "-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
                          "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION"
