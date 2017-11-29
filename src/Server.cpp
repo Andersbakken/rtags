@@ -1719,7 +1719,11 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
     }
 
     if (std::shared_ptr<Project> project = currentProject()) {
-        project->indexParseData().write([&conn](const String &str) { return conn->write(str); });
+        if (query->flags() & (QueryMessage::CompilationFlagsOnly|QueryMessage::CompilationFlagsSplitLine|QueryMessage::CompilationFlagsPwd)) {
+            project->forEachSource([&conn, &format](const Source &source) { return conn->write(format(source)) ? Project::Continue : Project::Stop; });
+        } else {
+            project->indexParseData().write([&conn](const String &str) { return conn->write(str); });
+        }
     } else {
         conn->write("No project");
     }
