@@ -24,7 +24,7 @@
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
     return (queryFlags & QueryMessage::Elisp
-            ? QueryJob::QuoteOutput|QueryJob::QuietJob
+            ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput|QueryJob::QuietJob)
             : Flags<QueryJob::JobFlag>(QueryJob::QuietJob));
 }
 

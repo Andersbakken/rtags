@@ -59,7 +59,7 @@ RCT_FLAGS(Diagnostic::Flag);
 
 inline Diagnostic::Flag Diagnostic::type() const
 {
-    return (flags & Type_Mask).cast<Flag>();
+    return Flags<Flag>(flags & Type_Mask).cast<Flag>();
 }
 
 template <> inline Serializer &operator<<(Serializer &s, const Diagnostic &d)
