@@ -25,11 +25,12 @@
 #  - LUA_VERSION (default value is "5.3.2")
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
-ASAN=${ASAN:-"address,undefined"}
-declare -a CMAKE_PARAMS=("-DASAN=$ASAN"
-                         "-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
+declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
                          "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION"
                          "-DRTAGS_NO_ELISP_BYTECOMPILE=1")
+if [ "$ASAN" ]; then
+    CMAKE_PARAMS+=("-DASAN=address,undefined")
+fi
 
 if [ $TRAVIS_OS_NAME = osx ]; then
     TRAVIS_OS_NAME=mac$TRAVIS_OS_NAME
