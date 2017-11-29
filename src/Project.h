@@ -236,6 +236,24 @@ public:
         serializer << mVisitedFiles;
     }
 
+    class FileMapScopeScope
+    {
+    public:
+        FileMapScopeScope(Project *p)
+            : mProject(p)
+        {
+            if (mProject)
+                mProject->beginScope();
+        }
+        ~FileMapScopeScope()
+        {
+            if (mProject)
+                mProject->endScope();
+        }
+    private:
+        Project *mProject;
+    };
+
     void beginScope();
     void endScope();
     void dirty(uint32_t fileId);

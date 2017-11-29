@@ -30,7 +30,7 @@ class Location;
 class QueryMessage;
 class Connection;
 struct Symbol;
-class QueryJob
+class QueryJob : public Project::FileMapScopeScope
 {
 public:
     enum JobFlag {

@@ -1024,7 +1024,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
         conn->finish();
         return;
     }
-    project->beginScope();
+    Project::FileMapScopeScope scope(project.get());
 
     const Source source = project->source(fileId, query->buildIndex());
     if (!source.isNull()) {
@@ -1074,7 +1074,6 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     }
-    project->endScope();
 }
 
 void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)

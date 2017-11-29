@@ -27,10 +27,8 @@
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
                    Flags<JobFlag> jobFlags)
-    : mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
+    : Project::FileMapScopeScope(proj.get()), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
 {
-    if (mProject)
-        mProject->beginScope();
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
@@ -58,8 +56,6 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
 
 QueryJob::~QueryJob()
 {
-    if (mProject)
-        mProject->endScope();
 }
 
 bool QueryJob::write(const String &out, Flags<WriteFlag> flags)

@@ -719,12 +719,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    struct Scope {
-        Scope(Project *p) : project(p) { project->beginScope(); }
-        ~Scope() { project->endScope(); }
-        Project *project;
-    } scope(this);
-
+    FileMapScopeScope scope(this);
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = job->fileId();
@@ -1348,6 +1343,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     }
 
     {
+        FileMapScopeScope scope(this);
         uint32_t lastFileId = 0;
         for (const auto &it : diagnostics) {
             // if (debug && it.second.flags & Diagnostic::TemplateOnly)
@@ -2292,7 +2288,7 @@ static String formatTable(const String &name, const std::shared_ptr<FileMap<Key,
 
 void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn)
 {
-    beginScope();
+    FileMapScopeScope scope(this);
     String err;
 
     Path path;
@@ -2342,22 +2338,18 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
             conn->write(err);
         }
     }
-
-
-    endScope();
 }
 
 void Project::prepare(uint32_t fileId)
 {
     if (fileId && isIndexed(fileId)) {
-        beginScope();
+        FileMapScopeScope scope(this);
         String err;
         openSymbolNames(fileId, &err);
         openSymbols(fileId, &err);
         openTargets(fileId, &err);
         openUsrs(fileId, &err);
         debug() << "Prepared" << Location::path(fileId);
-        endScope();
     }
 }
 
@@ -2913,18 +2905,15 @@ void Project::validateAll()
 
 bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic)
 {
-    beginScope();
     const uint32_t fileId = diagnostic.first.fileId();
     auto symbols = openSymbols(fileId);
     if (!symbols || !symbols->count()) {
-        endScope();
         return true;
     }
 
     bool exact = false;
     uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
     if (idx == std::numeric_limits<uint32_t>::max()) {
-        endScope();
         return true;
     }
     while (true) {
@@ -2932,19 +2921,15 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
         if (RTags::isFunction(sym.kind)) {
             if (!(sym.flags & Symbol::TemplateFunction)) {
                 // error() << "no template here" << diagnostic.first << sym.location << sym.flags;
-                endScope();
                 return false;
             }
-            endScope();
             return true;
         }
         if (idx > 0) {
             --idx;
         } else {
-            endScope();
             return true;
         }
     }
-    endScope();
     return false;
 }
