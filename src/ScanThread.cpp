@@ -27,21 +27,21 @@ ScanThread::ScanThread(const Path &path)
 Set<Path> ScanThread::paths(const Path &path, const List<String> &filters)
 {
     Set<Path> paths;
-    path.visit([&paths, &filters](const Path &p) {
-                   const Filter::Result result = Filter::filter(p, filters);
-                   switch (result) {
-                   case Filter::Filtered:
-                       return Path::Continue;
-                   case Filter::Directory:
-                       if (Path::exists(p + "/.rtags-ignore"))
-                           return Path::Continue;
-                       return Path::Recurse;
-                   case Filter::File:
-                   case Filter::Source:
-                       paths.insert(p);
-                       break;
-                   }
-                   return Path::Continue;
+    path.visit([&paths, filters](const Path &p) {
+            const Filter::Result result = Filter::filter(p, filters);
+            switch (result) {
+            case Filter::Filtered:
+                return Path::Continue;
+            case Filter::Directory:
+                if (Path::exists(p + "/.rtags-ignore"))
+                    return Path::Continue;
+                return Path::Recurse;
+            case Filter::File:
+            case Filter::Source:
+                paths.insert(p);
+                break;
+            }
+            return Path::Continue;
         });
     return paths;
 }
