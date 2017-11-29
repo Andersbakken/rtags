@@ -45,7 +45,7 @@ fi # end ! $LUA_DISABLE
 
 echo "Using compilers $CXX-$COMPILER_VERSION and $CC-$COMPILER_VERSION."
 mkdir build && pushd build > /dev/null
-cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.txt
+cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
 make VERBOSE=1 -j2
 
 if [ -z "$SKIP_TESTS" ]; then
