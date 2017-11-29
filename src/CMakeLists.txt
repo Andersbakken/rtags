@@ -6,7 +6,6 @@ include(ExternalProject)
 
 if (RTAGS_BUILD_CLANG)
     set(LIBCLANG_VERSION_STRING "5.0.0")
-    message(STATUS "BALLS 2 ${RTAGS_BUILD_CLANG}")
     if (RTAGS_NO_INSTALL)
         set(CLANG_INSTALL_PATH ${CMAKE_CURRENT_BINARY_DIR}/llvmclang-prefix/install)
     else ()
@@ -33,7 +32,6 @@ if (RTAGS_BUILD_CLANG)
     set(LIBCLANG_LIBDIR ${CLANG_INSTALL_PATH}/lib)
     set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include")
 endif ()
-message(STATUS "BALLS3 ${RTAGS_BUILD_CLANG}")
 
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
