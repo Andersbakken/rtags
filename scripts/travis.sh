@@ -26,8 +26,7 @@
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
-                         "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION"
-                         "-DRTAGS_NO_ELISP_BYTECOMPILE=1")
+                         "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION")
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
 fi
