@@ -1024,7 +1024,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
         conn->finish();
         return;
     }
-    Project::FileMapScopeScope scope(project.get());
+    Project::FileMapScopeScope scope(project);
 
     const Source source = project->source(fileId, query->buildIndex());
     if (!source.isNull()) {

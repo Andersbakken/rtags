@@ -27,7 +27,7 @@
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
                    Flags<JobFlag> jobFlags)
-    : Project::FileMapScopeScope(proj.get()), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
+    : Project::FileMapScopeScope(proj), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
 {
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)

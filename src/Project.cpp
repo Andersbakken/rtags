@@ -1343,7 +1343,6 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     }
 
     {
-        FileMapScopeScope scope(this);
         uint32_t lastFileId = 0;
         for (const auto &it : diagnostics) {
             // if (debug && it.second.flags & Diagnostic::TemplateOnly)

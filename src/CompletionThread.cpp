@@ -743,5 +743,6 @@ void CompletionThread::processDiagnostics(const Request *request, CXCodeComplete
     CompletionDiagnostics diag(sourceFileId, request->location.fileId(), results, unit);
     diag.diagnose();
     // error() << "got diagnostics" << diag.indexDataMessage().diagnostics().size();
+    Project::FileMapScopeScope scope(project);
     project->updateDiagnostics(sourceFileId, diag.indexDataMessage().diagnostics());
 }

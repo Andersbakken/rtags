@@ -245,6 +245,10 @@ public:
             if (mProject)
                 mProject->beginScope();
         }
+        FileMapScopeScope(const std::shared_ptr<Project> &p)
+            : FileMapScopeScope(p.get())
+        {}
+
         ~FileMapScopeScope()
         {
             if (mProject)
