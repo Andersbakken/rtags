@@ -481,7 +481,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (colon == -1) {
                 return { String::format<1024>("invalid --socket-address %s\n", mTcpHost.constData()), CommandLineParser::Parse_Error };
             }
-            mTcpPort = atoi(value.constData() + colon + 1);
+            mTcpPort = atoi(mTcpHost.constData() + colon + 1);
             if (!mTcpPort) {
                 return { String::format<1024>("invalid --socket-address %s", mTcpHost.constData()), CommandLineParser::Parse_Error };
             }
@@ -610,7 +610,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case DependencyFilter: {
             Path p = std::move(value);
             if (!p.isFile()) {
-                return { String::format<1024>("%s doesn't seem to be a file", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s doesn't seem to be a file", p.constData()), CommandLineParser::Parse_Error };
             }
             mPathFilters.insert({ Path::resolved(p), QueryMessage::PathFilter::Dependency });
             break; }
@@ -1044,7 +1044,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             p.resolve(Path::MakeAbsolute);
             if (!p.exists()) {
-                return { String::format<1024>("%s does not seem to exist", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s does not seem to exist", p.constData()), CommandLineParser::Parse_Error };
             }
             if (p.isDir() && !p.endsWith('/'))
                 p.append('/');
@@ -1053,7 +1053,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case ProjectRoot: {
             Path p = std::move(value);
             if (!p.isDir()) {
-                return { String::format<1024>("%s does not seem to be a directory", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s does not seem to be a directory", p.constData()), CommandLineParser::Parse_Error };
             }
 
             p.resolve(Path::MakeAbsolute);
@@ -1070,7 +1070,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!p.isEmpty() && p != "clear" && p != "all") {
                 p.resolve(Path::MakeAbsolute);
                 if (!p.isFile()) {
-                    return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
                 }
                 if (idx + 1 < arguments.size()) {
                     if (arguments[idx + 1] == "on" || arguments[idx + 1] == "off") {
@@ -1142,7 +1142,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case FixIts: {
             Path p = std::move(value);
             if (!p.exists()) {
-                return { String::format<1024>("%s does not exist", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s does not exist", p.constData()), CommandLineParser::Parse_Error };
             }
 
             if (!p.isAbsolute())
@@ -1150,7 +1150,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 
             if (p.isDir()) {
                 if (type != IsIndexed) {
-                    return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
                 } else if (!p.endsWith('/')) {
                     p.append('/');
                 }
@@ -1199,7 +1199,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case Dependencies: {
             Path p = std::move(value);
             if (!p.isFile()) {
-                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             p.resolve();
             List<String> args;
@@ -1246,7 +1246,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
-                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::PreprocessFile, std::move(p));
             break; }
@@ -1266,7 +1266,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
-                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::VisitAST, std::move(p));
 #endif
