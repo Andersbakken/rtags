@@ -3,8 +3,8 @@
 ### TO RUN
 ### curl https://raw.githubusercontent.com/Andersbakken/rtags/master/scripts/rtags-release.sh | bash
 
-REPO=~/Downloads/rtags-repo
-RELEASES_REPO=~/Downloads/rtags-releases
+REPO=`mktemp -d`
+RELEASES_REPO=`mktemp -d`
 CMAKE_ARGS="-DRTAGS_ENABLE_DEV_OPTIONS=1"
 FORCE=
 
@@ -33,15 +33,7 @@ while [ -n "$1" ]; do
     shift
 done
 
-if [ ! -d "$REPO" ]; then
-    git clone git@github.com:Andersbakken/rtags.git "$REPO" --recursive || exit 1
-else
-    cd "$REPO"
-    git checkout -f master
-    git submodule foreach git fetch --tags
-    git pull --rebase --autostash --recurse-submodules || exit 1
-    git submodule update --recursive
-fi
+git clone git@github.com:Andersbakken/rtags.git "$REPO" --recursive --depth 1 || exit 1
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
 branch_name=${branch_name##refs/heads/}
@@ -56,14 +48,8 @@ if [ "`echo "$commit" | cut -d' ' -f1`" = "$current" -a -z "$FORCE" ]; then
     exit 0
 fi
 
-if [ ! -d "$RELEASES_REPO" ]; then
-    git clone git@github.com:Andersbakken/rtags-releases.git "$RELEASES_REPO" --recursive || exit 1
-    cd "$RELEASES_REPO"
-else
-    cd "$RELEASES_REPO"
-    git pull --rebase --autostash || exit 1
-fi
-
+git clone git@github.com:Andersbakken/rtags-releases.git "$RELEASES_REPO" --recursive --depth 1 || exit 1
+cd "$RELEASES_REPO"
 if ! git branch | grep --quiet "^\* *gh-pages$"; then
     echo "wrong branch"
     exit 1
@@ -79,5 +65,4 @@ echo "$commit" > commit
 git add *.tar.gz *.tar.bz2 commit >/dev/null
 git commit --amend -m "Release for $commit" >/dev/null
 git push -f git@github.com:Andersbakken/rtags-releases.git gh-pages >/dev/null
-git reset origin/gh-pages --hard
-git clean -xfd
+rm -rf "$REPO" "$RELEASES_REPO"
