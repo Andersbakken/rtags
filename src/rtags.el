@@ -577,6 +577,17 @@ return t if RTags is allowed to modify this file."
   :group 'rtags
   :type 'function)
 
+(defcustom rtags-results-buffer-other-window nil
+  "Open rtags find results buffer in `other-window'."
+  :group 'rtags
+  :type 'boolean
+  :safe 'booleanp)
+
+(defcustom rtags-other-window-function #'(lambda () (other-window 1))
+  "Function select another window.  default is (`other-window' 1)."
+  :group 'rtags
+  :type 'function)
+
 (defcustom rtags-buffer-follows-sandbox-id-match 'ask
   "Tells the way current buffer follows sandbox-id in case match fails at a query to rc/rdm backend.
 
@@ -2001,7 +2012,7 @@ instead of file from `current-buffer'.
               (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
           (rtags-delete-rtags-windows)
           (rtags-location-stack-push)
-          (rtags-switch-to-buffer ref-buffer)
+          (rtags-switch-to-buffer ref-buffer rtags-results-buffer-other-window)
           (setq rtags-results-buffer-type 'references-tree)
           (rtags-references-tree-mode)
           (setq rtags-current-project project)
@@ -3635,8 +3646,9 @@ other window instead of the current one."
                     (count-lines (point-min) (point-max))))
          ;; Optionally jump to first result and open results buffer
          (when (and rtags-popup-results-buffer
-                    (eq rtags-display-result-backend 'default)
-                    (rtags-switch-to-buffer rtags-buffer-name t))
+                    (eq rtags-display-result-backend 'default))
+           (rtags-switch-to-buffer rtags-buffer-name
+                                   rtags-results-buffer-other-window)
            (shrink-window-if-larger-than-buffer))
          (cond ((eq rtags-display-result-backend 'default)
                 (when (and rtags-jump-to-first-match (not noautojump))
@@ -3819,7 +3831,7 @@ other window instead of the current one."
            (when other-window
              (when (= (length (window-list)) 1)
                (funcall rtags-split-window-function))
-             (other-window 1))
+             (funcall rtags-other-window-function))
            (let ((switch-to-buffer-preserve-window-point nil)) ;; this can mess up bookmarks
              (bookmark-jump bookmark))
            (rtags-location-stack-push))
