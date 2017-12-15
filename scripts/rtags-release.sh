@@ -34,6 +34,7 @@ while [ -n "$1" ]; do
 done
 
 git clone git@github.com:Andersbakken/rtags.git "$REPO" --recursive --depth 1 || exit 1
+cd "$REPO"
 
 branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed branch)"     # detached HEAD
 branch_name=${branch_name##refs/heads/}
