@@ -289,8 +289,8 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
         return ret;
 
     char path[PATH_MAX];
-    strcpy(path, "/tmp/rtags-compiler-check-XXXXXX.c");
-    const int fd = mkstemps(path, 2);
+    strcpy(path, "/tmp/rtags-compiler-check-XXXXXX");
+    const int fd = mkstemp(path);
     if (fd == -1) {
         error("Failed to make temporary file errno: %d", errno);
         return false;
