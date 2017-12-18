@@ -92,7 +92,8 @@ static const List<Path> sSystemIncludePaths = {
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0), mLastFileId(0), mCompletionThread(0)
+    : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0),
+      mLastFileId(0), mCompletionThread(0), mHadActiveBuffers(false)
 {
     assert(!sInstance);
     sInstance = this;
@@ -1861,6 +1862,7 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
             conn->write(Location::path(fileId));
         }
     } else {
+        mHadActiveBuffers = true;
         Deserializer deserializer(encoded);
         int mode;
         deserializer >> mode;

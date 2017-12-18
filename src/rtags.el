@@ -4715,29 +4715,6 @@ See `rtags-get-summary-text' for details."
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
-(defvar rtags-pending-dead-buffers nil)
-(defvar rtags-pending-remove-buffers-timer nil)
-(defun rtags-kill-buffer-hook ()
-  "When killing a buffer that is indexable, inform rdm of the new
-set of buffers we are visiting."
-  (when rtags-enabled
-    (let ((name (rtags-buffer-file-name)))
-      (when (and name (funcall rtags-is-indexable (current-buffer)))
-        (push name rtags-pending-dead-buffers)
-        (unless rtags-pending-remove-buffers-timer
-          (setq rtags-pending-remove-buffers-timer
-                (run-with-idle-timer 1 nil
-                                     (lambda ()
-                                       (setq rtags-pending-remove-buffers-timer nil)
-                                       (with-temp-buffer
-                                         (when rtags-pending-dead-buffers
-                                           (insert (mapconcat 'identity rtags-pending-dead-buffers "\n"))
-                                           (setq rtags-pending-dead-buffers nil)
-                                           (rtags-call-rc :noerror t :silent-query t :unsaved (current-buffer) "--remove-buffers" "-"))))))))))
-  t)
-
-(add-hook 'kill-buffer-hook 'rtags-kill-buffer-hook)
-
 (defun rtags-update-buffer-list ()
   "Send the list of indexable buffers to the rtags server, rdm,
 so it knows what files may be queried which helps with responsiveness.
@@ -4745,32 +4722,20 @@ so it knows what files may be queried which helps with responsiveness.
   (interactive)
   ;; (message "rtags-update-buffer-list")
   (when rtags-enabled
-    (with-temp-buffer
-      (mapc #'(lambda (x)
-                (when (funcall rtags-is-indexable x)
-                  (insert (rtags-buffer-file-name x) "\n")))
-            (buffer-list))
-      (when (> (point-max) 1)
-        (rtags-log (concat "--set-buffers files: "
-                           (combine-and-quote-strings
-                            (split-string (buffer-substring-no-properties (point-min) (point-max)) "\n" t)))))
-      (rtags-call-rc :noerror t :silent-query t :silent t :path t :unsaved (current-buffer) "--set-buffers" "-"))))
+    (let ((buffers))
+      (dolist (frame (frame-list))
+        (dolist (window (window-list frame))
+          (let ((buf (window-buffer window)))
+            (when (funcall rtags-is-indexable buf)
+              (cl-pushnew (rtags-buffer-file-name buf) buffers)))))
+      ;; (when (> (point-max) 1)
+      (let ((arg (if buffers
+                     (combine-and-quote-strings buffers)
+                   "")))
+        (rtags-log (concat "--set-buffers files: " arg))
+      (rtags-call-rc :noerror t :silent-query t :silent t :path t "--set-buffers" arg)))))
 
-(defun rtags-find-file-hook ()
-  (interactive)
-  (condition-case nil
-      (let ((name (rtags-buffer-file-name)))
-        (when (and rtags-enabled
-                   name
-                   (funcall rtags-is-indexable (current-buffer)))
-          (setq rtags-pending-dead-buffers (delete name rtags-pending-dead-buffers))
-          (with-temp-buffer
-            (rtags-call-rc :noerror t :output nil :silent-query t "--add-buffers" name))))
-    (error
-     t))
-  t)
-
-(add-hook 'find-file-hook 'rtags-find-file-hook)
+(add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
 
 (defun rtags-insert-include (include)
   (save-excursion

@@ -530,8 +530,8 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     Diagnostics::const_iterator it;
     Diagnostics::const_iterator end;
     {
-        Set<uint32_t> active = Server::instance()->activeBuffers();
-        if (!active.isEmpty()) {
+        if (Server::instance()->hadActiveBuffers()) {
+            Set<uint32_t> active = Server::instance()->activeBuffers();
             if (filter.isEmpty()) {
                 filter = std::move(active);
             } else {
