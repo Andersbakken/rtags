@@ -1327,12 +1327,14 @@ to only call this when `rtags-socket-file' is defined.
                      (when rtags-autostart-diagnostics
                        (rtags-diagnostics)))
                     ((= result rtags-exit-code-connection-failure)
-                     (erase-buffer)
+                     (when output
+                       (erase-buffer))
                      (setq rtags-last-request-not-connected t)
                      (unless noerror
                        (error "Can't seem to connect to server. Is rdm running?")))
                     ((= result rtags-exit-code-protocol-failure)
-                     (erase-buffer)
+                     (when output
+                       (erase-buffer))
                      (unless noerror
                        (error (concat "RTags protocol version mismatch. This is usually caused by getting rtags.el from melpa\n"
                                       "and installing a new rtags build that modified the protocol. They need to be in sync."))))
@@ -4733,7 +4735,7 @@ so it knows what files may be queried which helps with responsiveness.
                      (combine-and-quote-strings buffers)
                    "")))
         (rtags-log (concat "--set-buffers files: " arg))
-      (rtags-call-rc :noerror t :silent-query t :silent t :path t "--set-buffers" arg)))))
+      (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg)))))
 
 (add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
 
