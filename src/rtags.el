@@ -4717,6 +4717,7 @@ See `rtags-get-summary-text' for details."
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
+(defvar rtags-previous-buffer-list nil)
 (defun rtags-update-buffer-list ()
   "Send the list of indexable buffers to the rtags server, rdm,
 so it knows what files may be queried which helps with responsiveness.
@@ -4735,7 +4736,9 @@ so it knows what files may be queried which helps with responsiveness.
                      (combine-and-quote-strings buffers)
                    "")))
         (rtags-log (concat "--set-buffers files: " arg))
-      (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg)))))
+        (when (not (string= rtags-previous-buffer-list arg))
+          (setq rtags-previous-buffer-list arg)
+          (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg))))))
 
 (add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
 
