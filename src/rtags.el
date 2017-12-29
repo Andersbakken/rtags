@@ -4735,7 +4735,8 @@ so it knows what files may be queried which helps with responsiveness.
       (let ((arg (if buffers
                      (combine-and-quote-strings buffers)
                    "")))
-        (rtags-log (concat "--set-buffers files: " arg))
+        (when rtags-rc-log-enabled
+          (rtags-log (concat "--set-buffers files: " arg)))
         (when (not (string= rtags-previous-buffer-list arg))
           (setq rtags-previous-buffer-list arg)
           (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg))))))
