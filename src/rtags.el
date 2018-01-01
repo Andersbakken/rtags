@@ -3030,9 +3030,11 @@ can be specified with a prefix argument."
 (defun rtags--mode-line-diag-string ()
   (and rtags--diagnostics-count
        (> rtags--diagnostics-count 0)
-       (propertize
-        (format "%d diag%s" rtags--diagnostics-count (if (> rtags--diagnostics-count 1) "s" ""))
-        'face 'rtags-errline)))
+       (propertize (format "%d diag%s" rtags--diagnostics-count
+                           (if (> rtags--diagnostics-count 1) "s" ""))
+                   'face 'rtags-errline
+                   'mouse-face 'mode-line-highlight
+                   'local-map (make-mode-line-mouse-map 'mouse-1 'rtags-diagnostics))))
 
 (defun rtags-mode-line ()
   "Return the RTags diagnostics (warning, error, fixit) count to
