@@ -992,6 +992,19 @@ template <> struct hash<CXCursor> : public unary_function<CXCursor, size_t>
 };
 }
 
+template <typename Container>
+inline String dumpFileIds(const Container &container)
+{
+    String ret;
+    {
+        Log l(&ret);
+        for (uint32_t fileId : container) {
+            l << Location::path(fileId);
+        }
+    }
+    return ret;
+}
+
 struct SourceCache
 {
     Hash<Path, Map<String, String> > rtagsConfigCache;
