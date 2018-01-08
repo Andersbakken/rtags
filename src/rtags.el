@@ -2455,7 +2455,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "v")) 'rtags-find-virtuals-at-point)
   (define-key map (kbd (concat prefix "V")) 'rtags-print-enum-value-at-point)
   (define-key map (kbd (concat prefix "/")) 'rtags-find-all-references-at-point)
-  (define-key map (kbd (concat prefix "Y")) 'rtags-cycle-overlays-on-screen)
+  (define-key map (kbd (concat prefix "Y")) 'rtags-cycle-through-diagnostics)
   (define-key map (kbd (concat prefix ">")) 'rtags-find-symbol)
   (define-key map (kbd (concat prefix "<")) 'rtags-find-references)
   (define-key map (kbd (concat prefix "[")) 'rtags-location-stack-back)
@@ -2514,7 +2514,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
    ["Print class hierarchy" rtags-print-class-hierarchy]
    "--"
    ["Show compiler diagnostic messages" rtags-diagnostics]
-   ["Cycle though diagnostic messages" rtags-cycle-overlays-on-screen]
+   ["Cycle though diagnostic messages" rtags-cycle-through-diagnostics]
    ["Apply all compiler fix-its" rtags-fixit]
    ["Apply compiler fix-it at point" rtags-apply-fixit-at-point]
    ["Compile file" rtags-compile-file]
@@ -2958,22 +2958,6 @@ can be specified with a prefix argument."
               (delete-char (- end start)) ;; may be 0
               (insert text))))))))
 
-(defvar rtags-overlays-buffers nil)
-
-(defun rtags-overlays-buffers-add (buffer)
-  (add-to-list 'rtags-overlays-buffers buffer))
-
-(defun rtags-overlays-buffers-contains (buffer)
-  (member buffer rtags-overlays-buffers))
-
-(defun rtags-overlays-buffers-remove (buffer)
-  (setq rtags-overlays-buffers (delq buffer rtags-overlays-buffers)))
-
-(defun rtags-overlays-buffers-set (buffer on)
-  (if on
-      (rtags-overlays-buffers-add buffer)
-    (rtags-overlays-buffers-remove buffer)))
-
 (defun rtags-overlays-remove (&optional no-update-diagnostics-buffer)
   (save-restriction
     (widen)
@@ -3008,7 +2992,7 @@ can be specified with a prefix argument."
 
 (defun rtags-clear-all-diagnostics-overlays ()
   (interactive)
-  (dolist (buf rtags-overlays-buffers)
+  (dolist (buf (rtags-visible-buffers))
     (when (buffer-live-p buf)
       (with-current-buffer buf
         (rtags-overlays-remove t))))
@@ -3122,16 +3106,6 @@ of diagnostics count"
 
 (defvar rtags-last-check-style nil)
 
-(defun rtags-visible-buffers ()
-  (let ((ret))
-    (dolist (frame (frame-list))
-      (dolist (window (window-list frame))
-        (let* ((buf (window-buffer window))
-               (name (and buf (rtags-trampify (buffer-file-name buf)))))
-          (when name
-            (push (cons name buf) ret)))))
-    ret))
-
 (defun rtags-parse-check-style (buffers checkstyle)
   (when checkstyle
     (setq rtags-last-check-style checkstyle))
@@ -3145,7 +3119,6 @@ of diagnostics count"
         (with-current-buffer buf
           (rtags-overlays-remove)
           (setq rtags--diagnostics-count nil)
-          (rtags-overlays-buffers-set buf diags)
           (dolist (diag diags)
             (rtags-handle-check-style file diag))
           ;; Manually trigger Flycheck to be in sync.
@@ -3163,6 +3136,7 @@ of diagnostics count"
   "List of diagnostics errors.")
 
 (defun rtags-parse-diagnostics ()
+  ;; (message "PARSING %s" (buffer-substring-no-properties (point-min) (point-max)))
   (save-excursion
     (while (and (goto-char (point-min))
                 (search-forward "\n" (point-max) t))
@@ -3183,7 +3157,7 @@ of diagnostics count"
         (cond ((not (listp data)))
               ((eq (car data) 'checkstyle)
                (when rtags-spellcheck-enabled
-                 (rtags-parse-check-style (rtags-visible-buffers) (cdr data))))
+                 (rtags-parse-check-style (rtags-visible-buffer-paths) (cdr data))))
               ((eq (car data) 'progress)
                (setq rtags-last-index (nth 1 data)
                      rtags-last-total (nth 2 data)
@@ -3282,18 +3256,29 @@ of diagnostics count"
 (defun rtags-is-rtags-overlay (overlay) (and overlay (overlay-get overlay 'rtags-error-message)))
 
 (defun rtags-overlay-comparator (l r)
-  (< (overlay-start l) (overlay-start r)))
+  (let ((lb (overlay-buffer l))
+        (rb (overlay-buffer r)))
+    (cond ((eq lb rb) (< (overlay-start l) (overlay-start r)))
+          ((string< (buffer-name lb) (buffer-name rb)))
+          (t nil))))
 
-(defun rtags-overlays-on-screen ()
-  (sort (rtags-remove 'rtags-is-rtags-overlay (overlays-in (window-start) (window-end)) t) #'rtags-overlay-comparator))
+(defun rtags-overlays ()
+  (let ((overlays))
+    (dolist (buf (rtags-visible-buffers))
+      (with-current-buffer buf
+        (let ((bufferoverlays (overlay-lists)))
+          (setq overlays (append overlays
+                                 (rtags-remove 'rtags-is-rtags-overlay (car bufferoverlays) t)
+                                 (rtags-remove 'rtags-is-rtags-overlay (cdr bufferoverlays) t))))))
+    (sort overlays #'rtags-overlay-comparator)))
 
 (defvar rtags-highlighted-overlay nil)
 
 ;;;###autoload
-(defun rtags-cycle-overlays-on-screen ()
+(defun rtags-cycle-through-diagnostics ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
-    (let* ((overlays (rtags-overlays-on-screen))
+    (let* ((overlays (rtags-overlays))
            (idx (and rtags-highlighted-overlay (let ((i 0)
                                                      (overlay overlays))
                                                  (while (and overlay (not (eq (car overlay) rtags-highlighted-overlay)))
@@ -3305,6 +3290,7 @@ of diagnostics count"
                       (car overlays))))
       (when overlay
         (setq rtags-highlighted-overlay overlay)
+        (goto-char (overlay-start overlay))
         (rtags-display-overlay overlay (overlay-start overlay))))))
 
 (defun rtags-fix-fixit-overlay (overlay)
@@ -4752,6 +4738,18 @@ See `rtags-get-summary-text' for details."
 (when rtags-tooltips-enabled
   (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
 
+(defun rtags-visible-buffers ()
+  (let ((buffers))
+  (dolist (frame (frame-list))
+    (dolist (window (window-list frame))
+      (let ((buf (window-buffer window)))
+        (when (funcall rtags-is-indexable buf)
+          (cl-pushnew buf buffers)))))
+  buffers))
+
+(defun rtags-visible-buffer-paths ()
+  (mapcar (lambda (buf) (cons (rtags-trampify (buffer-file-name buf)) buf)) (rtags-visible-buffers)))
+
 (defvar rtags-previous-buffer-list nil)
 (defun rtags-update-buffer-list ()
   "Send the list of indexable buffers to the rtags server, rdm,
@@ -4760,21 +4758,15 @@ so it knows what files may be queried which helps with responsiveness.
   (interactive)
   ;; (message "rtags-update-buffer-list")
   (when rtags-enabled
-    (let ((buffers))
-      (dolist (frame (frame-list))
-        (dolist (window (window-list frame))
-          (let ((buf (window-buffer window)))
-            (when (funcall rtags-is-indexable buf)
-              (cl-pushnew (rtags-buffer-file-name buf) buffers)))))
-      ;; (when (> (point-max) 1)
-      (let ((arg (if buffers
-                     (combine-and-quote-strings buffers ";")
-                   ";")))
+    (let* ((buffers (rtags-visible-buffers))
+           (arg (if buffers
+                    (mapconcat 'rtags-buffer-file-name buffers ";")
+                  ";")))
         (when rtags-rc-log-enabled
           (rtags-log (concat "--set-buffers files: " arg)))
         (when (not (string= rtags-previous-buffer-list arg))
           (setq rtags-previous-buffer-list arg)
-          (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg))))))
+          (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg)))))
 
 (add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
 
