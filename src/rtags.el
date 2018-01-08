@@ -486,8 +486,7 @@ on intervals."
          (set var val)
          (if val
              (add-to-list 'global-mode-string '(:eval (rtags-mode-line)))
-           (setq global-mode-string (delete '(:eval (rtags-mode-line)) global-mode-string))
-             )))
+           (setq global-mode-string (delete '(:eval (rtags-mode-line)) global-mode-string)))))
 
 (defcustom rtags-completions-hook nil
   "Run after completions have been parsed."
