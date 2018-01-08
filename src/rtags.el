@@ -4768,8 +4768,8 @@ so it knows what files may be queried which helps with responsiveness.
               (cl-pushnew (rtags-buffer-file-name buf) buffers)))))
       ;; (when (> (point-max) 1)
       (let ((arg (if buffers
-                     (combine-and-quote-strings buffers)
-                   "")))
+                     (combine-and-quote-strings buffers ";")
+                   ";")))
         (when rtags-rc-log-enabled
           (rtags-log (concat "--set-buffers files: " arg)))
         (when (not (string= rtags-previous-buffer-list arg))
