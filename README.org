@@ -578,6 +578,9 @@ also be socket acivated.
     systemctl --user start rdm.socket
     #+END_SRC
 
+    Note that user level systemd does not work on RHEL
+    derivatives. See here for more info: https://bugs.centos.org/view.php?id=8767
+
     =Systemd= will create the =rdm= socket automatically.
 
 If you prefer using SystemV something like this could be used:
