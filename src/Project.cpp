@@ -537,6 +537,8 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             } else {
                 filter = filter.intersected(active);
             }
+            if (filter.isEmpty())
+                return String();
         }
     }
 
