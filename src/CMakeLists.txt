@@ -323,6 +323,11 @@ install(TARGETS rdm rc rp RUNTIME DESTINATION bin COMPONENT rtags)
 install(FILES ../bin/gcc-rtags-wrapper.sh DESTINATION bin
     PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 install(FILES ../man/man7/rc.7 ../man/man7/rdm.7 DESTINATION share/man/man7/)
+
+if (UNIX AND NOT ${SKIP_CTEST})
+  install(CODE "execute_process(COMMAND ctest)")
+endif ()
+
 if (NOT RTAGS_NO_ELISP_FILES)
     install(FILES ${RTAGS_ELISP_SOURCES} DESTINATION ${RTAGS_ELISP_INSTALL_LOCATION})
 endif ()
