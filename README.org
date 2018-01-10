@@ -217,6 +217,15 @@ sudo port install clang-3.5
   Note that if you're trying to test RTags by indexing RTags' own
   source code you shouldn't build it in /tmp/ since RTags will refuse
   to index files in /tmp/
+  
+  "make install" runs ctest by default. If you want to skip ctest during install, 
+  you can pass -DSKIP_CTEST=True to cmake.
+
+  #+BEGIN_SRC sh
+  cmake .. -DSKIP_CTEST=True
+  make
+  make install
+  #+END_SRC
 
 - Elpa
 
