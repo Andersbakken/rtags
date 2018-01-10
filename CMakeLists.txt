@@ -83,6 +83,10 @@ endif ()
 
 include(CTest)
 
-add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${CMAKE_INSTALL_PREFIX}/bin")
+set(BIN ${CMAKE_INSTALL_PREFIX}/bin)
+if (RTAGS_NO_INSTALL)
+    set(BIN ${CMAKE_BINARY_DIR}/bin)
+endif ()
+add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${BIN}")
 
 feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)
