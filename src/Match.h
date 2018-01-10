@@ -113,7 +113,7 @@ inline Match::Match(const String &pattern, Flags<Flag> f)
     if (mFlags & Flag_Regex) {
         try {
             mRegex = pattern.ref();
-        } catch (std::regex_error err) {
+        } catch (const std::regex_error &err) {
             mFlags &= ~Flag_Regex;
         }
     }
