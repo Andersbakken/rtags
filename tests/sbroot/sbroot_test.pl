@@ -1,4 +1,4 @@
-0#!/usr/bin/perl
+#!/usr/bin/env perl
 # File: sbroot_test.pl
 # Abstract:
 #   Used to exercise rtags, specifically focusing on the the sandbox root
