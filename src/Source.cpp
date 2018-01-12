@@ -279,7 +279,7 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
 {
     if (Server::instance()->options().compilerWrappers.contains(fullPath.fileName()))
         return true;
-    if (strcasestr(fullPath.fileName(), "emacs"))
+    if (String(fullPath.fileName()).contains("emacs", String::CaseInsensitive))
         return false;
     static Hash<Path, bool> sCache;
 
