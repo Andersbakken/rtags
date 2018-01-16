@@ -33,7 +33,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-8
+            - gcc-8
             - gnupg
             - libclang-dev
             - emacs
