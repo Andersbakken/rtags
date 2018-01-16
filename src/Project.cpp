@@ -563,7 +563,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     }
 
     if (flags & QueryMessage::JSON) {
-        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue, flags](uint32_t file, Location loc, const Diagnostic &diagnostic) {
+        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue](uint32_t file, Location loc, const Diagnostic &diagnostic) {
             Value value;
             if (loc.fileId() != file)
                 value["file"] = loc.path();
