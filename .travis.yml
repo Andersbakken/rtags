@@ -26,7 +26,7 @@ matrix:
             - gnupg
             - libclang-dev
             - emacs
-    - env: COMPILER_VERSION=3.5
+    - env: COMPILER_VERSION=6.0
       os: linux
       compiler: clang++
       addons:
