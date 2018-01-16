@@ -162,7 +162,7 @@ int ReferencesJob::execute()
     };
 
     Value json;
-    auto writeLoc = [this, writeCons, writeFlags, kf, &json](Location loc) {
+    auto writeLoc = [this, writeCons, writeFlags, &json](Location loc) {
         if (queryFlags() & QueryMessage::Elisp) {
             if (!filterLocation(loc))
                 return;
