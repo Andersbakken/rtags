@@ -26,8 +26,7 @@ matrix:
             - gnupg
             - libclang-dev
             - emacs
-    - env: COMPILER_VERSION=8.0
-      os: linux
+    - os: linux
       compiler: g++
       addons:
         apt:
