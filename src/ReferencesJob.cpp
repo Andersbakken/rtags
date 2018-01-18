@@ -146,7 +146,6 @@ int ReferencesJob::execute()
         }
     }
     Flags<QueryJob::WriteFlag> writeFlags;
-    Flags<Location::ToStringFlag> kf = locationToStringFlags();
     if (queryFlags() & QueryMessage::Elisp) {
         write("(list ", DontQuote);
         writeFlags |= QueryJob::NoContext;
