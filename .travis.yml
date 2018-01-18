@@ -26,18 +26,6 @@ matrix:
             - gnupg
             - libclang-dev
             - emacs
-    - env: COMPILER_VERSION=7
-      os: linux
-      compiler: g++
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-7
-            - gnupg
-            - libclang-dev
-            - emacs
     - env: COMPILER_VERSION=6.0
       os: linux
       compiler: clang++
