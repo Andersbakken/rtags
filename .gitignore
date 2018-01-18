@@ -53,3 +53,4 @@ compile_commands.json
 /src/lua-prefix
 /CTestTestfile.cmake
 /DartConfiguration.tcl
+/Testing
