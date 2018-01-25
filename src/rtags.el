@@ -2451,6 +2451,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
     (setq prefix "C-c r "))
   (define-key map (kbd (concat prefix ".")) 'rtags-find-symbol-at-point)
   (define-key map (kbd (concat prefix ",")) 'rtags-find-references-at-point)
+  (define-key map (kbd (concat prefix "t")) 'rtags-references-tree)
   (define-key map (kbd (concat prefix "v")) 'rtags-find-virtuals-at-point)
   (define-key map (kbd (concat prefix "V")) 'rtags-print-enum-value-at-point)
   (define-key map (kbd (concat prefix "/")) 'rtags-find-all-references-at-point)
@@ -2497,6 +2498,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
    submenu-name
    ["Find symbol definition at point" rtags-find-symbol-at-point]
    ["Find references at point" rtags-find-references-at-point]
+   ["Find references tree at point" rtags-references-tree]
    ["Find symbol definition by name" rtags-find-symbol]
    ["Find reference by name" rtags-find-references]
    ["Find all definitions, references, etc. at point" rtags-find-all-references-at-point]
