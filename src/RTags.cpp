@@ -731,7 +731,8 @@ void DiagnosticsProvider::diagnose()
     const size_t numUnits = unitCount();
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
     List<Diagnostics> skipped;
-    skipped.resize(numUnits);
+    if (numUnits > 1)
+        skipped.resize(numUnits);
 #endif
 
     for (size_t u=0; u<numUnits; ++u) {
@@ -828,7 +829,7 @@ void DiagnosticsProvider::diagnose()
         }
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
-        Diagnostics &skippedDiags = skipped[u];
+        Diagnostics &diags = numUnits > 1 ? skipped[u] : indexData.diagnostics();
         for (const auto &it : indexData.files()) {
             if (it.second & IndexDataMessage::Visited) {
                 const Location loc(it.first, 0, 0);
@@ -843,7 +844,7 @@ void DiagnosticsProvider::diagnose()
 
                             unsigned int line, column, startOffset, endOffset;
                             clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                            Diagnostic &entry = skippedDiags[Location(loc.fileId(), line, column)];
+                            Diagnostic &entry = diags[Location(loc.fileId(), line, column)];
                             entry.sourceFileId = sourceFile;
                             CXSourceLocation end = clang_getRangeEnd(s->ranges[j]);
                             clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
@@ -861,9 +862,8 @@ void DiagnosticsProvider::diagnose()
     }
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
     if (numUnits > 1) {
-        auto it = skipped[0].begin();
-        auto end = skipped[0].end();
-        while (it != end) {
+        Diagnostics &target = indexData.diagnostics();
+        for (auto it = skipped[0].begin(); it != skipped[0].end(); ++it) {
             bool ok = true;
             for (size_t u=1; u<numUnits; ++u) {
                 if (skipped[u].value(it->first) != it->second) {
@@ -872,15 +872,14 @@ void DiagnosticsProvider::diagnose()
                 }
             }
             if (ok) {
-                ++it;
-            } else {
-                skipped[0].erase(it++);
+                Diagnostic &diag = target[it->first];
+                if (diag.type() != Diagnostic::None)
+                    diag = std::move(it->second);
             }
         }
 #endif
     }
 
-    indexData.diagnostics() = std::move(skipped[0]);
 
 #if 0
     for (const auto &it : indexData.files()) {
