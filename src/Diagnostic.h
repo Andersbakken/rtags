@@ -53,6 +53,21 @@ struct Diagnostic
     Diagnostics children;
     Flags<Flag> flags;
     bool isNull() const { return type() == None; }
+
+    bool operator==(const Diagnostic &other) const
+    {
+        return (message == other.message
+                && length == other.length
+                && sourceFileId == other.sourceFileId
+                && ranges == other.ranges
+                && children == other.children
+                && flags == other.flags);
+    }
+
+    bool operator!=(const Diagnostic &other) const
+    {
+        return !operator==(other);
+    }
 };
 
 RCT_FLAGS(Diagnostic::Flag);

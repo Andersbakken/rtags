@@ -729,6 +729,11 @@ void DiagnosticsProvider::diagnose()
     IndexDataMessage &indexData = indexDataMessage();
 
     const size_t numUnits = unitCount();
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
+    List<Diagnostics> skipped;
+    skipped.resize(numUnits);
+#endif
+
     for (size_t u=0; u<numUnits; ++u) {
         List<String> compilationErrors;
         const size_t diagCount = diagnosticCount(u);
@@ -822,38 +827,61 @@ void DiagnosticsProvider::diagnose()
             clang_disposeDiagnostic(diag);
         }
 
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
+        Diagnostics &skippedDiags = skipped[u];
         for (const auto &it : indexData.files()) {
             if (it.second & IndexDataMessage::Visited) {
                 const Location loc(it.first, 0, 0);
                 const Path path = loc.path();
                 CXFile file = getFile(u, path.constData());
                 if (file) {
-#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
-                    if (CXSourceRangeList *skipped = clang_getSkippedRanges(unit(u), file)) {
-                        const unsigned int count = skipped->count;
+                    CXSourceRangeList *s = clang_getSkippedRanges(unit(u), file);
+                    if (s) {
+                        const unsigned int count = s->count;
                         for (unsigned int j=0; j<count; ++j) {
-                            CXSourceLocation start = clang_getRangeStart(skipped->ranges[j]);
+                            CXSourceLocation start = clang_getRangeStart(s->ranges[j]);
 
                             unsigned int line, column, startOffset, endOffset;
                             clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
-                            Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
-                            if (entry.type() == Diagnostic::None) {
-                                entry.sourceFileId = sourceFile;
-                                CXSourceLocation end = clang_getRangeEnd(skipped->ranges[j]);
-                                clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
-                                entry.flags = Diagnostic::Skipped;
-                                entry.length = endOffset - startOffset;
-                                // error() << line << column << startOffset << endOffset;
-                            }
+                            Diagnostic &entry = skippedDiags[Location(loc.fileId(), line, column)];
+                            entry.sourceFileId = sourceFile;
+                            CXSourceLocation end = clang_getRangeEnd(s->ranges[j]);
+                            clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                            entry.flags = Diagnostic::Skipped;
+                            entry.length = endOffset - startOffset;
+                            // error() << line << column << startOffset << endOffset;
                         }
 
-                        clang_disposeSourceRangeList(skipped);
+                        clang_disposeSourceRangeList(s);
                     }
-#endif
                 }
             }
         }
+#endif
     }
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
+    if (numUnits > 1) {
+        auto it = skipped[0].begin();
+        auto end = skipped[0].end();
+        while (it != end) {
+            bool ok = true;
+            for (size_t u=1; u<numUnits; ++u) {
+                if (skipped[u].value(it->first) != it->second) {
+                    ok = false;
+                    break;
+                }
+            }
+            if (ok) {
+                ++it;
+            } else {
+                skipped[0].erase(it++);
+            }
+        }
+#endif
+    }
+
+    indexData.diagnostics() = std::move(skipped[0]);
+
 #if 0
     for (const auto &it : indexData.files()) {
         if (it.second & IndexDataMessage::Visited) {
