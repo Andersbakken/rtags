@@ -3,11 +3,9 @@
 # https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
 #
 
-sudo: required
-dist: trusty
-group: deprecated-2017Q4
-
 language: cpp
+sudo: required
+
 addons:
     apt:
         sources:
@@ -24,16 +22,30 @@ git:
   depth: 3
 
 matrix:
-  include:
-    - env: COMPILER_VERSION=4.8
-      os: linux
-      compiler: g++
-    - env: COMPILER_VERSION=3.7
-      os: linux
-      compiler: clang++
+    include:
+        - os: linux
+          compiler: g++
+          dist: trusty
+          env: "g++ linux"
+        - os: linux
+          compiler: clang
+          dist: trusty
+          env: "g++ clang"
+        - os: osx
+          compiler: g++
+          env: "g++ linux"
+        - os: osx
+          compiler: clang
+          env: "clang osx"
 
 install:
-  - pip install --user --upgrade nose
-  - pip install --user --upgrade PyHamcrest
+    - pip install --user --upgrade nose
+    - pip install --user --upgrade PyHamcrest
+    - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update; fi
+    - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew install llvm cmake openssl; fi
+
+branches:
+    only:
+        - master
 
 script: ./scripts/travis.sh
