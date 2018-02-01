@@ -10,12 +10,12 @@ addons:
     apt:
         sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty-6.0
+            - llvm-toolchain-trusty-5.0
         packages:
             - g++-4.8
             - gnupg
-            - libclang-6.0-dev
-            - clang-6.0
+            - libclang-5.0-dev
+            - clang-5.0
             - build-essential
             - emacs
 
@@ -31,7 +31,7 @@ matrix:
         - os: linux
           compiler: clang
           dist: trusty
-          env: T=g++-clang COMPILER_VERSION=6.0
+          env: T=g++-clang COMPILER_VERSION=5.0
         - os: osx
           compiler: g++
           env: T=g++-linux
