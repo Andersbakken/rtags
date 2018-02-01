@@ -16,6 +16,7 @@ addons:
             - gnupg
             - libclang-dev
             - clang
+            - build-essential
             - emacs
 
 git:
