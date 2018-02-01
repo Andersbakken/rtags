@@ -8,6 +8,17 @@ dist: trusty
 group: deprecated-2017Q4
 
 language: cpp
+addons:
+    apt:
+        sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-precise-3.7
+        packages:
+            - g++-4.8
+            - gnupg
+            - libclang-dev
+            - clang-3.7
+            - emacs
 
 git:
   depth: 3
@@ -17,28 +28,9 @@ matrix:
     - env: COMPILER_VERSION=4.8
       os: linux
       compiler: g++
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-          packages:
-            - g++-4.8
-            - gnupg
-            - libclang-dev
-            - emacs
-    - env: COMPILER_VERSION=6.0
+    - env: COMPILER_VERSION=3.7
       os: linux
       compiler: clang++
-      addons:
-        apt:
-          sources:
-            - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty
-          packages:
-            - clang
-            - gnupg
-            - libclang-dev
-            - emacs
 
 install:
   - pip install --user --upgrade nose
