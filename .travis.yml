@@ -15,7 +15,7 @@ addons:
             - g++-4.8
             - gnupg
             - libclang-dev
-            - clang-3.7
+            - clang
             - emacs
 
 git:
