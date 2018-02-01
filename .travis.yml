@@ -30,7 +30,7 @@ matrix:
         - os: linux
           compiler: clang
           dist: trusty
-          env: T=g++-clang
+          env: T=g++-clang COMPILER_VERSION=5.0
         - os: osx
           compiler: g++
           env: T=g++-linux
