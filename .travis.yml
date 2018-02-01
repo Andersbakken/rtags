@@ -26,17 +26,17 @@ matrix:
         - os: linux
           compiler: g++
           dist: trusty
-          env: "g++ linux"
+          env: T=g++-linux COMPILER_VERSION=4.8
         - os: linux
           compiler: clang
           dist: trusty
-          env: "g++ clang"
+          env: T=g++-clang
         - os: osx
           compiler: g++
-          env: "g++ linux"
+          env: T=g++-linux
         - os: osx
           compiler: clang
-          env: "clang osx"
+          env: T=clang-osx
 
 install:
     - pip install --user --upgrade nose
