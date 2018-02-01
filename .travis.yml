@@ -34,7 +34,7 @@ matrix:
           env: T=g++-clang COMPILER_VERSION=5.0
         - os: osx
           compiler: g++
-          env: T=g++-linux
+          env: T=g++-osx
         - os: osx
           compiler: clang
           env: T=clang-osx
