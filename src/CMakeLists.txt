@@ -108,6 +108,7 @@ endif ()
 set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
 set(RCT_NO_LIBRARY 1)
+set(RCT_WITH_TESTS 1)
 # Everyting which as been set either in rct/rct.cmake or rct/compiler.cmake
 # doesn't need to be set in this file again.
 include(rct/rct.cmake)
