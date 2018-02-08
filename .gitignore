@@ -54,3 +54,4 @@ compile_commands.json
 /CTestTestfile.cmake
 /DartConfiguration.tcl
 /Testing
+/src/CTestTestfile.cmake
