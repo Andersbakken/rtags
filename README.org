@@ -671,6 +671,8 @@ editors out there.
 
 Vim: https://github.com/lyuts/vim-rtags and https://github.com/shaneharper/vim-rtags
 
+Neovim: https://github.com/marxin/neo-rtags
+
 Sublime Text: https://github.com/rampage644/sublime-rtags
 
 Atom: https://github.com/artagnon/atomic-rtags, https://github.com/rajendrant/atom-rtags and https://github.com/sphaerophoria/atom-rtags-plus
