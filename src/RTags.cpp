@@ -877,8 +877,9 @@ void DiagnosticsProvider::diagnose()
                     diag = std::move(it->second);
             }
         }
-#endif
     }
+#endif
+
 
 
 #if 0
