@@ -27,6 +27,7 @@
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
                          "-DBUILD_TESTS=1"
+                         "-DRTAGS_NO_INSTALL=1"
                          "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION")
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
