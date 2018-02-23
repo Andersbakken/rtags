@@ -53,7 +53,7 @@ make VERBOSE=1 -j2
 if [ -z "$SKIP_TESTS" ]; then
     PATH=$(pwd)/bin:$PATH
     popd > /dev/null
-    nosetests --nocapture
+    make test
 else
     echo "Skipping tests for this platform."
 fi
