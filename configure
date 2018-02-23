@@ -128,4 +128,5 @@ done
 [ -n "$BUILD" ] && CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_BUILD_CLANG=1"
 
 echo -e "Running cmake:\n\"$CMAKE\" \"$(dirname ${BASH_SOURCE[0]})\" ${CMAKE_ARGS}\n"
+rm -f CMakeCache.txt
 eval "$CMAKE" "$(dirname ${BASH_SOURCE[0]})" ${CMAKE_ARGS}
