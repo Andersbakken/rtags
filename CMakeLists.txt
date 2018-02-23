@@ -6,6 +6,8 @@ set(RTAGS_VERSION_DATABASE 121)
 set(RTAGS_VERSION_SOURCES_FILE 13)
 set(RTAGS_VERSION ${RTAGS_VERSION_MAJOR}.${RTAGS_VERSION_MINOR}.${RTAGS_VERSION_DATABASE})
 
+set(RCT_WITH_TESTS ${BUILD_TESTS})
+
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
 if (APPLE)
@@ -83,13 +85,9 @@ endif ()
 
 include(CTest)
 
-set(BIN ${CMAKE_INSTALL_PREFIX}/bin)
-if (RTAGS_NO_INSTALL)
-    set(BIN ${CMAKE_BINARY_DIR}/bin)
-endif ()
 if (BUILD_TESTS)
-    add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${BIN}")
-    add_test(rct_tests "${CMAKE_BINARY_DIR}/src/rct/tests/rct_tests")
+    add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${CMAKE_BINARY_DIR}/bin")
+    add_test(NAME rct_tests WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/rct/tests/" COMMAND "${CMAKE_BINARY_DIR}/src/rct/tests/rct_tests")
     find_program(NOSETEST NAMES nosetests nosetests-2.7 PATHS "$ENV{HOME}/.local/bin")
     if (NOSETEST)
         add_test(nosetests ${NOSETEST} -w ${CMAKE_SOURCE_DIR} -v)
