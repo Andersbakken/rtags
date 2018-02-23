@@ -55,3 +55,5 @@ compile_commands.json
 /DartConfiguration.tcl
 /Testing
 /src/CTestTestfile.cmake
+/testfile.txt
+/empty.txt
