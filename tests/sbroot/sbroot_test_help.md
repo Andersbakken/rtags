@@ -82,7 +82,7 @@ an extra '@' character is required which indicates which column RTags should be 
 
 ## --references ITEM => FILE:LINE
 
-This is similar to --follow-location syntax, but the inverse, e.g. whos 'calling' a function.
+This is similar to --follow-location syntax, but the inverse, e.g. who's 'calling' a function.
 
 ## --references-name ITEM => FILE:LINE
 
