@@ -63,8 +63,6 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
             ret << "Variadic";
         if (flags & Auto && filterPiece("auto"))
             ret << "Auto";
-        if (flags & AutoRef && filterPiece("autoref"))
-            ret << "AutoRef";
 
         if (flags & MacroExpansion && filterPiece("macroexpansion"))
             ret << "MacroExpansion";
@@ -375,8 +373,6 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["variadic"] = true;
             if (symbol.flags & Symbol::Auto && filterPiece("auto"))
                 ret["auto"] = true;
-            if (symbol.flags & Symbol::AutoRef && filterPiece("autoref"))
-                ret["autoref"] = true;
             if (symbol.flags & Symbol::MacroExpansion && filterPiece("macroexpansion"))
                 ret["macroexpansion"] = true;
             if (symbol.flags & Symbol::TemplateSpecialization && filterPiece("templatespecialization"))

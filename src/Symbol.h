@@ -83,15 +83,14 @@ struct Symbol
         ConstMethod            = 0x0008,
         Variadic               = 0x0010,
         Auto                   = 0x0020,
-        AutoRef                = 0x0040,
-        MacroExpansion         = 0x0080,
-        TemplateSpecialization = 0x0100,
-        InlineFunction         = 0x0200,
-        ImplicitDestruction    = 0x0400,
-        TemplateReference      = 0x0800,
-        Definition             = 0x1000,
-        FileSymbol             = 0x2000,
-        TemplateFunction       = 0x4000
+        MacroExpansion         = 0x0040,
+        TemplateSpecialization = 0x0080,
+        InlineFunction         = 0x0100,
+        ImplicitDestruction    = 0x0200,
+        TemplateReference      = 0x0400,
+        Definition             = 0x0800,
+        FileSymbol             = 0x1000,
+        TemplateFunction       = 0x2000
     };
     String briefComment, xmlComment;
     uint16_t flags;

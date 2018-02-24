@@ -1556,32 +1556,6 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                 c.flags |= Symbol::Auto;
                 if (resolvedAuto.type.kind != CXType_Invalid) {
                     setType(c, resolvedAuto.type);
-                    bool blocked = false;
-                    const Location loc = createLocation(clang_getCursorLocation(mLastCursor), &blocked);
-                    if (!blocked && loc.fileId()) {
-                        if (RTags::isValid(resolvedAuto.cursor) && clang_getCursorKind(resolvedAuto.cursor) != CXCursor_NoDeclFound) {
-                            Symbol *cptr = 0;
-                            if (handleReference(mLastCursor, CXCursor_TypeRef, loc, resolvedAuto.cursor, &cptr)) {
-                                cptr->symbolLength = 4;
-                                cptr->type = c.type;
-                                cptr->endLine = c.startLine;
-                                cptr->endColumn = c.startColumn + 4;
-                                cptr->flags |= Symbol::AutoRef;
-                            }
-                        } else { // built-in type probably
-                            Symbol &sym = unit(loc)->symbols[loc];
-                            if (sym.isNull()) {
-                                sym.kind = CXCursor_NoDeclFound;
-                                sym.type = c.type;
-                                sym.symbolLength = 4;
-                                sym.endLine = c.startLine;
-                                sym.endColumn = c.startColumn + 4;
-                                sym.flags |= Symbol::AutoRef;
-                                sym.symbolName = "auto";
-                                sym.location = loc;
-                            }
-                        }
-                    }
                 } else {
                     warning() << "Couldn't resolve auto for" << cursor;
                 }
@@ -1722,7 +1696,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     }
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 35)
-    if (!(c.flags & (Symbol::Auto|Symbol::AutoRef))
+    if (!(c.flags & Symbol::Auto)
         && c.type != CXType_LValueReference
         && c.type != CXType_RValueReference
         && c.type != CXType_Auto

@@ -83,7 +83,6 @@ int ReferencesJob::execute()
             continue;
 
         if (rename && sym.isConstructorOrDestructor()) {
-            printf("[ReferencesJob.cpp:%d]: if (rename && sym.isConstructorOrDestructor()) {\n", __LINE__); fflush(stdout);
             const Location loc = sym.location;
             sym.clear();
             const Set<String> usrs = proj->findTargetUsrs(loc);
@@ -105,12 +104,6 @@ int ReferencesJob::execute()
             for (const auto &symbol : all) {
                 if (rename) {
                     if (symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition) {
-                        printf("[ReferencesJob.cpp:%d]: if (symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition) {\n", __LINE__); fflush(stdout);
-                        continue;
-                    }
-                    if (symbol.flags & Symbol::AutoRef) {
-                        error() << "shit" << symbol;
-                        printf("[ReferencesJob.cpp:%d]: if (symbol.flags & Symbol::AutoRef) {\n", __LINE__); fflush(stdout);
                         continue;
                     }
                 } else if (sym.isClass() && symbol.isConstructorOrDestructor()) {

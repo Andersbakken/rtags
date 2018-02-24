@@ -1,7 +1,0 @@
-[
-    {
-        "name": "find_references for rename with unrelated auto in the vicinity",
-        "rc-command": [ "--references", "{0}/main.cpp:6f:14", "--all-references", "--rename", "--no-context" ],
-        "expectation": [ "{0}/main.cpp:6:14", "{0}/main.cpp:7:13" ]
-    }
-]
