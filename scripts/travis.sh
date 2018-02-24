@@ -39,6 +39,9 @@ fi
 if [ $TRAVIS_OS_NAME = osx ]; then
     TRAVIS_OS_NAME=mac$TRAVIS_OS_NAME
     brew install llvm cmake openssl python yarn
+else
+    apt-cache search llvm
+    apt-cache search clang
 fi
 
 pip install --user --upgrade nose
