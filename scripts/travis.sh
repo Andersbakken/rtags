@@ -26,16 +26,23 @@
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
-                         "-DBUILD_TESTS=1"
                          "-DRTAGS_NO_INSTALL=1"
                          "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION")
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
 fi
 
+if [ -n "$SKIP_TESTS" ]; then
+    CMAKE_PARAMS+=("-DBUILD_TESTS=1")
+fi
+
 if [ $TRAVIS_OS_NAME = osx ]; then
     TRAVIS_OS_NAME=mac$TRAVIS_OS_NAME
+    brew install llvm cmake openssl pip yarn
 fi
+
+pip install --user --upgrade nose
+pip install --user --upgrade PyHamcrest
 
 LUA_DISABLE=${LUA_DISABLE:-""}
 if [ ! $LUA_DISABLE ]; then
