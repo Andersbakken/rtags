@@ -146,6 +146,13 @@
   :type 'boolean
   :safe 'booleanp)
 
+(defcustom rtags-completing-read-behavior 'insert-default
+  "Behavior for completing-read"
+  :group 'rtags
+  :type '(choice (const :tag "insert default" insert-default)
+                 (const :tag "default when empty" default-when-empty)
+                 (const :tag "insert default and mark it" insert-default-marked)))
+
 (rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-use-bookmarks t
@@ -1441,6 +1448,54 @@ It uses the stored compile command from the RTags database for preprocessing."
                 (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1))))))
           (rtags-preprocess-mode))
         (display-buffer preprocess-buffer)))))
+
+(defvar rtags-completing-read-default-value nil)
+(defun rtags-setup-minibuffer-hook ()
+  (when (> (length rtags-completing-read-default-value) 0)
+    (set-mark (- (point) (length rtags-completing-read-default-value)))))
+
+(add-hook 'minibuffer-setup-hook 'rtags-setup-minibuffer-hook)
+(defun rtags-exit-minibuffer-hook ()
+  (setq rtags-completing-read-default-value nil))
+
+(add-hook 'minibuffer-exit-hook 'rtags-exit-minibuffer-hook)
+
+
+(defun rtags-completing-read (prompt collection &optional predicate require-match default-value hist)
+  (cond ((eq rtags-completing-read-behavior 'insert-default)
+         (if (fboundp 'completing-read-default)
+             (completing-read-default prompt collection predicate require-match default-value hist)
+           (completing-read prompt collection predicate require-match default-value hist)))
+
+        ((eq rtags-completing-read-behavior 'default-when-empty)
+         (setq prompt (replace-regexp-in-string "^\\(.*\\): " (concat "\\1 (default: " default-value "): ") prompt))
+         (let ((ret (if (fboundp 'completing-read-default)
+                        (completing-read-default prompt collection predicate nil nil hist)
+                      (completing-read prompt collection predicate nil nil hist))))
+           (if (> (length ret) 0)
+               ret
+             default-value)))
+        ((eq rtags-completing-read-behavior 'insert-default-marked)
+         (let* ((rtags-completing-read-default-value default-value)
+                (ret))
+           (condition-case nil
+               (setq ret (if (fboundp 'completing-read-default)
+                             (completing-read-default prompt collection predicate require-match default-value hist)
+                           (completing-read prompt collection predicate require-match default-value hist)))
+             (error
+              (setq rtags-completing-read-default-value nil)
+              nil))
+           (setq rtags-completing-read-default-value nil)
+           ret))))
+
+(defcustom rtags-completing-read-behavior 'insert-default-marked
+  "Behavior for completing-read"
+  :group 'rtags
+  :type '(choice (const :tag "insert default" insert-default)
+                 (const :tag "default when empty" helm)
+                 (const :tag "insert default marked" insert-default-marked))
+  :type 'symbol
+  :risky t)
 
 ;;;###autoload
 (defun rtags-set-current-project ()
@@ -3999,10 +4054,8 @@ which can be overridden by specifying DEFAULT-FILE"
       (rtags-is-indexed)
       (setq input
             (if rtags-use-filename-completion
-                (if (fboundp 'completing-read-default)
-                    (completing-read-default prompt #'rtags-filename-complete nil nil file-to-find 'rtags-find-file-history)
-                  (completing-read prompt #'rtags-filename-complete nil nil file-to-find 'rtags-find-file-history))
-              (completing-read prompt (rtags-all-files prefer-exact) nil nil file-to-find 'rtags-find-file-history)))
+                (rtags-completing-read prompt #'rtags-filename-complete nil nil file-to-find 'rtags-find-file-history)
+              (rtags-completing-read prompt (rtags-all-files prefer-exact) nil nil file-to-find 'rtags-find-file-history)))
       (setq rtags-find-file-history (rtags-remove-last-if-duplicated rtags-find-file-history))
       (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
              (setq file-to-find (match-string-no-properties 1 input))
@@ -4268,9 +4321,7 @@ definition."
     (if (= (length symbol-to-find) 0)
         (setq symbol-to-find nil))
     (setq prompt (concat prompt ": "))
-    (setq input (cond ((fboundp 'completing-read-default)
-                       (completing-read-default prompt #'rtags-symbolname-complete nil nil symbol-to-find 'rtags-symbol-history))
-                      (t (completing-read prompt #'rtags-symbolname-complete nil nil symbol-to-find 'rtags-symbol-history))))
+    (setq input (rtags-completing-read prompt #'rtags-symbolname-complete nil nil symbol-to-find 'rtags-symbol-history))
     (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
     (when (not (equal "" input))
       (with-current-buffer (rtags-get-buffer)
@@ -4806,9 +4857,7 @@ With optional PREFIX insert include at point."
            (prompt (if token
                        (format "Symbol (default: %s): " token)
                      "Symbol: "))
-           (input (if (fboundp 'completing-read-default)
-                      (completing-read-default prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history)
-                    (completing-read prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history)))
+           (input (rtags-completing-read prompt #'rtags-symbolname-complete nil nil nil 'rtags-symbol-history))
            (current-file (rtags-buffer-file-name)))
       (setq rtags-symbol-history (rtags-remove-last-if-duplicated rtags-symbol-history))
       (when (string= "" input)
