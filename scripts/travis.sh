@@ -27,13 +27,10 @@
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
                          "-DRTAGS_NO_INSTALL=1"
+                         "-DBUILD_TESTS=1"
                          "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION")
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
-fi
-
-if [ -n "$SKIP_TESTS" ]; then
-    CMAKE_PARAMS+=("-DBUILD_TESTS=1")
 fi
 
 if [ $TRAVIS_OS_NAME = osx ]; then
@@ -60,10 +57,6 @@ mkdir build && pushd build > /dev/null
 cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
 make VERBOSE=1 -j2
 
-if [ -z "$SKIP_TESTS" ]; then
-    PATH=$(pwd)/bin:$PATH
-    popd > /dev/null
-    make test
-else
-    echo "Skipping tests for this platform."
-fi
+PATH=$(pwd)/bin:$PATH
+popd > /dev/null
+make test
