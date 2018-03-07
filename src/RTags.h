@@ -318,6 +318,8 @@ struct Auto {
 };
 bool resolveAuto(const CXCursor &cursor, Auto *a = 0);
 
+int getArguments(const CXCursor &cursor, std::vector<CXCursor> *args = 0);
+
 struct Filter
 {
     enum Mode {
@@ -362,7 +364,7 @@ struct Filter
         }
         if (argumentCount != -1) {
 #if CLANG_VERSION_MINOR > 1
-            return clang_Cursor_getNumArguments(cursor) == argumentCount;
+            return RTags::getArguments(cursor) == argumentCount;
 #else
             return true;
 #endif

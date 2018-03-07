@@ -1473,11 +1473,12 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
 void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor)
 {
     assert(arguments);
-    const int count = std::max(0, clang_Cursor_getNumArguments(cursor));
+    std::vector<CXCursor> args;
+    const int count = std::max(0, RTags::getArguments(cursor, &args));
     arguments->resize(count);
     for (int i=0; i<count; ++i) {
         auto &ref = (*arguments)[i];
-        CXCursor arg = clang_Cursor_getArgument(cursor, i);
+        CXCursor arg = args[i];
         CXSourceRange range = clang_getCursorExtent(arg);
         unsigned startOffset, endOffset;
 

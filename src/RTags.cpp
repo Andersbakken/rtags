@@ -1187,4 +1187,42 @@ String toElisp(const Value &value)
 {
     return ElispFormatter().toString(value);
 }
+
+struct GetArgumentsVisitor {
+    int numArgs;
+    std::vector<CXCursor> *args;
+};
+static CXChildVisitResult getArgumentsVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    if(clang_getCursorKind(cursor) == CXCursor_ParmDecl) {
+        GetArgumentsVisitor* u = static_cast<GetArgumentsVisitor*>(data);
+        ++u->numArgs;
+        if (u->args)
+            u->args->push_back(cursor);
+    }
+    return CXChildVisit_Continue;
+}
+int getArguments(const CXCursor &cursor, std::vector<CXCursor> *args)
+{
+    int numArgs = 0;
+    // A workaround for the following issues:
+    // + clang_Cursor_getNumArguments() returns -1 with FunctionTemplate
+    // + clang_Cursor_getArgument() doesn't work with FunctionTemplate
+    //
+    if (clang_getCursorKind(cursor) == CXCursor_FunctionTemplate) {
+        GetArgumentsVisitor u = {0, args};
+        clang_visitChildren(cursor, getArgumentsVisitor, &u);
+        numArgs = u.numArgs;
+    } else {
+        numArgs = clang_Cursor_getNumArguments(cursor);
+        if (numArgs > 0 && args) {
+            args->resize(numArgs);
+            for (int i = 0; i < numArgs; i++) {
+                args->at(i) = clang_Cursor_getArgument(cursor, i);
+            }
+        }
+    }
+    return numArgs;
+}
+
 }
