@@ -1473,8 +1473,8 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
 void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor)
 {
     assert(arguments);
-    std::vector<CXCursor> args;
-    const int count = std::max(0, RTags::getArguments(cursor, &args));
+    List<CXCursor> args;
+    const int count = std::max(0, RTags::cursorArguments(cursor, &args));
     arguments->resize(count);
     for (int i=0; i<count; ++i) {
         auto &ref = (*arguments)[i];

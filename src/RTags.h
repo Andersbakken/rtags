@@ -318,7 +318,7 @@ struct Auto {
 };
 bool resolveAuto(const CXCursor &cursor, Auto *a = 0);
 
-int getArguments(const CXCursor &cursor, std::vector<CXCursor> *args = 0);
+int cursorArguments(const CXCursor &cursor, List<CXCursor> *args = 0);
 
 struct Filter
 {

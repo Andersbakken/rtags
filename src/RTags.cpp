@@ -1188,21 +1188,21 @@ String toElisp(const Value &value)
     return ElispFormatter().toString(value);
 }
 
-struct GetArgumentsVisitor {
+struct CursorArgumentsVisitor {
     int numArgs;
-    std::vector<CXCursor> *args;
+    List<CXCursor> *args;
 };
-static CXChildVisitResult getArgumentsVisitor(CXCursor cursor, CXCursor, CXClientData data)
+static CXChildVisitResult cursorArgumentsVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    if(clang_getCursorKind(cursor) == CXCursor_ParmDecl) {
-        GetArgumentsVisitor* u = static_cast<GetArgumentsVisitor*>(data);
+    if (clang_getCursorKind(cursor) == CXCursor_ParmDecl) {
+        CursorArgumentsVisitor *u = static_cast<CursorArgumentsVisitor*>(data);
         ++u->numArgs;
         if (u->args)
             u->args->push_back(cursor);
     }
     return CXChildVisit_Continue;
 }
-int getArguments(const CXCursor &cursor, std::vector<CXCursor> *args)
+int cursorArguments(const CXCursor &cursor, List<CXCursor> *args)
 {
     int numArgs = 0;
     // A workaround for the following issues:
@@ -1210,15 +1210,15 @@ int getArguments(const CXCursor &cursor, std::vector<CXCursor> *args)
     // + clang_Cursor_getArgument() doesn't work with FunctionTemplate
     //
     if (clang_getCursorKind(cursor) == CXCursor_FunctionTemplate) {
-        GetArgumentsVisitor u = {0, args};
-        clang_visitChildren(cursor, getArgumentsVisitor, &u);
+        CursorArgumentsVisitor u = {0, args};
+        clang_visitChildren(cursor, cursorArgumentsVisitor, &u);
         numArgs = u.numArgs;
     } else {
         numArgs = clang_Cursor_getNumArguments(cursor);
         if (numArgs > 0 && args) {
             args->resize(numArgs);
             for (int i = 0; i < numArgs; i++) {
-                args->at(i) = clang_Cursor_getArgument(cursor, i);
+                (*args)[i] = clang_Cursor_getArgument(cursor, i);
             }
         }
     }
