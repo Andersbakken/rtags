@@ -143,7 +143,7 @@ public:
             return ret;
         }
 
-        unsigned argumentCount() const { return data ? RTags::getArguments(data->cursor) : 0; }
+        unsigned argumentCount() const { return data ? RTags::cursorArguments(data->cursor) : 0; }
         inline Cursors arguments() const;
 
         int fieldBitWidth() const { return intProperty(&clang_getFieldDeclBitWidth); }
@@ -446,8 +446,8 @@ inline AST::Cursors AST::Cursor::arguments() const
 {
     AST::Cursors ret;
     if (data) {
-	std::vector<CXCursor> args;
-        const unsigned size = RTags::getArguments(data->cursor, &args);
+        List<CXCursor> args;
+        const unsigned size = RTags::cursorArguments(data->cursor, &args);
         if (size) {
             ret.resize(size);
             for (unsigned i=0; i<size; ++i) {
