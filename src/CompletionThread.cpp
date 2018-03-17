@@ -267,7 +267,7 @@ void CompletionThread::process(Request *request)
         }
         reparse = true;
     } else if (!request->unsaved.isEmpty()) {
-        reparse = request->unsaved == cache->unsaved;
+        reparse = request->unsaved != cache->unsaved;
         cache->lastModified = 0;
     } else {
         const uint64_t lastModified = request->source.sourceFile().lastModifiedMs();
