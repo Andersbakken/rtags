@@ -16,6 +16,7 @@ addons:
             - llvm
             - build-essential
             - emacs
+            - libcppunit-dev
 
 git:
   depth: 3
