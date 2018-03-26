@@ -2091,22 +2091,22 @@ bool Server::load()
         Hash<Path, IndexParseData> projects;
         mOptions.dataDir.visit([&projects](const Path &path) {
                 if (path.isDir()) {
-                    const char *fn = path.fileName();
-                    if (*fn == '_' || !strncmp(fn, "$_", 2))
-                        return Path::Recurse;
-                } else if (!strcmp("sources", path.fileName())) {
-                    Path filePath = path.parentDir().fileName();
-                    if (filePath.endsWith("/"))
-                        filePath.chop(1);
-                    RTags::decodePath(filePath);
-
-                    String err;
-                    IndexParseData data;
-                    if (!Project::readSources(path, data, &err)) {
-                        error("Sources restore error %s: %s", path.constData(), err.constData());
-                    } else {
-                        data.project = filePath;
-                        projects[filePath] = std::move(data);
+                    Path sources = path + "sources";
+                    if (sources.exists()) {
+                        Path filePath = path.fileName();
+                        if (filePath.endsWith("/"))
+                            filePath.chop(1);
+                        RTags::decodePath(filePath);
+                        if (!filePath.isEmpty()) {
+                            String err;
+                            IndexParseData data;
+                            if (!Project::readSources(sources, data, &err)) {
+                                error("Sources restore error %s: %s", path.constData(), err.constData());
+                            } else {
+                                data.project = filePath;
+                                projects[filePath] = std::move(data);
+                            }
+                        }
                     }
                 }
                 return Path::Continue;
@@ -2123,6 +2123,7 @@ bool Server::load()
                 p->save();
             }
         }
+        saveFileIds();
     }
     return true;
 }

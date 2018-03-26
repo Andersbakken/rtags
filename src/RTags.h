@@ -683,6 +683,8 @@ struct SortedSymbol
 };
 
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId = 0);
+String encodeUrlComponent(const String &string);
+String decodeUrlComponent(const String &string);
 
 template <typename Container, typename Value>
 inline bool addTo(Container &container, const Value &value)

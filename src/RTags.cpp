@@ -46,22 +46,65 @@ String versionString()
     return String::format<64>("%d.%d.%d", MajorVersion, MinorVersion, DatabaseVersion);
 }
 
+String encodeUrlComponent(const String &str)
+{
+    String new_str = "";
+    char c;
+    int ic;
+    const char* chars = str.c_str();
+    char bufHex[10];
+    const size_t len = str.size();
+
+    for(size_t i=0; i<len; ++i){
+        c = chars[i];
+        ic = c;
+        // uncomment this if you want to encode spaces with +
+        if (c == ' ') {
+            new_str += '+';
+        } else if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+            new_str += c;
+        } else {
+            sprintf(bufHex,"%X",c);
+            if (ic < 16) {
+                new_str += "%0";
+            } else {
+                new_str += "%";
+            }
+            new_str += bufHex;
+        }
+    }
+    return new_str;
+}
+
+String decodeUrlComponent(const String &str)
+{
+    String ret;
+    char ch;
+    const size_t len = str.length();
+
+    for (size_t i=0; i < len; ++i) {
+        if (str[i] != '%') {
+            if (str[i] == '+') {
+                ret += ' ';
+            } else {
+                ret += str[i];
+            }
+        } else {
+            int ii;
+            if (sscanf(str.mid(i + 1, 2).c_str(), "%x", &ii) != 1)
+                return String();
+            ch = static_cast<char>(ii);
+            ret += ch;
+            i = i + 2;
+        }
+    }
+    return ret;
+}
+
 void encodePath(Path &path)
 {
     Sandbox::encode(path);
-    int size = path.size();
-    for (int i=0; i<size; ++i) {
-        char &ch = path[i];
-        switch (ch) {
-        case '/':
-            ch = '_';
-            break;
-        case '_':
-            path.insert(++i, '_');
-            ++size;
-            break;
-        }
-    }
+    path = encodeUrlComponent(path);
 }
 
 void decodePath(Path &path)
@@ -69,20 +112,7 @@ void decodePath(Path &path)
     if (Sandbox::decode(path))
         return;
 
-    int i = 0;
-    int size = path.size();
-    while (i < size) {
-        char &ch = path[i];
-        if (ch == '_') {
-            if (i + 1 < size && path.at(i + 1) == '_') {
-                path.remove(i + 1, 1);
-                --size;
-            } else {
-                ch = '/';
-            }
-        }
-        ++i;
-    }
+    path = decodeUrlComponent(path);
 }
 
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
