@@ -65,7 +65,6 @@ public:
     size_t activeJobCount() const { return mActiveById.size(); }
     void sort();
 private:
-    enum { HighPriority = 5 };
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
     struct Node {
         unsigned long long started;

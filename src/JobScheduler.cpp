@@ -251,9 +251,10 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
     if (!mPendingJobs.isEmpty()) {
         conn->write("Pending:");
         for (const auto &node : mPendingJobs) {
-            conn->write<128>("%s: %s %s",
+            conn->write<128>("%s: %s %d %s",
                              node->job->sourceFile.constData(),
                              node->job->flags.toString().constData(),
+                             node->job->priority(),
                              IndexerJob::dumpFlags(node->job->flags).constData());
         }
     }
@@ -261,9 +262,10 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
         conn->write("Active:");
         const unsigned long long now = Rct::monoMs();
         for (const auto &node : mActiveById) {
-            conn->write<128>("%s: %s %s %lldms",
+            conn->write<128>("%s: %s priority: %d %s %lldms",
                              node.second->job->sourceFile.constData(),
                              node.second->job->flags.toString().constData(),
+                             node.second->job->priority(),
                              IndexerJob::dumpFlags(node.second->job->flags).constData(),
                              now - node.second->started);
 
