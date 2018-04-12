@@ -903,7 +903,7 @@ void DiagnosticsProvider::diagnose()
             }
             if (ok) {
                 Diagnostic &diag = target[it->first];
-                if (diag.type() != Diagnostic::None)
+                if (diag.type() == Diagnostic::None)
                     diag = std::move(it->second);
             }
         }
