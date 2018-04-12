@@ -142,25 +142,7 @@ String IndexerJob::encode() const
                 CompilerManager::applyToSource(copy, CompilerManager::IncludeIncludePaths);
             }
 
-            for (const String &blocked : options.blockedArguments) {
-                if (blocked.endsWith("=")) {
-                    size_t i = 0;
-                    while (i<copy.arguments.size()) {
-                        if (copy.arguments.at(i).startsWith(blocked)) {
-                            // error() << "Removing" << copy.arguments.at(i);
-                            copy.arguments.remove(i, 1);
-                        } else if (!strncmp(blocked.constData(), copy.arguments.at(i).constData(), blocked.size() - 1)) {
-                            const size_t count = (i + 1 < copy.arguments.size()) ? 2 : 1;
-                            // error() << "Removing" << copy.arguments.mid(i, count);
-                            copy.arguments.remove(i, count);
-                        } else {
-                            ++i;
-                        }
-                    }
-                } else {
-                    copy.arguments.remove(blocked);
-                }
-            }
+            Server::instance()->filterBlockedArguments(copy);
 
             for (const auto &inc : options.includePaths) {
                 copy.includePaths << inc;

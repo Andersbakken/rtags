@@ -14,6 +14,7 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Preprocessor.h"
+#include "Server.h"
 
 #include "rct/Connection.h"
 #include "rct/Log.h"
@@ -31,7 +32,8 @@ const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
 Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connection> &connection)
     : mSource(source), mConnection(connection)
 {
-    mArgs = source.toCommandLine(SourceFlags);
+    Server::instance()->filterBlockedArguments(mSource);
+    mArgs = mSource.toCommandLine(SourceFlags);
     mArgs.append("-E");
     mProcess.reset(new Process);
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));

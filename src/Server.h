@@ -144,6 +144,8 @@ public:
         None = 0x0,
         HasSandboxRoot = 0x1
     };
+
+    void filterBlockedArguments(Source &source);
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const;
     bool load();

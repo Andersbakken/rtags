@@ -2472,3 +2472,26 @@ void Server::prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint3
         }
     }
 }
+
+void Server::filterBlockedArguments(Source &source)
+{
+    for (const String &blocked : mOptions.blockedArguments) {
+        if (blocked.endsWith("=")) {
+            size_t i = 0;
+            while (i<source.arguments.size()) {
+                if (source.arguments.at(i).startsWith(blocked)) {
+                    // error() << "Removing" << source.arguments.at(i);
+                    source.arguments.remove(i, 1);
+                } else if (!strncmp(blocked.constData(), source.arguments.at(i).constData(), blocked.size() - 1)) {
+                    const size_t count = (i + 1 < source.arguments.size()) ? 2 : 1;
+                    // error() << "Removing" << source.arguments.mid(i, count);
+                    source.arguments.remove(i, count);
+                } else {
+                    ++i;
+                }
+            }
+        } else {
+            source.arguments.remove(blocked);
+        }
+    }
+}

@@ -30,7 +30,7 @@ public:
     void preprocess();
 private:
     void onProcessFinished();
-    const Source mSource;
+    Source mSource;
     List<String> mArgs;
     std::shared_ptr<Connection> mConnection;
     std::unique_ptr<Process> mProcess;
