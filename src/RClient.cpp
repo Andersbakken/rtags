@@ -751,7 +751,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case SymbolInfo: {
             std::cmatch match;
-            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::basic);
+            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::extended);
             Path path;
             List<String> kinds;
             uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
