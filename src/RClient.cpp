@@ -432,10 +432,10 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     Rct::findExecutablePath(*argv);
     const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
     if (runtimeDir == NULL) {
-         mSocketFile = Path::home() + ".rdm";
+        mSocketFile = Path::home() + ".rdm";
     } else {
-         mSocketFile = runtimeDir;
-         mSocketFile += "/rdm.socket";
+        mSocketFile = runtimeDir;
+        mSocketFile += "/rdm.socket";
     }
 
     List<std::shared_ptr<QueryCommand> > projectCommands;
@@ -797,11 +797,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case DumpCompletions: {
             addQuery(QueryMessage::DumpCompletions);
-            break;
-        case DumpCompileCommands:
+            break; }
+        case DumpCompileCommands: {
             addQuery(QueryMessage::DumpCompileCommands);
-            break;
-        case Clear:
+            break; }
+        case Clear: {
             addQuery(QueryMessage::ClearProjects);
             break; }
         case RdmLog: {
@@ -924,7 +924,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!arg.isEmpty()) {
                 Path p(arg);
                 if (resolve && p.exists()) {
-                    p.resolve();
+                    p.resolve(Path::MakeAbsolute);
                     addQuery(queryType, std::move(p), extraQueryFlags);
                 } else {
                     addQuery(queryType, std::move(arg), extraQueryFlags);
@@ -979,7 +979,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     if (p.isEmpty())
                         return;
                     Path path(p);
-                    if (path.resolve() && path.isFile()) {
+                    if (path.resolve(Path::MakeAbsolute) && path.isFile()) {
                         paths.append(path);
                     } else {
                         fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
@@ -1155,7 +1155,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     p.append('/');
                 }
             }
-            p.resolve();
+            p.resolve(Path::MakeAbsolute);
             Flags<QueryMessage::Flag> extraQueryFlags;
             QueryMessage::Type queryType = QueryMessage::Invalid;
             switch (type) {
@@ -1201,7 +1201,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!p.isFile()) {
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
-            p.resolve();
+            p.resolve(Path::MakeAbsolute);
             List<String> args;
             while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
                 args.append(arguments[++idx]);
