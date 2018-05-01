@@ -152,6 +152,9 @@ bool Location::init(const Hash<Path, uint32_t> &pathsToIds)
     sIdsToPaths.clear();
     sLastId = 0;
     for (const auto &it : sPathsToIds) {
+        assert(it.first.isAbsolute());
+        assert(!it.first.contains("/../"));
+
         assert(!it.first.isEmpty());
         Path &ref = sIdsToPaths[it.second];
         if (!ref.isEmpty())  {
@@ -173,6 +176,8 @@ void Location::init(const Hash<uint32_t, Path> &idsToPaths)
     sPathsToIds.clear();
     sLastId = 0;
     for (const auto &it : sIdsToPaths) {
+        assert(it.second.isAbsolute());
+        assert(!it.second.contains("/../"));
         sPathsToIds[it.second] = it.first;
         assert(!it.second.isEmpty());
         sLastId = std::max(sLastId, it.first);

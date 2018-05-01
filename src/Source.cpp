@@ -365,7 +365,7 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
                 if (ok) {
                     if (!isWrapper(p.fileName()) && !access(p.constData(), R_OK | X_OK)) {
                         debug() << "Found compiler" << p << "for" << unresolved;
-                        compiler.first = Path::resolved(file, Path::MakeAbsolute, path);
+                        compiler.first = Path::resolved(file, Path::Canonicalize, path);
                         break;
                     }
                 }
@@ -466,7 +466,7 @@ SourceList Source::parse(const String &cmdLine,
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
-        path = Path::resolved(split.at(1), Path::MakeAbsolute, cwd);
+        path = Path::resolved(split.at(1), Path::Canonicalize, cwd);
         split.erase(split.begin(), split.begin() + 3);
     } else {
         path = cwd;
@@ -482,7 +482,7 @@ SourceList Source::parse(const String &cmdLine,
         if (!arg.startsWith('@'))
             continue;
         arg.remove(0, 1);
-        Path responseFile = Path::resolved(arg, Path::MakeAbsolute, cwd);
+        Path responseFile = Path::resolved(arg, Path::Canonicalize, cwd);
         if (!responseFile.isFile())
             continue;
         auto contents = responseFile.readAll();
@@ -627,7 +627,7 @@ SourceList Source::parse(const String &cmdLine,
                 if (!p.isEmpty()) {
                     bool ok;
                     p = Path::resolved(p, Path::RealPath, path, &ok);
-                    // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::MakeAbsolute);
+                    // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::Canonicalize);
                     if (!ok && !p.isAbsolute()) {
                         p.prepend(path); // the object file might not exist
                         p.canonicalize();
@@ -647,9 +647,9 @@ SourceList Source::parse(const String &cmdLine,
                 const size_t argLen = strlen(argument);                 \
                 Path p;                                                 \
                 if (arg.size() == argLen) {                             \
-                    p = Path::resolved(split.value(++i), Path::MakeAbsolute, path); \
+                    p = Path::resolved(split.value(++i), Path::Canonicalize, path); \
                 } else {                                                \
-                    p = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd); \
+                    p = Path::resolved(arg.mid(argLen), Path::Canonicalize, cwd); \
                 }                                                       \
                 includePaths.append(Source::Include(Source::Include::type, p)); \
             }
@@ -658,7 +658,7 @@ SourceList Source::parse(const String &cmdLine,
             else {
                 arguments.append(arg);
                 if (hasValue(arg)) {
-                    arguments.append(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
+                    arguments.append(Path::resolved(split.value(++i), Path::Canonicalize, path));
                 }
             }
         } else {
@@ -691,7 +691,7 @@ SourceList Source::parse(const String &cmdLine,
             if (add) {
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
-                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), arg, lang});
+                    inputs.append({resolved, Path::resolved(arg, Path::Canonicalize, cwd), arg, lang});
                 } else {
                     warning() << "Can't figure out language for" << arg;
                 }

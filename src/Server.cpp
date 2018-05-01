@@ -514,7 +514,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
         if (!compileDir.isAbsolute() || !compileDir.exists()) {
             bool resolveOk = false;
             debug() << "compileDir doesn't exist: " << compileDir;
-            Path resolvedCompileDir = compileDir.resolved(Path::MakeAbsolute, data.project, &resolveOk);
+            Path resolvedCompileDir = compileDir.resolved(Path::Canonicalize, data.project, &resolveOk);
             if (resolveOk) {
                 compileDir = resolvedCompileDir;
                 debug() << "    resolved to: " << compileDir;
