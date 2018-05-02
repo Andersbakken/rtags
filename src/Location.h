@@ -226,7 +226,7 @@ public:
     {
         uint32_t line, col;
         Path path;
-        if (!parse(str, pwd, Path::Canonicalize, &path, &line, &col))
+        if (!parse(str, pwd, Path::MakeAbsolute, &path, &line, &col))
             return String();
         char buf[8];
         memcpy(buf, &line, sizeof(line));
@@ -271,8 +271,6 @@ public:
     static void set(const Path &path, uint32_t fileId)
     {
         LOCK();
-        assert(path.isAbsolute());
-        assert(!path.contains("/../"));
         uint32_t &refId = sPathsToIds[path];
         assert(!refId || refId == fileId);
         refId = fileId;

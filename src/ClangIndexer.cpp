@@ -300,9 +300,7 @@ void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, const std::sha
 
 Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr)
 {
-    static Hash<Path, uint32_t> sCache;
-    uint32_t &cacheRef = sCache[sourceFile];
-    uint32_t id = cacheRef;
+    uint32_t id = Location::fileId(sourceFile);
     Path resolved;
     if (!id) {
         bool ok;
@@ -314,12 +312,11 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 break;
             usleep(50000);
         }
-        if (!ok) {
+        if (!ok)
             return Location();
-        }
         id = Location::fileId(resolved);
         if (id)
-            cacheRef = id;
+            Location::set(sourceFile, id);
     }
     assert(!resolved.contains("/../"));
 
@@ -383,7 +380,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     Location::set(resolved, id);
     if (resolved != sourceFile)
-        cacheRef = id;
+        Location::set(sourceFile, id);
 
     if (blockedPtr)
         *blockedPtr = !mVisitFileResponseMessageVisit;
