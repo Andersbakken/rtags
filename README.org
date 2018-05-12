@@ -120,7 +120,7 @@ There are a few prerequisites you need to have in order to build RTags
 
   The default installation path is
   =CMAKE_INSTALL_PREFIX/share/bash-completion/completions=. You can adjust the
-  path with the =cmake= variable =BASH_COMPLETION_COMPLATIONSDIR=
+  path with the =cmake= variable =BASH_COMPLETION_COMPLETIONSDIR=
   variable. However, if the bash completions files are not installed in the
   default completion path, i.e. =/usr/share/bash-completion/completions= on
   GNU/Linux, you have to make sure the RTags bash completion file gets
