@@ -94,6 +94,7 @@ public:
         JSON,
         JobCount,
         KindFilter,
+        LastIndexed,
         ListBuffers,
         ListCursorKinds,
         ListSymbols,

@@ -75,6 +75,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::Status, "status", 's', CommandLineParser::Optional, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { RClient::Diagnose, "diagnose", 0, CommandLineParser::Required, "Resend diagnostics for file." },
     { RClient::DiagnoseAll, "diagnose-all", 0, CommandLineParser::NoValue, "Resend diagnostics for all files." },
+    { RClient::LastIndexed, "last-indexed", 0, CommandLineParser::NoValue, "Get timestamp of the last time indexing completed for the current project." },
     { RClient::IsIndexed, "is-indexed", 'T', CommandLineParser::Required, "Check if rtags knows about, and is ready to return information about, this source file." },
     { RClient::IsIndexing, "is-indexing", 0, CommandLineParser::NoValue, "Check if rtags is currently indexing files." },
     { RClient::HasFileManager, "has-filemanager", 0, CommandLineParser::Optional, "Check if rtags has info about files in this directory." },
@@ -1127,6 +1128,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case IsIndexing: {
             addQuery(QueryMessage::IsIndexing);
+            break; }
+        case LastIndexed: {
+            addQuery(QueryMessage::LastIndexed);
             break; }
         case NoSortReferencesByInput: {
             mQueryFlags |= QueryMessage::NoSortReferencesByInput;

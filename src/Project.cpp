@@ -259,7 +259,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 
 Project::Project(const Path &path)
     : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0), mBytesWritten(0), mSaveDirty(false)
+      mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(0)), mBytesWritten(0), mSaveDirty(false)
 {
     mProjectFilePath = mProjectDataDir + "project";
     mSourcesFilePath = mProjectDataDir + "sources";
@@ -810,6 +810,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     }
 
     if (mActiveJobs.isEmpty()) {
+        mLastIdleTime = time(0);
         save();
         double timerElapsed = (mTimer.elapsed() / 1000.0);
         const double averageJobTime = timerElapsed / mJobsStarted;
