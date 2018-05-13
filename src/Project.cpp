@@ -1354,6 +1354,9 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
                 //     error() << "continuing";
                 continue;
             }
+            if (it.second.flags & Diagnostic::Skipped) {
+                continue;
+            }
 
             const uint32_t f = it.first.fileId();
             if (lastFileId != f) {
