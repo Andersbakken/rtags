@@ -705,6 +705,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::IsIndexing:
         isIndexing(message, conn);
         break;
+    case QueryMessage::LastIndexed:
+        lastIndexed(message, conn);
+        break;
     case QueryMessage::RemoveFile:
         removeFile(message, conn);
         break;
@@ -854,6 +857,24 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
     } else {
         conn->finish(RTags::GeneralFailure);
     }
+}
+
+void Server::lastIndexed(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    // Path path = query->path();
+    const Match match = query->match();
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
+
+    if (!project) {
+        error("No project");
+        conn->finish();
+        return;
+    }
+
+    conn->write<128>("%ld", project->lastIdleTime());
+    conn->finish();
 }
 
 void Server::isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)

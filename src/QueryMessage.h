@@ -54,6 +54,7 @@ public:
         IsIndexed,
         IsIndexing,
         JobCount,
+        LastIndexed,
         ListSymbols,
         PreprocessFile,
         Project,

@@ -218,6 +218,7 @@ public:
     void clearWatch(Flags<WatchMode> mode);
     Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
 
+    time_t lastIdleTime() const { return mLastIdleTime; }
     bool isIndexing() const { return !mActiveJobs.isEmpty(); }
     void onFileAdded(const Path &path);
     void onFileModified(const Path &path);
@@ -436,6 +437,8 @@ private:
 
     Hash<uint32_t, Path> mVisitedFiles;
     int mJobCounter, mJobsStarted;
+
+    time_t mLastIdleTime;
 
     Diagnostics mDiagnostics;
 
