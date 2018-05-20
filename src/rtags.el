@@ -4003,6 +4003,57 @@ other window instead of the current one."
           (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match "--no-context" "--absolute-path") (buffer-string)))
         (message "RTags: No symbols")))))
 
+;;;###autoload
+(defun rtags-flatten (x)
+  (cond ((null x) nil)
+    ((listp x) (append (rtags-flatten (car x)) (rtags-flatten (cdr x))))
+    (t (list x))))
+
+;;;###autoload
+(defun rtags-create-index-function ()
+  (interactive)
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+    (rtags-delete-rtags-windows)
+    (rtags-location-stack-push)
+    (let* ((fn (rtags-buffer-file-name))
+           (alternatives (with-temp-buffer
+                           (rtags-call-rc :path fn :path-filter fn
+                                          "--kind-filter" rtags-imenu-kind-filter
+                                          (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                                          "--list-symbols"
+                                            "--elisp")
+                           (eval (read (buffer-string)))))
+           (arguments (rtags-flatten (mapcar (lambda (x) (list "-F" x)) alternatives)))
+           ;; RDB won't return the queries in a correlated order, so we ask for display-names
+           (rdblists (with-temp-buffer (apply 'rtags-call-rc
+                                               (rtags-flatten (list :path-filter fn
+                                                                    :path fn  "--no-context"
+                                                                    "--display-name"
+                                                                    "--absolute-path" arguments)))
+                                       ;; Break into pairs of name and location
+                                       (mapcar (lambda (x) (split-string x "\t" t))
+					       (split-string (buffer-string) "\n" t))))
+           ;; Break up the locations so we can sort on line numbers
+           (sortable (mapcar (lambda (x) (cons (cadr x)
+                               (split-string (car x) ":" t)))
+                             rdblists))
+           (sorted (sort sortable (lambda (x y)
+                                    (cond ((= (string-to-number (caddr x)) (string-to-number (caddr y)))
+                                           (< (string-to-number (cadddr x)) (string-to-number (cadddr y))))
+                                          (t (< (string-to-number (caddr x)) (string-to-number (caddr y))))))))
+           ;; Combine location pieces back into a string
+           (alists (mapcar (lambda (x) (cons (car x) (mapconcat 'identity (cdr x) ":"))) sorted)))
+      ;; Return the sorted pairs of name and location.
+      alists)))
+
+;;;###autoload
+(defun rtags-activate-imenu ()
+  "Overrides imenu index generation function for the current function."
+  (interactive)
+  (setq-local imenu-create-index-function 'rtags-create-index-function)
+  (setq-local imenu-default-goto-function (lambda (_name position &rest rest)
+					    (rtags-goto-location position))))
+
 (defun rtags-append (txt)
   (goto-char (point-min))
   (while (< (point-at-eol) (point-max))
