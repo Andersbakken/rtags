@@ -4004,17 +4004,18 @@ other window instead of the current one."
         (message "RTags: No symbols")))))
 
 ;;;###autoload
-(defun rtags-flatten (x)
-  (cond ((null x) nil)
-    ((listp x) (append (rtags-flatten (car x)) (rtags-flatten (cdr x))))
-    (t (list x))))
+(defun rtags-flatten-max-depth-one (unflattened)
+  (cl-reduce (lambda (x y)
+			   (cond ((and (listp x) (listp y)) (append x y))
+				 ((listp x) (append x (list y)))
+				 ((listp y) (append (list x) y))
+				 (t (append (list x) (list y))))) unflattened :initial-value '()))
 
 ;;;###autoload
 (defun rtags-create-index-function ()
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (rtags-delete-rtags-windows)
-    (rtags-location-stack-push)
     (let* ((fn (rtags-buffer-file-name))
            (alternatives (with-temp-buffer
                            (rtags-call-rc :path fn :path-filter fn
@@ -4023,10 +4024,10 @@ other window instead of the current one."
                                           "--list-symbols"
                                             "--elisp")
                            (eval (read (buffer-string)))))
-           (arguments (rtags-flatten (mapcar (lambda (x) (list "-F" x)) alternatives)))
+           (arguments (rtags-flatten-max-depth-one (mapcar (lambda (x) (list "-F" x)) alternatives)))
            ;; RDB won't return the queries in a correlated order, so we ask for display-names
            (rdblists (with-temp-buffer (apply 'rtags-call-rc
-                                               (rtags-flatten (list :path-filter fn
+                                               (rtags-flatten-max-depth-one (list :path-filter fn
                                                                     :path fn  "--no-context"
                                                                     "--display-name"
                                                                     "--absolute-path" arguments)))
