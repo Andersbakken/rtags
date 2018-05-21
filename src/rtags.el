@@ -1138,11 +1138,11 @@ to case differences."
 
 (defun rtags-remove-keyword-params (seq)
   (when seq
-    (let ((head (car seq))
-          (tail (cdr seq)))
-      (if (keywordp head)
-          (rtags-remove-keyword-params (cdr tail))
-        (cons head (rtags-remove-keyword-params tail))))))
+      (cl-reduce (lambda (left right)
+         (cond ((and left (keywordp (car left))) (cdr left)) ; If we've remembered a keyword, ignore next
+         ((keywordp right) (cons right left)) ; Remember keywords we encounter.
+         (t (append left (list right))))) ; else build the list
+         seq :initial-value '())))
 
 (defun rtags-combine-strings (list)
   (mapconcat (lambda (str)
@@ -4031,7 +4031,7 @@ other window instead of the current one."
                                                                     :path fn  "--no-context"
                                                                     "--display-name"
                                                                     "--absolute-path" arguments)))
-                                       ;; Break into pairs of name and location
+                       ;; Break into pairs of name and location
                                        (mapcar (lambda (x) (split-string x "\t" t))
 					       (split-string (buffer-string) "\n" t))))
            ;; Break up the locations so we can sort on line numbers
