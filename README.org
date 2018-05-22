@@ -1204,14 +1204,13 @@ other formats etc), just drop us a note.
 
 * Unit tests
   There are some unit tests available both in rtags/automated_tests
-  and in rtags/src/rct/tests. These can be run by cmake'ing RTags like
-  this:
+  and in rtags/src/rct/tests. To enable the tests run cmake like this.
 
   #+begin_src sh
-  cmake -DBUILD_TESTS=1
+  cmake -DBUILD_TESTING=1
   #+end_src
 
-  and run like this:
+  After that you can run the tests calling make with the target =test=.
   #+begin_src sh
   make test
   #+end_src

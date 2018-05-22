@@ -6,7 +6,7 @@ set(RTAGS_VERSION_DATABASE 125)
 set(RTAGS_VERSION_SOURCES_FILE 14)
 set(RTAGS_VERSION ${RTAGS_VERSION_MAJOR}.${RTAGS_VERSION_MINOR}.${RTAGS_VERSION_DATABASE})
 
-set(RCT_WITH_TESTS ${BUILD_TESTS})
+set(RCT_WITH_TESTS ${BUILD_TESTING})
 
 set(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
@@ -73,24 +73,26 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
     set(CPACK_SOURCE_GENERATOR ${CPACK_GENERATOR})
 
     set(CPACK_SOURCE_IGNORE_FILES
-      "~$"
-      "\\\\.gitignore$"
-      "\\\\.gitmodules$"
-      "^${PROJECT_SOURCE_DIR}/.git/"
-      "^${PROJECT_SOURCE_DIR}/build/"
-      )
+        "~$"
+        "\\\\.gitignore$"
+        "\\\\.gitmodules$"
+        "^${PROJECT_SOURCE_DIR}/.git/"
+        "^${PROJECT_SOURCE_DIR}/build/"
+        )
 
     include(CPack)
 endif ()
 
 include(CTest)
 
-if (BUILD_TESTS)
+if (BUILD_TESTING)
     add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${CMAKE_BINARY_DIR}/bin")
-    add_test(NAME rct_tests WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/src/rct/tests/" COMMAND "${CMAKE_BINARY_DIR}/src/rct/tests/rct_tests")
     find_program(NOSETEST NAMES nosetests nosetests-2.7 PATHS "$ENV{HOME}/.local/bin")
     if (NOSETEST)
-        add_test(nosetests ${NOSETEST} -w ${CMAKE_SOURCE_DIR} -v)
+        # strace -ff
+        add_test(nosetests ${NOSETEST} -w ${CMAKE_SOURCE_DIR}/automated_tests --no-byte-compile -v --nocapture)
+    else()
+        message(WARNING "Nosetests executable not found! Excluding automated_tests from tests!")
     endif ()
 endif ()
 

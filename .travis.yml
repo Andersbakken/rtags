@@ -11,11 +11,8 @@ addons:
         sources:
             - ubuntu-toolchain-r-test
         packages:
-            - g++-4.8
-            - gnupg
-            - llvm
-            - build-essential
-            - emacs
+            - g++-4.9
+            - python3-pip
             - libcppunit-dev
 
 git:
@@ -26,7 +23,7 @@ matrix:
         - os: linux
           compiler: g++
           dist: trusty
-          env: T=g++-linux COMPILER_VERSION=4.8
+          env: T=g++-linux COMPILER_VERSION=-4.9
         - os: osx
           compiler: clang
           env: T=clang-osx
@@ -34,5 +31,6 @@ matrix:
 branches:
     only:
         - master
+        - develop
 
 script: ./scripts/travis.sh

@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 # coding=utf-8
 #
-# Assuming that the bins are in build/bin, run with
+# Python 2 and 3 compatible.
 #
-#     PATH=$(pwd)/build/bin:$PATH nosetests
+# Assuming that the RTags binaries are in build/bin, run with:
+#
+#   PATH=$(pwd)/build/bin:$PATH nosetests --no-byte-compile
+#
+# Run nosetest with --nocapture flag to see print output
 #
 # into the project folder.
 #
+from __future__ import print_function
 import os
 import sys
 import json
+import time
 import subprocess as sp
 from hamcrest import assert_that, has_length, has_item
 
@@ -19,15 +25,19 @@ socket_file = "/var/tmp/rdm_dev"
 
 
 def create_compile_commands(test_dir, test_files):
+    """
+    Create dict of compile commands
+    """
     return [dict(directory=os.path.abspath(test_dir), file=test_file,
                  command="clang++ -std=c++11 -I. -c %s" % os.path.join(test_dir, test_file))
             for test_file in (src_file for src_file in test_files
                               if src_file.endswith('.cpp'))]
 
 
-def read_locations(project_dir, lines):
+def read_locations(test_dir, lines):
+    lines = lines.decode()
     lines = [line.split(":") for line in lines.split("\n") if len(line) > 0]
-    return [Location(os.path.join(project_dir, line[0]), line[1], line[2]) for line in lines]
+    return [Location(os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
 
 
 class Location:
@@ -56,49 +66,59 @@ def run_rc(args):
     return sp.check_output(args)
 
 
-def wait_for(p, match):
-    while p.poll() is None:
-        l = p.stdout.readline()  # This blocks until it receives a newline.
-        print l
-        if match in l:
-            break
-
-
-def run(rdm, project_dir, test_dir, test_files, rc_command, expected_locations):
-    print 'running test'
+def run(rdm, test_dir, test_files, rc_command, expected_locations):
+    """
+    Run test
+    """
     actual_locations = \
-        read_locations(project_dir,
+        read_locations(test_dir,
                        run_rc([c.format(test_dir) for c in rc_command]))
     # Compare that we have the same results in length and content
     assert_that(actual_locations, has_length(len(expected_locations)))
-    print 'checking location'
     for expected_location_string in expected_locations:
         expected_location = Location.from_str(expected_location_string.format(test_dir))
         assert_that(actual_locations, has_item(expected_location))
 
+
 def setup_rdm(test_dir, test_files):
+    """
+    Start rdm and parse the test files.
+    """
     rdm = sp.Popen(["rdm", "-n", socket_file, "-d", "~/.rtags_dev", "-o", "-B", "-C", "--log-flush" ],
                    stdout=sp.PIPE, stderr=sp.STDOUT)
-    wait_for(rdm, "Includepaths")
-
     compile_commands = create_compile_commands(test_dir, test_files)
+
+    # Wait for rdm
+    for _ in range(10):
+        try:
+            print(run_rc(["-w"]))
+            break
+        except sp.CalledProcessError:
+            time.sleep(0.01)
+            pass
+
+    # Parse the test files
     for c in compile_commands:
-        run_rc(["-c", c['command']])
-        wait_for(rdm, "Jobs took")
+        run_rc(["--project-root", test_dir, "-c", c['command']])
+        print(run_rc(["-w"]))
+        while True:
+            try:
+                run_rc(["--is-indexing"])
+                break
+            except sp.CalledProcessError:
+                time.sleep(0.01)
     return rdm
+
 
 def test_generator():
     base_test_dir = os.path.dirname(os.path.abspath(__file__))
-    project_dir = os.path.abspath(os.path.join(base_test_dir, os.path.pardir))
     for test_dir, _, test_files in tuple(os.walk(base_test_dir))[1:]:
-        print 'Test directory:',test_dir
-        print 'Test files:',test_files
-        if "ForwardDeclaration" in test_dir:
-          continue
+        if "__pycache__" in test_dir or "ForwardDeclaration" in test_dir:
+            continue
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
         for e in expectations:
             test_generator.__name__ = os.path.basename(test_dir)
-            yield run, rdm, project_dir, test_dir, test_files, e["rc-command"], e["expectation"]
+            yield run, rdm, test_dir, test_files, e["rc-command"], e["expectation"]
         rdm.terminate()
         rdm.wait()

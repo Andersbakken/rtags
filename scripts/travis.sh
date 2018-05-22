@@ -25,24 +25,13 @@
 #  - LUA_VERSION (default value is "5.3.2")
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
-declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX-$COMPILER_VERSION"
-                         "-DRTAGS_NO_INSTALL=1"
-                         "-DBUILD_TESTS=1"
-                         "-DCMAKE_C_COMPILER=$CC-$COMPILER_VERSION")
+declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
+                         "-DBUILD_TESTING=1"
+                         "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION")
+
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
 fi
-
-if [ $TRAVIS_OS_NAME = osx ]; then
-    TRAVIS_OS_NAME=mac$TRAVIS_OS_NAME
-    brew install llvm cmake python yarn
-else
-    apt-cache search llvm
-    apt-cache search clang
-fi
-
-pip install --user --upgrade nose
-pip install --user --upgrade PyHamcrest
 
 LUA_DISABLE=${LUA_DISABLE:-""}
 if [ ! $LUA_DISABLE ]; then
@@ -52,11 +41,59 @@ else
     echo "Running build without Lua extension."
 fi # end ! $LUA_DISABLE
 
-echo "Using compilers $CXX-$COMPILER_VERSION and $CC-$COMPILER_VERSION."
-mkdir build && pushd build > /dev/null
-cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
-make VERBOSE=1 -j2
+function build()
+{
+    mkdir build && pushd build > /dev/null
+    cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
+    make VERBOSE=1 -j2
+}
 
-PATH=$(pwd)/bin:$PATH
-popd > /dev/null
-make test
+# All arguments will be passed on to ctest
+function run_tests()
+{
+    PATH=$(pwd)/bin:$PATH
+    ctest --output-on-failure --verbose $@
+}
+
+function osx()
+{
+    ## Step -- Setup
+    brew update
+    brew install llvm yarn cppunit
+    brew upgrade python3
+    python3 -m pip install --upgrade pip
+    pip3 install --user --upgrade nose PyHamcrest
+    # Add nosetest bin dir to the env path var
+    PATH=$PATH:/Users/travis/Library/Python/3.6/bin
+
+    ## Step -- Build
+    build
+
+    ## Step -- Test
+    run_tests -E nose
+    /Users/travis/Library/Python/3.6/bin/nosetests -w /Users/travis/build/Andersbakken/rtags/automated_tests --no-byte-compile -v --nocapture
+}
+
+function gnu_linux()
+{
+    ## Step -- Setup
+    pip3 install --user --upgrade nose PyHamcrest
+
+    ## Step -- Build
+    build
+
+    ## Step -- Test
+    run_tests -E nose
+    rdm &
+    sleep 5
+    rc -q
+    /home/travis/.local/bin/nosetests -w /home/travis/build/Andersbakken/rtags/automated_tests --no-byte-compile -v --nocapture
+}
+
+if [ $TRAVIS_OS_NAME = osx ]; then
+    osx
+else
+    gnu_linux
+fi
+
+exit 0
