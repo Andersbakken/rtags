@@ -1161,11 +1161,9 @@ to case differences."
   "Returns vector to uniquely define sandbox the path belongs to.
 Each host, the emacs is currently connected can be understood as separate sandbox.
 nil identifies the local (non-tramp)"
-  (if (not (tramp-tramp-file-p path))
-      nil
-    (let ((path-vec (tramp-dissect-file-name path)))
-      (aset path-vec 3 nil)
-      path-vec)))
+  (when (file-remote-p path)
+    (with-parsed-tramp-file-name path nil
+      (format "%s@%s" user host))))
 
 (defun rtags-sandbox-id-matches ()
   "Returns true if current buffer is within *current* sandbox.
@@ -1190,10 +1188,10 @@ Additionally for debugging purposes this method handles `rtags-tramp-enabled` fu
                        (when (y-or-n-p (format "RTags sandbox mismatch! %s: %s; rtags: %s. Change sandbox?: "
                                                buf-name
                                                (if current-buff-sandbox-id
-                                                   (apply 'tramp-make-tramp-file-name (append current-buff-sandbox-id nil))
+                                                   current-buff-sandbox-id
                                                  "local")
                                                (if sandbox-id
-                                                   (apply 'tramp-make-tramp-file-name (append sandbox-id nil))
+                                                   sandbox-id
                                                  "local")))
                          (setq diag-start t)))
                       ((eq rtags-buffer-follows-sandbox-id-match nil)
@@ -1234,8 +1232,12 @@ absolute-location to remote. absolute-location can of course be a path"
           (tramp-tramp-file-p absolute-location))
       absolute-location
     (let ((location-vec (tramp-dissect-file-name default-directory)))
-      (aset location-vec 3 absolute-location)
-      (apply 'tramp-make-tramp-file-name (append location-vec nil)))))
+      (if (arrayp location-vec)
+	  (progn
+	    (aset location-vec 3 absolute-location)
+	  (apply 'tramp-make-tramp-file-name (append location-vec nil)))
+	(setf (tramp-file-name-localname location-vec) absolute-location)
+	(tramp-make-tramp-file-name location-vec)))))
 
 (defun rtags-untrampify (location)
   "Gets path segment from tramp path. For non-tramp location just return
