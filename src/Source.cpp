@@ -113,7 +113,7 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
 
 static bool isWrapper(const char *name)
 {
-    return (!strcmp(name, "gcc-rtags-wrapper.sh") || !strcmp(name, "icecc"));
+    return (!strcmp(name, "gcc-rtags-wrapper.sh") || !strcmp(name, "icecc") || !strcmp(name, "fiskc"));
 }
 
 static inline String trim(const char *start, int size)
@@ -448,7 +448,38 @@ SourceList Source::parse(const String &cmdLine,
     assert(cwd.endsWith('/'));
     assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
     List<String> split = splitCommandLine(cmdLine);
+    if (split.isEmpty())
+        return SourceList();
+
     debug() << "Source::parse (" << cmdLine << ") => " << split << cwd;
+    if (split.at(0).endsWith("/fiskc") || split.at(0) == "fiskc") {
+        String compiler;
+        split.removeAt(0);
+        size_t i=0;
+        while (i < split.size()) {
+            String &str = split[i];
+            if (str.startsWith("--fisk-compiler")) {
+                if (str.contains("=")) {
+                    compiler = str.mid(16);
+                    split.removeAt(i);
+                } else if (i + 1 < split.size()) {
+                    compiler = std::move(split[i + 1]);
+                    split.remove(i, 2);
+                }
+            } else if (str.startsWith("--fisk-")) {
+                if (str.contains("=")) {
+                    split.removeAt(i);
+                } else {
+                    split.remove(i, 2);
+                }
+            } else {
+                ++i;
+            }
+        }
+        if (!compiler.isEmpty())
+            split.insert(0, compiler);
+        debug() << "Postfisk Source::parse (" << split;
+    }
 
     for (size_t i=0; i<split.size(); ++i) {
         if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.isEmpty()) {
