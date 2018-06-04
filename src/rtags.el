@@ -5076,22 +5076,27 @@ the class.
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((filename (rtags-untrampify (rtags-buffer-file-name)))
-          (rc (rtags-executable-find "rc")))
+          (rc (rtags-executable-find "rc"))
+          (rtags-buffer-name "*RTags check includes*")
+          (arguments))
+      (setq arguments (mapcar (lambda (a) (concat a filename)) '("--current-file=" "--check-includes=")))
       (unless rc
         (rtags--error 'rtags-cannot-find-rc))
       (unless filename
         (rtags--error 'rtags-you-need-to-call-rtags-check-includes-from-an-actual-file))
-      (rtags-switch-to-buffer (rtags-get-buffer "*RTags check includes*"))
+      (rtags-switch-to-buffer (rtags-get-buffer rtags-buffer-name))
       (rtags-mode)
       (set (make-local-variable 'rtags-check-includes-received-output) nil)
       (let ((buffer-read-only nil))
         (insert "Waiting for rdm..."))
       (goto-char (point-min))
-      (let ((proc (start-file-process "*RTags check includes*"
-                                      (current-buffer)
-                                      rc
-                                      "--current-file" filename
-                                      "--check-includes" filename)))
+      (when (> (length rtags-socket-file) 0)
+        (push (rtags--get-socket-file-switch) arguments))
+      (let ((proc (apply #'start-file-process
+                         rtags-buffer-name
+                         (current-buffer)
+                         rc
+                         arguments)))
         (set-process-query-on-exit-flag proc nil)
         (set-process-filter proc 'rtags-check-includes-filter)
         (set-process-sentinel proc 'rtags-check-includes-sentinel)))))
