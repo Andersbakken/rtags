@@ -516,6 +516,24 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
         }
     }
 
+    if (flags & IncludeStructSizeof && Symbol::isClass(kind)) {
+        const long long size = clang_Type_getSizeOf(clang_getCursorType(cursor));
+        switch (size) {
+        case CXTypeLayoutError_Invalid:
+            // ret += " (sizeof: invalid)";
+            break;
+        case CXTypeLayoutError_Incomplete:
+            ret += " (sizeof: incomplete)";
+            break;
+        case CXTypeLayoutError_Dependent:
+            ret += " (sizeof: dependent)";
+            break;
+        default:
+            ret += String::format(" (sizeof: %lld)", size);
+            break;
+        }
+    }
+
     CXString file;
     unsigned int line, col;
     for (int pieceIndex = 0; true; ++pieceIndex) {

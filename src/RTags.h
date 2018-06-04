@@ -142,7 +142,8 @@ enum CursorToStringFlags {
     IncludeRange = 0x2,
     DefaultCursorToStringFlags = IncludeRange,
     IncludeSpecializedUsr = 0x4,
-    AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr
+    IncludeStructSizeof = 0x8,
+    AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr|IncludeStructSizeof
 };
 RCT_FLAGS(CursorToStringFlags);
 String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCursorToStringFlags);
