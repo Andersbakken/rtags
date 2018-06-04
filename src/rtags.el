@@ -148,9 +148,10 @@
 (defcustom rtags-completing-read-behavior 'insert-default
   "Behavior for completing-read"
   :group 'rtags
-  :type '(choice (const :tag "insert default" insert-default)
-                 (const :tag "default when empty" default-when-empty)
-                 (const :tag "insert default and mark it" insert-default-marked)))
+  :type '(choice
+          (const :tag "insert default" insert-default)
+          (const :tag "default when empty" default-when-empty)
+          (const :tag "insert default and mark it" insert-default-marked)))
 
 (rtags-set-suspend-during-compilation-enabled)
 
@@ -470,10 +471,11 @@ on intervals."
 (defcustom rtags-bury-buffer-function 'rtags-bury-or-delete
   "The function used to bury or kill the current rtags buffer."
   :group 'rtags
-  :type '(radio (function-item rtags-bury-or-delete)
-                (function-item quit-window)
-                (function-item bury-buffer)
-                (function :tag "Function")))
+  :type '(radio
+          (function-item rtags-bury-or-delete)
+          (function-item quit-window)
+          (function-item bury-buffer)
+          (function :tag "Function")))
 
 (defcustom rtags-after-find-file-hook nil
   "Run after RTags has jumped to a location possibly in a new file."
@@ -634,9 +636,10 @@ Note: If *RTags Diagnostics* is not running, then the 'match check'
       is not performed, because sandbox tracking is not needed then.
 Note: It is recommended to run each sandbox is separate Emacs process."
   :group 'rtags
-  :type '(choice (const :tag "Perform query without update" nil)
-                 (const :tag "Ask the user" ask)
-                 (const :tag "Change sandbox and do command" t))
+  :type '(choice
+          (const :tag "Perform query without update" nil)
+          (const :tag "Ask the user" ask)
+          (const :tag "Change sandbox and do command" t))
   :safe 'symbolp)
 
 (defcustom rtags-includes-func 'rtags-dummy-includes-func
@@ -670,9 +673,10 @@ Note: It is recommended to run each sandbox is separate Emacs process."
 
 (defcustom rtags-display-result-backend 'default
   "Method to use to display RTags results, like references."
-  :type '(choice (const :tag "RTags (default)" default)
-                 (const :tag "Helm" helm)
-                 (const :tag "Ivy" ivy))
+  :type '(choice
+          (const :tag "RTags (default)" default)
+          (const :tag "Helm" helm)
+          (const :tag "Ivy" ivy))
   :group 'rtags
   :type 'symbol
   :risky t)
@@ -1509,9 +1513,10 @@ It uses the stored compile command from the RTags database for preprocessing."
 (defcustom rtags-completing-read-behavior 'insert-default-marked
   "Behavior for completing-read"
   :group 'rtags
-  :type '(choice (const :tag "insert default" insert-default)
-                 (const :tag "default when empty" helm)
-                 (const :tag "insert default marked" insert-default-marked))
+  :type '(choice
+          (const :tag "insert default" insert-default)
+          (const :tag "default when empty" helm)
+          (const :tag "insert default marked" insert-default-marked))
   :type 'symbol
   :risky t)
 
