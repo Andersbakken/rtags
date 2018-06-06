@@ -1385,27 +1385,29 @@ to only call this when `rtags-socket-file' is defined.
             ;; synchronous
             (goto-char (point-min))
             (save-excursion
-              (cond ((= result rtags-exit-code-success)
+              (cond ((equal result rtags-exit-code-success)
                      (when rtags-autostart-diagnostics
                        (rtags-diagnostics)))
-                    ((= result rtags-exit-code-connection-failure)
+                    ((equal result rtags-exit-code-connection-failure)
                      (when output
                        (erase-buffer))
                      (setq rtags-last-request-not-connected t)
                      (unless noerror
                        (rtags--error 'rtags-rdm-not-running)))
-                    ((= result rtags-exit-code-protocol-failure)
+                    ((equal result rtags-exit-code-protocol-failure)
                      (when output
                        (erase-buffer))
                      (unless noerror
                        (rtags--error 'rtags-protocol-mismatch)))
-                    ((= result rtags-exit-code-not-indexed)
+                    ((equal result rtags-exit-code-not-indexed)
                      (unless noerror
                        (rtags--message 'rtags-file-not-indexed (or path "buffer")))
                      (erase-buffer)
                      (setq rtags-last-request-not-indexed t))
+                    ((equal result "Aborted")
+                     (rtags--error 'rtags-program-exited-abnormal "rc" result))
                     (t)))) ;; other error
-          (or async (and (> (point-max) (point-min)) (= result rtags-exit-code-success))))))))
+          (or async (and (> (point-max) (point-min)) (equal result rtags-exit-code-success))))))))
 
 (defvar rtags-preprocess-mode-map (make-sparse-keymap))
 (define-key rtags-preprocess-mode-map (kbd "q") 'rtags-call-bury-or-delete)
@@ -5403,6 +5405,8 @@ customize the messages"
          (concat
           "RTags: `rtags-fix-fixit-at-point' requires diagnostics to be running. "
           "Consider setting `rtags-autostart-diagnostics' to t."))
+        ((eq type 'rtags-program-exited-abnormal)
+         "RTags: Program %s exited abnormal %s")
         ))
 
 
