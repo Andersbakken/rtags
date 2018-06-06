@@ -1,7 +1,6 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-
 ---
 
 **Describe the bug**
@@ -17,12 +16,12 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Screenshots/Backtrace**
+If applicable, add screenshots or/and a backtrace.
 
 **Environment (please complete the following information):**
- - OS/Version: [e.g. iOS/Fedora 26/Ubuntu]
- - RTags(rdm,rc): [e.g. 2.18]
+ - OS/Version: [e.g. iOS; Fedora 26; Ubuntu]
+ - RTags(rdm,rc): [e.g. 2.18 or/and revision]
  - Emacs: [e.g. 24.5]
  - LLVM/Clang: [e.g. 4.3]
 
