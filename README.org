@@ -85,7 +85,7 @@ There are a few prerequisites you need to have in order to build RTags
   features (such as RTags itself). Alternatively you can grab the sources from
   [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 
-- =GCC/Clang= >= 4.7/3.2
+- =GCC/Clang= >= 4.9/3.2
 
   A modern compiler to build RTags. RTags makes extensive use of C++11
   features such as variadic templates and threading utility classes from the
@@ -98,7 +98,7 @@ There are a few prerequisites you need to have in order to build RTags
 - =emacs= >= 24.3 is recommended
 
   RTags might very well work with much older =emacs= versions but the oldest
-  version we have tested with is 23.4.1. There's no particular effort made to
+  version we have tested with is 24.3. There's no particular effort made to
   support older versions, but patches that make it work are welcome. Having
   said that, completion ([[https://github.com/auto-complete/auto-complete][ac]], [[https://github.com/company-mode/company-mode][company]]) as well as [[https://github.com/flycheck/flycheck][Flycheck]] integration only
   works, and has been tested with =emacs= >= 24.3.
@@ -340,9 +340,6 @@ In that case you need to do this:
 #+BEGIN_SRC sh
 ninja llvmclang && ninja && ninja install
 #+END_SRC
-
-RTags uses C++11 features, and requires a relatively new compiler. GCC
-version >= 4.8 or clang >= 3.2 should work.
 
 * Setup
 
