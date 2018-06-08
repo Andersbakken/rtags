@@ -103,7 +103,9 @@ String decodeUrlComponent(const String &str)
 
 void encodePath(Path &path)
 {
-    Sandbox::encode(path);
+    if (Sandbox::encode(path))
+        return;
+    
     path = encodeUrlComponent(path);
 }
 
