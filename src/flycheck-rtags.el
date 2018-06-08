@@ -81,7 +81,7 @@ CHECKER is the syntax checker used to parse BUFFER."
         (goto-char (point-min))
         (while (search-forward-regexp rx nil t)
           (let ((line (string-to-number (match-string-no-properties 2)))
-                (column (string-to-number (match-string-no-properties 3)))
+                (column (1- (string-to-number (match-string-no-properties 3))))
                 (severity (match-string-no-properties 4))
                 (text (match-string-no-properties 5)))
             (when (member severity '("warning" "error" "fixit"))
