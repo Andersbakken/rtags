@@ -70,8 +70,7 @@ function osx()
     build
 
     ## Step -- Test
-    run_tests -E nose
-    /Users/travis/Library/Python/3.6/bin/nosetests -w /Users/travis/build/Andersbakken/rtags/automated_tests --no-byte-compile -v --nocapture
+    run_tests
 }
 
 function gnu_linux()
@@ -83,11 +82,7 @@ function gnu_linux()
     build
 
     ## Step -- Test
-    run_tests -E nose
-    rdm &
-    sleep 5
-    rc -q
-    /home/travis/.local/bin/nosetests -w /home/travis/build/Andersbakken/rtags/automated_tests --no-byte-compile -v --nocapture
+    run_tests
 }
 
 if [ $TRAVIS_OS_NAME = osx ]; then

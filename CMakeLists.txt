@@ -89,7 +89,6 @@ if (BUILD_TESTING)
     add_test(SBRootTest perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl" "${CMAKE_BINARY_DIR}/bin")
     find_program(NOSETEST NAMES nosetests nosetests-2.7 PATHS "$ENV{HOME}/.local/bin")
     if (NOSETEST)
-        # strace -ff
         add_test(nosetests ${NOSETEST} -w ${CMAKE_SOURCE_DIR}/automated_tests --no-byte-compile -v --nocapture)
     else()
         message(WARNING "Nosetests executable not found! Excluding automated_tests from tests!")
