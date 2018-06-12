@@ -64,8 +64,8 @@ while [ -n "$1" ]; do
         --build-clang)
             BUILD=1
             ;;
-        --build-tests)
-            CMAKE_ARGS="${CMAKE_ARGS} -DBUILD_TESTS=1"
+        --without-tests)
+            CMAKE_ARGS="${CMAKE_ARGS} -DBUILD_TESTING=0"
             ;;
         --no-install)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_INSTALL=1"
