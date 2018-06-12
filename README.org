@@ -85,7 +85,7 @@ There are a few prerequisites you need to have in order to build RTags
   features (such as RTags itself). Alternatively you can grab the sources from
   [[http://llvm.org/releases/download.html][llvm.org]] and build it yourself.
 
-- =GCC/Clang= >= 4.9/3.2
+- =GCC/Clang= >= 4.9/3.3
 
   A modern compiler to build RTags. RTags makes extensive use of C++11
   features such as variadic templates and threading utility classes from the

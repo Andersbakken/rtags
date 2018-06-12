@@ -81,17 +81,40 @@ int main()
 }
 ")
     include(CheckCXXSourceCompiles)
-    set(CMAKE_OLD_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS})
-    set(CMAKE_OLD_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
     set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} ${CMAKE_CXX_FLAGS} ${LIBCLANG_CXXFLAGS})
     set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES} ${LIBCLANG_LIBRARIES})
     check_cxx_source_compiles("${LIBCLANG_COMPILE_TEST}" LIBCLANG_COMPILES)
     if (NOT LIBCLANG_COMPILES)
         message(FATAL_ERROR "Failed to compile small clang test app.\nIt's likely that the include file <clang-c/Index.h> could not be found!\nMaybe you need to install the clang development package?\nSee CMakeFiles/CMakeError.log for more info.")
     endif ()
-    set(CMAKE_REQUIRED_FLAGS ${CMAKE_OLD_REQUIRED_FLAGS})
-    set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_OLD_REQUIRED_LIBRARIES})
+    unset(CMAKE_REQUIRED_FLAGS)
+    unset(CMAKE_REQUIRED_LIBRARIES)
+    unset(LIBCLANG_COMPILES)
 endif ()
+
+set(CXX_11_EXTENDED_REGEX_TEST "
+#include <regex>
+
+int main()
+{
+  try {
+    std::regex rx(\"^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?\", std::regex_constants::extended);
+  } catch (std::regex_error& e) {
+    return -1;
+  }
+
+  return 0;
+}
+")
+include(CheckCXXSourceRuns)
+set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} "-std=c++11" ${CMAKE_CXX_FLAGS} ${LIBCLANG_CXXFLAGS})
+check_cxx_source_runs("${CXX_11_EXTENDED_REGEX_TEST}" CXX_11_EXTENDED_REGEX_SUPPORT)
+if (NOT CXX_11_EXTENDED_REGEX_SUPPORT)
+    message(FATAL_ERROR "Compiler needs complete C++11 support ( >= GCC 4.9 or >= Clang 3.2)")
+endif ()
+unset(CMAKE_REQUIRED_FLAGS)
+unset(CMAKE_REQUIRED_LIBRARIES)
+unset(CXX_11_EXTENDED_REGEX_SUPPORT)
 
 if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
