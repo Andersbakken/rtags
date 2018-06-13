@@ -2703,6 +2703,9 @@ void Project::processParseData(IndexParseData &&data)
     }
     removeSources(removed);
 
+    for (const auto &info : mIndexParseData.compileCommands)
+        watch(Location::path(info.first), Watch_CompileCommands);
+
     for (uint32_t fileId : index) {
         reindex(fileId, IndexerJob::Compile);
     }
