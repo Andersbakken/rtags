@@ -5,12 +5,15 @@
 #
 # Assuming that the RTags binaries are in build/bin, run with:
 #
-#   PATH=$(pwd)/build/bin:$PATH nosetests --no-byte-compile
+# $ RTAGS_BINARY_DIR=$(pwd)/build/bin:$PATH  nosetests --no-byte-compile
 #
 # Run nosetest with --nocapture flag to see print output
 #
-# into the project folder.
-#
+
+"""
+Nose testing script for `automated_testing`.
+"""
+
 from __future__ import print_function
 import os
 import sys
@@ -21,7 +24,14 @@ from hamcrest import assert_that, has_length, has_item
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
-socket_file = "/var/tmp/rdm_dev"
+SOCKET_FILE = "/var/tmp/rdm_dev"
+
+try:
+    RDM = os.path.join(os.environ['RTAGS_BINARY_DIR'], 'rdm')
+    RC = os.path.join(os.environ['RTAGS_BINARY_DIR'], 'rc')
+except KeyError:
+    sys.stderr.write("You need to set RTAGS_BINARY_DIR environment variable.\n")
+    sys.exit(1)
 
 
 def create_compile_commands(test_dir, test_files):
@@ -35,18 +45,28 @@ def create_compile_commands(test_dir, test_files):
 
 
 def read_locations(test_dir, lines):
+    """
+    Read location
+    """
     lines = lines.decode()
     lines = [line.split(":") for line in lines.split("\n") if len(line) > 0]
     return [Location(os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
 
 
 class Location:
+    """
+    Class representing location in file
+    """
     def __init__(self, file, line, col):
         self.file, self.line, self.col = str(file), int(line), int(col)
 
+    # pylint: disable=
     @classmethod
-    def from_str(cls, s):
-        return cls(*s.split(":")[0:3])
+    def from_str(cls, string):
+        """
+        From string.
+        """
+        return cls(*string.split(":")[0:3])
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
@@ -62,11 +82,14 @@ class Location:
 
 
 def run_rc(args):
-    args = ["rc", "--socket-file=" + socket_file] + args
+    """
+    Run rc command.
+    """
+    args = [RC, "--socket-file=" + SOCKET_FILE] + args
     return sp.check_output(args)
 
 
-def run(rdm, test_dir, test_files, rc_command, expected_locations):
+def run(test_dir, rc_command, expected_locations):
     """
     Run test
     """
@@ -84,23 +107,21 @@ def setup_rdm(test_dir, test_files):
     """
     Start rdm and parse the test files.
     """
-    rdm = sp.Popen(["rdm", "-n", socket_file, "-d", "~/.rtags_dev", "-o", "-B", "-C", "--log-flush" ],
-                   stdout=sp.PIPE, stderr=sp.STDOUT)
+    rdm = sp.Popen([RDM, "-n", SOCKET_FILE, "-d", "~/.rtags_dev", "-o", "-B",
+                    "-C", "--log-flush"], stdout=sp.PIPE, stderr=sp.STDOUT)
     compile_commands = create_compile_commands(test_dir, test_files)
 
     # Wait for rdm
     for _ in range(10):
         try:
-            print(run_rc(["-w"]))
+            run_rc(["-w"])
             break
         except sp.CalledProcessError:
             time.sleep(0.01)
-            pass
 
     # Parse the test files
-    for c in compile_commands:
-        run_rc(["--project-root", test_dir, "-c", c['command']])
-        print(run_rc(["-w"]))
+    for unit in compile_commands:
+        run_rc(["--project-root", test_dir, "-c", unit['command']])
         while True:
             try:
                 run_rc(["--is-indexing"])
@@ -110,15 +131,28 @@ def setup_rdm(test_dir, test_files):
     return rdm
 
 
+def setup_module():
+    """
+    Nosetests module setup function.
+    """
+    for exe in [RDM, RC]:
+        if not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
+            raise FileNotFoundError("{} does not exist or is not executable\n".format(exe))
+        return 0
+
+
 def test_generator():
+    """
+    Main nosetests entry point.
+    """
     base_test_dir = os.path.dirname(os.path.abspath(__file__))
     for test_dir, _, test_files in tuple(os.walk(base_test_dir))[1:]:
         if "__pycache__" in test_dir or "ForwardDeclaration" in test_dir:
             continue
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
-        for e in expectations:
-            test_generator.__name__ = os.path.basename(test_dir)
-            yield run, rdm, test_dir, test_files, e["rc-command"], e["expectation"]
+        for exp in expectations:
+            test_generator.__doc__ = os.path.basename(test_dir) + ':' + exp['name']
+            yield run, test_dir, exp["rc-command"], exp["expectation"]
         rdm.terminate()
         rdm.wait()

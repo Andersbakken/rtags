@@ -47,6 +47,10 @@ sandbox no longer exits.
 
     sbroot_test.pl [--no-cleanup] [--no-sandbox-root-check] /path/to/rtags/install/bin
 
+    or
+
+    RTAGS_BINARY_DIR=/path/to/rtags/install/bin sbroot_test.pl [--no-cleanup] [--no-sandbox-root-check]
+
 The exit status will be non-zero if the test fails.
 
 The test driver `sbroot_test.pl` reads the C++ files in the 'mock' sandbox to determine
