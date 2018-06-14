@@ -1,0 +1,5 @@
+[
+    { "name": "Can parse complex vector example unit",
+      "rc-command": ["-w"],
+      "expectation": "{0}" }
+]

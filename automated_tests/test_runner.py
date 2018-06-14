@@ -20,7 +20,7 @@ import sys
 import json
 import time
 import subprocess as sp
-from hamcrest import assert_that, has_length, has_item
+from hamcrest import assert_that, has_length, has_item, empty, is_not
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -41,14 +41,17 @@ def create_compile_commands(test_dir, test_files):
     return [dict(directory=os.path.abspath(test_dir), file=test_file,
                  command="clang++ -std=c++11 -I. -c %s" % os.path.join(test_dir, test_file))
             for test_file in (src_file for src_file in test_files
-                              if src_file.endswith('.cpp'))]
+                              if src_file.endswith('.cpp'))] + \
+                                 [dict(directory=os.path.abspath(test_dir), file=test_file,
+                                       command="clang -std=c11 -I. -c %s" % os.path.join(test_dir, test_file))
+                                  for test_file in (src_file for src_file in test_files
+                                                    if src_file.endswith('.c'))]
 
 
 def read_locations(test_dir, lines):
     """
     Read location
     """
-    lines = lines.decode()
     lines = [line.split(":") for line in lines.split("\n") if len(line) > 0]
     return [Location(os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
 
@@ -86,21 +89,26 @@ def run_rc(args):
     Run rc command.
     """
     args = [RC, "--socket-file=" + SOCKET_FILE] + args
-    return sp.check_output(args)
+    return sp.check_output(args).decode()
 
 
-def run(test_dir, rc_command, expected_locations):
+def run(test_dir, rc_command, expected, test_type):
     """
     Run test
     """
-    actual_locations = \
-        read_locations(test_dir,
-                       run_rc([c.format(test_dir) for c in rc_command]))
-    # Compare that we have the same results in length and content
-    assert_that(actual_locations, has_length(len(expected_locations)))
-    for expected_location_string in expected_locations:
-        expected_location = Location.from_str(expected_location_string.format(test_dir))
-        assert_that(actual_locations, has_item(expected_location))
+    if test_type == "location":
+        actual_locations = \
+            read_locations(test_dir,
+                           run_rc([c.format(test_dir) for c in rc_command]))
+        # Compare that we have the same results in length and content
+        assert_that(actual_locations, has_length(len(expected)))
+        for expected_location_string in expected:
+            expected_location = Location.from_str(expected_location_string.format(test_dir))
+            assert_that(actual_locations, has_item(expected_location))
+    elif test_type == "parse":
+        output = run_rc(rc_command)
+        assert_that(output, is_not(empty()))
+        assert_that(output.split(" "), has_item(expected.format(test_dir + "/")))
 
 
 def setup_rdm(test_dir, test_files):
@@ -110,7 +118,6 @@ def setup_rdm(test_dir, test_files):
     rdm = sp.Popen([RDM, "-n", SOCKET_FILE, "-d", "~/.rtags_dev", "-o", "-B",
                     "-C", "--log-flush"], stdout=sp.PIPE, stderr=sp.STDOUT)
     compile_commands = create_compile_commands(test_dir, test_files)
-
     # Wait for rdm
     for _ in range(10):
         try:
@@ -121,7 +128,7 @@ def setup_rdm(test_dir, test_files):
 
     # Parse the test files
     for unit in compile_commands:
-        run_rc(["--project-root", test_dir, "-c", unit['command']])
+        run_rc(["--project-root", test_dir, "-c", unit["command"]])
         while True:
             try:
                 run_rc(["--is-indexing"])
@@ -152,7 +159,8 @@ def test_generator():
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
         for exp in expectations:
-            test_generator.__doc__ = os.path.basename(test_dir) + ':' + exp['name']
-            yield run, test_dir, exp["rc-command"], exp["expectation"]
+            test_generator.__doc__ = os.path.basename(test_dir) + ':' + exp["name"]
+            yield run, test_dir, exp["rc-command"], exp["expectation"], \
+                "parse" if "Parsing" in test_dir else "location"
         rdm.terminate()
         rdm.wait()
