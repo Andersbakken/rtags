@@ -143,6 +143,7 @@ if (NOT CYGWIN)
 endif ()
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
+    add_compile_options("-Og")
     add_definitions("-DRTAGS_DEBUG")
     set(RCT_EVENTLOOP_CALLBACK_TIME_THRESHOLD 2000)
 endif ()
