@@ -4483,9 +4483,8 @@ definition."
         (let* ((commands (mapcar (lambda (build)
                                    (let ((lines (split-string build "\n" t)))
                                      (cons (combine-and-quote-strings (cdr lines))
-                                           (substring (car lines) 5))))
-                                 (split-string (buffer-string) "(\n)?pwd: " t)))
-               (old-compile-command compile-command)
+                                           (car lines))))
+                                 (split-string (buffer-string) "\\(?:\n\\)?pwd: " t)))
                (command (car commands)))
           (when (cond ((> (length commands) 1)
                        (let ((answer (completing-read "Choose build: " commands)))
@@ -4494,8 +4493,8 @@ definition."
                       ((null commands) (message "RTags doesn't know how to compile this file") nil)
                       (t))
             (cd (cdr command))
-            (compile (car command))
-            (setq compile-command old-compile-command)))))))
+            (let (compile-command)
+              (compile (car command)))))))))
 
 ;;;###autoload
 (defun rtags-recompile-file ()
