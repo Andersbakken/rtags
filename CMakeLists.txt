@@ -95,7 +95,7 @@ if (BUILD_TESTING)
 
     find_program(NOSETEST NAMES nosetests nosetests-2.7 PATHS "$ENV{HOME}/.local/bin")
     if (NOSETEST)
-        add_test(NAME nosetests COMMAND ${NOSETEST} -w ${CMAKE_SOURCE_DIR}/tests/automated_tests --no-byte-compile -v)
+        add_test(NAME nosetests COMMAND ${NOSETEST} -w ${CMAKE_SOURCE_DIR}/tests/automated --no-byte-compile -v)
     else()
         message(WARNING "Nosetests executable not found! Excluding automated_tests from tests.")
     endif ()
