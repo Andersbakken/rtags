@@ -154,7 +154,7 @@ def test_generator():
     """
     base_test_dir = os.path.dirname(os.path.abspath(__file__))
     for test_dir, _, test_files in tuple(os.walk(base_test_dir))[1:]:
-        if "__pycache__" in test_dir or "ForwardDeclaration" in test_dir:
+        if "__pycache__" in test_dir:
             continue
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
