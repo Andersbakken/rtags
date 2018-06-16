@@ -106,7 +106,7 @@ int FindFileJob::execute()
         for (Set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
             const String &key = *it;
             out.append(key);
-            bool ok;
+            bool ok = false;
             switch (mode) {
             case All:
                 ok = true;
