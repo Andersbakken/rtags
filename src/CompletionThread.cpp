@@ -305,7 +305,7 @@ void CompletionThread::process(Request *request)
         completionFlags |= CXCodeComplete_IncludeMacros;
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit->unit, sourceFile.constData(),
-                                                          request->location.line(), request->location.column() - request->prefix.length(),
+                                                          request->location.line(), request->location.column(),
                                                           &unsaved, unsaved.Length ? 1 : 0, completionFlags);
     completeTime = cache->codeCompleteTime = sw.restart();
     LOG() << "Generated" << (results ? results->NumResults : 0) << "completions for" << request->location << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
