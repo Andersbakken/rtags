@@ -88,7 +88,8 @@ CHECKER is the syntax checker used to parse BUFFER."
               (push (flycheck-error-new-at line
                                            column
                                            (pcase severity
-                                             ((or `"fixit" `"warning") 'warning)
+                                             (`"fixit" 'info)
+                                             (`"warning" 'warning)
                                              ((or `"error" `"fatal") 'error))
                                            text
                                            :checker checker
