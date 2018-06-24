@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-if [ -z "$RTAGS_DISABLED" ] && [ -x "$(which rc)" ]; then
+if [ -z "$RTAGS_DISABLED" ] && [ -x "$(command -v rc)" ]; then
     rc --silent --compile "$ICECC_CXX" "$@" &
 fi
 
