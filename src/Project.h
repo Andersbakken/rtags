@@ -304,7 +304,8 @@ private:
     void watchFile(uint32_t fileId);
     enum ValidateMode {
         StatOnly,
-        Validate
+        Validate,
+        ValidateSilent
     };
     bool validate(uint32_t fileId, ValidateMode mode, String *error = 0) const;
     void removeDependencies(uint32_t fileId);

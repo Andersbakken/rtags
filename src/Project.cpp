@@ -2118,7 +2118,7 @@ void Project::dirty(uint32_t fileId)
 
 bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
 {
-    if (mode == Validate) {
+    if (mode == Validate || mode == ValidateSilent) {
         Path path;
         String error;
         const uint32_t opts = fileMapOptions();
@@ -2148,7 +2148,7 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         }
         return true;
   error:
-        if (err)
+        if (err && mode == Validate)
             Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
         return false;
     } else {
@@ -2914,7 +2914,8 @@ void Project::validateAll()
 bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic)
 {
     const uint32_t fileId = diagnostic.first.fileId();
-    auto symbols = openSymbols(fileId);
+    String err;
+    auto symbols = openSymbols(fileId, &err);
     if (!symbols || !symbols->count()) {
         return true;
     }
