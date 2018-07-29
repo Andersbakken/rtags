@@ -349,7 +349,7 @@ int main(int argc, char** argv)
         { Daemon, "daemon", 0, CommandLineParser::NoValue, "Run as daemon (detach from terminal)." },
         { LogFileLogLevel, "log-file-log-level", 0, CommandLineParser::Required, "Log level for log file (default is error), options are: error, warning, debug or verbose-debug." },
         { WatchSourcesOnly, "watch-sources-only", 0, CommandLineParser::NoValue, "Only watch source files (not dependencies)." },
-        { DebugLocations, "debug-locations", 0, CommandLineParser::NoValue, "Set debug locations." },
+        { DebugLocations, "debug-locations", 0, CommandLineParser::Required, "Set debug locations." },
         { ValidateFileMaps, "validate-file-maps", 0, CommandLineParser::NoValue, "Spend some time validating project data on startup." },
         { TcpPort, "tcp-port", 0, CommandLineParser::Required, "Listen on this tcp socket (default none)." },
         { RpPath, "rp-path", 0, CommandLineParser::Required, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
@@ -674,11 +674,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::WatchSourcesOnly;
             break; }
         case DebugLocations: {
-            if (value == "clear" || value == "none") {
-                serverOpts.debugLocations.clear();
-            } else {
-                serverOpts.debugLocations << value;
-            }
+            serverOpts.debugLocations << value;
             break; }
         case ValidateFileMaps: {
             serverOpts.options |= Server::ValidateFileMaps;
