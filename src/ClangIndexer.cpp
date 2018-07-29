@@ -1698,6 +1698,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 35)
     if (!(c.flags & Symbol::Auto)
+        && kind != CXCursor_LambdaExpr
         && c.type != CXType_LValueReference
         && c.type != CXType_RValueReference
         && c.type != CXType_Auto
