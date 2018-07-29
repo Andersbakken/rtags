@@ -544,8 +544,11 @@ SourceList Source::parse(const String &cmdLine,
     const int s = split.size();
     String arg;
     Path extraCompiler;
+    bool verbose = testLog(LogLevel::Debug);
     for (int i=0; i<s; ++i) {
         arg = split.at(i);
+        if (verbose)
+            debug() << "parsing argument" << i << arg;
         if (arg.isEmpty())
             continue;
         if ((arg.startsWith('\'') && arg.endsWith('\'')) ||
@@ -682,6 +685,9 @@ SourceList Source::parse(const String &cmdLine,
                 } else {                                                \
                     p = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd); \
                 }                                                       \
+                if (testLog(LogLevel::Warning))                         \
+                    warning() << "Added include path" << p <<           \
+                    "type:" << #type << "for argument" << arg;          \
                 includePaths.append(Source::Include(Source::Include::type, p)); \
             }
 #include "IncludeTypesInternal.h"
