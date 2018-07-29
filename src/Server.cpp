@@ -134,7 +134,7 @@ bool Server::init(const Options &options)
     if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.append("-Wno-unknown-warning-option");
 
-    mOptions.defines << Source::Define("RTAGS");
+    mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
 
     if (mOptions.options & EnableCompilerManager) {
 #ifndef OS_Darwin   // this causes problems on MacOS+clang
