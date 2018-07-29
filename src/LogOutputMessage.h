@@ -23,13 +23,13 @@ class LogOutputMessage : public RTagsMessage
 public:
     enum { MessageId = LogOutputId };
 
-    LogOutputMessage(LogLevel level = LogLevel::Error, unsigned int flags = 0)
+    LogOutputMessage(LogLevel level = LogLevel::Error, unsigned long long flags = 0)
         : RTagsMessage(MessageId), mLevel(level), mFlags(flags)
     {
     }
 
     LogLevel level() const { return mLevel; }
-    unsigned int flags() const { return mFlags; }
+    unsigned long long flags() const { return mFlags; }
 
     void encode(Serializer &serializer) const
     {
@@ -42,7 +42,7 @@ public:
     }
 private:
     LogLevel mLevel;
-    unsigned int mFlags;
+    unsigned long long mFlags;
 };
 
 #endif

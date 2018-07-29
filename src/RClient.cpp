@@ -268,21 +268,12 @@ public:
     }
     virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
-        unsigned int flags = RTagsLogOutput::None;
-        if (rc->queryFlags() & QueryMessage::Elisp) {
-            flags |= RTagsLogOutput::Elisp;
-        } else if (rc->queryFlags() & QueryMessage::XML) {
-            flags |= RTagsLogOutput::XML;
-        } else if (rc->queryFlags() & QueryMessage::JSON) {
-            flags |= RTagsLogOutput::JSON;
-            if (rc->queryFlags() & QueryMessage::JSONDiagnosticsIncludeSkipped)
-                flags |= RTagsLogOutput::JSONDiagnosticsIncludeSkipped;
-        } else if (rc->queryFlags() & QueryMessage::NoSpellChecking) {
-            flags |= RTagsLogOutput::NoSpellChecking;
-        }
-
         const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
-        LogOutputMessage msg(level, flags);
+        Flags<QueryMessage::Flag> flags = rc->queryFlags();
+        if (!(rc->queryFlags() & (QueryMessage::Elisp|QueryMessage::XML|QueryMessage::JSON)))
+            flags |= QueryMessage::XML;
+
+        LogOutputMessage msg(level, flags.cast<unsigned long long>());
         msg.setCommandLine(rc->commandLine());
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }

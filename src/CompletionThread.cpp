@@ -494,17 +494,20 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                 if (output->testLog(RTags::DiagnosticsLevel)) {
                     auto out = std::make_shared<Output>();
                     out->output = output;
-                    if (output->flags() & RTagsLogOutput::Elisp) {
-                        out->flags |= CompletionThread::Elisp;
-                        elisp = true;
-                    } else if (output->flags() & RTagsLogOutput::XML) {
-                        out->flags |= CompletionThread::XML;
-                        xml = true;
+                    if (output->type() == LogOutput::Custom) {
+                        const Flags<QueryMessage::Flag> queryFlags = std::static_pointer_cast<RTagsLogOutput>(output)->queryFlags();
+                        if (queryFlags & QueryMessage::Elisp) {
+                            out->flags |= CompletionThread::Elisp;
+                            elisp = true;
+                        } else if (queryFlags & QueryMessage::XML) {
+                            out->flags |= CompletionThread::XML;
+                            xml = true;
 #ifdef HAS_JSON_H
-                    } else if (output->flags() & RTagsLogOutput::JSON) {
-                        out->flags |= CompletionThread::JSON;
-                        send_json = true;
+                        } else if (queryFlags & QueryMessage::JSON) {
+                            out->flags |= CompletionThread::JSON;
+                            send_json = true;
 #endif
+                        }
                     } else {
                         raw = true;
                     }
@@ -585,20 +588,20 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                                                , jsonOut
 #endif
                                                   ]() {
-                for (auto &it : outputs) {
-                    if (it->flags & Elisp) {
-                        it->send(elispOut);
-                    } else if (it->flags & XML) {
-                        it->send(xmlOut);
+                                                  for (auto &it : outputs) {
+                                                      if (it->flags & Elisp) {
+                                                          it->send(elispOut);
+                                                      } else if (it->flags & XML) {
+                                                          it->send(xmlOut);
 #ifdef HAS_JSON_H
-                    } else if (it->flags & JSON) {
-                        it->send(jsonOut);
+                                                      } else if (it->flags & JSON) {
+                                                          it->send(jsonOut);
 #endif
-                    } else {
-                        it->send(rawOut);
-                    }
-                }
-            });
+                                                      } else {
+                                                          it->send(rawOut);
+                                                      }
+                                                  }
+                                              });
     }
 }
 

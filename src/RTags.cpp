@@ -105,7 +105,7 @@ void encodePath(Path &path)
 {
     if (Sandbox::encode(path))
         return;
-    
+
     path = encodeUrlComponent(path);
 }
 

@@ -721,6 +721,13 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     return ret;
 }
 
+static Flags<QueryMessage::Flag> queryFlags(const std::shared_ptr<LogOutput> &output)
+{
+    if (output->type() == LogOutput::Custom)
+        return std::static_pointer_cast<RTagsLogOutput>(output)->queryFlags();
+    return NullFlags;
+}
+
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
     FileMapScopeScope scope(this);
@@ -764,20 +771,16 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDiagnostics(fileId, msg->diagnostics());
     if (options.options & Server::Progress) {
         log([&](const std::shared_ptr<LogOutput> &output) {
-                if (output->testLog(RTags::DiagnosticsLevel)) {
-                    QueryMessage::Flag format = QueryMessage::XML;
-                    if (output->flags() & RTagsLogOutput::Elisp) {
-                        // I know this is RTagsLogOutput because it returned
-                        // true for testLog(RTags::DiagnosticsLevel)
-                        format = QueryMessage::Elisp;
-                    }
-
-                    if (format == QueryMessage::XML) {
-                        output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
-                                     idx, mJobCounter);
-                    } else {
+                if (output->type() == LogOutput::Custom && output->testLog(RTags::DiagnosticsLevel)) {
+                    const Flags<QueryMessage::Flag> queryFlags = ::queryFlags(output);
+                    if (queryFlags & QueryMessage::Elisp) {
                         std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
                         output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
+                    } else if (queryFlags & QueryMessage::XML) {
+                        output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                                     idx, mJobCounter);
+                    } else if (queryFlags & QueryMessage::JSON) {
+                        output->vlog("{\"progress\":{\"index\":%d,\"total\":%d}}", idx, mJobCounter);
                     }
                 }
             });
@@ -832,21 +835,10 @@ void Project::diagnose(uint32_t fileId)
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                Flags<QueryMessage::Flag> flags = QueryMessage::XML;
-                if (output->flags() & RTagsLogOutput::Elisp) {
-                    // I know this is RTagsLogOutput because it returned
-                    // true for testLog(RTags::DiagnosticsLevel)
-                    flags = QueryMessage::Elisp;
-                } else if (output->flags() & RTagsLogOutput::JSON) {
-                    flags = QueryMessage::JSON;
-                    if (output->flags() & RTagsLogOutput::JSONDiagnosticsIncludeSkipped)
-                        flags |= QueryMessage::JSONDiagnosticsIncludeSkipped;
-                }
-
                 Set<uint32_t> filter;
                 if (fileId)
                     filter.insert(fileId);
-                const String log = formatDiagnostics(mDiagnostics, flags, std::move(filter));
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), std::move(filter));
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -857,16 +849,7 @@ void Project::diagnoseAll()
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                QueryMessage::Flag format = QueryMessage::XML;
-                if (output->flags() & RTagsLogOutput::Elisp) {
-                    // I know this is RTagsLogOutput because it returned
-                    // true for testLog(RTags::DiagnosticsLevel)
-                    format = QueryMessage::Elisp;
-                } else if (output->flags() & RTagsLogOutput::JSON) {
-                    format = QueryMessage::JSON;
-                }
-
-                const String log = formatDiagnostics(mDiagnostics, format);
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output));
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -1376,15 +1359,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     if (!files.isEmpty() || !diagnostics.isEmpty()) {
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
-                    QueryMessage::Flag format = QueryMessage::XML;
-                    if (output->flags() & RTagsLogOutput::Elisp) {
-                        // I know this is RTagsLogOutput because it returned
-                        // true for testLog(RTags::DiagnosticsLevel)
-                        format = QueryMessage::Elisp;
-                    } else if (output->flags() & RTagsLogOutput::JSON) {
-                        format = QueryMessage::JSON;
-                    }
-                    const String log = formatDiagnostics(mDiagnostics, format, Set<uint32_t>(files));
+                    const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
                     if (!log.isEmpty()) {
                         output->log(log);
                     }
