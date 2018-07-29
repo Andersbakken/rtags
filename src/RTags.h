@@ -810,10 +810,11 @@ inline int targetRank(CXCursorKind kind)
         // objects seem to come out as function templates
         return 4;
     case CXCursor_MacroDefinition:
-        return 5;
+        return 7;
     default:
-        return 2;
+        break;
     }
+    return 2;
 }
 inline Symbol bestTarget(const Set<Symbol> &targets)
 {
