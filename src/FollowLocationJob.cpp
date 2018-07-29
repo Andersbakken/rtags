@@ -53,9 +53,7 @@ int FollowLocationJob::execute()
     if (queryFlags() & QueryMessage::TargetUsrs) {
         const Set<String> usrs = project()->findTargetUsrs(location);
         for (const String &usr : usrs) {
-            for (const Symbol &s : project()->findByUsr(usr, location.fileId(), Project::All)) {
-                write(s.toString());
-            }
+            write(usr);
         }
         return 0;
     }
