@@ -463,7 +463,6 @@ int main(int argc, char** argv)
             break; }
         case SocketFile: {
             serverOpts.socketFile = std::move(value);
-            serverOpts.socketFile.resolve();
             break; }
         case DataDir: {
             serverOpts.dataDir = String::format<128>("%s", Path::resolved(value).constData());
@@ -832,7 +831,6 @@ int main(int argc, char** argv)
         }
         close(fd);
         serverOpts.socketFile = buf;
-        serverOpts.socketFile.resolve();
     }
     serverOpts.dataDir = serverOpts.dataDir.ensureTrailingSlash();
 
