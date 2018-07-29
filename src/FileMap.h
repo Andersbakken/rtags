@@ -53,8 +53,49 @@ public:
     FileMap()
         : mPointer(0), mSize(0), mCount(0), mValuesOffset(0), mFD(-1), mOptions(0)
     {}
+    FileMap(FileMap &&other)
+        : mPointer(other.mPointer), mSize(other.mSize), mCount(other.mCount), mValuesOffset(other.mValuesOffset),
+          mFD(other.mFD), mOptions(other.mOptions)
+    {
+        other.mPointer = 0;
+        other.mSize = 0;
+        other.mCount = 0;
+        other.mValuesOffset = 0;
+        other.mFD = -1;
+        other.mOptions = 0;
+        other.mFD = -1;
+    }
+
+    FileMap &operator=(FileMap &&other)
+    {
+        clear();
+        mPointer = other.mPointer;
+        mSize = other.mSize;
+        mCount = other.mCount;
+        mValuesOffset = other.mValuesOffset;
+        mFD = other.mFD;
+        mOptions = other.mOptions;
+        mFD = other.mFD;
+
+        other.mPointer = 0;
+        other.mSize = 0;
+        other.mCount = 0;
+        other.mValuesOffset = 0;
+        other.mFD = -1;
+        other.mOptions = 0;
+        other.mFD = -1;
+        return *this;
+    }
+
+    FileMap(const FileMap &) = delete;
+    FileMap &operator=(const FileMap &) = delete;
 
     ~FileMap()
+    {
+        clear();
+    }
+
+    void clear()
     {
         if (mFD != -1) {
             assert(mPointer);
