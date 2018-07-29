@@ -605,6 +605,8 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                 currentFile = &checkStyle[ref->first.path()];
                 lastFileId = f;
             }
+            if (!(flags & QueryMessage::JSONDiagnosticsIncludeSkipped) && ref->second.type() == Diagnostic::Skipped)
+                continue;
             currentFile->push_back(toValue(lastFileId, ref->first, ref->second));
         }
         for (uint32_t f : filter) {
@@ -830,19 +832,21 @@ void Project::diagnose(uint32_t fileId)
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                QueryMessage::Flag format = QueryMessage::XML;
+                Flags<QueryMessage::Flag> flags = QueryMessage::XML;
                 if (output->flags() & RTagsLogOutput::Elisp) {
                     // I know this is RTagsLogOutput because it returned
                     // true for testLog(RTags::DiagnosticsLevel)
-                    format = QueryMessage::Elisp;
+                    flags = QueryMessage::Elisp;
                 } else if (output->flags() & RTagsLogOutput::JSON) {
-                    format = QueryMessage::JSON;
+                    flags = QueryMessage::JSON;
+                    if (output->flags() & RTagsLogOutput::JSONDiagnosticsIncludeSkipped)
+                        flags |= QueryMessage::JSONDiagnosticsIncludeSkipped;
                 }
 
                 Set<uint32_t> filter;
                 if (fileId)
                     filter.insert(fileId);
-                const String log = formatDiagnostics(mDiagnostics, format, std::move(filter));
+                const String log = formatDiagnostics(mDiagnostics, flags, std::move(filter));
                 if (!log.isEmpty())
                     output->log(log);
             }
@@ -1353,9 +1357,6 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
             if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it)) {
                 // if (debug)
                 //     error() << "continuing";
-                continue;
-            }
-            if (it.second.flags & Diagnostic::Skipped) {
                 continue;
             }
 

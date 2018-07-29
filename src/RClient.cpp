@@ -133,6 +133,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::AllTargets, "all-targets", 0, CommandLineParser::NoValue, "Print multiple targets for -f. Sorted by best match." },
     { RClient::Elisp, "elisp", 'Y', CommandLineParser::NoValue, "Output elisp: (list \"one\" \"two\" ...)." },
     { RClient::JSON, "json", 0, CommandLineParser::NoValue, "Output json." },
+    { RClient::JSONDiagnosticsIncludeSkipped, "json-diagnostics-include-skipped", 0, CommandLineParser::NoValue, "Output json diagnostics with skipped ranges." },
     { RClient::Diagnostics, "diagnostics", 'm', CommandLineParser::NoValue, "Receive async formatted diagnostics from rdm." },
     { RClient::MatchRegex, "match-regexp", 'Z', CommandLineParser::NoValue, "Treat various text patterns as regexps (-P, -i, -V, -F)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', CommandLineParser::NoValue, "Match case insensitively" },
@@ -274,6 +275,8 @@ public:
             flags |= RTagsLogOutput::XML;
         } else if (rc->queryFlags() & QueryMessage::JSON) {
             flags |= RTagsLogOutput::JSON;
+            if (rc->queryFlags() & QueryMessage::JSONDiagnosticsIncludeSkipped)
+                flags |= RTagsLogOutput::JSONDiagnosticsIncludeSkipped;
         } else if (rc->queryFlags() & QueryMessage::NoSpellChecking) {
             flags |= RTagsLogOutput::NoSpellChecking;
         }
@@ -591,6 +594,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case JSON: {
             mQueryFlags |= QueryMessage::JSON;
+            break; }
+        case JSONDiagnosticsIncludeSkipped: {
+            mQueryFlags |= QueryMessage::JSONDiagnosticsIncludeSkipped;
             break; }
         case XML: {
             mQueryFlags |= QueryMessage::XML;

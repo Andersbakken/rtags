@@ -24,11 +24,12 @@ class RTagsLogOutput : public LogOutput
 {
 public:
     enum Flag {
-        None = 0x0,
-        Elisp = 0x1,
-        XML = 0x2,
-        JSON = 0x4,
-        NoSpellChecking = 0x8
+        None = 0x00,
+        Elisp = 0x01,
+        XML = 0x02,
+        JSON = 0x04,
+        NoSpellChecking = 0x08,
+        JSONDiagnosticsIncludeSkipped = 0x10
     };
     RTagsLogOutput(LogLevel level, unsigned int flags, const std::shared_ptr<Connection> &conn = std::shared_ptr<Connection>())
         : LogOutput(level), mFlags(flags), mConnection(conn)

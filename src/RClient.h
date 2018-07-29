@@ -92,6 +92,7 @@ public:
         IsIndexed,
         IsIndexing,
         JSON,
+        JSONDiagnosticsIncludeSkipped,
         JobCount,
         KindFilter,
         LastIndexed,
