@@ -10,7 +10,7 @@ symbolnames etc. There's also limited support for ObjC/ObjC++. It allows you
 to find symbols by name (including nested class and namespace scope). Most
 importantly we give you proper follow-symbol and find-references support. We
 also have neat little things like rename-symbol, integration with clang's
-"fixits" (http://clang.llvm.org/diagnostics.html). We also integrate with
+"fixits" (https://clang.llvm.org/diagnostics.html). We also integrate with
 flymake using clang's vastly superior errors and warnings. Since RTags
 constantly will reindex "dirty" files you get live updates of compiler errors
 and warnings. Since we already know how to compile your sources we have a way
@@ -21,7 +21,7 @@ While existing taggers like gnu global, cscope, etags, ctags etc do a decent
 job for C they often fall a little bit short for C++. With its incredible
 lexical complexity, parsing C++ is an incredibly hard task and we make no
 bones about the fact that the only reason we are able to improve on the
-current tools is because of clang (http://clang.llvm.org/). RTags is named
+current tools is because of clang (https://clang.llvm.org/). RTags is named
 RTags in recognition of Roberto Raggi on whose C++ parser we intended to base
 this project but he assured us clang was the way to go. The name stuck though.
 
@@ -798,7 +798,7 @@ point
 (rtags-fixit)
 #+END_SRC
 Apply clang's automatic fixits in current file. If you pass a prefix arg use
-ediff to apply it. See (http://clang.llvm.org/diagnostics.html) for more info.
+ediff to apply it. See (https://clang.llvm.org/diagnostics.html) for more info.
 
 #+BEGIN_SRC emacs-lisp
 (rtags-imenu)
