@@ -720,7 +720,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (r != bytes) {
                 return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
             }
-            mUnsavedFiles[path] = contents;
+            mUnsavedFiles[path] = std::move(contents);
             break; }
         case FollowLocation:
         case ClassHierarchy:
