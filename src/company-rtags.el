@@ -162,7 +162,7 @@ PREFIX, is prefix type."
                                       "--code-complete-at" company-rtags-last-completion-location
                                       "--synchronous-completions"
                                       "--elisp"
-                                      (if (> (length company-rtags-last-completion-location) 0)
+                                      (if (> (length company-rtags-last-completion-prefix) 0)
                                           (concat "--code-complete-prefix=" company-rtags-last-completion-prefix)))))))))
 
 (defun company-rtags--meta (candidate insert)
