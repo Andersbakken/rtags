@@ -866,6 +866,10 @@ to case differences."
     (when (and conf (equal frame (window-configuration-frame conf)))
       (set-window-configuration conf))))
 
+
+(defun rtags--write-region (from to file)
+  (write-region from to file nil 'nomsg))
+
 ;;;###autoload
 (defun rtags-call-bury-or-delete ()
   "Call `rtags-bury-buffer-function' function."
@@ -1213,8 +1217,7 @@ Additionally for debugging purposes this method handles `rtags-tramp-enabled` fu
             (message "Done. Issue command once more")))))
     sandbox-match))
 
-(defun rtags-call-process-region
-    (start end program &optional delete buffer display &rest args)
+(defun rtags-call-process-region (start end program &optional delete buffer display &rest args)
   "Use Tramp to handle `call-process-region'.
 Fixes a bug in `tramp-handle-call-process-region'.
 Function based on org-babel-tramp-handle-call-process-region"
@@ -1222,7 +1225,7 @@ Function based on org-babel-tramp-handle-call-process-region"
            rtags-tramp-enabled
            (file-remote-p default-directory))
       (let ((tmpfile (make-temp-file "tramprt")))
-        (write-region start end tmpfile)
+        (write-region start end tmpfile nil 'nomsg)
         (when delete (delete-region start end))
         (unwind-protect
             ;;	(apply 'call-process program tmpfile buffer display args)
@@ -1304,7 +1307,8 @@ to only call this when `rtags-socket-file' is defined.
                              silent-query
                              &allow-other-keys)
   (save-excursion
-    (let ((rc (rtags-executable-find "rc")))
+    (let ((rc (rtags-executable-find "rc"))
+          (tempfile))
       (if (not rc)
           (unless noerror (rtags--error 'rtags-cannot-find-rc))
         (setq output (rtags--convert-output-buffer output))
@@ -1323,11 +1327,12 @@ to only call this when `rtags-socket-file' is defined.
           (when path-filter-regex
             (push "-Z" arguments)))
         (when (and unsaved (rtags-buffer-file-name unsaved))
-          (push (format "--unsaved-file=%s:%d"
-                        (rtags-untrampify (rtags-buffer-file-name unsaved))
-                        (with-current-buffer unsaved
-                          (rtags-buffer-size)))
-                arguments))
+          (setq tempfile (make-temp-file "/tmp/"))
+          (push (format "--unsaved-file=%s:%s" (rtags-untrampify (rtags-buffer-file-name unsaved)) tempfile) arguments)
+          (with-current-buffer unsaved
+            (save-restriction
+              (widen)
+              (rtags--write-region (point-min) (point-max) tempfile))))
         (when rtags-rc-config-path
           (push (concat "--config=" (expand-file-name rtags-rc-config-path)) arguments))
         (when rtags-completions-enabled
@@ -1357,32 +1362,15 @@ to only call this when `rtags-socket-file' is defined.
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
-        (let ((result (cond ((and unsaved async)
-                             (let ((proc (apply #'start-file-process "rc" (current-buffer) rc arguments)))
-                               (with-current-buffer unsaved
-                                 (save-restriction
-                                   (widen)
-                                   (process-send-region proc (point-min) (point-max))))
-                               proc))
-                            (async (apply #'start-file-process "rc" (current-buffer) rc arguments))
-                            ((and unsaved (or (buffer-modified-p unsaved)
-                                              (not (rtags-buffer-file-name unsaved))))
-                             (with-current-buffer unsaved
-                               (save-restriction
-                                 (widen)
-                                 (apply #'rtags-call-process-region (point-min) (point-max) rc
-                                        nil output nil arguments))))
-                            (unsaved (apply #'process-file
-                                            rc (rtags-untrampify (rtags-buffer-file-name unsaved)) output nil arguments) nil)
-                            (t (apply #'process-file rc nil output nil arguments)))))
-          (if (processp result)
-              (progn
-                (set-process-query-on-exit-flag result nil)
-                (when (car async)
-                  (set-process-filter result (car async)))
-                (when (cdr async)
-                  (set-process-sentinel result (cdr async))))
-            ;; synchronous
+        (if async
+            (let ((proc (apply #'start-file-process "rc" (current-buffer) rc arguments)))
+              (set-process-query-on-exit-flag proc nil)
+              (when (car async)
+                (set-process-filter proc (car async)))
+              (when (cdr async)
+                (set-process-sentinel proc (cdr async)))
+              t)
+          (let ((result (apply #'process-file rc nil output nil arguments)))
             (goto-char (point-min))
             (save-excursion
               (cond ((equal result rtags-exit-code-success)
@@ -1406,8 +1394,8 @@ to only call this when `rtags-socket-file' is defined.
                      (setq rtags-last-request-not-indexed t))
                     ((equal result "Aborted")
                      (rtags--error 'rtags-program-exited-abnormal "rc" result))
-                    (t)))) ;; other error
-          (or async (and (> (point-max) (point-min)) (equal result rtags-exit-code-success))))))))
+                    (t))) ;; other error
+            (and (> (point-max) (point-min)) (equal result rtags-exit-code-success))))))))
 
 (defvar rtags-preprocess-mode-map (make-sparse-keymap))
 (define-key rtags-preprocess-mode-map (kbd "q") 'rtags-call-bury-or-delete)
@@ -2303,7 +2291,9 @@ instead of file from `current-buffer'.
         (point)))))
 
 (defun rtags-buffer-size ()
-  (- (rtags-point-multibyte (point-max)) (point-min)))
+  (save-restriction
+    (widen)
+    (- (rtags-point-multibyte (point-max)) (point-min))))
 
 (defun rtags-offset (&optional p)
   (1- (rtags-point-multibyte p)))
@@ -5286,7 +5276,7 @@ the user enter missing field manually."
                                                                 "fi\n"
                                                                 "make\n"
                                                                 "exit $?\n")
-        (write-region (point-min) (point-max) "install-rtags.sh"))
+        (rtags--write-region (point-min) (point-max) "install-rtags.sh"))
       (switch-to-buffer (rtags-get-buffer "*RTags install*"))
       (setq buffer-read-only t)
       (setq rtags-install-process (start-process "*RTags install*" (current-buffer) "bash" (concat dir "/install-rtags.sh")))

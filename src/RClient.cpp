@@ -425,12 +425,12 @@ void RClient::exec()
 CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 {
     Rct::findExecutablePath(*argv);
-    const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
-    if (runtimeDir == NULL) {
-         mSocketFile = Path::home() + ".rdm";
+    const char *runtimeDir = getenv("XDG_RUNTIME_DIR");
+    if (!runtimeDir) {
+        mSocketFile = Path::home() + ".rdm";
     } else {
-         mSocketFile = runtimeDir;
-         mSocketFile += "/rdm.socket";
+        mSocketFile = runtimeDir;
+        mSocketFile += "/rdm.socket";
     }
 
     List<std::shared_ptr<QueryCommand> > projectCommands;
@@ -441,7 +441,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     if (!isatty(STDOUT_FILENO)) {
         mQueryFlags |= QueryMessage::NoColor;
     }
-
 
     std::function<CommandLineParser::ParseStatus(RClient::OptionType type,
                                                  String &&value,
@@ -702,12 +701,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             break; }
         case UnsavedFile: {
-            const int colon = value.lastIndexOf(':');
-            if (colon == -1) {
-                return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
-            }
-            const int bytes = atoi(value.constData() + colon + 1);
-            if (!bytes) {
+            const size_t colon = value.lastIndexOf(':');
+            if (colon == String::npos || colon + 1 == value.size()) {
                 return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
             }
             const Path path = value.left(colon);
@@ -715,8 +710,28 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("Can't open [%s] for reading", path.nullTerminated()), CommandLineParser::Parse_Error };
             }
 
+            FILE *f;
+            Path unlinkFile;
+            int bytes;
+            if (std::isdigit(value.at(colon + 1))) {
+                bytes = atoi(value.constData() + colon + 1);
+                if (!bytes) {
+                    return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
+                }
+                f = stdin;
+            } else {
+                unlinkFile = value.mid(colon + 1);
+                f = fopen(value.constData() + colon + 1, "r");
+                if (!f) {
+                    return { String::format<1024>("Can't open %s for reading", unlinkFile.constData()), CommandLineParser::Parse_Error };
+                }
+                bytes = Rct::fileSize(f);
+            }
+
             String contents(bytes, '\0');
-            const int r = fread(contents.data(), 1, bytes, stdin);
+            const int r = fread(contents.data(), 1, bytes, f);
+            if (!unlinkFile.isEmpty())
+                Path::rm(unlinkFile);
             if (r != bytes) {
                 return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
             }
@@ -794,11 +809,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case DumpCompletions: {
             addQuery(QueryMessage::DumpCompletions);
-            break;
-        case DumpCompileCommands:
+            break; }
+        case DumpCompileCommands: {
             addQuery(QueryMessage::DumpCompileCommands);
-            break;
-        case Clear:
+            break; }
+        case Clear: {
             addQuery(QueryMessage::ClearProjects);
             break; }
         case RdmLog: {
