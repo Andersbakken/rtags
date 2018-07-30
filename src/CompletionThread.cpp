@@ -33,8 +33,10 @@ using namespace nlohmann;
 static uint64_t start = 0;
 #define LOG()                                                           \
     if (Server::instance()->options().options & Server::CompletionLogs) \
-        error() << "CODE COMPLETION" << String::format<16>("%gs", static_cast<double>(Rct::monoMs() - ::start) / 1000.0)
-
+        error() << "CODE COMPLETION"                                    \
+                << String::format<64>("%gs %s",                         \
+                                      static_cast<double>(Rct::monoMs() - ::start) / 1000.0, \
+                                      Rct::currentTimeString().constData())
 
 CompletionThread::CompletionThread(int cacheSize)
     : mShutdown(false), mCacheSize(cacheSize), mDump(0)
@@ -106,7 +108,7 @@ void CompletionThread::completeAt(Source &&source, Location location,
                                   const std::shared_ptr<Connection> &conn)
 {
     if (Server::instance()->options().options & Server::CompletionLogs)
-        error() << "CODE COMPLETION completeAt" << location << flags;
+        error() << "CODE COMPLETION completeAt" << Rct::currentTimeString() << location << flags;
     Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), prefix, conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
@@ -125,7 +127,7 @@ void CompletionThread::completeAt(Source &&source, Location location,
 void CompletionThread::prepare(Source &&source, String &&unsaved)
 {
     if (Server::instance()->options().options & Server::CompletionLogs)
-        error() << "CODE COMPLETION prepare" << source.sourceFile() << unsaved.size();
+        error() << "CODE COMPLETION prepare" << Rct::currentTimeString() << source.sourceFile() << unsaved.size();
     std::unique_lock<std::mutex> lock(mMutex);
     for (auto req : mPending) {
         if (req->source == source) {
