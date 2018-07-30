@@ -26,6 +26,16 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
+SED=sed
+if [ $(uname) == "Darwin" ]; then
+    SED=`which gsed`
+fi
+
+if [ ! -x "$SED" ]; then
+    echo "You need sed installed (and on Mac it needs to be gsed) to run this script"
+    exit 1
+fi
+
 MAN_BASE="$BASE_DIR/man/man7"
 
 # Force simply locale `C`
@@ -81,7 +91,7 @@ rc(7)
 ") "$1/rdm" > "$MAN_BASE/rdm.7"
 
 # Fix-ups
-sed -ri                                         \
+"$SED" -ri                                         \
     -e '/^(rdm|rc) options...$/d'               \
     -e 's/^Options:$/.SH OPTIONS/'              \
     -e 's/^(Path to rp) \(default.*\).$/\1./'   \
