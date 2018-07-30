@@ -59,7 +59,7 @@ Load =rtags.el=
 M-: (load-file "rtags.el") RET
 #+END_EXAMPLE
 
-Insure =rc= can be found
+Ensure =rc= can be found
 
 #+BEGIN_EXAMPLE
 M-x set-variable RET rtags-path RET "../bin" RET
