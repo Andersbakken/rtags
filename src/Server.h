@@ -36,7 +36,6 @@
 class Match;
 class CompletionThread;
 class Connection;
-class ErrorMessage;
 class IndexDataMessage;
 class QueryJob;
 class LogOutputMessage;
@@ -159,7 +158,6 @@ private:
     void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn);
     void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn);
     void handleQueryMessage(const std::shared_ptr<QueryMessage> &message, const std::shared_ptr<Connection> &conn);
-    void handleErrorMessage(const std::shared_ptr<ErrorMessage> &message, const std::shared_ptr<Connection> &conn);
     void handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &message, const std::shared_ptr<Connection> &conn);
     void handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &message, const std::shared_ptr<Connection> &conn);
 
@@ -231,7 +229,6 @@ private:
     Set<std::shared_ptr<Connection> > mConnections;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
-    friend void saveFileIds();
 };
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);
