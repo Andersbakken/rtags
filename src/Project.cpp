@@ -1804,17 +1804,23 @@ static Set<Symbol> findReferences(const Symbol &in,
     return findReferences(inputs, project, std::move(filter));
 }
 
-Set<Symbol> Project::findCallers(const Symbol &symbol)
+Set<Symbol> Project::findCallers(const Symbol &symbol, int max)
 {
     const bool isClazz = symbol.isClass();
-    return ::findReferences(symbol, shared_from_this(), [isClazz](const Symbol &input, const Symbol &ref) {
+    return ::findReferences(symbol, shared_from_this(), [isClazz, &max](const Symbol &input, const Symbol &ref) {
+            if (!max)
+                return false;
             if (isClazz && (ref.isConstructorOrDestructor() || ref.kind == CXCursor_CallExpr))
                 return false;
             if (ref.isReference()
                 || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
+                if (max != -1)
+                    --max;
                 return true;
             }
             if (input.kind == CXCursor_ClassTemplate && ref.flags & Symbol::TemplateSpecialization) {
+                if (max != -1)
+                    --max;
                 return true;
             }
             return false;
@@ -2917,4 +2923,36 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
         }
     }
     return false;
+}
+
+Set<Symbol> Project::findDeadFunctions(uint32_t fileId)
+{
+    Set<Symbol> ret;
+    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = 0) {
+        auto symbols = openSymbols(file);
+        if (!symbols)
+            return;
+
+        const int count = symbols->count();
+        for (int i=0; i<count; ++i) {
+            Symbol s = symbols->valueAt(i);
+            if (RTags::isFunction(s.kind)
+                && s.kind != CXCursor_Destructor
+                && s.kind != CXCursor_LambdaExpr
+                && !s.symbolName.startsWith("int main(")
+                && (!seen || seen->insert(s.usr))
+                && findCallers(s, 1).isEmpty()) {
+                ret.insert(std::move(s));
+            }
+        }
+    };
+    if (!fileId) {
+        Set<String> seenUsrs;
+        for (const auto &file : mVisitedFiles) {
+            processFile(file.first, &seenUsrs);
+        }
+    } else {
+        processFile(fileId);
+    }
+    return ret;
 }

@@ -696,6 +696,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::SendDiagnostics:
         sendDiagnostics(message, conn);
         break;
+    case QueryMessage::DeadFunctions:
+        deadFunctions(message, conn);
+        break;
     case QueryMessage::CodeCompleteAt:
         codeCompleteAt(message, conn);
         break;
@@ -1647,6 +1650,67 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
             }
             conn->write<128>("Changed jobs to %zu/%zu", mOptions.jobCount, mOptions.headerErrorJobCount);
         }
+    }
+    conn->finish();
+}
+
+void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project)
+        project = currentProject();
+    if (project) {
+        class DeadFunctionsJob : public QueryJob
+        {
+        public:
+            DeadFunctionsJob(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Project> &project)
+                : QueryJob(msg, project)
+            {}
+            virtual int execute() override
+            {
+                const uint32_t fileId = Location::fileId(queryMessage()->query());
+                if (fileId)
+                    Server::instance()->prepareCompletion(queryMessage(), fileId, project());
+                bool raw = false;
+                if (!(queryFlags() & (QueryMessage::JSON|QueryMessage::Elisp))) {
+                    raw = true;
+                    setPieceFilters(std::move(Set<String>() << "location"));
+                }
+                bool failed = false;
+                const std::shared_ptr<Project> proj = project();
+                auto process = [this, proj, &failed](uint32_t file) {
+                    for (const Symbol &symbol : proj->findDeadFunctions(file)) {
+                        if (!failed && !write(symbol))
+                            failed = true;
+                    }
+                };
+                if (!fileId) {
+                    Set<uint32_t> all = proj->dependencies(0, Project::All);
+                    all.remove([](uint32_t file) { return Location::path(file).isSystem(); });
+                    size_t idx = 0;
+                    const Path projectPath = proj->path();
+                    for (uint32_t file : proj->dependencies(0, Project::All)) {
+                        if (raw) {
+                            Path p = Location::path(file);
+                            const char *ch = p.constData();
+                            if (!(queryFlags() & QueryMessage::AbsolutePath) && p.startsWith(projectPath))
+                                ch += projectPath.size();
+                            if (!write(String::format<256>("%zu/%zu %s", ++idx, all.size(), ch))) {
+                                failed = true;
+                                break;
+                            }
+                        }
+                        process(file);
+                        if (failed)
+                            break;
+                    }
+                } else {
+                    process(fileId);
+                }
+                return 0;
+            }
+        } job(query, project);
+        job.run(conn);
     }
     conn->finish();
 }

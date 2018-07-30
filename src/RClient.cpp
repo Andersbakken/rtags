@@ -115,6 +115,8 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
 #endif
     { RClient::Validate, "validate", 0, CommandLineParser::NoValue, "Validate database files for current project." },
     { RClient::Tokens, "tokens", 0, CommandLineParser::Required, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
+    { RClient::DeadFunctions, "find-dead-functions", 0, CommandLineParser::Optional, "Find functions declared/defined in the current file that are never in the project." },
+
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Command flags:" },
     { RClient::StripParen, "strip-paren", 'p', CommandLineParser::NoValue, "Strip parens in various contexts." },
@@ -1154,13 +1156,14 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case CheckIncludes:
         case GenerateTest:
         case Diagnose:
+        case DeadFunctions:
         case FixIts: {
             Path p = std::move(value);
-            if (!p.exists()) {
+            if (!p.exists() && (!p.isEmpty() || type != DeadFunctions)) {
                 return { String::format<1024>("%s does not exist", p.constData()), CommandLineParser::Parse_Error };
             }
 
-            if (!p.isAbsolute())
+            if (!p.isAbsolute() && !p.isEmpty())
                 p.prepend(Path::pwd());
 
             if (p.isDir()) {
@@ -1170,7 +1173,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     p.append('/');
                 }
             }
-            p.resolve();
+            if (!p.isEmpty())
+                p.resolve();
             Flags<QueryMessage::Flag> extraQueryFlags;
             QueryMessage::Type queryType = QueryMessage::Invalid;
             switch (type) {
@@ -1182,6 +1186,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 break;
             case DumpFile:
                 queryType = QueryMessage::DumpFile;
+                break;
+            case DeadFunctions:
+                queryType = QueryMessage::DeadFunctions;
                 break;
             case CheckIncludes:
                 queryType = QueryMessage::DumpFile;

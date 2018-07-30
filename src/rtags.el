@@ -70,7 +70,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 126)
+(defconst rtags-protocol-version 127)
 (defconst rtags-package-version "2.18")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1654,6 +1654,21 @@ instead of file from `current-buffer'.
       (rtags-switch-to-buffer dep-buffer)
       (rtags-call-rc :path fn "--dependencies" fn args (unless rtags-print-filenames-relative "-K"))
       (rtags-mode))))
+
+(defun rtags-find-dead-functions (&optional prefix buffer)
+  "Print information about uncalled functions in buffer."
+  (interactive "P")
+  (let ((dead-functions-buffer (rtags-get-buffer)))
+    (rtags-delete-rtags-windows)
+    (rtags-location-stack-push)
+    (rtags-switch-to-buffer dead-functions-buffer)
+    (if prefix
+        (rtags-call-rc "--find-dead-functions" (unless rtags-print-filenames-relative "-K"))
+      (let ((fn (rtags-buffer-file-name buffer)))
+        (unless fn
+          (rtags--error 'rtags-no-file-here))
+        (rtags-call-rc :path fn "--find-dead-functions" fn (unless rtags-print-filenames-relative "-K"))))
+    (rtags-mode)))
 
 ;;;###autoload
 

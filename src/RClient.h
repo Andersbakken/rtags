@@ -59,6 +59,7 @@ public:
         CurrentFile,
         CurrentProject,
         CursorKind,
+        DeadFunctions,
         DebugLocations,
         DeclarationOnly,
         DefinitionOnly,

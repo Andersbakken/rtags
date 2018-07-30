@@ -131,6 +131,7 @@ public:
         All
     };
 
+    Set<Symbol> findDeadFunctions(uint32_t fileId);
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool dependsOn(uint32_t source, uint32_t header) const;
     String dumpDependencies(uint32_t fileId,
@@ -163,8 +164,8 @@ public:
     Symbol findTarget(const Symbol &symbol) { return RTags::bestTarget(findTargets(symbol)); }
     Set<Symbol> findAllReferences(Location location) { return findAllReferences(findSymbol(location)); }
     Set<Symbol> findAllReferences(const Symbol &symbol);
-    Set<Symbol> findCallers(Location location) { return findCallers(findSymbol(location)); }
-    Set<Symbol> findCallers(const Symbol &symbol);
+    Set<Symbol> findCallers(Location location, int max = -1) { return findCallers(findSymbol(location), max); }
+    Set<Symbol> findCallers(const Symbol &symbol, int max = -1);
     Set<Symbol> findVirtuals(Location location) { return findVirtuals(findSymbol(location)); }
     Set<Symbol> findVirtuals(const Symbol &symbol);
     Set<String> findTargetUsrs(const Symbol &symbol);

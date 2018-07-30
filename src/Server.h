@@ -166,6 +166,7 @@ private:
     // Queries
     void sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void clearProjects(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
+    void deadFunctions(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
