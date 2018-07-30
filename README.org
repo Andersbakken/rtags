@@ -1218,3 +1218,21 @@ other formats etc), just drop us a note.
 * Disclaimer
 RTags is still under development and is not the most stable piece of software
 you'll ever find. We're constantly working to improve on it.
+* Release notes
+We won't go back and add release notes for previous versions but we'll
+try to do it from now.
+
+2.19:
+- Seemingly improved performance for completions due to better
+  handling of unsaved files. Apparently stdin and processes in emacs
+  are not our friends. Tempfiles on the other hand seem to be
+  significantly faster.
+- Make skipped ranges work again.
+- Add a new feature, rtags-find-dead-functions (Issue #1152)
+- Various contributions that improve code completion
+- Fix an issue when jumping to macro definition from a macro
+  expansion.
+- Fix issue #1214. Socket file doesn't need to be resolved.
+- Various other fixes, code cleanup and infrastructure work.
+
+
