@@ -122,7 +122,8 @@ void JobScheduler::startJobs()
             cont();
             continue;
         }
-        process->finished().connect([this, jobId](Process *proc) {
+        const int pid = process->pid();
+        process->finished().connect([this, jobId, options, pid](Process *proc) {
                 EventLoop::deleteLater(proc);
                 auto n = mActiveByProcess.take(proc);
                 assert(!n || n->process == proc);
@@ -131,6 +132,7 @@ void JobScheduler::startJobs()
                     error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
                             << '\n' << stdErr << (n ? n->stdOut : String());
                 }
+                Path::rmdir(options.tempDir + String::number(pid));
 
                 if (n) {
                     assert(n->process == proc);

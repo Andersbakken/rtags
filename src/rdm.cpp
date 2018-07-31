@@ -137,6 +137,7 @@ enum OptionType {
     Weverything,
     Verbose,
     JobCount,
+    TempDir,
     Test,
     TestTimeout,
     CleanSlate,
@@ -234,6 +235,16 @@ int main(int argc, char** argv)
     } else {
         serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
     }
+    const char *tempDir = 0;
+    for (const char *tmp : { "TMPDIR", "TMP", "TEMP", "TEMPDIR" }) {
+        if ((tempDir = getenv(tmp))) {
+            break;
+        }
+    }
+    if (!tempDir)
+        tempDir = "/tmp";
+
+    serverOpts.tempDir = tempDir;
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
@@ -287,6 +298,7 @@ int main(int argc, char** argv)
         { JobCount, "job-count", 'j', CommandLineParser::Required, String::format("Spawn this many concurrent processes for indexing (default %d).",
                                                                                   std::max(2, ThreadPool::idealThreadCount())) },
         { Test, "test", 't', CommandLineParser::Required, "Run this test." },
+        { TempDir, "tempdir", 0, CommandLineParser::Required, "Use this directory for temporary files. Clang generates a lot of these and rtags will periodically clean out this directory. Default is $TMPDIR/rtags/" },
         { TestTimeout, "test-timeout", 'z', CommandLineParser::Required, "Timeout for test to complete." },
         { CleanSlate, "clean-slate", 'C', CommandLineParser::NoValue, "Clear out all data." },
         { DisableSigHandler, "disable-sighandler", 'x', CommandLineParser::NoValue, "Disable signal handler to dump stack for crashes." },
@@ -426,6 +438,9 @@ int main(int argc, char** argv)
                 return { String::format<1024>("%s doesn't seem to be a file", value.constData()), CommandLineParser::Parse_Error };
             }
             serverOpts.tests += test;
+            break; }
+        case TempDir: {
+            serverOpts.tempDir = value;
             break; }
         case TestTimeout: {
             serverOpts.testTimeout = atoi(value.constData());
@@ -757,6 +772,10 @@ int main(int argc, char** argv)
     if (serverOpts.compilerWrappers.isEmpty())
         serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
 
+    serverOpts.tempDir = serverOpts.tempDir.ensureTrailingSlash() + "rdm/";
+    Path::rmdir(serverOpts.tempDir);
+    serverOpts.tempDir.mkdir(Path::Recursive);
+    ::setenv("TMPDIR", serverOpts.tempDir.c_str(), 1);
     if (sigHandler) {
         signal(SIGSEGV, signalHandler);
         signal(SIGBUS, signalHandler);

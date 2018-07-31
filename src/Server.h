@@ -100,7 +100,7 @@ public:
         {
         }
 
-        Path socketFile, dataDir, argTransform, rp, sandboxRoot;
+        Path socketFile, dataDir, argTransform, rp, sandboxRoot, tempDir;
         Flags<Option> options;
         size_t jobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,

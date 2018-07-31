@@ -71,6 +71,12 @@ int main(int argc, char **argv)
         }
     }
 
+    if (const char *env = getenv("TMPDIR")) { // should really always be set by rdm
+        Path path = Path(env).ensureTrailingSlash();
+        path += String::number(getpid());
+        path.mkdir(Path::Recursive);
+        setenv("TMPDIR", path.c_str(), 1);
+    }
     setenv("LIBCLANG_NOTHREADS", "1", 0);
     signal(SIGSEGV, sigHandler);
     signal(SIGABRT, sigHandler);
