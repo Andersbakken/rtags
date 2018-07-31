@@ -40,12 +40,14 @@ branch_name="$(git symbolic-ref HEAD 2>/dev/null)" || branch_name="(unnamed bran
 branch_name=${branch_name##refs/heads/}
 if [ "$branch_name" != "master" ]; then
     echo wrong branch $branch_name
+    rm -rf "$REPO" "$RELEASES_REPO"
     exit 1
 fi
 
 commit=$(git show --oneline --no-patch)
 current=`curl --silent http://andersbakken.github.io/rtags-releases/commit | cut -d' ' -f1`
 if [ "`echo "$commit" | cut -d' ' -f1`" = "$current" -a -z "$FORCE" ]; then
+    rm -rf "$REPO" "$RELEASES_REPO"
     exit 0
 fi
 
@@ -53,6 +55,7 @@ git clone git@github.com:Andersbakken/rtags-releases.git "$RELEASES_REPO" --recu
 cd "$RELEASES_REPO"
 if ! git branch | grep --quiet "^\* *gh-pages$"; then
     echo "wrong branch"
+    rm -rf "$REPO" "$RELEASES_REPO"
     exit 1
 fi
 
