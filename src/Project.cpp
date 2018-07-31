@@ -963,7 +963,6 @@ void Project::onFileAddedOrModified(const Path &file)
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
-    Server::instance()->jobScheduler()->clearHeaderError(fileId);
     if (mPendingDirtyFiles.insert(fileId)) {
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
@@ -981,8 +980,6 @@ void Project::onFileRemoved(const Path &file)
         return;
     }
     removeSource(fileId);
-
-    Server::instance()->jobScheduler()->clearHeaderError(fileId);
 
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";

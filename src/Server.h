@@ -91,7 +91,7 @@ public:
     };
     struct Options {
         Options()
-            : jobCount(0), headerErrorJobCount(0), maxIncludeCompletionDepth(0),
+            : jobCount(0), maxIncludeCompletionDepth(0),
               rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
               rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
@@ -102,7 +102,7 @@ public:
 
         Path socketFile, dataDir, argTransform, rp, sandboxRoot;
         Flags<Option> options;
-        size_t jobCount, headerErrorJobCount, maxIncludeCompletionDepth;
+        size_t jobCount, maxIncludeCompletionDepth;
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit,

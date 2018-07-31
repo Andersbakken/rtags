@@ -62,32 +62,6 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
         startJobs();
 }
 
-uint32_t JobScheduler::hasHeaderError(DependencyNode *node, Set<uint32_t> &seen) const
-{
-    assert(node);
-    for (auto dep : node->includes) {
-        if (!seen.insert(dep.first))
-            continue;
-
-        if (mHeaderErrors.contains(dep.first)) {
-            return dep.first;
-        }
-        if (uint32_t fileId = hasHeaderError(dep.second, seen)) {
-            return fileId;
-        }
-    }
-    return 0;
-}
-
-uint32_t JobScheduler::hasHeaderError(uint32_t file, const std::shared_ptr<Project> &project) const
-{
-    DependencyNode *node = project->dependencies().value(file);
-    if (!node)
-        return false;
-    Set<uint32_t> seen;
-    return hasHeaderError(node, seen);
-}
-
 void JobScheduler::startJobs()
 {
     Server *server = Server::instance();
@@ -204,16 +178,6 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 
 void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message)
 {
-    bool headerErrorChanged = false;
-    for (const auto &it : message->files()) {
-        if (it.second & IndexDataMessage::HeaderError) {
-            if (mHeaderErrors.insert(it.first))
-                headerErrorChanged = true;
-        } else if (mHeaderErrors.remove(it.first)) {
-            headerErrorChanged = true;
-        }
-    }
-    // mHeaderErrors.unite(message->headerErrors());
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
     assert(message);
@@ -242,8 +206,6 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         debug() << "job crashed too many times" << job->id << job->fileId() << job.get();
     }
     project->onJobFinished(job, message);
-    if (headerErrorChanged)
-        sort();
 }
 
 void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
@@ -295,12 +257,6 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
         node->process->kill();
         mActiveByProcess.remove(node->process);
     }
-}
-
-void JobScheduler::clearHeaderError(uint32_t file)
-{
-    if (mHeaderErrors.remove(file))
-        warning() << Location::path(file) << "was touched, starting jobs";
 }
 
 void JobScheduler::sort()

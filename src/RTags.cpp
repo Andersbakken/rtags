@@ -799,7 +799,6 @@ void DiagnosticsProvider::diagnose()
                 //         << clang_getDiagnosticSeverity(diagnostic);
                 continue;
             }
-            const CXDiagnosticSeverity sev = clang_getDiagnosticSeverity(diag);
             // error() << "Got a dude" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
             //         << sev << CXDiagnostic_Error;
             const CXCursor cursor = cursorAt(u, diagLoc);
@@ -809,16 +808,6 @@ void DiagnosticsProvider::diagnose()
                 indexData.setFlag(IndexDataMessage::InclusionError);
             assert(fileId);
             Flags<IndexDataMessage::FileFlag> &fileFlags = indexData.files()[fileId];
-            if (fileId != sourceFile && !inclusionError && sev >= CXDiagnostic_Error && !(fileFlags & IndexDataMessage::HeaderError)) {
-                // We don't treat inclusions or code inside a macro expansion as a
-                // header error
-                CXFile expFile, spellingFile;
-                unsigned expLine, expColumn, spellingLine, spellingColumn;
-                clang_getExpansionLocation(diagLoc, &expFile, &expLine, &expColumn, 0);
-                clang_getSpellingLocation(diagLoc, &spellingFile, &spellingLine, &spellingColumn, 0);
-                if (expLine == spellingLine && expColumn == spellingColumn && compareFile(expFile, spellingFile))
-                    fileFlags |= IndexDataMessage::HeaderError;
-            }
             bool templateOnly = false;
             {
                 Flags<Diagnostic::Flag> f = Diagnostic::DisplayCategory;

@@ -137,7 +137,6 @@ enum OptionType {
     Weverything,
     Verbose,
     JobCount,
-    HeaderErrorJobCount,
     Test,
     TestTimeout,
     CleanSlate,
@@ -236,7 +235,6 @@ int main(int argc, char** argv)
         serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
     }
     serverOpts.jobCount = std::max(2, ThreadPool::idealThreadCount());
-    serverOpts.headerErrorJobCount = -1;
     serverOpts.rpVisitFileTimeout = DEFAULT_RP_VISITFILE_TIMEOUT;
     serverOpts.rpIndexDataMessageTimeout = DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT;
     serverOpts.rpConnectTimeout = DEFAULT_RP_CONNECT_TIMEOUT;
@@ -288,7 +286,6 @@ int main(int argc, char** argv)
         { Verbose, "verbose", 'v', CommandLineParser::NoValue, "Change verbosity, multiple -v's are allowed." },
         { JobCount, "job-count", 'j', CommandLineParser::Required, String::format("Spawn this many concurrent processes for indexing (default %d).",
                                                                                   std::max(2, ThreadPool::idealThreadCount())) },
-        { HeaderErrorJobCount, "header-error-job-count", 'H', CommandLineParser::Required, "Allow this many concurrent header error jobs (default std::max(1, --job-count / 2))." },
         { Test, "test", 't', CommandLineParser::Required, "Run this test." },
         { TestTimeout, "test-timeout", 'z', CommandLineParser::Required, "Timeout for test to complete." },
         { CleanSlate, "clean-slate", 'C', CommandLineParser::NoValue, "Clear out all data." },
@@ -421,13 +418,6 @@ int main(int argc, char** argv)
             serverOpts.jobCount = String(value).toULong(&ok);
             if (!ok) {
                 return { String::format<1024>("Can't parse argument to -j %s. -j must be a positive integer.\n", value.constData()), CommandLineParser::Parse_Error };
-            }
-            break; }
-        case HeaderErrorJobCount: {
-            bool ok;
-            serverOpts.headerErrorJobCount = String(value).toULong(&ok);
-            if (!ok) {
-                return { String::format<1024>("Can't parse argument to -H %s. -H must be a positive integer.", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
         case Test: {
@@ -766,12 +756,6 @@ int main(int argc, char** argv)
         serverOpts.excludeFilters = String(DEFAULT_EXCLUDEFILTER).split(';');
     if (serverOpts.compilerWrappers.isEmpty())
         serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
-
-    if (!serverOpts.headerErrorJobCount) {
-        serverOpts.headerErrorJobCount = std::max<size_t>(1, serverOpts.jobCount / 2);
-    } else {
-        serverOpts.headerErrorJobCount = std::min(serverOpts.headerErrorJobCount, serverOpts.jobCount);
-    }
 
     if (sigHandler) {
         signal(SIGSEGV, signalHandler);

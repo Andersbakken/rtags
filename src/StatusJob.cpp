@@ -36,7 +36,7 @@ int StatusJob::execute()
         return !strncasecmp(query.constData(), name, query.size());
     };
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|headererrors|memory|project";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|memory|project";
 
     if (match("fileids")) {
         matched = true;
@@ -45,18 +45,6 @@ int StatusJob::execute()
         const Hash<uint32_t, Path> paths = Location::idsToPaths();
         for (Hash<uint32_t, Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             if (!write<256>("  %u: %s", it->first, it->second.constData()))
-                return 1;
-        }
-        if (isAborted())
-            return 1;
-    }
-
-    if (match("headererrors")) {
-        matched = true;
-        if (!write(delimiter) || !write("headererrors") || !write(delimiter))
-            return 1;
-        for (auto err : Server::instance()->jobScheduler()->headerErrors()) {
-            if (!write(Location::path(err)))
                 return 1;
         }
         if (isAborted())

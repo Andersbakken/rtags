@@ -68,39 +68,35 @@ int IndexerJob::priority() const
         Server *server = Server::instance();
         uint32_t fileId = sources.begin()->fileId;
         assert(server);
-        if (server->jobScheduler()->hasHeaderError(fileId)) {
-            ret = -1;
-        } else {
-            if (flags & Dirty) {
-                ++ret;
-            } else if (flags & Reindex) {
-                ret += 4;
-            }
-            std::shared_ptr<Project> p = server->project(project);
-            if (server->isActiveBuffer(fileId)) {
-                ret += 8;
-            } else if (p) {
-                if (DependencyNode *node = p->dependencyNode(fileId)) {
-                    Set<DependencyNode*> seen;
-                    seen.insert(node);
-                    std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
-                        for (const auto &inc : n->includes) {
-                            if (seen.insert(inc.second)
-                                && !Location::path(n->fileId).isSystem()
-                                && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
-                                return true;
-                            }
-                        }
-                        return false;
-                    };
-                    if (func(node))
-                        ret += 2;
-                }
-            }
-
-            if (p && server->currentProject() == p)
-                ++ret;
+        if (flags & Dirty) {
+            ++ret;
+        } else if (flags & Reindex) {
+            ret += 4;
         }
+        std::shared_ptr<Project> p = server->project(project);
+        if (server->isActiveBuffer(fileId)) {
+            ret += 8;
+        } else if (p) {
+            if (DependencyNode *node = p->dependencyNode(fileId)) {
+                Set<DependencyNode*> seen;
+                seen.insert(node);
+                std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
+                    for (const auto &inc : n->includes) {
+                        if (seen.insert(inc.second)
+                            && !Location::path(n->fileId).isSystem()
+                            && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                if (func(node))
+                    ret += 2;
+            }
+        }
+
+        if (p && server->currentProject() == p)
+            ++ret;
         mCachedPriority = ret;
     }
     return mCachedPriority;
