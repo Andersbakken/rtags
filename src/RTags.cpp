@@ -692,22 +692,6 @@ static inline Diagnostic::Flag convertDiagnosticType(CXDiagnosticSeverity sev)
     return type;
 }
 
-static inline bool compareFile(CXFile l, CXFile r)
-{
-    CXString fnl = clang_getFileName(l);
-    CXString fnr = clang_getFileName(r);
-    const char *cstrl = clang_getCString(fnl);
-    const char *cstrr = clang_getCString(fnr);
-    bool ret = false;
-    if (cstrl && cstrr && !strcmp(cstrl, cstrr)) {
-        ret = true;
-    }
-
-    clang_disposeString(fnl);
-    clang_disposeString(fnr);
-    return ret;
-}
-
 void DiagnosticsProvider::diagnose()
 {
     const uint32_t sourceFile = sourceFileId();
