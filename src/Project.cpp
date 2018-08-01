@@ -1652,7 +1652,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
 
             if (!ret.isEmpty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
                 break; }
-            // fall through
+            RCT_FALL_THROUGH;
         default:
             if (symbol.flags & Symbol::TemplateReference) {
                 for (const String &usr : findTargetUsrs(symbol)) {
@@ -1774,7 +1774,7 @@ static Set<Symbol> findReferences(const Symbol &in,
             inputs = project->findVirtuals(s);
             break;
         }
-        // fall through
+        RCT_FALL_THROUGH;
     case CXCursor_FunctionTemplate:
     case CXCursor_FunctionDecl:
     case CXCursor_ClassTemplate:
