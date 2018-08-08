@@ -452,10 +452,13 @@ SourceList Source::parse(const String &cmdLine,
         return SourceList();
 
     debug() << "Source::parse (" << cmdLine << ") => " << split << cwd;
-    if (split.at(0).endsWith("/fiskc") || split.at(0) == "fiskc") {
+    size_t idx = 0;
+    if (split.size() > 1 && (split.at(0).endsWith("/ccache") || split.at(0) == "ccache"))
+        ++idx;
+    if (split.at(idx).endsWith("/fiskc") || split.at(idx) == "fiskc") {
         String compiler;
         split.removeAt(0);
-        size_t i=0;
+        size_t i=idx;
         while (i < split.size()) {
             String &str = split[i];
             if (str.startsWith("--fisk-compiler")) {
@@ -477,7 +480,7 @@ SourceList Source::parse(const String &cmdLine,
             }
         }
         if (!compiler.isEmpty())
-            split.insert(0, compiler);
+            split.insert(idx, compiler);
         debug() << "Postfisk Source::parse (" << split;
     }
 
