@@ -141,7 +141,9 @@ public:
                SourceCache *cache = 0) const;
     enum FileIdsFileFlag {
         None = 0x0,
-        HasSandboxRoot = 0x1
+        HasSandboxRoot = 0x1,
+        HasNoRealPath = 0x2,
+        HasRealPath = 0x4
     };
 
     void filterBlockedArguments(Source &source);

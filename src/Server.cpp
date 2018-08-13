@@ -2113,6 +2113,17 @@ bool Server::load()
             return false;
         }
 
+        if (flags & HasNoRealPath && !(mOptions.options & NoRealPath)) {
+            error() << ("This database was produced with --no-realpath and you're running rdm without --no-realpath. "
+                        "You must specify --no-realpath argument to use this db or start over by passing -C");
+            return false;
+
+        } else if (flags & HasRealPath && mOptions.options & NoRealPath) {
+            error() << ("This database was produced without --no-realpath and you're running rdm with --no-realpath. "
+                        "You must not specify --no-realpath argument to use this db or start over by passing -C");
+            return false;
+        }
+
         // SBROOT
         Hash<Path, uint32_t> pathsToIds;
         fileIdsFile >> pathsToIds;
@@ -2217,6 +2228,11 @@ bool Server::saveFileIds()
     Flags<FileIdsFileFlag> flags;
     if (Sandbox::hasRoot())
         flags |= HasSandboxRoot;
+    if (mOptions.options & NoRealPath) {
+        flags |= HasNoRealPath;
+    } else {
+        flags |= HasRealPath;
+    }
 
     fileIdsFile << flags << Sandbox::encoded(Location::pathsToIds());
 
