@@ -46,14 +46,16 @@ public:
         JSON = 0x04,
         IncludeMacros = 0x08,
         WarmUp = 0x10,
-        NoWait = 0x20
+        NoWait = 0x20,
+        Diagnose = 0x40
     };
-    bool isCached(uint32_t fileId, const std::shared_ptr<Project> &project) const;
+    bool isCached(const std::shared_ptr<Project> &project, uint32_t fileId) const;
     void completeAt(Source &&source, Location location, Flags<Flag> flags,
                     String &&unsaved, const String &prefix,
                     const std::shared_ptr<Connection> &conn);
     void prepare(Source &&source, String &&unsaved);
     Source findSource(const Set<uint32_t> &deps) const;
+    void reparse(const std::shared_ptr<Project> &project, uint32_t fileId);
     void stop();
     String dump();
 private:

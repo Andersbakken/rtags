@@ -940,10 +940,11 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     if (f & IncludeDefines) {
         for (const auto &def : defines)
             ret += def.toString(f);
-        if (!(f & ExcludeDefaultIncludePaths)) {
+        if (!(f & ExcludeDefaultDefines)) {
             assert(server);
             for (const auto &def : server->options().defines)
-                ret += def.toString(f);
+                if (!defines.contains(def))
+                    ret += def.toString(f);
         }
     }
     if (f & IncludeIncludePaths) {

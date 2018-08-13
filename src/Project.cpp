@@ -544,6 +544,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
     const size_t filterSize = filter.size();
 
+    // bool debug = false;
     switch (filterSize) {
     case 0:
         it = diagnostics.begin();
@@ -553,6 +554,9 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         uint32_t fileId = *filter.begin();
         it = diagnostics.lower_bound(Location(fileId, 0, 0));
         end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
+        // debug = (Location::path(fileId) == "/home/abakken/temp/compl1/main.cpp");
+        // error() << "THESE ARE THE ITERATORS" << (it == diagnostics.end() ? "end" : it->first.toString().constData())
+        //         << (end == diagnostics.end() ? "end" : end->first.toString().constData()) << diagnostics.keys();
         break; }
     default: {
         it = diagnostics.lower_bound(Location(*filter.begin(), 0, 0));
@@ -937,22 +941,24 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
 
 void Project::onFileModified(const Path &path)
 {
-    debug() << path << "was modified";
-    onFileAddedOrModified(path);
+    const uint32_t fileId = Location::fileId(path);
+    debug() << path << fileId << "was modified";
+    if (fileId) {
+        onFileAddedOrModified(path, fileId);
+        Server::instance()->sourceFileModified(shared_from_this(), fileId);
+    }
 }
 
 void Project::onFileAdded(const Path &path)
 {
-    debug() << path << "was added";
-    onFileAddedOrModified(path);
+    const uint32_t fileId = Location::fileId(path);
+    debug() << path << fileId << "was added";
+    if (fileId)
+        onFileAddedOrModified(path, fileId);
 }
 
-void Project::onFileAddedOrModified(const Path &file)
+void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
 {
-    const uint32_t fileId = Location::fileId(file);
-    debug() << file << "was modified" << fileId;
-    if (!fileId)
-        return;
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
     if (mIndexParseData.compileCommands.contains(fileId)) {
         mReloadCompileCommandsTimer.restart(ReloadCompileCommandsTimeout, Timer::SingleShot);
@@ -1307,6 +1313,10 @@ void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
 
 void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
 {
+    // const bool debug = (Location::path(fileId) == "/home/abakken/temp/compl1/main.cpp");
+    // if (debug) {
+    //     error() << "GOT HERE" << diagnostics;
+    // }
     Set<uint32_t> files;
     {
         auto it = mDiagnostics.begin();
@@ -1331,6 +1341,8 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
 
     {
         uint32_t lastFileId = 0;
+        // if (debug)
+        //     error() << "gonna fucking do" << diagnostics.size();
         for (const auto &it : diagnostics) {
             // if (debug && it.second.flags & Diagnostic::TemplateOnly)
             //     error() << "checking for" << Location::path(fileId) << it.first;
@@ -1354,6 +1366,9 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     }
 
     if (!files.isEmpty() || !diagnostics.isEmpty()) {
+        // if (debug) {
+        //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
+        // }
         log([&](const std::shared_ptr<LogOutput> &output) {
                 if (output->testLog(RTags::DiagnosticsLevel)) {
                     const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
@@ -2892,21 +2907,31 @@ void Project::validateAll()
 
 bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic)
 {
+    std::lock_guard<std::mutex> lock(mMutex);
     const uint32_t fileId = diagnostic.first.fileId();
     String err;
+    const bool hadFileMapScope = mFileMapScope.get();
+    if (!mFileMapScope)
+        beginScope();
     auto symbols = openSymbols(fileId, &err);
     if (!symbols || !symbols->count()) {
+        if (!hadFileMapScope)
+            endScope();
         return true;
     }
 
     bool exact = false;
     uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
     if (idx == std::numeric_limits<uint32_t>::max()) {
+        if (!hadFileMapScope)
+            endScope();
         return true;
     }
     while (true) {
         Symbol sym = symbols->valueAt(idx);
         if (RTags::isFunction(sym.kind)) {
+            if (!hadFileMapScope)
+                endScope();
             if (!(sym.flags & Symbol::TemplateFunction)) {
                 // error() << "no template here" << diagnostic.first << sym.location << sym.flags;
                 return false;
@@ -2916,9 +2941,15 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
         if (idx > 0) {
             --idx;
         } else {
+            if (!hadFileMapScope)
+                endScope();
+
             return true;
         }
     }
+    if (!hadFileMapScope)
+        endScope();
+
     return false;
 }
 

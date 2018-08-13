@@ -301,7 +301,7 @@ public:
     void updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics);
 private:
     void reloadCompileCommands();
-    void onFileAddedOrModified(const Path &path);
+    void onFileAddedOrModified(const Path &path, uint32_t fileId);
     void watchFile(uint32_t fileId);
     enum ValidateMode {
         StatOnly,

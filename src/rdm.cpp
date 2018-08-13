@@ -399,7 +399,7 @@ int main(int argc, char** argv)
                 def.define = value.left(eq);
                 def.value = value.mid(eq + 1);
             }
-            serverOpts.defines.append(def);
+            serverOpts.defines.insert(def);
             break; }
         case DefaultArgument: {
             serverOpts.defaultArguments.append(std::move(value));

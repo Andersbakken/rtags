@@ -111,7 +111,7 @@ public:
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;
         List<Source::Include> includePaths;
-        List<Source::Define> defines;
+        Set<Source::Define> defines;
         List<Path> tests;
         Set<Path> ignoredCompilers;
         Set<String> compilerWrappers;
@@ -147,6 +147,7 @@ public:
     };
 
     void filterBlockedArguments(Source &source);
+    void sourceFileModified(const std::shared_ptr<Project> &project, uint32_t fileId);
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const;
     bool load();

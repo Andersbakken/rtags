@@ -1375,5 +1375,6 @@ List<String> RClient::environment() const
     if (mEnvironment.isEmpty()) {
         mEnvironment = Rct::environment();
     }
+
     return mEnvironment;
 }
