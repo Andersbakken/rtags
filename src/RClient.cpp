@@ -275,7 +275,7 @@ public:
         if (!(rc->queryFlags() & (QueryMessage::Elisp|QueryMessage::XML|QueryMessage::JSON)))
             flags |= QueryMessage::XML;
 
-        LogOutputMessage msg(level, flags.cast<unsigned long long>());
+        LogOutputMessage msg(level, flags);
         msg.setCommandLine(rc->commandLine());
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
