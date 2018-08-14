@@ -734,7 +734,7 @@ static Flags<QueryMessage::Flag> queryFlags(const std::shared_ptr<LogOutput> &ou
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    FileMapScopeScope scope(this);
+    FileMapScopeScope scope(this, NoValidate);
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = job->fileId();
@@ -1955,10 +1955,10 @@ Set<Symbol> Project::findSubclasses(const Symbol &symbol)
     return ret;
 }
 
-void Project::beginScope()
+void Project::beginScope(Flags<ScopeFlag> flags)
 {
     assert(!mFileMapScope);
-    mFileMapScope.reset(new FileMapScope(shared_from_this(), Server::instance()->options().maxFileMapScopeCacheSize));
+    mFileMapScope.reset(new FileMapScope(shared_from_this(), Server::instance()->options().maxFileMapScopeCacheSize, flags));
 }
 
 void Project::endScope()

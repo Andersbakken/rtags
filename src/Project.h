@@ -238,14 +238,16 @@ public:
         serializer << mVisitedFiles;
     }
 
+    enum ScopeFlag { None = 0x0, NoValidate = 0x1 };
+
     class FileMapScopeScope
     {
     public:
-        FileMapScopeScope(Project *p)
+        FileMapScopeScope(Project *p, Flags<ScopeFlag> flags = NullFlags)
             : mProject(p)
         {
             if (mProject)
-                mProject->beginScope();
+                mProject->beginScope(flags);
         }
         FileMapScopeScope(const std::shared_ptr<Project> &p)
             : FileMapScopeScope(p.get())
@@ -260,7 +262,7 @@ public:
         Project *mProject;
     };
 
-    void beginScope();
+    void beginScope(Flags<ScopeFlag> flags = NullFlags);
     void endScope();
     void dirty(uint32_t fileId);
     bool save();
@@ -321,13 +323,13 @@ private:
     bool isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic);
 
     struct FileMapScope {
-        FileMapScope(const std::shared_ptr<Project> &proj, int m)
-            : project(proj), openedFiles(0), totalOpened(0), max(m), loadFailed(false)
+        FileMapScope(const std::shared_ptr<Project> &proj, int m, Flags<ScopeFlag> f)
+            : project(proj), openedFiles(0), totalOpened(0), max(m), loadFailed(false), flags(f)
         {}
         ~FileMapScope()
         {
             warning() << "Query opened" << totalOpened << "files for project" << project->path();
-            if (loadFailed)
+            if (loadFailed && !(flags & NoValidate))
                 project->validateAll();
         }
 
@@ -406,10 +408,12 @@ private:
                 }
                 assert(openedFiles <= max);
             } else {
-                if (errPtr) {
-                    *errPtr = "Failed to open: " + path + " " + Location::path(fileId) + ": " + err;
-                } else {
-                    error() << "Failed to open" << path << Location::path(fileId) << err;
+                if (!(flags & NoValidate)) {
+                    if (errPtr) {
+                        *errPtr = "Failed to open: " + path + " " + Location::path(fileId) + ": " + err;
+                    } else {
+                        error() << "Failed to open" << path << Location::path(fileId) << err;
+                    }
                 }
                 loadFailed = true;
                 fileMap.reset();
@@ -425,6 +429,7 @@ private:
         int openedFiles, totalOpened;
         const int max;
         bool loadFailed;
+        Flags<ScopeFlag> flags;
 
         EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
         Map<LRUKey, std::shared_ptr<LRUEntry> > entryMap;
@@ -466,6 +471,7 @@ private:
 };
 
 RCT_FLAGS(Project::WatchMode);
+RCT_FLAGS(Project::ScopeFlag);
 
 inline bool Project::visitFile(uint32_t visitFileId, const Path &path, uint32_t id)
 {
