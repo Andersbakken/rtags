@@ -625,7 +625,7 @@ void CompletionThread::reparse(const std::shared_ptr<Project> &project, uint32_t
     std::unique_lock<std::mutex> lock(mMutex);
     Source source;
     for (SourceFile *file : mCacheList) {
-        if (file->source.fileId == fileId || project->dependsOn(file->source.fileId, fileId)) {
+        if (file->source.fileId == fileId) { // || project->dependsOn(file->source.fileId, fileId)) {
             source = file->source;
             break;
         }
