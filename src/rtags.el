@@ -1480,7 +1480,8 @@ It uses the stored compile command from the RTags database for preprocessing."
            (completing-read prompt collection predicate require-match default-value hist)))
 
         ((eq rtags-completing-read-behavior 'default-when-empty)
-         (setq prompt (replace-regexp-in-string "^\\(.*\\): " (concat "\\1 (default: " default-value "): ") prompt))
+         (when (> (length default-value) 0)
+           (setq prompt (replace-regexp-in-string "^\\(.*\\): " (concat "\\1 (default: " default-value "): ") prompt)))
          (let ((ret (if (fboundp 'completing-read-default)
                         (completing-read-default prompt collection predicate nil nil hist)
                       (completing-read prompt collection predicate nil nil hist))))
