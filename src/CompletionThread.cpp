@@ -620,7 +620,7 @@ bool CompletionThread::isCached(const std::shared_ptr<Project> &project, uint32_
     return false;
 }
 
-void CompletionThread::reparse(const std::shared_ptr<Project> &project, uint32_t fileId)
+void CompletionThread::reparse(const std::shared_ptr<Project> &/*project*/, uint32_t fileId)
 {
     std::unique_lock<std::mutex> lock(mMutex);
     Source source;
