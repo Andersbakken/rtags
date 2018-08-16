@@ -807,9 +807,8 @@ public:
     virtual void exec() override
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
-            project->beginScope();
+            Project::FileMapScopeScope scope(project.get());
             project->updateDiagnostics(mSourceFileId, mDiagnostics);
-            project->endScope();
         }
     }
 
@@ -829,7 +828,6 @@ void CompletionThread::processDiagnostics(const Request *request, CXCodeComplete
     if (!project->hasSource(sourceFileId)) {
         return;
     }
-    Project::FileMapScopeScope scope(project);
     Diagnostics diagnostics;
     if (results && false) {
         LOG() << "processing diagnostics" << clang_codeCompleteGetNumDiagnostics(results)

@@ -2910,28 +2910,22 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
     std::lock_guard<std::mutex> lock(mMutex);
     const uint32_t fileId = diagnostic.first.fileId();
     String err;
-    const bool hadFileMapScope = mFileMapScope.get();
+    std::unique_ptr<FileMapScopeScope> scope;
     if (!mFileMapScope)
-        beginScope();
+        scope.reset(new FileMapScopeScope(this));
     auto symbols = openSymbols(fileId, &err);
     if (!symbols || !symbols->count()) {
-        if (!hadFileMapScope)
-            endScope();
         return true;
     }
 
     bool exact = false;
     uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
     if (idx == std::numeric_limits<uint32_t>::max()) {
-        if (!hadFileMapScope)
-            endScope();
         return true;
     }
     while (true) {
         Symbol sym = symbols->valueAt(idx);
         if (RTags::isFunction(sym.kind)) {
-            if (!hadFileMapScope)
-                endScope();
             if (!(sym.flags & Symbol::TemplateFunction)) {
                 // error() << "no template here" << diagnostic.first << sym.location << sym.flags;
                 return false;
@@ -2941,14 +2935,9 @@ bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagno
         if (idx > 0) {
             --idx;
         } else {
-            if (!hadFileMapScope)
-                endScope();
-
             return true;
         }
     }
-    if (!hadFileMapScope)
-        endScope();
 
     return false;
 }
