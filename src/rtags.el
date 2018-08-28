@@ -40,6 +40,8 @@
       (require 'cl))
   (require 'cl-lib)
   (defalias 'defun* 'cl-defun))
+(require 'cl-seq)
+(provide 'cl-extra)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'tramp)
@@ -109,6 +111,10 @@
 (defvar rtags-buffer-bookmarks 0)
 (defvar rtags-diagnostics-process nil)
 (defvar rtags-diagnostics-starting nil)
+(defvar rtags-last-update-current-project-buffer nil)
+(defvar rtags-results-buffer-type nil)
+(make-variable-buffer-local 'rtags-results-buffer-type)
+(put 'rtags-results-buffer-type 'permanent-local t)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -120,6 +126,7 @@
   :type 'boolean
   :safe 'booleanp)
 
+(defvar rtags-suspend-during-compilation nil)
 (defun rtags-set-suspend-during-compilation-enabled ()
   (if rtags-suspend-during-compilation
       (progn
@@ -129,7 +136,6 @@
     (setq compilation-finish-functions (cl-remove-if (lambda (item)
                                                        (eq item 'rtags-clear-suspended-files))
                                                      compilation-finish-functions))))
-
 (defcustom rtags-suspend-during-compilation nil
   "Suspend during compilation."
   :group 'rtags
@@ -138,6 +144,7 @@
   :set (lambda (var val)
          (set var val)
          (rtags-set-suspend-during-compilation-enabled)))
+
 
 (defcustom rtags-use-mark-as-current-symbol nil
   "Use mark, when visible as default for rtags-find-symbol."
@@ -254,6 +261,8 @@ If you're running Emacs in cygwin you might have to set this to nil."
         ((fboundp 'set-temporary-overlay-map) (set-temporary-overlay-map map))
         (t)))
 
+
+(defvar rtags-periodic-reparse-timeout nil)
 (defvar rtags-periodic-reparse-timer nil)
 (defun rtags--update-periodic-reparse-timer ()
   "Update periodic reparse timer."
@@ -1151,11 +1160,11 @@ to case differences."
 
 (defun rtags-remove-keyword-params (seq)
   (when seq
-      (cl-reduce (lambda (left right)
-         (cond ((and left (keywordp (car left))) (cdr left)) ; If we've remembered a keyword, ignore next
-         ((keywordp right) (cons right left)) ; Remember keywords we encounter.
-         (t (append left (list right))))) ; else build the list
-         seq :initial-value '())))
+    (cl-reduce (lambda (left right)
+                 (cond ((and left (keywordp (car left))) (cdr left)) ; If we've remembered a keyword, ignore next
+                       ((keywordp right) (cons right left)) ; Remember keywords we encounter.
+                       (t (append left (list right))))) ; else build the list
+               seq :initial-value '())))
 
 (defun rtags-combine-strings (list)
   (mapconcat (lambda (str)
@@ -1252,7 +1261,7 @@ absolute-location to remote. absolute-location can of course be a path"
     (let ((location-vec
            (cl-loop with v = (rtags--tramp-cons-or-vector
                               (tramp-dissect-file-name default-directory))
-              for i across v collect i)))
+                    for i across v collect i)))
       (setf (nth (if (= (length location-vec)) 5 3 5) location-vec) absolute-location)
       (apply #'tramp-make-tramp-file-name location-vec))))
 
@@ -2096,6 +2105,7 @@ instead of file from `current-buffer'.
               (unless (eobp)
                 (forward-char)))
             (nreverse cfs)))))
+
 
 ;;;###autoload
 (defun rtags-references-tree ()
@@ -3702,10 +3712,6 @@ of diagnostics count"
     (when startpos
       (goto-char startpos))))
 
-(defvar rtags-results-buffer-type nil)
-(make-variable-buffer-local 'rtags-results-buffer-type)
-(put 'rtags-results-buffer-type 'permanent-local t)
-
 (defun rtags-handle-results-buffer (&optional token noautojump quiet path other-window type nobookmarks)
   "Handle results from RTags. Should be called with the results buffer
 as current.
@@ -4013,10 +4019,10 @@ other window instead of the current one."
 ;;;###autoload
 (defun rtags-flatten-max-depth-one (unflattened)
   (cl-reduce (lambda (x y)
-			   (cond ((and (listp x) (listp y)) (append x y))
-				 ((listp x) (append x (list y)))
-				 ((listp y) (append (list x) y))
-				 (t (append (list x) (list y))))) unflattened :initial-value '()))
+               (cond ((and (listp x) (listp y)) (append x y))
+                     ((listp x) (append x (list y)))
+                     ((listp y) (append (list x) y))
+                     (t (append (list x) (list y))))) unflattened :initial-value '()))
 
 ;;;###autoload
 (defun rtags-create-index-function ()
@@ -4029,21 +4035,21 @@ other window instead of the current one."
                                           "--kind-filter" rtags-imenu-kind-filter
                                           (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
                                           "--list-symbols"
-                                            "--elisp")
+                                          "--elisp")
                            (eval (read (buffer-string)))))
            (arguments (rtags-flatten-max-depth-one (mapcar (lambda (x) (list "-F" x)) alternatives)))
            ;; RDB won't return the queries in a correlated order, so we ask for display-names
            (rdblists (with-temp-buffer (apply 'rtags-call-rc
-                                               (rtags-flatten-max-depth-one (list :path-filter fn
-                                                                    :path fn  "--no-context"
-                                                                    "--display-name"
-                                                                    "--absolute-path" arguments)))
-                       ;; Break into pairs of name and location
+                                              (rtags-flatten-max-depth-one (list :path-filter fn
+                                                                                 :path fn  "--no-context"
+                                                                                 "--display-name"
+                                                                                 "--absolute-path" arguments)))
+                                       ;; Break into pairs of name and location
                                        (mapcar (lambda (x) (split-string x "\t" t))
-					       (split-string (buffer-string) "\n" t))))
+                                               (split-string (buffer-string) "\n" t))))
            ;; Break up the locations so we can sort on line numbers
            (sortable (mapcar (lambda (x) (cons (cadr x)
-                               (split-string (car x) ":" t)))
+                                               (split-string (car x) ":" t)))
                              rdblists))
            (sorted (sort sortable (lambda (x y)
                                     (cond ((= (string-to-number (caddr x)) (string-to-number (caddr y)))
@@ -4059,8 +4065,8 @@ other window instead of the current one."
   "Overrides imenu index generation function for the current function."
   (interactive)
   (setq-local imenu-create-index-function 'rtags-create-index-function)
-  (setq-local imenu-default-goto-function (lambda (_name position &rest rest)
-					    (rtags-goto-location position))))
+  (setq-local imenu-default-goto-function (lambda (_name position &rest)
+                                            (rtags-goto-location position))))
 
 (defun rtags-append (txt)
   (goto-char (point-min))
@@ -4308,7 +4314,6 @@ which can be overridden by specifying DEFAULT-FILE"
       (setq rtags-other-window-window nil))
     ret))
 
-(defvar rtags-last-update-current-project-buffer nil)
 ;;;###autoload
 (defun rtags-update-current-project ()
   (interactive)
