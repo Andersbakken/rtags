@@ -41,12 +41,7 @@ def create_compile_commands(test_dir, test_files):
     return [dict(directory=os.path.abspath(test_dir), file=test_file,
                  command="clang++ -std=c++11 -I. -c %s" % os.path.join(test_dir, test_file))
             for test_file in (src_file for src_file in test_files
-                              if src_file.endswith('.cpp'))] + \
-                                 [dict(directory=os.path.abspath(test_dir), file=test_file,
-                                       command="clang -std=c11 -I. -c %s" % os.path.join(test_dir, test_file))
-                                  for test_file in (src_file for src_file in test_files
-                                                    if src_file.endswith('.c'))]
-
+                              if src_file.endswith(('.cpp', '.c')))]
 
 def read_locations(test_dir, lines):
     """
@@ -91,24 +86,32 @@ def run_rc(args):
     args = [RC, "--socket-file=" + SOCKET_FILE] + args
     return sp.check_output(args).decode()
 
+class TestType:
+    location = 1
+    parse = 2
+
+def run_location(test_dir, rc_command, expected):
+    actual_locations = read_locations(test_dir,
+                                      run_rc([c.format(test_dir) for c in rc_command]))
+    # Compare that we have the same results in length and content
+    assert_that(actual_locations, has_length(len(expected)))
+    for expected_location_string in expected:
+        expected_location = Location.from_str(expected_location_string.format(test_dir))
+        assert_that(actual_locations, has_item(expected_location))
+
+def run_parse(test_dir, rc_command, expected):
+    output = run_rc(rc_command)
+    assert_that(output, is_not(empty()))
+    assert_that(output.split(" "), has_item(expected.format(test_dir + "/")))
 
 def run(test_dir, rc_command, expected, test_type):
     """
     Run test
     """
-    if test_type == "location":
-        actual_locations = \
-            read_locations(test_dir,
-                           run_rc([c.format(test_dir) for c in rc_command]))
-        # Compare that we have the same results in length and content
-        assert_that(actual_locations, has_length(len(expected)))
-        for expected_location_string in expected:
-            expected_location = Location.from_str(expected_location_string.format(test_dir))
-            assert_that(actual_locations, has_item(expected_location))
-    elif test_type == "parse":
-        output = run_rc(rc_command)
-        assert_that(output, is_not(empty()))
-        assert_that(output.split(" "), has_item(expected.format(test_dir + "/")))
+    if test_type == TestType.location:
+        run_location(test_dir, rc_command, expected)
+    elif test_type == TestType.parse:
+        run_parse(test_dir, rc_command, expected)
 
 
 def setup_rdm(test_dir, test_files):
@@ -159,8 +162,8 @@ def test_generator():
         expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
         for exp in expectations:
-            test_generator.__doc__ = os.path.basename(test_dir) + ':' + exp["name"]
-            yield run, test_dir, exp["rc-command"], exp["expectation"], \
-                "parse" if "Parsing" in test_dir else "location"
+            run.description = os.path.basename(test_dir) + ': ' + exp["name"]
+            test_type = TestType.parse if "Parsing" in test_dir else TestType.location
+            yield run, test_dir, exp["rc-command"], exp["expectation"], test_type
         rdm.terminate()
         rdm.wait()
