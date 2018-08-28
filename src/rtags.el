@@ -1151,11 +1151,11 @@ to case differences."
 
 (defun rtags-remove-keyword-params (seq)
   (when seq
-    (let ((head (car seq))
-          (tail (cdr seq)))
-      (if (keywordp head)
-          (rtags-remove-keyword-params (cdr tail))
-        (cons head (rtags-remove-keyword-params tail))))))
+      (cl-reduce (lambda (left right)
+         (cond ((and left (keywordp (car left))) (cdr left)) ; If we've remembered a keyword, ignore next
+         ((keywordp right) (cons right left)) ; Remember keywords we encounter.
+         (t (append left (list right))))) ; else build the list
+         seq :initial-value '())))
 
 (defun rtags-combine-strings (list)
   (mapconcat (lambda (str)
@@ -4009,6 +4009,58 @@ other window instead of the current one."
       (if match
           (rtags-goto-location (with-temp-buffer (rtags-call-rc :path-filter fn :path fn "-F" match "--no-context" "--absolute-path") (buffer-string)))
         (message "RTags: No symbols")))))
+
+;;;###autoload
+(defun rtags-flatten-max-depth-one (unflattened)
+  (cl-reduce (lambda (x y)
+			   (cond ((and (listp x) (listp y)) (append x y))
+				 ((listp x) (append x (list y)))
+				 ((listp y) (append (list x) y))
+				 (t (append (list x) (list y))))) unflattened :initial-value '()))
+
+;;;###autoload
+(defun rtags-create-index-function ()
+  (interactive)
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+    (rtags-delete-rtags-windows)
+    (let* ((fn (rtags-buffer-file-name))
+           (alternatives (with-temp-buffer
+                           (rtags-call-rc :path fn :path-filter fn
+                                          "--kind-filter" rtags-imenu-kind-filter
+                                          (when rtags-wildcard-symbol-names "--wildcard-symbol-names")
+                                          "--list-symbols"
+                                            "--elisp")
+                           (eval (read (buffer-string)))))
+           (arguments (rtags-flatten-max-depth-one (mapcar (lambda (x) (list "-F" x)) alternatives)))
+           ;; RDB won't return the queries in a correlated order, so we ask for display-names
+           (rdblists (with-temp-buffer (apply 'rtags-call-rc
+                                               (rtags-flatten-max-depth-one (list :path-filter fn
+                                                                    :path fn  "--no-context"
+                                                                    "--display-name"
+                                                                    "--absolute-path" arguments)))
+                       ;; Break into pairs of name and location
+                                       (mapcar (lambda (x) (split-string x "\t" t))
+					       (split-string (buffer-string) "\n" t))))
+           ;; Break up the locations so we can sort on line numbers
+           (sortable (mapcar (lambda (x) (cons (cadr x)
+                               (split-string (car x) ":" t)))
+                             rdblists))
+           (sorted (sort sortable (lambda (x y)
+                                    (cond ((= (string-to-number (caddr x)) (string-to-number (caddr y)))
+                                           (< (string-to-number (cadddr x)) (string-to-number (cadddr y))))
+                                          (t (< (string-to-number (caddr x)) (string-to-number (caddr y))))))))
+           ;; Combine location pieces back into a string
+           (alists (mapcar (lambda (x) (cons (car x) (mapconcat 'identity (cdr x) ":"))) sorted)))
+      ;; Return the sorted pairs of name and location.
+      alists)))
+
+;;;###autoload
+(defun rtags-activate-imenu ()
+  "Overrides imenu index generation function for the current function."
+  (interactive)
+  (setq-local imenu-create-index-function 'rtags-create-index-function)
+  (setq-local imenu-default-goto-function (lambda (_name position &rest rest)
+					    (rtags-goto-location position))))
 
 (defun rtags-append (txt)
   (goto-char (point-min))
