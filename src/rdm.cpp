@@ -172,6 +172,7 @@ enum OptionType {
     MaxCrashCount,
     MaxSocketWriteBufferSize,
     CompletionCacheSize,
+    CompletionDiagnostics,
     CompletionNoFilter,
     CompletionLogs,
     MaxIncludeCompletionDepth,
@@ -333,6 +334,7 @@ int main(int argc, char** argv)
         { CompletionCacheSize, "completion-cache-size", 'i', CommandLineParser::Required, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
+        { CompletionDiagnostics, "completion-diagnostics", 0, CommandLineParser::NoValue, "Send diagnostics from completion thread." },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
@@ -585,6 +587,9 @@ int main(int argc, char** argv)
             if (serverOpts.completionCacheSize <= 0) {
                 return { String::format<1024>("Invalid argument to -i %s", value.constData()), CommandLineParser::Parse_Error };
             }
+            break; }
+        case CompletionDiagnostics: {
+            serverOpts.options |= Server::CompletionDiagnostics;
             break; }
         case CompletionNoFilter: {
             serverOpts.options |= Server::CompletionsNoFilter;

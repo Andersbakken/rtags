@@ -87,7 +87,8 @@ public:
         Separate32BitAnd64Bit = (1ull << 31),
         SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
         NoLibClangIncludePath = (1ull << 33),
-        TranslationUnitCache = (1ull << 34)
+        TranslationUnitCache = (1ull << 34),
+        CompletionDiagnostics = (1ull << 35)
     };
     struct Options {
         Options()

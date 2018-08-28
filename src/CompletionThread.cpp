@@ -407,7 +407,8 @@ void CompletionThread::process(Request *request)
             printCompletions(List<std::unique_ptr<MatchResult> >(), request);
         }
 
-        processDiagnostics(request, results, cache->translationUnit->unit);
+        if (options.options & Server::CompletionDiagnostics)
+            processDiagnostics(request, results, cache->translationUnit->unit);
         clang_disposeCodeCompleteResults(results);
     }
 }
@@ -622,6 +623,8 @@ bool CompletionThread::isCached(const std::shared_ptr<Project> &project, uint32_
 
 void CompletionThread::reparse(const std::shared_ptr<Project> &/*project*/, uint32_t fileId)
 {
+    if (!(Server::instance()->options().options & Server::CompletionDiagnostics))
+        return;
     std::unique_lock<std::mutex> lock(mMutex);
     Source source;
     for (SourceFile *file : mCacheList) {
