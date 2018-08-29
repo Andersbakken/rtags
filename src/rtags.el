@@ -4065,7 +4065,7 @@ other window instead of the current one."
   "Overrides imenu index generation function for the current function."
   (interactive)
   (setq-local imenu-create-index-function 'rtags-create-index-function)
-  (setq-local imenu-default-goto-function (lambda (_name position &rest)
+  (setq-local imenu-default-goto-function (lambda (_name position &rest unused)
                                             (rtags-goto-location position))))
 
 (defun rtags-append (txt)
