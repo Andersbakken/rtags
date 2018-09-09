@@ -41,7 +41,7 @@
   (require 'cl-lib)
   (defalias 'defun* 'cl-defun))
 (require 'cl-seq)
-(provide 'cl-extra)
+(require 'cl-extra)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'tramp)
