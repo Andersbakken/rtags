@@ -1235,4 +1235,16 @@ try to do it from now.
 - Fix issue #1214. Socket file doesn't need to be resolved.
 - Various other fixes, code cleanup and infrastructure work.
 
+2.20
+- Diagnostics from completions can be enabled with
+  --completion-diagnostics. It seems quite fast but may have
+  bugs. We'll keep working on it.
+- A nasty bug with our file system watcher and inotify would cause us
+  to stop getting modifications from compile_commands.json. This has
+  been an absolute thorn in RTags' side for years. I'm extremely
+  pleased to finally have found this bug. This very severely
+  impacted my personal rtags experience and likely has for lots of
+  other people as well.
+- Fix a weird edge-case bug when running rdm with --no-realpath and
+  re-running without this switch (and vice-verse)
 
