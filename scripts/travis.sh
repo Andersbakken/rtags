@@ -44,6 +44,7 @@ fi # end ! $LUA_DISABLE
 function build()
 {
     mkdir build && pushd build > /dev/null
+    emacs --version
     cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
     make VERBOSE=1 -j2
 }
