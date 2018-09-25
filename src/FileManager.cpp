@@ -104,6 +104,8 @@ void FileManager::onFileAdded(const Path &path)
 
 void FileManager::onFileRemoved(const Path &path)
 {
+    if (path.exists())
+        return;
     debug() << "fm file removed" << path;
     std::lock_guard<std::mutex> lock(mMutex);
     std::shared_ptr<Project> project = mProject.lock();
