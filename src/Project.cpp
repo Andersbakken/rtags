@@ -982,7 +982,7 @@ void Project::onFileRemoved(const Path &file)
         return;
 
     if (mIndexParseData.compileCommands.contains(fileId)) {
-        reloadCompileCommands();
+        mReloadCompileCommandsTimer.restart(ReloadCompileCommandsTimeout, Timer::SingleShot);
         return;
     }
     removeSource(fileId);
