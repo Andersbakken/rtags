@@ -301,6 +301,12 @@ public:
     void forEachSource(std::function<VisitResult(Source &source)> cb) { forEachSource(mIndexParseData, cb); }
     void validateAll();
     void updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics);
+    enum CheckMode {
+        Check_Init,
+        Check_Recurring,
+        Check_Explicit
+    };
+    void check(CheckMode mode);
 private:
     void reloadCompileCommands();
     void onFileAddedOrModified(const Path &path, uint32_t fileId);
@@ -451,7 +457,7 @@ private:
 
     Hash<uint32_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 
-    Timer mDirtyTimer, mReloadCompileCommandsTimer;
+    Timer mDirtyTimer, mCheckTimer;
     Set<uint32_t> mPendingDirtyFiles;
 
     StopWatch mTimer;

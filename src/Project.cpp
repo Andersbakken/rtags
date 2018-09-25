@@ -39,7 +39,7 @@
 #include "Server.h"
 #include "RTagsVersion.h"
 
-enum { DirtyTimeout = 100, ReloadCompileCommandsTimeout = 500 };
+enum { DirtyTimeout = 100, CheckExplicitTimeout = 500, CheckPeriodicTimeout = 60 * 60000 };
 
 class Dirty
 {
@@ -277,7 +277,7 @@ Project::~Project()
 
     assert(EventLoop::isMainThread());
     mDirtyTimer.stop();
-    mReloadCompileCommandsTimer.stop();
+    mCheckTimer.stop();
 }
 
 static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, Set<uint32_t> &seen)
@@ -339,7 +339,7 @@ bool Project::init()
     }
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
-    mReloadCompileCommandsTimer.timeout().connect(std::bind(&Project::reloadCompileCommands, this));
+    mCheckTimer.timeout().connect([this](Timer *) { check(Check_Explicit); });
 
     String err;
     if (!Project::readSources(mSourcesFilePath, mIndexParseData, &err)) {
@@ -379,7 +379,7 @@ bool Project::init()
     }
     file >> mDiagnostics;
     for (const auto &info : mIndexParseData.compileCommands)
-        watch(Location::path(info.first), Watch_CompileCommands);
+        watch(Location::path(info.first).parentDir(), Watch_CompileCommands);
 
     if (!loadDependencies(file, mDependencies)) {
         mDependencies.deleteAll();
@@ -394,6 +394,13 @@ bool Project::init()
         watchFile(dep.first);
     }
 
+    check(Check_Init);
+    return true;
+}
+
+void Project::check(CheckMode checkMode)
+{
+    const Server::Options &options = Server::instance()->options();
     bool needsSave = false;
     std::unique_ptr<ComplexDirty> dirty;
 
@@ -408,7 +415,7 @@ bool Project::init()
         List<uint32_t> removed;
         int idx = 0;
         bool outputDirty = false;
-        if (mDependencies.size() >= 100) {
+        if (checkMode == Check_Init && mDependencies.size() >= 100) {
             logDirect(LogLevel::Error, String::format<128>("Restoring %s ", mPath.constData()), LogOutput::StdOut);
             outputDirty = true;
         }
@@ -429,7 +436,7 @@ bool Project::init()
                 String errorString;
                 if (!validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly, &errorString)) {
                     if (!errorString.isEmpty()) {
-                        if (outputDirty) {
+                        if (checkMode == Check_Init && outputDirty) {
                             outputDirty = false;
                             logDirect(LogLevel::Error, String("\n"), LogOutput::StdOut);
                         }
@@ -443,13 +450,13 @@ bool Project::init()
                     }
                 }
             }
-            if (++idx % 100 == 0) {
+            if (checkMode == Check_Init && ++idx % 100 == 0) {
                 outputDirty = true;
                 logDirect(LogLevel::Error, ".", 1, LogOutput::StdOut);
                 // error("%d/%d (%.2f%%)", idx, count, (idx / static_cast<double>(count)) * 100.0);
             }
         }
-        if (outputDirty)
+        if (checkMode == Check_Init && outputDirty)
             logDirect(LogLevel::Error, "\n", 1, LogOutput::StdOut);
         for (uint32_t r : removed) {
             removeDependencies(r);
@@ -481,7 +488,7 @@ bool Project::init()
         simple.init(shared_from_this(), missingFileMaps);
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
-    return true;
+    mCheckTimer.restart(CheckPeriodicTimeout); // always checking every 5 minutes
 }
 
 bool Project::match(const Match &p, bool *indexed) const
@@ -961,7 +968,7 @@ void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
 {
     // error() << file.fileName() << mCompileCommandsInfos.dir << file;
     if (mIndexParseData.compileCommands.contains(fileId)) {
-        mReloadCompileCommandsTimer.restart(ReloadCompileCommandsTimeout, Timer::SingleShot);
+        mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
 
@@ -982,7 +989,7 @@ void Project::onFileRemoved(const Path &file)
         return;
 
     if (mIndexParseData.compileCommands.contains(fileId)) {
-        mReloadCompileCommandsTimer.restart(ReloadCompileCommandsTimeout, Timer::SingleShot);
+        mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
     removeSource(fileId);
@@ -1511,21 +1518,21 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryM
     return sorted;
 }
 
-void Project::watch(const Path &dir, WatchMode mode)
+void Project::watch(const Path &path, WatchMode mode)
 {
-    if (!dir.isEmpty()) {
+    if (!path.isEmpty()) {
         const auto opts = Server::instance()->options().options;
         if (opts & Server::WatchSourcesOnly && mode != Watch_SourceFile)
             return;
-        const auto it = mWatchedPaths.find(dir);
+        const auto it = mWatchedPaths.find(path);
         if (it != mWatchedPaths.end()) {
             it->second |= mode;
             return;
         }
-        if (opts & Server::WatchSystemPaths || !dir.isSystem()) {
-            auto &m = mWatchedPaths[dir];
+        if (opts & Server::WatchSystemPaths || !path.isSystem()) {
+            auto &m = mWatchedPaths[path];
             if (!m)
-                mWatcher.watch(dir);
+                mWatcher.watch(path);
             m |= mode;
         }
     }
@@ -2492,7 +2499,6 @@ String Project::estimateMemory() const
 
 void Project::reloadCompileCommands()
 {
-    mReloadCompileCommandsTimer.stop();
     if (!Server::instance()->suspended()) {
         SourceCache cache;
         Hash<uint32_t, uint32_t> removed;

@@ -1489,6 +1489,7 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
             if (!(mOptions.options & NoFileManager))
                 project->fileManager()->load(FileManager::Asynchronous);
             mJobScheduler->sort();
+            project->check(Project::Check_Explicit);
             // project->diagnoseAll();
         } else {
             Path::rm(mOptions.dataDir + ".currentProject");
