@@ -39,7 +39,7 @@
     (eval-when-compile
       (require 'cl))
   (require 'cl-lib)
-  (require 'clseq)
+  (require 'cl-seq)
   (require 'cl-extra)
   (defalias 'defun* 'cl-defun))
 (require 'bookmark)
