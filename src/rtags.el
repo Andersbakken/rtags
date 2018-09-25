@@ -35,13 +35,13 @@
   :group 'tools
   :link '(url-link :tag "Website" "http://rtags.net"))
 
-(if (version< emacs-version "24.3")
+(if (version< emacs-version "25")
     (eval-when-compile
       (require 'cl))
   (require 'cl-lib)
+  (require 'clseq)
+  (require 'cl-extra)
   (defalias 'defun* 'cl-defun))
-(require 'cl-seq)
-(require 'cl-extra)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'tramp)
