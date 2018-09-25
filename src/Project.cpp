@@ -1522,7 +1522,7 @@ void Project::watch(const Path &path, WatchMode mode)
 {
     if (!path.isEmpty()) {
         const auto opts = Server::instance()->options().options;
-        if (opts & Server::WatchSourcesOnly && mode != Watch_SourceFile)
+        if (opts & Server::WatchSourcesOnly && !(mode & (Watch_SourceFile|Watch_CompileCommands)))
             return;
         const auto it = mWatchedPaths.find(path);
         if (it != mWatchedPaths.end()) {
