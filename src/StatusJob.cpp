@@ -114,6 +114,19 @@ int StatusJob::execute()
                 return 1;
             }
         }
+        for (auto p : Server::instance()->projects()) {
+            if (p.second != proj) {
+                watched = p.second->watchedPaths();
+                if (watched.empty())
+                    continue;
+                write<256>("Project: %s", p.first.c_str());
+                for (const auto &it : watched) {
+                    if (!write<256>("  %s (%s)", it.first.constData(), watchModeToString(it.second).constData())) {
+                        return 1;
+                    }
+                }
+            }
+        }
     }
 
     const Dependencies &deps = proj->dependencies();

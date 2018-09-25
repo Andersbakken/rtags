@@ -132,6 +132,7 @@ public:
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+    Hash<Path, std::shared_ptr<Project> > projects() const { return mProjects; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
     bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const;
