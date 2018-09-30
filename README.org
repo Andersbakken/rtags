@@ -1128,6 +1128,7 @@ There are several other projects integrating RTags with other editors.
 
 Sublime Text:
 https://github.com/rampage644/sublime-rtags
+https://github.com/tillt/RTagsComplete
 
 Vim:
 https://github.com/lyuts/vim-rtags
