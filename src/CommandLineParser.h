@@ -16,6 +16,17 @@
 #ifndef CommandLineParser_h
 #define CommandLineParser_h
 
+#include <functional>
+#include <initializer_list>
+#include <rct/Flags.h>
+#include <rct/Hash.h>
+#include <rct/List.h>
+#include <rct/Path.h>
+#include <rct/String.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+
 namespace CommandLineParser {
 enum ValueType {
     Required,
