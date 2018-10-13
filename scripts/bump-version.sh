@@ -1,12 +1,10 @@
-#!/bin/bash
+#!/bin/bash -e
 
 SCRIPT="$(readlink -f ${BASH_SOURCE[0]})"
 DIR="$(dirname $SCRIPT)"
 
-# echo "$SCRIPT $DIR"
-
-MAJOR=`echo $1 | awk -F. '{print $1}'`
-MINOR=`echo $1 | awk -F. '{print $2}'`
+MAJOR=$(echo $1 | awk -F. '{print $1}')
+MINOR=$(echo $1 | awk -F. '{print $2}')
 
 if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+$"; then
     echo "Bad argument: \"$1\""
@@ -14,13 +12,41 @@ if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+$"; then
     exit 1
 fi
 
-SED=sed
-[ -n "`which gsed`" ] && SED=gsed
+JOBS=$(getconf _NPROCESSORS_ONLN)
 
-$SED -i"" -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR)," -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR)," "$DIR/../CMakeLists.txt"
-$SED -i"" -e "s,^(defconst rtags-package-version \"[0-9]\+\.[0-9]\+\"),(defconst rtags-package-version \"${MAJOR}.${MINOR}\")," "$DIR/../src/rtags.el"
-$SED -i"" -e "s,https://andersbakken\.github\.io/rtags-releases/rtags-[0-9]\+\.[0-9]\+\.tar\.,https://andersbakken.github.io/rtags-releases/rtags-$MAJOR.$MINOR.tar.,g" "$DIR/../README.org"
+if [ "$(uname)" == "Darwin" ]; then
+    SED=$(which gsed)
+else
+    SED=$(which sed)
+fi
 
-git commit -m "Bump version to ${MAJOR}.${MINOR}" $DIR/../README.org $DIR/../CMakeLists.txt $DIR/../src/rtags.el
+if [ ! -x "$SED" ]; then
+    echo "You need sed installed (and on Mac it needs to be gsed) to run ${BASH_SOURCE[0]}"
+    exit 1
+fi
+
+cd $DIR/..
+$SED -i""                                                                       \
+     -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR),"  \
+     -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR),"  \
+     CMakeLists.txt
+$SED -i""                                                                                                                       \
+     -e "s,^(defconst rtags-package-version \"[0-9]\+\.[0-9]\+\"),(defconst rtags-package-version \"${MAJOR}.${MINOR}\"),"      \
+     -e "s,^;; Version: [0-9]\+\.[0-9]\+,;; Version: ${MAJOR}.${MINOR},"                                                        \
+     src/rtags.el
+
+echo "Generating manpages"
+if [ ! -d build ]; then
+    mkdir build
+fi
+cd build
+cmake ..
+make man -j$JOBS
+cd ..
+
+git commit -m "Bump version to ${MAJOR}.${MINOR}"       \
+    CMakeLists.txt                                      \
+    src/rtags.el                                        \
+    man
 git tag "v${MAJOR}.${MINOR}"
 git push --tags

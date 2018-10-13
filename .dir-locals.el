@@ -3,13 +3,12 @@
 
 ((nil
   (indent-tabs-mode))
+ (yaml-mode
+  (yaml-indent-offset . 2))
  (c++-mode
-  (c-basic-offset . 4)
-  (indent-tabs-mode))
+  (c-basic-offset . 4))
  (cmake-mode
-  (cmake-tab-width . 4)
-  (indent-tabs-mode))
+  (cmake-tab-width . 4))
  (python-mode
   (python-indent-offset . 4)
-  (tab-width . 4)
-  (indent-tabs-mode)))
+  (tab-width . 4)))

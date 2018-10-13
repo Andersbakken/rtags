@@ -1,36 +1,43 @@
-#
-# Available repositories are listed here:
-# https://github.com/travis-ci/apt-source-whitelist/blob/master/ubuntu.json
-#
-
 language: cpp
 sudo: required
-
-addons:
-    apt:
-        sources:
-            - ubuntu-toolchain-r-test
-        packages:
-            - g++-4.9
-            - python3-pip
-            - libcppunit-dev
-
 git:
   depth: 3
 
-matrix:
-    include:
-        - os: linux
-          compiler: g++
-          dist: trusty
-          env: T=g++-linux COMPILER_VERSION=-4.9
-        - os: osx
-          compiler: clang
-          env: T=clang-osx
-
 branches:
-    only:
-        - master
-        - develop
+  only:
+    - master
+    - develop
+    - /^v[0-9]+\.[0-9]+$/
 
-script: ./scripts/travis.sh
+jobs:
+  include:
+    - os: linux
+      compiler: g++
+      dist: trusty
+      env: T=g++-linux COMPILER_VERSION=-4.9
+      script: ./scripts/travis.sh
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-4.9
+            - python3-pip
+            - libcppunit-dev
+    - os: osx
+      script: ./scripts/travis.sh
+      compiler: clang
+      env: T=clang-osx
+    - stage: Release
+      before_deploy: ./scripts/rtags-release.sh
+      script: true
+      deploy:
+        provider: releases
+        skip_cleanup: true
+        api_key:
+          secure: DOlyG6rhNwvBt+AfQPbOR6gjqvYQYU8rEiFB7cjOY+ghDMw8ijcd3akORusrFqhkCbDLxK2/J6VbNLZCErv/mAUOvt+FPm9DsSbrulKRAeS5l1YQoUfokAE5AFaRSHGlshilYrDvDjljpyRLyZJZheQjSTeUbZYJQEEJQpTQhOQ=
+        file:
+          - build/rtags-${TRAVIS_TAG#v*}.tar.bz2
+          - build/rtags-${TRAVIS_TAG#v*}.tar.gz
+        on:
+          tags: true

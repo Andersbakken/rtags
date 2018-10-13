@@ -71,7 +71,7 @@ function osx()
     build
 
     ## Step -- Test
-    run_tests
+    run_tests -E unittests
 }
 
 function gnu_linux()

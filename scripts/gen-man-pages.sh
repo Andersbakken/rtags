@@ -26,13 +26,13 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-SED=sed
-if [ $(uname) == "Darwin" ]; then
-    SED=`which gsed`
+SED=$(which sed)
+if [ "$(uname)" == "Darwin" ]; then
+    SED=$(which gsed)
 fi
 
 if [ ! -x "$SED" ]; then
-    echo "You need sed installed (and on Mac it needs to be gsed) to run this script"
+    echo "You need sed installed (and on Mac it needs to be gsed) to run ${BASH_SOURCE[0]}"
     exit 1
 fi
 
