@@ -607,6 +607,9 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             if (f == ignoredFileId) {
                 continue;
             }
+            if (!(flags & QueryMessage::JSONDiagnosticsIncludeSkipped) && ref->second.type() == Diagnostic::Skipped) {
+                continue;
+            }
             if (f != lastFileId) {
                 if (filterSize && !filter.remove(f)) {
                     ignoredFileId = f;
@@ -616,8 +619,6 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                 currentFile = &checkStyle[ref->first.path()];
                 lastFileId = f;
             }
-            if (!(flags & QueryMessage::JSONDiagnosticsIncludeSkipped) && ref->second.type() == Diagnostic::Skipped)
-                continue;
             currentFile->push_back(toValue(lastFileId, ref->first, ref->second));
         }
         for (uint32_t f : filter) {
