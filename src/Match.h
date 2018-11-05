@@ -112,7 +112,11 @@ inline Match::Match(const String &pattern, Flags<Flag> f)
 {
     if (mFlags & Flag_Regex) {
         try {
-            mRegex = pattern.ref();
+            if (mFlags & Flag_CaseInsensitive) {
+                mRegex.assign(pattern.ref(), std::regex::icase);
+            } else {
+                mRegex.assign(pattern.ref());
+            }
         } catch (const std::regex_error &err) {
             mFlags &= ~Flag_Regex;
         }

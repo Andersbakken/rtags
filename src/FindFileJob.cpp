@@ -35,7 +35,11 @@ FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::
     const String q = query->query();
     if (!q.isEmpty()) {
         if (query->flags() & QueryMessage::MatchRegex) {
-            mRegex = q.ref();
+            if (query->flags() & QueryMessage::MatchCaseInsensitive) {
+                mRegex.assign(q.ref(), std::regex::icase);
+            } else {
+                mRegex.assign(q.ref());
+            }
         } else {
             mPattern = q;
         }

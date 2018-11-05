@@ -1418,8 +1418,13 @@ void Project::findSymbols(const String &unencoded,
     const bool caseInsensitive = queryFlags & QueryMessage::MatchCaseInsensitive;
     std::regex rx;
     const bool regex = queryFlags & QueryMessage::MatchRegex;
-    if (regex)
-        rx.assign(string.ref());
+    if (regex) {
+        if (caseInsensitive) {
+            rx.assign(string.ref(), std::regex::icase);
+        } else {
+            rx.assign(string.ref());
+        }
+    }
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
     String lowerBound;
     if (wildcard) {
