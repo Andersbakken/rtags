@@ -103,14 +103,14 @@ void CompletionThread::run()
 }
 
 void CompletionThread::completeAt(Source &&source, Location location,
-                                  Flags<Flag> flags, String &&unsaved,
+                                  Flags<Flag> flags, int max, String &&unsaved,
                                   const String &prefix,
                                   const std::shared_ptr<Connection> &conn)
 {
     if (Server::instance()->options().options & Server::CompletionLogs)
         error() << "CODE COMPLETION completeAt" << Rct::currentTimeString() << location << flags;
 
-    Request *request = new Request({ std::forward<Source>(source), location, flags, std::forward<String>(unsaved), prefix, conn});
+    Request *request = new Request({ std::forward<Source>(source), location, flags, max, std::forward<String>(unsaved), prefix, conn});
     std::unique_lock<std::mutex> lock(mMutex);
     auto it = mPending.begin();
     while (it != mPending.end()) {
@@ -137,7 +137,7 @@ void CompletionThread::prepare(Source &&source, String &&unsaved)
         }
     }
 
-    Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, std::forward<String>(unsaved), String(), std::shared_ptr<Connection>() });
+    Request *request = new Request({ std::forward<Source>(source), Location(), WarmUp, -1, std::forward<String>(unsaved), String(), std::shared_ptr<Connection>() });
     mPending.push_back(request);
     mCondition.notify_one();
 }
@@ -394,6 +394,10 @@ void CompletionThread::process(Request *request)
 
         List<std::unique_ptr<MatchResult> > matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
 
+        if ((request->max != -1) && (static_cast<size_t>(request->max) < matches.size())) {
+            matches.resize(request->max);
+        }
+
         if (!matches.isEmpty()) {
             printCompletions(matches, request);
             processTime = sw.elapsed();
@@ -645,7 +649,7 @@ void CompletionThread::reparse(const std::shared_ptr<Project> &/*project*/, uint
     if (Server::instance()->options().options & Server::CompletionLogs)
         error() << "CODE COMPLETION reparse" << Rct::currentTimeString() << source.sourceFile();
 
-    Request *request = new Request({ std::forward<Source>(source), Location(), Diagnose, String(), String(), std::shared_ptr<Connection>() });
+    Request *request = new Request({ std::forward<Source>(source), Location(), Diagnose, -1, String(), String(), std::shared_ptr<Connection>() });
     mPending.push_back(request);
     mCondition.notify_one();
 }

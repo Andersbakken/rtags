@@ -50,7 +50,7 @@ public:
         Diagnose = 0x40
     };
     bool isCached(const std::shared_ptr<Project> &project, uint32_t fileId) const;
-    void completeAt(Source &&source, Location location, Flags<Flag> flags,
+    void completeAt(Source &&source, Location location, Flags<Flag> flags, int max,
                     String &&unsaved, const String &prefix,
                     const std::shared_ptr<Connection> &conn);
     void prepare(Source &&source, String &&unsaved);
@@ -76,6 +76,7 @@ private:
         Source source;
         Location location;
         Flags<Flag> flags;
+        int max;
         String unsaved, prefix;
         std::shared_ptr<Connection> conn;
     };
