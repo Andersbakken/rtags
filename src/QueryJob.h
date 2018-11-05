@@ -118,7 +118,7 @@ private:
     class RegexFilter : public Filter
     {
     public:
-        RegexFilter(const String &str) : regex(str.ref()) {}
+        RegexFilter(const String &str, bool caseInsensitive) : regex(str.ref(), caseInsensitive ? std::regex::icase : std::regex::ECMAScript) {}
         virtual bool match(uint32_t, const Path &path) const { return std::regex_search(path.constData(), regex); }
 
         const std::regex regex;
