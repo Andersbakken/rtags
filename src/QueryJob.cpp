@@ -136,7 +136,9 @@ bool QueryJob::locationToString(Location location,
         int idx;
         Symbol symbol = project()->findSymbol(location, &idx);
         if (symbol.isNull()) {
-            error() << "Somehow can't find" << location << "in symbols";
+            if (!(symbol.flags & Symbol::FileSymbol)) {
+                error() << "Somehow can't find" << location << "in symbols";
+            }
         } else {
             if (!mKindFilters.filter(symbol))
                 return false;
