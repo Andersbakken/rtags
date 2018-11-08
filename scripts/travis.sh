@@ -60,7 +60,6 @@ function osx()
 {
     ## Step -- Setup
     brew update
-    rm /usr/local/include/c++
     brew install llvm yarn cppunit
     brew upgrade python3
     python3 -m pip install --upgrade pip
