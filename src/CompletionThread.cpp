@@ -343,7 +343,7 @@ void CompletionThread::process(Request *request)
                 case CXAvailability_Deprecated:
                     break;
                 case CXAvailability_NotAccessible:
-                    break;
+                    continue;
                 case CXAvailability_NotAvailable: // protected members are erroneously flagged as NotAvailable in clang 3.6
                     continue;
                 }
