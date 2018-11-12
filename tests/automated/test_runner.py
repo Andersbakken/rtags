@@ -20,7 +20,7 @@ import sys
 import json
 import time
 import subprocess as sp
-from hamcrest import assert_that, has_length, has_item, empty, is_not
+from hamcrest import assert_that, has_length, has_item, empty, is_not, equal_to
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -89,6 +89,7 @@ def run_rc(args):
 class TestType:
     location = 1
     parse = 2
+    completion = 3
 
 def run_location(test_dir, rc_command, expected):
     actual_locations = read_locations(test_dir,
@@ -104,6 +105,19 @@ def run_parse(test_dir, rc_command, expected):
     assert_that(output, is_not(empty()))
     assert_that(output.split(" "), has_item(expected.format(test_dir + "/")))
 
+def non_empty_split(s, delim=None):
+    return [x for x in s.split(delim) if x]
+
+def run_completion(test_dir, rc_command, expected):
+    outputs = run_rc([c.format(test_dir) for c in rc_command]).split("\n")
+
+    size = len(outputs)
+    assert_that(size, equal_to(len(expected)))
+
+    for i in xrange (0, size):
+        assert_that(non_empty_split(outputs[i].strip(), " "),
+                    equal_to(non_empty_split(expected[i].strip(), " ")))
+
 def run(test_dir, rc_command, expected, test_type):
     """
     Run test
@@ -112,6 +126,8 @@ def run(test_dir, rc_command, expected, test_type):
         run_location(test_dir, rc_command, expected)
     elif test_type == TestType.parse:
         run_parse(test_dir, rc_command, expected)
+    elif test_type == TestType.completion:
+        run_completion(test_dir, rc_command, expected)
 
 
 def setup_rdm(test_dir, test_files):
@@ -150,6 +166,14 @@ def setup_module():
             raise FileNotFoundError("{} does not exist or is not executable\n".format(exe))
         return 0
 
+def get_type(test_dir):
+    if "Parsing" in test_dir:
+        return TestType.parse
+
+    if "Completion" in test_dir:
+        return TestType.completion
+
+    return TestType.location
 
 def test_generator():
     """
@@ -163,7 +187,7 @@ def test_generator():
         rdm = setup_rdm(test_dir, test_files)
         for exp in expectations:
             run.description = os.path.basename(test_dir) + ': ' + exp["name"]
-            test_type = TestType.parse if "Parsing" in test_dir else TestType.location
+            test_type = get_type(test_dir)
             yield run, test_dir, exp["rc-command"], exp["expectation"], test_type
         rdm.terminate()
         rdm.wait()
