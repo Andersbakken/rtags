@@ -20,7 +20,7 @@ import sys
 import json
 import time
 import subprocess as sp
-from hamcrest import assert_that, has_length, has_item, empty, is_not, equal_to
+from hamcrest import assert_that, has_length, has_item, empty, is_not, equal_to, contains_inanyorder
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
@@ -105,18 +105,12 @@ def run_parse(test_dir, rc_command, expected):
     assert_that(output, is_not(empty()))
     assert_that(output.split(" "), has_item(expected.format(test_dir + "/")))
 
-def non_empty_split(s, delim=None):
-    return [x for x in s.split(delim) if x]
-
 def run_completion(test_dir, rc_command, expected):
     outputs = run_rc([c.format(test_dir) for c in rc_command]).split("\n")
 
-    size = len(outputs)
-    assert_that(size, equal_to(len(expected)))
-
-    for i in range (0, size):
-        assert_that(non_empty_split(outputs[i].strip(), " "),
-                    equal_to(non_empty_split(expected[i].strip(), " ")))
+    assert_that(len(outputs), equal_to(len(expected)))
+    for output in outputs:
+        assert_that(expected, has_item(output))
 
 def run(test_dir, rc_command, expected, test_type):
     """
