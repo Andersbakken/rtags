@@ -4,12 +4,12 @@
       "rc-command": [ "--code-complete-at", "{0}/main.cpp:12:15",
                       "--synchronous-completions"],
 
-      "expectation": [ "get int get() CXXMethod Foo",
-                       "validate void validate(int) CXXMethod  Foo",
-                       "Foo Foo:: ClassDecl Foo",
-                       "operator= Foo & operator=(const Foo &) CXXMethod Foo",
-                       "operator= Foo & operator=(Foo &&) CXXMethod Foo",
-                       "~Foo void ~Foo() CXXDestructor Foo",
+      "expectation": [ " get int get() CXXMethod  Foo ",
+                       " validate void validate(int) CXXMethod  Foo ",
+                       " Foo Foo:: ClassDecl  Foo ",
+                       " operator= Foo & operator=(const Foo &) CXXMethod  Foo ",
+                       " operator= Foo & operator=(Foo &&) CXXMethod  Foo ",
+                       " ~Foo void ~Foo() CXXDestructor  Foo ",
                        ""] },
 
     { "name": "completion should not show not accessible/private items",
@@ -17,10 +17,10 @@
       "rc-command": [ "--code-complete-at", "{0}/main.cpp:20:7",
                       "--synchronous-completions"],
 
-      "expectation": [ "get int get() CXXMethod Foo",
-                       "Foo Foo:: ClassDecl Foo",
-                       "operator= Foo & operator=(const Foo &) CXXMethod Foo",
-                       "operator= Foo & operator=(Foo &&) CXXMethod Foo",
-                       "~Foo void ~Foo() CXXDestructor Foo",
+      "expectation": [ " get int get() CXXMethod  Foo ",
+                       " Foo Foo:: ClassDecl  Foo ",
+                       " operator= Foo & operator=(const Foo &) CXXMethod  Foo ",
+                       " operator= Foo & operator=(Foo &&) CXXMethod  Foo ",
+                       " ~Foo void ~Foo() CXXDestructor  Foo ",
                        ""] }
 ]
