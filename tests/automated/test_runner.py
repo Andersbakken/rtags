@@ -114,7 +114,7 @@ def run_completion(test_dir, rc_command, expected):
     size = len(outputs)
     assert_that(size, equal_to(len(expected)))
 
-    for i in xrange (0, size):
+    for i in range (0, size):
         assert_that(non_empty_split(outputs[i].strip(), " "),
                     equal_to(non_empty_split(expected[i].strip(), " ")))
 
