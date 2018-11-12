@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <sys/types.h>
-#ifdef OS_FreeBSD
+#if defined(OS_FreeBSD) || defined(OS_DragonFly)
 #include <sys/sysctl.h>
 #endif
 #ifdef OS_Darwin
