@@ -980,18 +980,6 @@ if RTags doesn't have a certain project indexed:
 * Code Completion in Emacs:
 To enable code completion in Emacs with company mode do the following:
 
-- Enable rtags-diagnostics. The easiest way is to:
-
-#+BEGIN_SRC emacs-lisp
-(setq rtags-autostart-diagnostics t)
-#+END_SRC
-
-but you can also explicitly start it with
-
-#+BEGIN_EXAMPLE
-M-x rtags-diagnostics <RET>
-#+END_EXAMPLE
-
 - Enable completions in RTags:
 
 #+BEGIN_SRC emacs-lisp
@@ -1019,8 +1007,6 @@ This minimal init.el configuration should be enough to get completion to work.
 (require 'rtags)
 (require 'company)
 
-(setq rtags-autostart-diagnostics t)
-(rtags-diagnostics)
 (setq rtags-completions-enabled t)
 (push 'company-rtags company-backends)
 (global-company-mode)
@@ -1055,6 +1041,7 @@ To turn off the automatic Flycheck syntax checking, set the variable
 =flycheck-check-syntax-automatically= locally to =nil=.
 
 #+BEGIN_SRC emacs-lisp
+(setq rtags-autostart-diagnostics t)
 (defun my-flycheck-rtags-setup ()
   (flycheck-select-checker 'rtags)
   (setq-local flycheck-highlighting-mode nil) ;; RTags creates more accurate overlays.
