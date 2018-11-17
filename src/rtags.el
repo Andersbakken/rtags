@@ -1262,7 +1262,7 @@ absolute-location to remote. absolute-location can of course be a path"
            (cl-loop with v = (rtags--tramp-cons-or-vector
                               (tramp-dissect-file-name default-directory))
                     for i across v collect i)))
-      (setf (nth (if (= (length location-vec)) 5 3 5) location-vec) absolute-location)
+      (setf (nth (if (= (length location-vec) 5) 3 5) location-vec) absolute-location)
       (apply #'tramp-make-tramp-file-name location-vec))))
 
 (defun rtags--tramp-cons-or-vector (vector-or-cons)
