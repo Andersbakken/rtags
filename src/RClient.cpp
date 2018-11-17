@@ -39,7 +39,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Options:" },
     { RClient::Verbose, "verbose", 'v', CommandLineParser::NoValue, "Be more verbose." },
     { RClient::Version, "version", 0, CommandLineParser::NoValue, "Print current version." },
-    { RClient::VerifyVersion, "verify-version", 0, CommandLineParser::Required, "Verify that the correct protocol version is used." },
+    { RClient::VerifyVersion, "verify-version", 't', CommandLineParser::Required, "Verify that the correct protocol version is used." },
     { RClient::Silent, "silent", 'Q', CommandLineParser::NoValue, "Be silent." },
     { RClient::Help, "help", 'h', CommandLineParser::NoValue, "Display this help." },
     { RClient::Noop, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },

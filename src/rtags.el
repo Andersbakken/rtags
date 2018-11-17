@@ -1328,7 +1328,7 @@ to only call this when `rtags-socket-file' is defined.
         (setq arguments (mapcar 'rtags-untrampify arguments))
         ;; other way to ignore colors would IMHO be to configure tramp,
         ;; but: do we need colors from rc?
-        (push (format "--verify-version=%d" rtags-protocol-version) arguments)
+        (push (format "-t%d" rtags-protocol-version) arguments)
         (push "-z" arguments)
         (setq path (rtags-untrampify path))
         (when path-filter
