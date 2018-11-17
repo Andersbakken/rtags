@@ -1671,6 +1671,8 @@ instead of file from `current-buffer'.
   (let ((dead-functions-buffer (rtags-get-buffer)))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
+    (unless buffer
+      (setq buffer (current-buffer)))
     (rtags-switch-to-buffer dead-functions-buffer)
     (if prefix
         (rtags-call-rc "--find-dead-functions" (unless rtags-print-filenames-relative "-K"))
