@@ -135,8 +135,7 @@
                        (eq ?: (char-before (1- (point))))))
           (point)))))
 
-(defun ac-rtags-init ()
-  (rtags-diagnostics))
+(defun ac-rtags-init ())
 
 (defun ac-rtags-completions-hook ()
   (ac-start))
