@@ -1244,6 +1244,23 @@ Function based on org-babel-tramp-handle-call-process-region"
     (apply 'call-process-region
            start end program delete buffer display args)))
 
+(defun rtags--alter-path-in-tramp-location (tramp-location absolute-path-segment)
+  "modifies path segment within tramp-location to absolute-path-segment
+Requirement: tramp-location must be tramp and absolute-path-segment must be absolute"
+
+  ;; From helm-files.el
+  ;; `tramp-dissect-file-name' returns a list in emacs-26
+  ;; whereas in 24.5 it returns a vector, thus the car is a
+  ;; symbol (`tramp-file-name') which is not needed as argument
+  ;; for `tramp-make-tramp-file-name' so transform the cdr in
+  ;; vector, and for 24.5 use directly the returned value.
+  (let ((location-vec
+         (cl-loop with v = (rtags--tramp-cons-or-vector
+                            (tramp-dissect-file-name tramp-location))
+                  for i across v collect i)))
+    (setf (nth (if (= (length location-vec) 5) 3 5) location-vec) absolute-path-segment)
+    (apply #'tramp-make-tramp-file-name location-vec)))
+
 (defun rtags-trampify (absolute-location)
   "if absolute-location is tramped, then return it.
 Otherwise if default-directory is tramp one, then uses it to convert
@@ -1252,18 +1269,7 @@ absolute-location to remote. absolute-location can of course be a path"
           (not (tramp-tramp-file-p default-directory))
           (tramp-tramp-file-p absolute-location))
       absolute-location
-    ;; From helm-files.el
-    ;; `tramp-dissect-file-name' returns a list in emacs-26
-    ;; whereas in 24.5 it returns a vector, thus the car is a
-    ;; symbol (`tramp-file-name') which is not needed as argument
-    ;; for `tramp-make-tramp-file-name' so transform the cdr in
-    ;; vector, and for 24.5 use directly the returned value.
-    (let ((location-vec
-           (cl-loop with v = (rtags--tramp-cons-or-vector
-                              (tramp-dissect-file-name default-directory))
-                    for i across v collect i)))
-      (setf (nth (if (= (length location-vec) 5) 3 5) location-vec) absolute-location)
-      (apply #'tramp-make-tramp-file-name location-vec))))
+    (rtags--alter-path-in-tramp-location default-directory absolute-location)))
 
 (defun rtags--tramp-cons-or-vector (vector-or-cons)
   "Return VECTOR-OR-CONS as a vector."
