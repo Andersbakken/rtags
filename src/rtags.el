@@ -5351,9 +5351,9 @@ the user enter missing field manually."
                                                                 "make\n"
                                                                 "exit $?\n")
         (rtags--write-region (point-min) (point-max) "install-rtags.sh"))
-      (switch-to-buffer (rtags-get-buffer "*RTags install*"))
+      (switch-to-buffer (rtags-get-buffer rtags-install-buffer-name))
       (setq buffer-read-only t)
-      (setq rtags-install-process (start-process "*RTags install*" (current-buffer) "bash" (concat dir "/install-rtags.sh")))
+      (setq rtags-install-process (start-file-process rtags-install-buffer-name (current-buffer) "bash" (rtags-untrampify (concat dir "/install-rtags.sh"))))
       (set-process-sentinel rtags-install-process 'rtags-install-process-sentinel)
       (set-process-filter rtags-install-process 'rtags-install-process-filter))))
 
