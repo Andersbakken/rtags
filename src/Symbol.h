@@ -33,7 +33,7 @@ struct Symbol
 {
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
-          flags(None), enumValue(0), startLine(-1), endLine(-1), startColumn(-1), endColumn(-1),
+          enumValue(0), startLine(-1), endLine(-1), flags(None), startColumn(-1), endColumn(-1),
           size(0), fieldOffset(-1), alignment(-1)
     {}
 
@@ -93,12 +93,12 @@ struct Symbol
         TemplateFunction       = 0x2000
     };
     String briefComment, xmlComment;
-    uint16_t flags;
     union {
         int32_t stackCost; // cost for function definitions
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
     int32_t startLine, endLine;
+    uint16_t flags;
     int16_t startColumn, endColumn;
     uint16_t size; // sizeof
     int16_t fieldOffset, alignment; // bits
