@@ -33,7 +33,7 @@ struct Symbol
 {
     Symbol()
         : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
-          enumValue(0), flags(None), startLine(-1), endLine(-1), startColumn(-1), endColumn(-1),
+          enumValue(0), startLine(-1), endLine(-1), flags(None), startColumn(-1), endColumn(-1),
           size(0), fieldOffset(-1), alignment(-1)
     {}
 
