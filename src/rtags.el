@@ -1244,6 +1244,23 @@ Function based on org-babel-tramp-handle-call-process-region"
     (apply 'call-process-region
            start end program delete buffer display args)))
 
+(defun rtags--alter-path-in-tramp-location (tramp-location absolute-path-segment)
+  "modifies path segment within tramp-location to absolute-path-segment
+Requirement: tramp-location must be tramp and absolute-path-segment must be absolute"
+
+  ;; From helm-files.el
+  ;; `tramp-dissect-file-name' returns a list in emacs-26
+  ;; whereas in 24.5 it returns a vector, thus the car is a
+  ;; symbol (`tramp-file-name') which is not needed as argument
+  ;; for `tramp-make-tramp-file-name' so transform the cdr in
+  ;; vector, and for 24.5 use directly the returned value.
+  (let ((location-vec
+         (cl-loop with v = (rtags--tramp-cons-or-vector
+                            (tramp-dissect-file-name tramp-location))
+                  for i across v collect i)))
+    (setf (nth (if (= (length location-vec) 5) 3 5) location-vec) absolute-path-segment)
+    (apply #'tramp-make-tramp-file-name location-vec)))
+
 (defun rtags-trampify (absolute-location)
   "if absolute-location is tramped, then return it.
 Otherwise if default-directory is tramp one, then uses it to convert
@@ -1252,18 +1269,7 @@ absolute-location to remote. absolute-location can of course be a path"
           (not (tramp-tramp-file-p default-directory))
           (tramp-tramp-file-p absolute-location))
       absolute-location
-    ;; From helm-files.el
-    ;; `tramp-dissect-file-name' returns a list in emacs-26
-    ;; whereas in 24.5 it returns a vector, thus the car is a
-    ;; symbol (`tramp-file-name') which is not needed as argument
-    ;; for `tramp-make-tramp-file-name' so transform the cdr in
-    ;; vector, and for 24.5 use directly the returned value.
-    (let ((location-vec
-           (cl-loop with v = (rtags--tramp-cons-or-vector
-                              (tramp-dissect-file-name default-directory))
-                    for i across v collect i)))
-      (setf (nth (if (= (length location-vec) 5) 3 5) location-vec) absolute-location)
-      (apply #'tramp-make-tramp-file-name location-vec))))
+    (rtags--alter-path-in-tramp-location default-directory absolute-location)))
 
 (defun rtags--tramp-cons-or-vector (vector-or-cons)
   "Return VECTOR-OR-CONS as a vector."
@@ -2390,42 +2396,53 @@ instead of file from `current-buffer'.
   ;; (message (format "rtags-goto-location \"%s\"" location))
   (setq location (rtags-absolutify location skip-trampification))
 
-  (when (> (length location) 0)
-    (cond ((string-match "\\(.*\\) includes /.*" location)
-           (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window))
-          ((and (string-match "[^ ]* should include /" location)
-                (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) (length location)))
+  (let* ((is-location-remote (tramp-tramp-file-p location))
+         (path-segment (if is-location-remote
+                           (tramp-file-name-localname (tramp-dissect-file-name location))
                          location))
-           (save-excursion
-             (if (search-backward-regexp "[ (]" (point-at-bol) t)
-                 (forward-char 1)
-               (goto-char (point-at-bol)))
-             (let ((pos (point)))
-               (search-forward-regexp " ")
-               (rtags-goto-location (buffer-substring-no-properties pos (1- (point))) nobookmark other-window))))
-          ((string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" location)
-           (let ((line (string-to-number (match-string-no-properties 2 location)))
-                 (column (string-to-number (match-string-no-properties 3 location))))
-             (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
-             (push-mark nil t)
-             (rtags-goto-line-col line column)))
-          ((string-match "\\(.*?\\):\\([0-9]+\\):?" location)
-           (let ((line (string-to-number (match-string-no-properties 2 location))))
-             (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
-             (push-mark nil t)
-             (goto-char (point-min))
-             (forward-line (1- line))))
-          ((string-match "\\(.*?\\),\\([0-9]+\\)" location)
-           (let ((offset (string-to-number (match-string-no-properties 2 location))))
-             (rtags-find-file-or-buffer (match-string-no-properties 1 location) other-window)
-             (push-mark nil t)
-             (rtags-goto-offset offset)))
-          (t
-           (when (string-match "^[ \t]+\\(.*\\)$" location)
-             (setq location (match-string-no-properties 1 location)))
-           (rtags-find-file-or-buffer location other-window)))
-    (unless nobookmark (rtags-location-stack-push))
-    (run-hooks 'rtags-after-find-file-hook)))
+         (visit-location (lambda (is-location-remote location path-segment submatch other-window)
+                           (setq path-segment (match-string-no-properties submatch path-segment))
+                           (rtags-find-file-or-buffer
+                            (if is-location-remote
+                                (rtags--alter-path-in-tramp-location location path-segment)
+                              path-segment)
+                            other-window))))
+    (when (> (length path-segment) 0)
+      (cond ((string-match "\\(.*\\) includes /.*" path-segment)
+             (rtags-find-file-or-buffer (match-string-no-properties 1 path-segment) other-window))
+            ((and (string-match "[^ ]* should include /" path-segment)
+                  (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) (length path-segment)))
+                           path-segment))
+             (save-excursion
+               (if (search-backward-regexp "[ (]" (point-at-bol) t)
+                   (forward-char 1)
+                 (goto-char (point-at-bol)))
+               (let ((pos (point)))
+                 (search-forward-regexp " ")
+                 (rtags-goto-location (buffer-substring-no-properties pos (1- (point))) nobookmark other-window))))
+            ((string-match "\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?" path-segment)
+             (let ((line (string-to-number (match-string-no-properties 2 path-segment)))
+                   (column (string-to-number (match-string-no-properties 3 path-segment))))
+               (funcall visit-location is-location-remote location path-segment 1 other-window)
+               (push-mark nil t)
+               (rtags-goto-line-col line column)))
+            ((string-match "\\(.*?\\):\\([0-9]+\\):?" path-segment)
+             (let ((line (string-to-number (match-string-no-properties 2 path-segment))))
+               (funcall visit-location is-location-remote location path-segment 1 other-window)
+               (push-mark nil t)
+               (goto-char (point-min))
+               (forward-line (1- line))))
+            ((string-match "\\(.*?\\),\\([0-9]+\\)" path-segment)
+             (let ((offset (string-to-number (match-string-no-properties 2 path-segment))))
+               (funcall visit-location is-location-remote location path-segment 1 other-window)
+               (push-mark nil t)
+               (rtags-goto-offset offset)))
+            (t
+             (when (string-match "^[ \t]+\\(.*\\)$" path-segment)
+               (setq path-segment (match-string-no-properties 1 path-segment)))
+             (rtags-find-file-or-buffer location other-window)))
+      (unless nobookmark (rtags-location-stack-push))
+      (run-hooks 'rtags-after-find-file-hook))))
 
 (defvar rtags-location-stack-index 0)
 (defvar rtags-location-stack nil)
