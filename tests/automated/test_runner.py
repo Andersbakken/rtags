@@ -42,14 +42,16 @@ except KeyError:
 def create_compile_commands(test_dir, test_files):
     """Create dict of compile commands."""
     return [dict(directory=os.path.abspath(test_dir), file=test_file,
-                 command="clang++ -std=c++11 -I. -c %s" % os.path.join(test_dir, test_file))
+                 command="clang++ -std=c++11 -I. -c %s" % \
+                 os.path.join(test_dir, test_file))
             for test_file in (src_file for src_file in test_files
                               if src_file.endswith(('.cpp', '.c')))]
 
 def read_locations(test_dir, lines):
     """Read location."""
     lines = [line.split(":") for line in lines.split("\n") if len(line) > 0]
-    return [Location(os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
+    return [Location(
+        os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
 
 
 class Location(object):
@@ -89,12 +91,13 @@ class TestType(object):
 
 def run_location(test_dir, rc_command, expected):
     """Run location test, and compare with EXPECTED output."""
-    actual_locations = read_locations(test_dir,
-                                      run_rc([c.format(test_dir) for c in rc_command]))
+    actual_locations = read_locations(
+        test_dir, run_rc([c.format(test_dir) for c in rc_command]))
     # Compare that we have the same results in length and content
     assert_that(actual_locations, has_length(len(expected)))
     for expected_location_string in expected:
-        expected_location = Location.from_str(expected_location_string.format(test_dir))
+        expected_location = Location.from_str(
+            expected_location_string.format(test_dir))
         assert_that(actual_locations, has_item(expected_location))
 
 def run_parse(test_dir, rc_command, expected):
@@ -157,7 +160,8 @@ def setup_module():
     """Nosetests module setup function."""
     for exe in [RDM, RC]:
         if not (os.path.isfile(exe) and os.access(exe, os.X_OK)):
-            raise FileNotFoundError("{} does not exist or is not executable\n".format(exe))
+            raise FileNotFoundError(
+                "{} does not exist or is not executable\n".format(exe))
         return 0
 
 def get_type(test_dir):
@@ -173,10 +177,14 @@ def get_type(test_dir):
 def test_generator():
     """Main nosetests entry point."""
     base_test_dir = os.path.dirname(os.path.abspath(__file__))
+    skip = ["__pycache__"]
+    if os.environ.get('NOSE_SKIP'):
+        skip = skip + os.environ.get('NOSE_SKIP').split(':')
     for test_dir, _, test_files in tuple(os.walk(base_test_dir))[1:]:
-        if "__pycache__" in test_dir:
+        if os.path.basename(test_dir) in skip:
             continue
-        expectations = json.load(open(os.path.join(test_dir, "expectation.json"), 'r'))
+        expectations = json.load(open(os.path.join(
+            test_dir, "expectation.json"), 'r'))
         rdm = setup_rdm(test_dir, test_files)
         for exp in expectations:
             run.description = os.path.basename(test_dir) + ': ' + exp["name"]

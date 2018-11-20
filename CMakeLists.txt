@@ -98,7 +98,7 @@ else ()
             message(WARNING "Perl not found! Excluding sbroot test from tests.")
         endif()
 
-        find_program(NOSETEST NAMES nosetests nosetests-2.7 PATHS "$ENV{HOME}/.local/bin")
+        find_program(NOSETEST NAMES nosetests PATHS "$ENV{HOME}/.local/bin")
         if (NOSETEST)
             add_test(NAME nosetests COMMAND ${NOSETEST} -w ${CMAKE_SOURCE_DIR}/tests/automated --no-byte-compile -v)
             set_property(TEST nosetests PROPERTY ENVIRONMENT "RTAGS_BINARY_DIR=${CMAKE_BINARY_DIR}/bin")
