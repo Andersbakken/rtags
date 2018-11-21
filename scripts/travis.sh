@@ -95,7 +95,6 @@ function gnu_linux()
     build
 
     ## Step -- Test
-    export NOSE_SKIP="Completion"
     run_tests
 }
 
