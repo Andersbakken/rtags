@@ -328,6 +328,8 @@ private:
     const char *valuesSegment() const { return mPointer + mValuesOffset; }
     const char *keysSegment() const { return mPointer + (sizeof(uint32_t) * 2); }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wclass-memaccess"
     template <typename T>
     inline T read(const char *base, uint32_t index) const
     {
@@ -343,6 +345,7 @@ private:
         deserializer >> t;
         return t;
     }
+#pragma GCC diagnostic pop
 
     const char *mPointer;
     uint32_t mSize;
