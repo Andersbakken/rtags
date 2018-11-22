@@ -2328,7 +2328,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
         flags |= CompletionThread::IncludeMacros;
     if (query->flags() & QueryMessage::CodeCompleteNoWait)
         flags |= CompletionThread::NoWait;
-    mCompletionThread->completeAt(std::move(source), loc, flags, query->max(), query->unsavedFiles().value(loc.path()), query->codeCompletePrefix(), c);
+    mCompletionThread->completeAt(std::move(source), loc, flags, query->max(), query->unsavedFiles(), query->codeCompletePrefix(), c);
 }
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)
@@ -2572,7 +2572,7 @@ void Server::prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint3
             }
 
             if (!source.isNull())
-                mCompletionThread->prepare(std::move(source), query->unsavedFiles().value(Location::path(fileId)));
+                mCompletionThread->prepare(std::move(source), query->unsavedFiles());
         }
     }
 }
