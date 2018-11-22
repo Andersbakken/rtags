@@ -233,15 +233,6 @@ String Symbol::displayName() const
         if (end != -1)
             return symbolName.left(end);
         break; }
-    case CXCursor_FieldDecl: {
-        int colon = symbolName.indexOf(':');
-        if (colon != -1) {
-            const int end = colon + 2;
-            while (colon > 0 && RTags::isSymbol(symbolName.at(colon - 1)))
-                --colon;
-            return symbolName.left(colon + 1) + symbolName.mid(end);
-        }
-        break; }
     default:
         break;
     }
