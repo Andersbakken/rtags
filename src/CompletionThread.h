@@ -51,9 +51,9 @@ public:
     };
     bool isCached(const std::shared_ptr<Project> &project, uint32_t fileId) const;
     void completeAt(Source &&source, Location location, Flags<Flag> flags, int max,
-                    String &&unsaved, const String &prefix,
+                    const UnsavedFiles &unsavedFiles, const String &prefix,
                     const std::shared_ptr<Connection> &conn);
-    void prepare(Source &&source, String &&unsaved);
+    void prepare(Source &&source, const UnsavedFiles &unsavedFiles);
     Source findSource(const Set<uint32_t> &deps) const;
     void reparse(const std::shared_ptr<Project> &project, uint32_t fileId);
     void stop();
@@ -77,7 +77,8 @@ private:
         Location location;
         Flags<Flag> flags;
         int max;
-        String unsaved, prefix;
+        UnsavedFiles unsavedFiles;
+        String prefix;
         std::shared_ptr<Connection> conn;
     };
     LinkedList<Request*> mPending;
@@ -131,7 +132,7 @@ private:
             : lastModified(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
         {}
         std::shared_ptr<RTags::TranslationUnit> translationUnit;
-        String unsaved;
+        UnsavedFiles unsavedFiles;
         uint64_t lastModified;
         uint64_t parseTime, reparseTime, codeCompleteTime; // ms
         size_t completions;
