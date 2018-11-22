@@ -14,14 +14,14 @@ jobs:
     - os: linux
       compiler: g++
       dist: trusty
-      env: T=g++-linux COMPILER_VERSION=-4.9
+      env: T=g++-linux COMPILER_VERSION=-7
       script: ./scripts/travis.sh
       addons:
         apt:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-4.9
+            - g++-7
             - python3-pip
             - libcppunit-dev
     - os: osx
