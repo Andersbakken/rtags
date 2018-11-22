@@ -333,7 +333,7 @@ private:
     {
         if (const uint32_t size = FixedSize<T>::value) {
             T t = T();
-            memcpy(&t, base + (index * size), FixedSize<T>::value);
+            memcpy((void*)&t, base + (index * size), FixedSize<T>::value);
             return t;
         }
         uint32_t offset;

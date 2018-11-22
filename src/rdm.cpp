@@ -41,7 +41,7 @@
 #endif
 
 char crashDumpTempFilePath[PATH_MAX];
-char crashDumpFilePath[PATH_MAX];
+char crashDumpFilePath[PATH_MAX - 4];
 FILE *crashDumpFile = 0;
 static void signalHandler(int signal)
 {
@@ -845,8 +845,6 @@ int main(int argc, char** argv)
             snprintf(crashDumpFilePath, sizeof(crashDumpFilePath), "%s%s", serverOpts.dataDir.constData(), f.constData());
         }
         snprintf(crashDumpTempFilePath, sizeof(crashDumpTempFilePath), "%s.tmp", crashDumpFilePath);
-        Path::mkdir(serverOpts.dataDir);
-        crashDumpFile = fopen(crashDumpTempFilePath, "w");
         if (!crashDumpFile) {
             fprintf(stderr, "Couldn't open temp file %s for write (%d)\n", crashDumpTempFilePath, errno);
         }
