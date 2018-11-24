@@ -1,3 +1,12 @@
+2.21
+=========================
+
+- Don't enable diagnostics automatically in `ac-init`
+- Don't include private members on code completion, if not appropriate
+- Fix warnings
+- rtags can now installed to a tramp location
+- Fix `rtags-find-file` for tramp locations.
+
 2.20
 =========================
 
