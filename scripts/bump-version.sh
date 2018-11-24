@@ -49,4 +49,4 @@ git commit -m "Bump version to ${MAJOR}.${MINOR}"       \
     src/rtags.el                                        \
     man
 git tag "v${MAJOR}.${MINOR}"
-git push --tags
+git push --follow-tags
