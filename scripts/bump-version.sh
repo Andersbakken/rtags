@@ -48,5 +48,5 @@ git commit -m "Bump version to ${MAJOR}.${MINOR}"       \
     CMakeLists.txt                                      \
     src/rtags.el                                        \
     man
-git tag "v${MAJOR}.${MINOR}"
+git tag -a "v${MAJOR}.${MINOR}" -m "RTags release ${MAJOR}.${MINOR}"
 git push --follow-tags
