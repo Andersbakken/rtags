@@ -545,6 +545,18 @@ return t if RTags is allowed to modify this file."
   :type '(choice (const :tag "Unset" nil) integer)
   :safe 'integerp)
 
+(defcustom rtags-rc-binary-name "rc"
+  "Name of rc binary file."
+  :group 'rtags
+  :type 'string
+  :risky t)
+
+(defcustom rtags-rdm-binary-name "rdm"
+  "Name of rdm binary file."
+  :group 'rtags
+  :type 'string
+  :risky t)
+
 (defcustom rtags-path nil
   "Path to RTags executables."
   :group 'rtags
@@ -1321,7 +1333,7 @@ to only call this when `rtags-socket-file' is defined.
                              silent-query
                              &allow-other-keys)
   (save-excursion
-    (let ((rc (rtags-executable-find "rc"))
+    (let ((rc (rtags-executable-find rtags-rc-binary-name))
           (tempfile))
       (if (not rc)
           (unless noerror (rtags--error 'rtags-cannot-find-rc))
@@ -1377,7 +1389,7 @@ to only call this when `rtags-socket-file' is defined.
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
         (if async
-            (let ((proc (apply #'start-file-process "rc" (current-buffer) rc arguments)))
+            (let ((proc (apply #'start-file-process rtags-rc-binary-name (current-buffer) rc arguments)))
               (set-process-query-on-exit-flag proc nil)
               (when (car async)
                 (set-process-filter proc (car async)))
@@ -1407,7 +1419,7 @@ to only call this when `rtags-socket-file' is defined.
                      (erase-buffer)
                      (setq rtags-last-request-not-indexed t))
                     ((equal result "Aborted")
-                     (rtags--error 'rtags-program-exited-abnormal "rc" result))
+                     (rtags--error 'rtags-program-exited-abnormal rtags-rc-binary-name result))
                     (t))) ;; other error
             (and (> (point-max) (point-min)) (equal result rtags-exit-code-success))))))))
 
@@ -3595,7 +3607,7 @@ of diagnostics count"
 (defun rtags-diagnostics (&optional restart nodirty)
   (interactive "P")
   (when rtags-enabled
-    (let ((rc (rtags-executable-find "rc")))
+    (let ((rc (rtags-executable-find rtags-rc-binary-name)))
       (when rc
         (when restart
           (rtags-stop-diagnostics))
@@ -4342,7 +4354,7 @@ which can be overridden by specifying DEFAULT-FILE"
              (not (and (tramp-tramp-file-p default-directory) (not rtags-tramp-enabled)))
              (file-directory-p default-directory))
     (setq rtags-last-update-current-project-buffer (current-buffer))
-    (let* ((rc (rtags-executable-find "rc"))
+    (let* ((rc (rtags-executable-find rtags-rc-binary-name))
            (path (rtags-untrampify (or (rtags-buffer-file-name) default-directory)))
            (arguments (list "-T" path "--diagnose" path "--silent-query")))
       (when (and rtags-completions-enabled
@@ -4571,7 +4583,7 @@ definition."
 (defun rtags-quit-rdm ()
   "Quit the RTags process (rdm)."
   (interactive)
-  (let ((rc (rtags-executable-find "rc")))
+  (let ((rc (rtags-executable-find rtags-rc-binary-name)))
     (when rc
       (process-file rc nil nil nil "--quit-rdm"))))
 
@@ -4584,7 +4596,7 @@ definition."
 (defun rtags-command ()
   "Shell command used to start the `rtags-server' process."
   (format "%s %s %s"
-          (rtags-executable-find "rdm")
+          (rtags-executable-find rtags-rdm-binary-name)
           (rtags-rdm-includes)
           rtags-process-flags))
 
@@ -4606,7 +4618,7 @@ definition."
 (defun rtags-start-process-unless-running ()
   "Launch the RTags process (rdm) if it's not already started."
   (interactive)
-  (let ((rtags-server-executable (rtags-executable-find "rdm")))
+  (let ((rtags-server-executable (rtags-executable-find rtags-rdm-binary-name)))
     (cond
      ;; Already started, nothing need to be done
      ((or (and (processp rtags-rdm-process)
@@ -4617,7 +4629,7 @@ definition."
                    (pname (cdr (assoc 'comm attrs)))
                    (uid (cdr (assoc 'euid attrs))))
               (when (and (eq uid (user-uid))
-                         (or (string-equal pname "rdm")
+                         (or (string-equal pname rtags-rdm-binary-name)
                              (string-equal pname "rdm.exe")))
                 (return t))))))
 
@@ -5138,7 +5150,7 @@ the class.
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((filename (rtags-untrampify (rtags-buffer-file-name)))
-          (rc (rtags-executable-find "rc"))
+          (rc (rtags-executable-find rtags-rc-binary-name))
           (rtags-buffer-name "*RTags check includes*")
           (arguments))
       (setq arguments (mapcar (lambda (a) (concat a filename)) '("--current-file=" "--check-includes=")))
@@ -5198,7 +5210,7 @@ the class.
                (erase-buffer)
                (let ((proc (start-process "RTags Tokens Async"
                                           buf
-                                          (rtags-executable-find "rc")
+                                          (rtags-executable-find rtags-rc-binary-name)
                                           "--elisp"
                                           "--tokens-include-symbols"
                                           "--tokens" (cond ((and from to) (format "%s:%d-%d" path from to))
@@ -5408,7 +5420,7 @@ customize the messages"
         ((eq type 'rtags-socket-file-does-not-exist)
          "RTags: socket file, %S, does not exist")
         ((eq type 'rtags-cannot-find-rc)
-         "RTags: Can't find rc")
+         (concat "RTags: Can't find " rtags-rc-binary-name))
         ((eq type 'rtags-no-file-chosen)
          "RTags: No file chosen")
         ((eq type 'rtags-no-file-here)
@@ -5426,7 +5438,7 @@ customize the messages"
         ((eq type 'rtags-cannot-start-process)
          (concat
           "RTags: Can't start the process `%s'. "
-          "Please check the value of the variable `rtags-path'."))
+          "Please check the value of the variables `rtags-path' and `rtags-rdm-binary-name'."))
         ((eq type 'rtags-malines-doesnt-work-with-location-length)
          "RTags: maxlines doesn't work with location/length")
         ((eq type 'rtags-buffer-is-not-visiting-a-file)
