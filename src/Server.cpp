@@ -880,13 +880,22 @@ void Server::lastIndexed(const std::shared_ptr<QueryMessage> &query, const std::
     conn->finish();
 }
 
-void Server::isIndexing(const std::shared_ptr<QueryMessage> &, const std::shared_ptr<Connection> &conn)
+void Server::isIndexing(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    for (const auto &it : mProjects) {
-        if (it.second->isIndexing()) {
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (project) {
+        if (project->isIndexing()) {
             conn->write("1");
             conn->finish();
             return;
+        }
+    } else {
+        for (const auto &it : mProjects) {
+            if (it.second->isIndexing()) {
+                conn->write("1");
+                conn->finish();
+                return;
+            }
         }
     }
     conn->write("0");

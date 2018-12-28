@@ -77,7 +77,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::DiagnoseAll, "diagnose-all", 0, CommandLineParser::NoValue, "Resend diagnostics for all files." },
     { RClient::LastIndexed, "last-indexed", 0, CommandLineParser::NoValue, "Get timestamp of the last time indexing completed for the current project." },
     { RClient::IsIndexed, "is-indexed", 'T', CommandLineParser::Required, "Check if rtags knows about, and is ready to return information about, this source file." },
-    { RClient::IsIndexing, "is-indexing", 0, CommandLineParser::NoValue, "Check if rtags is currently indexing files." },
+    { RClient::IsIndexing, "is-indexing", 0, CommandLineParser::Optional, "Check if rtags is currently indexing files in any project or in project matching pattern." },
     { RClient::HasFileManager, "has-filemanager", 0, CommandLineParser::Optional, "Check if rtags has info about files in this directory." },
     { RClient::PreprocessFile, "preprocess", 'E', CommandLineParser::Required, "Preprocess file." },
     { RClient::Reindex, "reindex", 'V', CommandLineParser::Optional, "Reindex all files or all files matching pattern." },
@@ -881,6 +881,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case CheckReindex:
         case Reindex:
         case Project:
+        case IsIndexing:
         case FindFile:
         case ListSymbols:
         case FindSymbols:
@@ -900,6 +901,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 break;
             case Project:
                 queryType = QueryMessage::Project;
+                break;
+            case IsIndexing:
+                queryType = QueryMessage::IsIndexing;
                 break;
             case FindFile:
                 queryType = QueryMessage::FindFile;
@@ -1138,9 +1142,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             } else {
                 addCompile(std::move(args), Path::pwd());
             }
-            break; }
-        case IsIndexing: {
-            addQuery(QueryMessage::IsIndexing);
             break; }
         case LastIndexed: {
             addQuery(QueryMessage::LastIndexed);
