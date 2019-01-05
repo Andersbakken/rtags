@@ -269,8 +269,10 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 (*val)[ctxKey] = loc.context(locationToStringFlags);
             }
         };
-        if (!symbol.isNull()) {
+        if (!symbol.location.isNull()) {
             formatLocation(symbol.location, "location", "context");
+        }
+        if (!symbol.isNull()) {
             if (symbol.argumentUsage.index != String::npos) {
                 formatLocation(symbol.argumentUsage.invocation, "invocation", "invocationContext", 0, "invocationcontext");
                 if (filterPiece("invokedfunction"))
