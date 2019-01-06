@@ -802,7 +802,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(fileId, msg);
+    updateDependencies(fileId, msg, job->unsavedFiles);
     if (success) {
         forEachSources([&msg, fileId](Sources &sources) -> VisitResult {
                 // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
@@ -1091,7 +1091,7 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg)
+void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg, const UnsavedFiles &unsavedFiles)
 {
     static_cast<void>(fileId);
     const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
@@ -1163,7 +1163,7 @@ void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDat
         // }
         SimpleDirty simple;
         simple.init(shared_from_this(), dirty);
-        startDirtyJobs(&simple, IndexerJob::Dirty);
+        startDirtyJobs(&simple, IndexerJob::Dirty, unsavedFiles);
     }
     // for (auto node : mDependencies) {
     //     for (auto inc : node.second->includes) {
