@@ -1207,13 +1207,39 @@ int Project::reindex(const Match &match,
 int Project::remove(const Match &match)
 {
     int count = 0;
-    forEachSourceList([&match, &count](SourceList &src) -> VisitResult {
+    bool needsSave = false;
+    Hash<uint32_t, uint32_t> removed;
+
+    auto it = mIndexParseData.compileCommands.begin();
+    while (it != mIndexParseData.compileCommands.end()) {
+        if (match.match(Location::path(it->first))) {
+            count += it->second.sources.size();
+            for (auto src : it->second.sources) {
+                removed[src.first] = 0;
+            }
+            mIndexParseData.compileCommands.erase(it++);
+            needsSave = true;
+        } else {
+            ++it;
+        }
+    }
+
+    forEachSourceList([&match, &count, &needsSave, &removed](SourceList &src) -> VisitResult {
             if (match.match(Location::path(src.fileId()))) {
                 ++count;
+                removed[src.fileId()] = 0;
+                needsSave = true;
                 return Remove;
             }
             return Continue;
         });
+
+    removeSources(removed);
+
+    if (needsSave) {
+        save();
+    }
+
     return count;
 }
 
