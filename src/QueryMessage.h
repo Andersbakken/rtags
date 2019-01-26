@@ -223,6 +223,7 @@ public:
         case Project:
         case DeleteProject:
         case Reindex:
+        case IsIndexing:
         case RemoveFile:
         case Sources:
             mFlags |= MatchRegex;
