@@ -400,6 +400,13 @@ bool Project::init()
 
 void Project::check(CheckMode checkMode)
 {
+    if ((checkMode == Check_Explicit) && isIndexing()) {
+        // it's not safe to validate the project while it's still loading
+        // try again in 5 minutes
+        mCheckTimer.restart(CheckPeriodicTimeout);
+        return;
+    }
+
     const Server::Options &options = Server::instance()->options();
     bool needsSave = false;
     std::unique_ptr<ComplexDirty> dirty;
