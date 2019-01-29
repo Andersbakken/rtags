@@ -39,7 +39,13 @@
 #include "Server.h"
 #include "RTagsVersion.h"
 
-enum { DirtyTimeout = 100, CheckExplicitTimeout = 500, CheckPeriodicTimeout = 60 * 60000 };
+enum
+{
+    DirtyTimeout         = 100,
+    CheckExplicitTimeout = 500,
+    CheckRetryTimeout    = 5  * 60 * 1000,
+    CheckPeriodicTimeout = 60 * 60 * 1000
+};
 
 class Dirty
 {
@@ -403,7 +409,7 @@ void Project::check(CheckMode checkMode)
     if ((checkMode == Check_Explicit) && isIndexing()) {
         // it's not safe to validate the project while it's still loading
         // try again in 5 minutes
-        mCheckTimer.restart(CheckPeriodicTimeout);
+        mCheckTimer.restart(CheckRetryTimeout);
         return;
     }
 
@@ -495,7 +501,7 @@ void Project::check(CheckMode checkMode)
         simple.init(shared_from_this(), missingFileMaps);
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
-    mCheckTimer.restart(CheckPeriodicTimeout); // always checking every 5 minutes
+    mCheckTimer.restart(CheckPeriodicTimeout); // always checking every 1 hour
 }
 
 bool Project::match(const Match &p, bool *indexed) const
