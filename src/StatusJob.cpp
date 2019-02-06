@@ -65,7 +65,7 @@ int StatusJob::execute()
         const Server::Options &opt = Server::instance()->options();
         out << "socketFile: " << opt.socketFile << '\n'
             << "dataDir: " << opt.dataDir << '\n'
-            << "options: " << opt.options
+            << "options: " << opt.options << '\n'
             << "jobCount: " << opt.jobCount << '\n'
             << "rpVisitFileTimeout: " << opt.rpVisitFileTimeout << '\n'
             << "rpIndexDataMessageTimeout: " << opt.rpIndexDataMessageTimeout << '\n'
