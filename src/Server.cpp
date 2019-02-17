@@ -302,31 +302,28 @@ bool Server::initServers()
         return true;
     }
 
-    for (int i=0; i<10; ++i) {
-        mUnixServer.reset(new SocketServer);
-        warning() << "listening" << mOptions.socketFile;
-        if (mUnixServer->listen(mOptions.socketFile)) {
-            break;
-        }
-        mUnixServer.reset();
-        if (!i) {
-            enum { Timeout = 1000 };
-            std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
-            if (connection->connectUnix(mOptions.socketFile, Timeout)) {
-                connection->send(QuitMessage());
-                connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                EventLoop::eventLoop()->exec(Timeout);
-            }
-        } else {
+    if (Path::exists(mOptions.socketFile)) {
+        enum { Timeout = 1000 };
+        std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+        if (connection->connectUnix(mOptions.socketFile, Timeout)) {
+            connection->send(QuitMessage());
+            connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            EventLoop::eventLoop()->exec(Timeout);
             sleep(1);
         }
+
         Path::rm(mOptions.socketFile);
     }
-    if (!mUnixServer)
-        return false;
-    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
 
+    mUnixServer.reset(new SocketServer);
+    warning() << "listening" << mOptions.socketFile;
+    if (!mUnixServer->listen(mOptions.socketFile)) {
+        error() << "fail to listen on " << mOptions.socketFile;
+        return false;
+    }
+
+    mUnixServer->newConnection().connect(std::bind(&Server::onNewConnection, this, std::placeholders::_1));
     return true;
 }
 
