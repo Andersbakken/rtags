@@ -232,7 +232,7 @@ public:
         memcpy(buf, &line, sizeof(line));
         memcpy(buf + 4, &col, sizeof(col));
         path.append(buf, 8);
-        return path;
+        return std::move(path);
     }
 
     static Location fromPathLineAndColumn(const String &str, const Path &pwd = Path())
