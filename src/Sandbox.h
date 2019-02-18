@@ -203,7 +203,7 @@ template <typename T>
 T decoded(T &&t, ReplaceMode mode = Everywhere)
 {
     decode(t, mode);
-    return t;
+    return std::move(t);
 }
 
 }
