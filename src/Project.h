@@ -137,6 +137,7 @@ public:
     String dumpDependencies(uint32_t fileId,
                             const List<String> &args = List<String>(),
                             Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
+    String dumpIncludePath(const Location loc, const Symbol symbol) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
 

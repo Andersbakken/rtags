@@ -72,7 +72,8 @@ public:
         Suspend,
         SymbolInfo,
         Validate,
-        Tokens
+        Tokens,
+        IncludePath
     };
 
     enum Flag {

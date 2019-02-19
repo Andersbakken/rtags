@@ -73,7 +73,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 126)
+(defconst rtags-protocol-version 127)
 (defconst rtags-package-version "2.31")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1731,6 +1731,17 @@ instead of file from `current-buffer'.
       (rtags-switch-to-buffer dep-buffer)
       (rtags-call-rc :path fn "--dependencies" fn args (unless rtags-print-filenames-relative "-K"))
       (rtags-mode))))
+
+(defun rtags-print-include-path ()
+  "Print include path of the current symbol in cursor."
+  (interactive)
+  (let ((dep-buffer (rtags-get-buffer))
+        (arg (rtags-current-location)))
+    (rtags-delete-rtags-windows)
+    (rtags-location-stack-push)
+    (rtags-switch-to-buffer dep-buffer)
+    (rtags-call-rc "--include-path" arg)
+    (rtags-mode)))
 
 (defun rtags-find-dead-functions (&optional prefix buffer)
   "Print information about uncalled functions in buffer."

@@ -158,6 +158,7 @@ public:
         Wait,
         WildcardSymbolNames,
         XML,
+        IncludePath,
         NumOptions
     };
 

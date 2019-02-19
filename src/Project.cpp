@@ -2024,6 +2024,39 @@ static String addDeps(const Dependencies &deps)
     return ret;
 }
 
+String Project::dumpIncludePath(const Location loc, const Symbol symbol) const
+{
+    String allPath;
+
+    Set<DependencyNode*> seen;
+    DependencyNode *depNode = mDependencies.value(loc.fileId());
+    if (depNode) {
+        int startDepth = 1;
+
+        String path;
+        std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
+            String nodePath = String::format<1024>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
+            path += nodePath;
+
+            if (seen.insert(n) && !n->includes.isEmpty()) {
+                if (n->fileId == symbol.location.fileId()) {
+                    allPath += path + "\n";
+
+                    path.clear();
+                    return;
+                }
+                for (const auto &includeNode : n->includes) {
+                    process(includeNode.second, depth + 1);
+                }
+            }
+            path.remove(nodePath);
+        };
+        process(depNode, startDepth);
+    }
+
+    return allPath;
+}
+
 String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
 {
     String ret;
