@@ -159,7 +159,8 @@ public:
         Wait,
         WildcardSymbolNames,
         XML,
-        NumOptions
+        NumOptions,
+        IncludePath,
     };
 
     RClient();

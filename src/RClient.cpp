@@ -183,6 +183,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
 #endif
     { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, CommandLineParser::NoValue, "Include symbols for tokens." },
     { RClient::NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't resolve paths using realpath(3)." },
+    { RClient::IncludePath, "include-path", 0, CommandLineParser::Required, "Dump include path for symbol." },
     { RClient::None, String(), 0, CommandLineParser::NoValue, 0 }
 };
 
@@ -1309,6 +1310,14 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             mVisitASTScripts.push_back(std::move(code));
 #endif
+            break; }
+        case IncludePath: {
+            String encoded = Location::encode(value);
+            if (encoded.isEmpty()) {
+              return { String::format<1024>("include path Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+
+            addQuery(QueryMessage::IncludePath, std::move(encoded));
             break; }
         }
         return { String(), CommandLineParser::Parse_Exec };

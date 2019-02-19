@@ -168,6 +168,7 @@ set(RTAGS_SOURCES
     CompilerManager.cpp
     CompletionThread.cpp
     DependenciesJob.cpp
+    IncludePathJob.cpp
     FileManager.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp

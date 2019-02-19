@@ -74,7 +74,8 @@ public:
 #ifdef RTAGS_HAS_LUA
         VisitAST,
 #endif
-        Tokens
+        Tokens,
+        IncludePath,
     };
 
     enum Flag {

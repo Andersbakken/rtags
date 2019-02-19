@@ -26,6 +26,7 @@
 
 #include "ClassHierarchyJob.h"
 #include "CompletionThread.h"
+#include "IncludePathJob.h"
 #include "DependenciesJob.h"
 #include "ClangThread.h"
 #include "FileManager.h"
@@ -799,6 +800,9 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
     case QueryMessage::Tokens:
         tokens(message, conn);
         break;
+    case QueryMessage::IncludePath:
+        includePath(message, conn);
+        break;
     }
 }
 
@@ -1152,6 +1156,34 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     SymbolInfoJob job(start, end, std::move(kinds), query, project);
     const int ret = job.run(conn);
     conn->finish(ret);
+}
+
+void Server::includePath(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
+{
+    const Location loc = query->location();
+    if (loc.isNull()) {
+        conn->write("Not indexed");
+        conn->finish(RTags::NotIndexed);
+        return;
+    }
+
+    std::shared_ptr<Project> project = projectForQuery(query);
+    if (!project) {
+        error("No project");
+        conn->write("Not indexed");
+        conn->finish(RTags::NotIndexed);
+        return;
+    }
+
+    prepareCompletion(query, loc.fileId(), project);
+
+    {
+        IncludePathJob job(loc, query, project);
+        if (!job.run(conn)) {
+            conn->finish();
+            return;
+        }
+    }
 }
 
 void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
