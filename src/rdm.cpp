@@ -128,6 +128,8 @@ enum OptionType {
     Version,
     IncludePath,
     Isystem,
+    Sysroot,
+    FullSysroot,
     Define,
     DefaultArgument,
     LogFile,
@@ -288,6 +290,8 @@ int main(int argc, char** argv)
         { IncludePath, "include-path", 'I', CommandLineParser::Required, "Add additional include path to clang." },
         { NoLibClangIncludePath, "no-libclang-include-path", 0, CommandLineParser::NoValue, "Don't use the include path from libclang." },
         { Isystem, "isystem", 's', CommandLineParser::Required, "Add additional system include path to clang." },
+        { Sysroot, "isysroot", 0, CommandLineParser::Required, "Use path as the logical root for headers." },
+        { FullSysroot, "sysroot", 0, CommandLineParser::Required, "Use path as the logical root for headers and libraries." },
         { Define, "define", 'D', CommandLineParser::Required, "Add additional define directive to clang." },
         { DefaultArgument, "default-argument", 0, CommandLineParser::Required, "Add additional argument to clang." },
         { LogFile, "log-file", 'L', CommandLineParser::Required, "Log to this file." },
@@ -391,6 +395,12 @@ int main(int argc, char** argv)
             break; }
         case Isystem: {
             serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(value)));
+            break; }
+        case Sysroot: {
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Sysroot, Path::resolved(value)));
+            break; }
+        case FullSysroot: {
+            serverOpts.includePaths.append(Source::Include(Source::Include::Type_FullSysroot, Path::resolved(value)));
             break; }
         case Define: {
             const size_t eq = value.indexOf('=');
