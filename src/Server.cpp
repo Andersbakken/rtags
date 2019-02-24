@@ -645,7 +645,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     if (conn)
         conn->finish(ret ? 0 : 1);
     if (ret) {
-        auto proj = addProject(data.project);
+        auto proj = addProject(data.project.ensureTrailingSlash());
         if (proj) {
             assert(proj);
             proj->processParseData(std::move(data));
