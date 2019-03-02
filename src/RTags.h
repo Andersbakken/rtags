@@ -1205,6 +1205,9 @@ inline Log operator<<(Log dbg, CXTypeLayoutError err)
     case CXTypeLayoutError_Dependent: dbg << "Dependent"; break;
     case CXTypeLayoutError_NotConstantSize: dbg << "NotConstantSize"; break;
     case CXTypeLayoutError_InvalidFieldName: dbg << "InvalidFieldName"; break;
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 53)
+    case CXTypeLayoutError_Undeduced: dbg << "Undeduced"; break;
+#endif
     }
     return dbg;
 }
