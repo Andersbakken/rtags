@@ -38,6 +38,7 @@ public:
         AllDependencies,
         AllReferences,
         AllTargets,
+        AsmFile,
         BuildIndex,
         CheckIncludes,
         CheckReindex,

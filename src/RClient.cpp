@@ -80,6 +80,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::IsIndexing, "is-indexing", 0, CommandLineParser::Optional, "Check if rtags is currently indexing files in any project or in project matching pattern." },
     { RClient::HasFileManager, "has-filemanager", 0, CommandLineParser::Optional, "Check if rtags has info about files in this directory." },
     { RClient::PreprocessFile, "preprocess", 'E', CommandLineParser::Required, "Preprocess file." },
+    { RClient::AsmFile, "asm", 0, CommandLineParser::Required, "Assemble file." },
     { RClient::Reindex, "reindex", 'V', CommandLineParser::Optional, "Reindex all files or all files matching pattern." },
     { RClient::CheckReindex, "check-reindex", 'x', CommandLineParser::Optional, "Check if reindexing is necessary for all files matching pattern." },
     { RClient::FindFile, "path", 'P', CommandLineParser::Optional, "Print files matching pattern." },
@@ -1272,6 +1273,14 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::PreprocessFile, std::move(p));
+            break; }
+        case AsmFile: {
+            Path p = std::move(value);
+            p.resolve(Path::MakeAbsolute);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
+            }
+            addQuery(QueryMessage::AsmFile, std::move(p));
             break; }
         case RemoveFile: {
             Path p = Path::resolved(value, Path::MakeAbsolute);

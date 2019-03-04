@@ -782,6 +782,7 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         hasFileManager(message, conn);
         break;
     case QueryMessage::PreprocessFile:
+    case QueryMessage::AsmFile:
         preprocessFile(message, conn);
         break;
     case QueryMessage::ReloadFileManager:
@@ -1399,7 +1400,7 @@ void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const st
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     } else {
-        Preprocessor *pre = new Preprocessor(source, conn);
+        Preprocessor *pre = new Preprocessor((query->type() == QueryMessage::PreprocessFile) ? Preprocessor::Preprocess : Preprocessor::Asm, source, conn);
         pre->preprocess();
     }
 }

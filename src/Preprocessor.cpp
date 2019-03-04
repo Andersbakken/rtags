@@ -29,12 +29,19 @@ const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::IncludeIncludePaths
                                                     | Source::IncludeDefines);
 
-Preprocessor::Preprocessor(const Source &source, const std::shared_ptr<Connection> &connection)
+Preprocessor::Preprocessor(Mode mode, const Source &source, const std::shared_ptr<Connection> &connection)
     : mSource(source), mConnection(connection)
 {
     Server::instance()->filterBlockedArguments(mSource);
     mArgs = mSource.toCommandLine(SourceFlags);
-    mArgs.append("-E");
+    if (mode == Preprocess) {
+        mArgs.append("-E");
+    } else {
+        assert(mode == Asm);
+        mArgs.append("-S");
+        mArgs.append("-o");
+        mArgs.append("-");
+    }
     mProcess.reset(new Process);
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
@@ -47,7 +54,7 @@ void Preprocessor::preprocess()
 void Preprocessor::onProcessFinished()
 {
     mConnection->client()->setWriteMode(SocketClient::Synchronous);
-    mConnection->write<256>("// %s %s", mSource.compiler().constData(), String::join(mArgs, ' ').constData());
+    mConnection->write<256>("/* %s %s */", mSource.compiler().constData(), String::join(mArgs, ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();
     if (!err.isEmpty()) {

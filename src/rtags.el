@@ -44,6 +44,7 @@
   (defalias 'defun* 'cl-defun))
 (require 'bookmark)
 (require 'cc-mode)
+(require 'asm-mode)
 (require 'tramp)
 (require 'simple)
 (require 'compile)
@@ -72,7 +73,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 127)
+(defconst rtags-protocol-version 128)
 (defconst rtags-package-version "2.21")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1434,6 +1435,16 @@ to only call this when `rtags-socket-file' is defined.
     (rtags--error 'rtags-set-buffer-file-read-only (rtags-buffer-file-name)))
   (setq buffer-read-only t))
 
+(defvar rtags-asm-mode-map (make-sparse-keymap))
+(define-key rtags-asm-mode-map (kbd "q") 'rtags-call-bury-or-delete)
+(set-keymap-parent rtags-asm-mode-map c++-mode-map)
+(define-derived-mode rtags-asm-mode asm-mode "rtags-asm"
+  ;; Do not run any hooks from `asm-mode', as this could cause issues with, e.g. flycheck
+  (set (make-local-variable 'asm-mode-hook) nil)
+  (when (rtags-buffer-file-name)
+    (rtags--error 'rtags-set-buffer-file-read-only (rtags-buffer-file-name)))
+  (setq buffer-read-only t))
+
 (defun rtags-sources (&optional file)
   (with-temp-buffer
     (rtags-call-rc :path file "--sources" file)
@@ -1486,6 +1497,22 @@ It uses the stored compile command from the RTags database for preprocessing."
                 (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1))))))
           (rtags-preprocess-mode))
         (display-buffer preprocess-buffer)))))
+
+;;;###autoload
+(defun rtags-asm-file (&optional buffer)
+  "Assemble buffer.
+If optional BUFFER is given, use BUFFER instead of `current-buffer'.
+It uses the stored compile command from the RTags database for assembling."
+  (interactive)
+  (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
+    (unless buffer (setq buffer (current-buffer)))
+    (let ((asm-buffer (rtags-get-buffer (format "*RTags assembled %s*" (rtags-buffer-file-name buffer)))))
+      (rtags-delete-rtags-windows)
+      (rtags-location-stack-push)
+      (with-current-buffer asm-buffer
+        (rtags-call-rc :path (rtags-buffer-file-name buffer) "--asm" (rtags-buffer-file-name buffer))
+        (rtags-asm-mode))
+      (display-buffer asm-buffer))))
 
 (defvar rtags-completing-read-default-value nil)
 (defun rtags-setup-minibuffer-hook ()
@@ -2593,6 +2620,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "P")) 'rtags-dependency-tree-all)
   (define-key map (kbd (concat prefix "e")) 'rtags-reparse-file)
   (define-key map (kbd (concat prefix "E")) 'rtags-preprocess-file)
+  (define-key map (kbd (concat prefix "_")) 'rtags-asm-file)
   (define-key map (kbd (concat prefix "R")) 'rtags-rename-symbol)
   (define-key map (kbd (concat prefix "M")) 'rtags-symbol-info)
   (define-key map (kbd (concat prefix "U")) 'rtags-display-summary-as-message)

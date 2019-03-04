@@ -33,6 +33,7 @@ public:
     enum Type {
         Invalid,
         GenerateTest,
+        AsmFile,
         CheckReindex,
         ClassHierarchy,
         ClearProjects,
