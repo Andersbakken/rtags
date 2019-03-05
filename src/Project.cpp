@@ -1391,14 +1391,6 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
         // if (debug)
         //     error() << "gonna fucking do" << diagnostics.size();
         for (const auto &it : diagnostics) {
-            // if (debug && it.second.flags & Diagnostic::TemplateOnly)
-            //     error() << "checking for" << Location::path(fileId) << it.first;
-            if (it.second.flags & Diagnostic::TemplateOnly && !isTemplateDiagnostic(it)) {
-                // if (debug)
-                //     error() << "continuing";
-                continue;
-            }
-
             const uint32_t f = it.first.fileId();
             if (lastFileId != f) {
                 files.insert(f);
@@ -1417,13 +1409,13 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
         //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
         // }
         log([&](const std::shared_ptr<LogOutput> &output) {
-                if (output->testLog(RTags::DiagnosticsLevel)) {
-                    const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
-                    if (!log.isEmpty()) {
-                        output->log(log);
-                    }
+            if (output->testLog(RTags::DiagnosticsLevel)) {
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
+                if (!log.isEmpty()) {
+                    output->log(log);
                 }
-            });
+            }
+        });
     }
 }
 
@@ -2954,43 +2946,6 @@ void Project::validateAll()
     }
     if (!clean)
         startDirtyJobs(&dirty, IndexerJob::Dirty);
-}
-
-bool Project::isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic)
-{
-    std::lock_guard<std::mutex> lock(mMutex);
-    const uint32_t fileId = diagnostic.first.fileId();
-    String err;
-    std::unique_ptr<FileMapScopeScope> scope;
-    if (!mFileMapScope)
-        scope.reset(new FileMapScopeScope(this));
-    auto symbols = openSymbols(fileId, &err);
-    if (!symbols || !symbols->count()) {
-        return true;
-    }
-
-    bool exact = false;
-    uint32_t idx = symbols->lowerBound(diagnostic.first, &exact);
-    if (idx == std::numeric_limits<uint32_t>::max()) {
-        return true;
-    }
-    while (true) {
-        Symbol sym = symbols->valueAt(idx);
-        if (RTags::isFunction(sym.kind)) {
-            if (!(sym.flags & Symbol::TemplateFunction)) {
-                // error() << "no template here" << diagnostic.first << sym.location << sym.flags;
-                return false;
-            }
-            return true;
-        }
-        if (idx > 0) {
-            --idx;
-        } else {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 Set<Symbol> Project::findDeadFunctions(uint32_t fileId)

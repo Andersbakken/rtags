@@ -326,7 +326,6 @@ private:
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
                        const std::shared_ptr<Connection> &wait = std::shared_ptr<Connection>());
     void onDirtyTimeout(Timer *);
-    bool isTemplateDiagnostic(const std::pair<Location, Diagnostic> &diagnostic);
 
     struct FileMapScope {
         FileMapScope(const std::shared_ptr<Project> &proj, int m, Flags<ScopeFlag> f)

@@ -785,16 +785,29 @@ void DiagnosticsProvider::diagnose()
             }
             // error() << "Got a dude" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
             //         << sev << CXDiagnostic_Error;
-            const CXCursor cursor = cursorAt(u, diagLoc);
 
             assert(fileId);
             Flags<IndexDataMessage::FileFlag> &fileFlags = indexData.files()[fileId];
-            bool templateOnly = false;
             {
                 Flags<Diagnostic::Flag> f = Diagnostic::DisplayCategory;
                 if (!(fileFlags & IndexDataMessage::Visited)) {
-                    templateOnly = true;
-                    f |= Diagnostic::TemplateOnly;
+                    CXCursor cursor = cursorAt(u, diagLoc);
+                    bool found = false;
+                    do {
+                        if (clang_Cursor_getNumTemplateArguments(cursor) != -1) {
+                            found = true;
+                            break;
+                        }
+                        cursor = clang_getCursorSemanticParent(cursor);
+                    } while (!clang_isInvalid(clang_getCursorKind(cursor)));
+
+                    if (!found) {
+                        // error() << "Ditching diagnostic since we didn't index this file and it doesn't appear to be in a template function"
+                        //         << createLocation(diagLoc) << cursorAt(u, diagLoc) << "for" << Location::path(sourceFileId())
+                        //         << RTags::eatString(clang_getDiagnosticSpelling(diag));
+                        clang_disposeDiagnostic(diag);
+                        continue;
+                    }
                 }
                 process(u, diag, indexData.diagnostics(), f);
             }
@@ -835,8 +848,6 @@ void DiagnosticsProvider::diagnose()
                     }
                     Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
                     entry.flags = Diagnostic::Fixit;
-                    if (templateOnly)
-                        entry.flags |= Diagnostic::TemplateOnly;
                     entry.sourceFileId = sourceFile;
                     if (entry.message.isEmpty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);

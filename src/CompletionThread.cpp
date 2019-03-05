@@ -826,7 +826,6 @@ public:
     virtual void exec() override
     {
         if (std::shared_ptr<Project> project = mProject.lock()) {
-            Project::FileMapScopeScope scope(project.get());
             project->updateDiagnostics(mSourceFileId, mDiagnostics);
         }
     }

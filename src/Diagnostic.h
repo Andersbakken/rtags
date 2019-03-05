@@ -34,7 +34,7 @@ struct Diagnostic
         Note = 0x08,
         Skipped = 0x10,
         Type_Mask = Warning|Error|Fixit|Note|Skipped,
-        TemplateOnly = 0x20,
+        // TemplateOnly = 0x20, not used, no lack of bits here
         DisplayCategory = 0x40
     };
 
@@ -117,8 +117,6 @@ static inline Log operator<<(Log dbg, const Diagnostic &diagnostic)
     for (const auto &range : diagnostic.ranges) {
         dbg << String::format<1024>("%d:%d: %d chars", range.first.line(), range.first.column(), range.second);
     }
-    if (diagnostic.flags & Diagnostic::TemplateOnly)
-        dbg << " TemplateOnly";
     if (diagnostic.flags & Diagnostic::DisplayCategory)
         dbg << " DisplayCategory";
     dbg << ")";
