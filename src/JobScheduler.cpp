@@ -21,9 +21,7 @@
 #include "rct/Connection.h"
 #include "rct/Process.h"
 #include "Server.h"
-#ifdef RP_USE_THREAD
-#include "RPThread.h"
-#endif
+#include "RPVehicle.h"
 
 enum { MaxPriority = 10 };
 // we set the priority to be this when a job has been requested and we couldn't load it
@@ -93,13 +91,13 @@ void JobScheduler::startJobs()
         }
 
         const uint64_t jobId = jobNode->job->id;
-        Vehicle *vehicle = new Vehicle;
+        Vehicle *vehicle;
+        if (options.options & Server::RPThreads) {
+            assert(0);
+        } else {
+            vehicle = new RPProcess;
+        }
         debug() << "Starting vehicle for" << jobId << jobNode->job->fileId() << jobNode->job.get();
-        List<String> arguments;
-        arguments << "--priority" << String::number(jobNode->job->priority());
-
-        for (int i=logLevel().toInt(); i>0; --i)
-            arguments << "-v";
 
         vehicle->readyReadStdOut().connect([this](Vehicle *proc) {
             std::shared_ptr<Node> n = mActiveByVehicle[proc];
@@ -114,7 +112,7 @@ void JobScheduler::startJobs()
             }
         });
 
-        if (!vehicle->start(options.rp, arguments)) {
+        if (!vehicle->start(jobNode->job)) {
             error() << "Couldn't start rp" << options.rp << vehicle->errorString();
             delete vehicle;
             jobNode->job->flags |= IndexerJob::Crashed;
@@ -125,8 +123,8 @@ void JobScheduler::startJobs()
             cont();
             continue;
         }
-        const int pid = vehicle->pid();
-        vehicle->finished().connect([this, jobId, options, pid](Vehicle *proc) {
+        const int id = vehicle->id();
+        vehicle->finished().connect([this, jobId, options, id](Vehicle *proc) {
             EventLoop::deleteLater(proc);
             auto n = mActiveByVehicle.take(proc);
             assert(!n || n->vehicle == proc);
@@ -135,7 +133,7 @@ void JobScheduler::startJobs()
                 error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned vehicle:"))
                         << '\n' << stdErr << (n ? n->stdOut : String());
             }
-            Path::rmdir(options.tempDir + String::number(pid));
+            Path::rmdir(options.tempDir + String::number(id));
 
             if (n) {
                 assert(n->vehicle == proc);
@@ -160,7 +158,6 @@ void JobScheduler::startJobs()
         jobNode->vehicle = vehicle;
         assert(!(jobNode->job->flags & ~IndexerJob::Type_Mask));
         jobNode->job->flags |= IndexerJob::Running;
-        vehicle->write(jobNode->job->encode());
         jobNode->started = Rct::monoMs();
         mActiveByVehicle[vehicle] = jobNode;
         // error() << "STARTING JOB" << node->job->sourceFile;
