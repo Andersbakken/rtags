@@ -819,8 +819,8 @@ public:
 class DiagnosticsEvent : public Event
 {
 public:
-    DiagnosticsEvent(uint32_t sourceFileId, const std::shared_ptr<Project> &project, Diagnostics &diagnostics)
-        : mSourceFileId(sourceFileId), mProject(project), mDiagnostics(std::move(diagnostics))
+    DiagnosticsEvent(uint32_t sourceFileId, std::shared_ptr<Project> &&project, Diagnostics &&diagnostics)
+        : mSourceFileId(sourceFileId), mProject(std::move(project)), mDiagnostics(std::move(diagnostics))
     {}
 
     virtual void exec() override
@@ -840,14 +840,16 @@ void CompletionThread::processDiagnostics(const Request *request, CXCodeComplete
     assert(request);
     std::shared_ptr<Project> project = Server::instance()->currentProject();
     if (!project) {
+        LOG() << "Processing diagnostics. No project";
         return;
     }
     const uint32_t sourceFileId = request->source.fileId;
     if (!project->hasSource(sourceFileId)) {
+        LOG() << "Processing diagnostics. Project doesn't have" << Location::path(sourceFileId);
         return;
     }
     Diagnostics diagnostics;
-    if (results && false) {
+    if (results) {
         LOG() << "processing diagnostics" << clang_codeCompleteGetNumDiagnostics(results)
               << clang_getNumDiagnostics(unit) << request->location << Location::path(request->source.fileId);
         CompletionDiagnostics diag(sourceFileId, request->location.fileId(), results, unit);
@@ -862,7 +864,7 @@ void CompletionThread::processDiagnostics(const Request *request, CXCodeComplete
         diagnostics = std::move(diag.indexDataMessage().diagnostics());
     }
 
-    EventLoop::mainEventLoop()->post(new DiagnosticsEvent(sourceFileId, project, diagnostics));
-
+    LOG() << "Sending diagnostics" << diagnostics.size();
+    EventLoop::mainEventLoop()->post(new DiagnosticsEvent(sourceFileId, std::move(project), std::move(diagnostics)));
 }
 
