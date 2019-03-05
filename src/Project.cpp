@@ -1107,7 +1107,7 @@ void Project::removeDependencies(uint32_t fileId)
 void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg, const UnsavedFiles &unsavedFiles)
 {
     static_cast<void>(fileId);
-    const bool prune = !(msg->flags() & (IndexDataMessage::InclusionError|IndexDataMessage::ParseFailure));
+    const bool prune = !(msg->flags() & IndexDataMessage::ParseFailure);
     // error() << "updateDependencies" << Location::path(fileId) << prune;
     Set<uint32_t> includeErrors, dirty;
     for (auto pair : msg->files()) {

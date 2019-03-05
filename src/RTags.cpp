@@ -787,9 +787,6 @@ void DiagnosticsProvider::diagnose()
             //         << sev << CXDiagnostic_Error;
             const CXCursor cursor = cursorAt(u, diagLoc);
 
-            const bool inclusionError = clang_getCursorKind(cursor) == CXCursor_InclusionDirective;
-            if (inclusionError)
-                indexData.setFlag(IndexDataMessage::InclusionError);
             assert(fileId);
             Flags<IndexDataMessage::FileFlag> &fileFlags = indexData.files()[fileId];
             bool templateOnly = false;
