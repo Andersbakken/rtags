@@ -111,8 +111,8 @@ private:
             List<Chunk> chunks;
 
             enum Flag {
-                None = 0x0,
-                IncludeChunks = 0x1
+                Flag_None = 0x0,
+                Flag_IncludeChunks = 0x1
             };
             Value toValue(unsigned int flags) const;
         };

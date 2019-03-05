@@ -447,7 +447,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
     String str;
     str << cursorKind;
     ret["kind"] = str;
-    if (f & IncludeChunks && !chunks.isEmpty()) {
+    if (f & Flag_IncludeChunks && !chunks.isEmpty()) {
         Value cc;
         cc.arrayReserve(chunks.size());
         for (const auto &chunk : chunks) {
