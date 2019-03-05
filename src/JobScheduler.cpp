@@ -102,17 +102,17 @@ void JobScheduler::startJobs()
             arguments << "-v";
 
         vehicle->readyReadStdOut().connect([this](Vehicle *proc) {
-                std::shared_ptr<Node> n = mActiveByVehicle[proc];
-                assert(n);
-                n->stdOut.append(proc->readAllStdOut());
+            std::shared_ptr<Node> n = mActiveByVehicle[proc];
+            assert(n);
+            n->stdOut.append(proc->readAllStdOut());
 
-                std::regex rx("@CRASH@([^@]*)@CRASH@");
-                std::smatch match;
-                while (std::regex_search(n->stdOut.ref(), match, rx)) {
-                    error() << match[1].str();
-                    n->stdOut.remove(match.position(), match.length());
-                }
-            });
+            std::regex rx("@CRASH@([^@]*)@CRASH@");
+            std::smatch match;
+            while (std::regex_search(n->stdOut.ref(), match, rx)) {
+                error() << match[1].str();
+                n->stdOut.remove(match.position(), match.length());
+            }
+        });
 
         if (!vehicle->start(options.rp, arguments)) {
             error() << "Couldn't start rp" << options.rp << vehicle->errorString();
@@ -127,34 +127,34 @@ void JobScheduler::startJobs()
         }
         const int pid = vehicle->pid();
         vehicle->finished().connect([this, jobId, options, pid](Vehicle *proc) {
-                EventLoop::deleteLater(proc);
-                auto n = mActiveByVehicle.take(proc);
-                assert(!n || n->vehicle == proc);
-                const String stdErr = proc->readAllStdErr();
-                if ((n && !n->stdOut.isEmpty()) || !stdErr.isEmpty()) {
-                    error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned vehicle:"))
-                            << '\n' << stdErr << (n ? n->stdOut : String());
-                }
-                Path::rmdir(options.tempDir + String::number(pid));
+            EventLoop::deleteLater(proc);
+            auto n = mActiveByVehicle.take(proc);
+            assert(!n || n->vehicle == proc);
+            const String stdErr = proc->readAllStdErr();
+            if ((n && !n->stdOut.isEmpty()) || !stdErr.isEmpty()) {
+                error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned vehicle:"))
+                        << '\n' << stdErr << (n ? n->stdOut : String());
+            }
+            Path::rmdir(options.tempDir + String::number(pid));
 
-                if (n) {
-                    assert(n->vehicle == proc);
-                    n->vehicle = 0;
-                    assert(!(n->job->flags & IndexerJob::Aborted));
-                    if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
-                        auto nodeById = mActiveById.take(jobId);
-                        assert(nodeById);
-                        assert(nodeById == n);
-                        // job failed, probably no IndexDataMessage coming
-                        n->job->flags |= IndexerJob::Crashed;
-                        debug() << "job crashed" << jobId << n->job->fileId() << n->job.get();
-                        auto msg = std::make_shared<IndexDataMessage>(n->job);
-                        msg->setFlag(IndexDataMessage::ParseFailure);
-                        jobFinished(n->job, msg);
-                    }
+            if (n) {
+                assert(n->vehicle == proc);
+                n->vehicle = 0;
+                assert(!(n->job->flags & IndexerJob::Aborted));
+                if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
+                    auto nodeById = mActiveById.take(jobId);
+                    assert(nodeById);
+                    assert(nodeById == n);
+                    // job failed, probably no IndexDataMessage coming
+                    n->job->flags |= IndexerJob::Crashed;
+                    debug() << "job crashed" << jobId << n->job->fileId() << n->job.get();
+                    auto msg = std::make_shared<IndexDataMessage>(n->job);
+                    msg->setFlag(IndexDataMessage::ParseFailure);
+                    jobFinished(n->job, msg);
                 }
-                startJobs();
-            });
+            }
+            startJobs();
+        });
 
 
         jobNode->vehicle = vehicle;
@@ -200,12 +200,12 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         if (job->crashCount < options.maxCrashCount) {
             project->releaseFileIds(job->visited);
             EventLoop::eventLoop()->registerTimer([job, this](int) {
-                    if (!(job->flags & IndexerJob::Aborted)) {
-                        job->flags &= ~IndexerJob::Crashed;
-                        job->acquireId();
-                        add(job);
-                    }
-                }, 500, Timer::SingleShot); // give it 500 ms before we try again
+                if (!(job->flags & IndexerJob::Aborted)) {
+                    job->flags &= ~IndexerJob::Crashed;
+                    job->acquireId();
+                    add(job);
+                }
+            }, 500, Timer::SingleShot); // give it 500 ms before we try again
             return;
         }
         debug() << "job crashed too many times" << job->id << job->fileId() << job.get();
@@ -274,8 +274,8 @@ void JobScheduler::sort()
     }
 
     std::stable_sort(nodes.begin(), nodes.end(), [](const std::shared_ptr<Node> &l, const std::shared_ptr<Node> &r) -> bool {
-            return l->job->priority() > r->job->priority();
-        });
+        return l->job->priority() > r->job->priority();
+    });
 
     for (std::shared_ptr<Node> &n : nodes) {
         mPendingJobs.append(std::move(n));
