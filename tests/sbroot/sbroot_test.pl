@@ -173,12 +173,14 @@ sub ProcessArgsAndSetupSandbox {
             $swNoSandboxRootCheck = 1;
         } elsif ($ARGV[0] =~ /^-/) {
             Usage();
+        } elsif ($ARGV[0] =~ /^--help$/) {
+            Usage();
         } else {
             last;
         }
     }
 
-    if ((@ARGV != 1 && ! defined $ENV{RTAGS_BINARY_DIR}) || $ARGV[0] =~ /^-?-help$/) {
+    if (@ARGV != 1 && ! defined $ENV{RTAGS_BINARY_DIR}) {
         Usage();
     }
     my ($rtagsBin) = $ENV{RTAGS_BINARY_DIR} || @ARGV;
