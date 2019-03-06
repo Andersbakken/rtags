@@ -64,6 +64,9 @@ while [ -n "$1" ]; do
         --build-clang)
             BUILD=1
             ;;
+        --build-tests)
+            CMAKE_ARGS="${CMAKE_ARGS} -DBUILD_TESTING=1"
+            ;;
         --without-tests)
             CMAKE_ARGS="${CMAKE_ARGS} -DBUILD_TESTING=0"
             ;;
