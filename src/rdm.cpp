@@ -727,8 +727,9 @@ int main(int argc, char** argv)
                     String::format<1024>("%s is not a valid directory for sandbox-root",
                                          serverOpts.sandboxRoot.constData()),
                     CommandLineParser::Parse_Error
-                    };
+                };
             }
+
             break; }
         case NoRealPath: {
             Path::setRealPathEnabled(false);

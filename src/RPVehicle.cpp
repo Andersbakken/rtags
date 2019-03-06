@@ -74,6 +74,10 @@ bool RPProcess::start(const std::shared_ptr<IndexerJob> &job)
     for (int i=logLevel().toInt(); i>0; --i)
         arguments << "-v";
 
+    if (Server::instance()->options().options & Server::RPLogToSyslog) {
+        arguments << "--log-to-syslog";
+    }
+
     if (!Process::start(Server::instance()->options().rp, arguments)) {
         error() << "Failed to start rp";
         return false;

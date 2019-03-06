@@ -120,6 +120,7 @@ Server::~Server()
 
 bool Server::init(const Options &options)
 {
+    Sandbox::setRoot(options.sandboxRoot);
     RTags::initMessages();
 
     mOptions = options;

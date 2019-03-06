@@ -30,6 +30,7 @@ enum ReplaceMode {
 };
 static const String encodedRoot("[[SBROOT]]");
 const Path &root();
+void setRoot(const Path &root);
 inline bool hasRoot() { return !root().isEmpty(); }
 
 template <typename T, typename std::enable_if<std::is_convertible<String, T>::value, T>::type * = nullptr>
