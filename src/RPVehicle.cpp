@@ -15,30 +15,21 @@
 
 #include "RPVehicle.h"
 #include "Server.h"
+#include "Project.h"
 
 RPProcess::RPProcess()
 {
     Process::readyReadStdOut().connect([this](Process *) {
-        mReadyReadStdOut(this);
+        Vehicle::readyReadStdOut()(shared_from_this());
     });
     Process::finished().connect([this](Process *) {
-        mFinished(this);
+        Vehicle::finished()(shared_from_this());
     });
 }
 
 void RPProcess::kill()
 {
     Process::kill();
-}
-
-Signal<std::function<void(Vehicle *)>> &RPProcess::readyReadStdOut()
-{
-    return mReadyReadStdOut;
-}
-
-Signal<std::function<void(Vehicle *)>> &RPProcess::finished()
-{
-    return mFinished;
 }
 
 String RPProcess::readAllStdOut()
@@ -56,7 +47,7 @@ String RPProcess::errorString() const
     return Process::errorString();
 }
 
-int RPProcess::id() const
+unsigned long long RPProcess::id() const
 {
     return Process::pid();
 }
@@ -87,44 +78,102 @@ bool RPProcess::start(const std::shared_ptr<IndexerJob> &job)
     return true;
 }
 
-#if 0
+static unsigned long long sId = 0;
 RPThread::RPThread()
+    : mId(++sId)
 {
 }
 
 void RPThread::kill()
 {
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        mKilled = true;
+    }
+    waitForState(Finished);
 }
 
 void RPThread::run()
 {
+    Config config;
+    config.sourceFile = mJob->sources.front().sourceFile();
+    config.sources = mJob->sources;
+    config.project = mJob->project;
+    const Server::Options &options = Server::instance()->options();
+    config.dataDir = options.dataDir;
+    config.unsavedFiles = mJob->unsavedFiles;
+    config.indexerJobFlags = mJob->flags;
+    config.serverOpts = options.options;
+    config.debugLocations = options.debugLocations;
+    config.id = mJob->id;
+    exec(std::move(config));
 }
 
 String RPThread::readAllStdOut()
 {
+    return String();
 }
 
 String RPThread::readAllStdErr()
 {
-}
-
-bool RPThread::start(const Path &, const List<String> &args)
-{
+    return String();
 }
 
 String RPThread::errorString() const
 {
+    return mErrorString;
 }
 
-pid_t RPThread::pid() const
+unsigned long long RPThread::id() const
 {
+    return mId;
 }
 
 int RPThread::returnCode() const
 {
+    return 0;
 }
 
 bool RPThread::start(const std::shared_ptr<IndexerJob> &job)
 {
+    mJob = job;
+    mProject = Server::instance()->project(job->project);
+    mSourceFileId = job->fileId();
+    if (!mProject) {
+        mErrorString = "Can't find project " + job->project;
+        return false;
+    }
+    assert(Server::instance());
+    assert(Server::instance()->threadPool());
+    Server::instance()->threadPool()->start(std::static_pointer_cast<RPThread>(shared_from_this()));
+    return true;
 }
-#endif
+
+bool RPThread::interrupt()
+{
+    std::unique_lock<std::mutex> lock(mMutex);
+    return mKilled;
+}
+
+Location RPThread::createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr)
+{
+    static_assert(sizeof(unsigned int) == sizeof(uint32_t), "We should deal with it if unsigned int is 64-bit");
+    const Path resolved = sourceFile.resolved();
+    const uint32_t fileId = Location::insertFile(resolved);
+    if (mProject->visitFile(fileId, resolved, mSourceFileId)) {
+        if (blockedPtr)
+            *blockedPtr = false;
+        return Location(fileId, line, col);
+    } else if (blockedPtr) {
+        *blockedPtr = true;
+    }
+    return Location();
+}
+
+bool RPThread::send(const std::shared_ptr<IndexDataMessage> &message)
+{
+    EventLoop::mainEventLoop()->callLater([message]() {
+        Server::instance()->onNewMessage(message, std::shared_ptr<Connection>());
+    });
+    return true;
+}

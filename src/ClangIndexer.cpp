@@ -124,15 +124,19 @@ bool ClangIndexer::exec(Config &&config)
     }
 
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
-    mIndexDataMessage.setProject(mProject);
-    mIndexDataMessage.setIndexerJobFlags(config.indexerJobFlags);
-    mIndexDataMessage.setParseTime(parseTime);
-    mIndexDataMessage.setId(config.id);
+    mIndexDataMessage->setProject(mProject);
+    mIndexDataMessage->setIndexerJobFlags(config.indexerJobFlags);
+    mIndexDataMessage->setParseTime(parseTime);
+    mIndexDataMessage->setId(config.id);
 
     assert(mConnection->isConnected());
     assert(mSources.front().fileId);
-    mIndexDataMessage.files()[mSources.front().fileId] |= IndexDataMessage::Visited;
+    mIndexDataMessage->files()[mSources.front().fileId] |= IndexDataMessage::Visited;
     parse() && visit() && diagnose();
+    if (interrupt()) {
+        return false;
+    }
+
     String message = mSourceFile.toTilde();
     String err;
 
@@ -168,27 +172,33 @@ bool ClangIndexer::exec(Config &&config)
             queryData = String::format(", %d queried %dms", mFileIdsQueried, mFileIdsQueriedTime);
         const char *format = "(%d syms, %d symNames, %d includes, %d of %d files, symbols: %d of %d, %d cursors, %zu bytes written%s%s) (%d/%d/%dms)";
         message += String::format<1024>(format, cursorCount, symbolNameCount,
-                                        mIndexDataMessage.includes().size(), mIndexed,
-                                        mIndexDataMessage.files().size(), mAllowed,
+                                        mIndexDataMessage->includes().size(), mIndexed,
+                                        mIndexDataMessage->files().size(), mAllowed,
                                         mAllowed + mBlocked, mCursorsVisited,
-                                        mIndexDataMessage.bytesWritten(),
-                                        queryData.constData(), mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
+                                        mIndexDataMessage->bytesWritten(),
+                                        queryData.constData(), mIndexDataMessage->flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
                                         mParseDuration, mVisitDuration, writeDuration);
     }
-    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty) {
+    if (mIndexDataMessage->indexerJobFlags() & IndexerJob::Dirty) {
         message += " (dirty)";
-    } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Reindex) {
+    } else if (mIndexDataMessage->indexerJobFlags() & IndexerJob::Reindex) {
         message += " (reindex)";
     }
 
 
-    mIndexDataMessage.setMessage(message);
+    mIndexDataMessage->setMessage(message);
     sw.restart();
+    if (interrupt()) {
+        return false;
+    }
     if (!send(mIndexDataMessage)) {
         error() << "Couldn't send IndexDataMessage" << mSourceFile;
         return false;
     }
 
+    if (interrupt()) {
+        return false;
+    }
     if (mSerializeTU) {
         Path path = mDataDir + "tucache/";
         Path::mkdir(path, Path::Recursive);
@@ -789,7 +799,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     if (!refLoc.isValid()) {
         // ### THIS IS NOT SOLVED
         // if (kind == CXCursor_ObjCMessageExpr) {
-        //    mIndexDataMessage.mPendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
+        //    mIndexDataMessage->mPendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
         //     // insert it, we'll hook up the target and references later
         //     return handleCursor(cursor, kind, location, cursorPtr);
         // }
@@ -1079,7 +1089,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
             assert(mSources.front().fileId);
             unit(location)->symbolNames[(include + path)].insert(location);
             unit(location)->symbolNames[(include + path.fileName())].insert(location);
-            mIndexDataMessage.includes().push_back(std::make_pair(location.fileId(), refLoc.fileId()));
+            mIndexDataMessage->includes().push_back(std::make_pair(location.fileId(), refLoc.fileId()));
             c.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             c.kind = cursor.kind;
             c.symbolLength = c.symbolName.size() + 2;
@@ -1091,7 +1101,7 @@ void ClangIndexer::handleInclude(const CXCursor &cursor, CXCursorKind kind, Loca
         }
     }
 
-    mIndexDataMessage.files()[location.fileId()] |= IndexDataMessage::IncludeError;
+    mIndexDataMessage->files()[location.fileId()] |= IndexDataMessage::IncludeError;
     error() << "handleInclude failed" << includedFile << cursor;
 }
 
@@ -1693,7 +1703,7 @@ bool ClangIndexer::parse()
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
+    if (mIndexDataMessage->indexerJobFlags() & IndexerJob::Active) {
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
@@ -1738,10 +1748,10 @@ bool ClangIndexer::parse()
         bool usedPch = false;
         const List<String> args = source.toCommandLine(commandLineFlags, &usedPch);
         if (usedPch)
-            mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
+            mIndexDataMessage->setFlag(IndexDataMessage::UsedPCH);
 
         std::shared_ptr<RTags::TranslationUnit> unit;
-        if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
+        if (mIndexDataMessage->indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
             Path path = mDataDir + "tucache/";
             Path::mkdir(path, Path::Recursive);
             path << mSources.front().fileId;
@@ -1761,6 +1771,9 @@ bool ClangIndexer::parse()
         if (!unit)
             unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags, false);
         mTranslationUnits.push_back(unit);
+        if (interrupt()) {
+            return false;
+        }
 
         warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
         if (unit->unit) {
@@ -1773,7 +1786,7 @@ bool ClangIndexer::parse()
                 clang_saveTranslationUnit(unit->unit, tmp.constData(), clang_defaultSaveOptions(unit->unit));
                 rename(tmp.constData(), path.constData());
                 warning() << "SAVED PCH" << path;
-            } else if (!mSerializeTU && mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
+            } else if (!mSerializeTU && mIndexDataMessage->indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
                 mSerializeTU = unit;
             }
 
@@ -1781,7 +1794,7 @@ bool ClangIndexer::parse()
             mParseDuration = sw.elapsed();
         } else {
             error() << "Failed to parse" << unit->clangLine;
-            mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
+            mIndexDataMessage->setFlag(IndexDataMessage::ParseFailure);
         }
     }
     return ok;
@@ -1826,7 +1839,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     const uint32_t fileId = mSources.front().fileId;
 
     auto process = [&](Hash<uint32_t, std::shared_ptr<Unit> >::const_iterator unit) {
-        assert(mIndexDataMessage.files().value(unit->first) & IndexDataMessage::Visited);
+        assert(mIndexDataMessage->files().value(unit->first) & IndexDataMessage::Visited);
         String unitRoot = root;
         unitRoot << unit->first;
         Path::mkdir(unitRoot, Path::Recursive);
@@ -1839,7 +1852,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
             Sandbox::encode(rpath);
             bytesWritten += fprintf(f, "%s\nIndexed by %s at %llu\n",
                                     rpath.constData(),
-                                    p.constData(), static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+                                    p.constData(), static_cast<unsigned long long>(mIndexDataMessage->parseTime()));
             fclose(f);
         }
 
@@ -1911,7 +1924,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     List<std::shared_ptr<Unit> > templateSpecializationTargets;
     auto self = mUnits.end();
     for (auto it = mUnits.begin(); it != mUnits.end(); ++it) {
-        if (!(mIndexDataMessage.files().value(it->first) & IndexDataMessage::Visited)) {
+        if (!(mIndexDataMessage->files().value(it->first) & IndexDataMessage::Visited)) {
             ::error() << "Wanting to write something for"
                       << it->first << Location::path(it->first)
                       << "but we didn't visit it" << mSourceFile
@@ -1951,10 +1964,10 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
 
         bytesWritten += fprintf(f, "%s\n%s\n", p.constData(), args.constData());
     }
-    bytesWritten += fprintf(f, "Indexed at %llu\n", static_cast<unsigned long long>(mIndexDataMessage.parseTime()));
+    bytesWritten += fprintf(f, "Indexed at %llu\n", static_cast<unsigned long long>(mIndexDataMessage->parseTime()));
 
     fclose(f);
-    mIndexDataMessage.setBytesWritten(bytesWritten);
+    mIndexDataMessage->setBytesWritten(bytesWritten);
     return true;
 }
 
@@ -1967,7 +1980,7 @@ bool ClangIndexer::diagnose()
         if (!tu) {
             continue;
         }
-        for (const auto &it : mIndexDataMessage.files()) {
+        for (const auto &it : mIndexDataMessage->files()) {
             if (it.second & IndexDataMessage::Visited) {
                 const Location loc(it.first, 0, 0);
                 const Path path = loc.path();
@@ -1977,6 +1990,9 @@ bool ClangIndexer::diagnose()
                 }
             }
         }
+    }
+    if (interrupt()) {
+        return false;
     }
 
     return true;
@@ -2043,7 +2059,7 @@ bool ClangIndexer::visit()
         }
     }
 
-    for (const auto &it : mIndexDataMessage.files()) {
+    for (const auto &it : mIndexDataMessage->files()) {
         if (it.second & IndexDataMessage::Visited)
             addFileSymbol(it.first);
     }
@@ -2087,6 +2103,10 @@ bool ClangIndexer::visit()
 
     mVisitDuration = watch.elapsed();
 
+    if (interrupt()) {
+        return false;
+    }
+
     return true;
 }
 
@@ -2106,7 +2126,7 @@ CXChildVisitResult ClangIndexer::verboseVisitor(CXCursor cursor, CXCursor, CXCli
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
-        if (loc.fileId() && u->indexer->mIndexDataMessage.files().value(loc.fileId()) & IndexDataMessage::Visited) {
+        if (loc.fileId() && u->indexer->mIndexDataMessage->files().value(loc.fileId()) & IndexDataMessage::Visited) {
             if (u->indexer->unit(loc)->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {
@@ -2186,7 +2206,7 @@ Symbol ClangIndexer::findSymbol(Location location, FindResult *result) const
         }
     }
 
-    if (mIndexDataMessage.files().value(location.fileId()) & IndexDataMessage::Visited) {
+    if (mIndexDataMessage->files().value(location.fileId()) & IndexDataMessage::Visited) {
         *result = NotFound;
     } else {
         *result = NotIndexed;

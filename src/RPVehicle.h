@@ -16,7 +16,7 @@
 #ifndef RPVEHICLE_H
 #define RPVEHICLE_H
 
-#include "rct/Thread.h"
+#include "rct/ThreadPool.h"
 #include "rct/String.h"
 #include "rct/SignalSlot.h"
 #include "rct/Path.h"
@@ -30,34 +30,38 @@ class RPProcess : public Process, public Vehicle
 public:
     RPProcess();
     virtual void kill() override;
-    virtual Signal<std::function<void(Vehicle*)> > &readyReadStdOut() override;
-    virtual Signal<std::function<void(Vehicle*)> > &finished() override;
     virtual String readAllStdOut() override;
     virtual String readAllStdErr() override;
     virtual String errorString() const override;
-    virtual int id() const override;
+    virtual unsigned long long id() const override;
     virtual int returnCode() const override;
     virtual bool start(const std::shared_ptr<IndexerJob> &job) override;
-private:
-    Signal<std::function<void(Vehicle*)> > mReadyReadStdOut, mFinished;
 };
 
-class RPThread : public Thread, public Vehicle, public ClangIndexer
+class RPThread : public ThreadPool::Job, public Vehicle, public ClangIndexer
 {
 public:
     RPThread();
     virtual void kill() override;
     virtual void run() override;
-    virtual Signal<std::function<void(Vehicle*)> > &readyReadStdOut() override { return mReadyReadStdOut; }
-    virtual Signal<std::function<void(Vehicle*)> > &finished() override { return mFinished; }
     virtual String readAllStdOut() override;
     virtual String readAllStdErr() override;
     virtual String errorString() const override;
-    virtual int id() const override;
+    virtual unsigned long long id() const override;
     virtual int returnCode() const override;
     virtual bool start(const std::shared_ptr<IndexerJob> &job) override;
+protected:
+    virtual Location createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr) override;
+    virtual bool send(const std::shared_ptr<IndexDataMessage> &message) override;
+    virtual bool interrupt() override;
 private:
-    Signal<std::function<void(Vehicle*)> > mReadyReadStdOut, mFinished;
+    const unsigned long long mId { 0 };
+    std::shared_ptr<IndexerJob> mJob;
+    std::shared_ptr<Project> mProject;
+    uint32_t mSourceFileId { 0 };
+    String mErrorString;
+    std::mutex mMutex;
+    bool mKilled { false };
 };
 
 #endif

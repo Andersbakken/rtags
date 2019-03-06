@@ -14,7 +14,6 @@
    along with RTags.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "Server.h"
-#include <rct/ThreadPool.h>
 #include "TokensJob.h"
 
 #include <arpa/inet.h>
@@ -193,6 +192,10 @@ bool Server::init(const Options &options)
             for (const auto &inc : mOptions.includePaths)
                 l << inc.toString();
         }
+    }
+
+    if (mOptions.options & RPThreads) {
+        mThreadPool.reset(new ThreadPool(mOptions.jobCount));
     }
 
     if (mOptions.options & ClearProjects) {
@@ -665,7 +668,8 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)
 {
     mJobScheduler->handleIndexDataMessage(message);
-    conn->finish();
+    if (conn)
+        conn->finish();
     mIndexDataMessageReceived();
 }
 
@@ -1652,6 +1656,8 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         } else {
             mOptions.jobCount = jobCount;
             conn->write<128>("Changed jobs to %zu", mOptions.jobCount);
+            if (mThreadPool)
+                mThreadPool->setConcurrentJobs(mOptions.jobCount);
         }
     }
     conn->finish();

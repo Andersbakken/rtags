@@ -31,19 +31,23 @@ class IndexerJob;
 class Project;
 struct DependencyNode;
 
-class Vehicle
+class Vehicle : public std::enable_shared_from_this<Vehicle>
 {
 public:
     virtual ~Vehicle() {}
+
+    Signal<std::function<void(const std::shared_ptr<Vehicle> &)> > &readyReadStdOut() { return mReadyReadStdOut; }
+    Signal<std::function<void(const std::shared_ptr<Vehicle> &)> > &finished() { return mFinished; }
+
     virtual void kill() = 0;
-    virtual Signal<std::function<void(Vehicle*)> > &readyReadStdOut() = 0;
-    virtual Signal<std::function<void(Vehicle*)> > &finished() = 0;
     virtual String readAllStdOut() = 0;
     virtual String readAllStdErr() = 0;
     virtual String errorString() const = 0;
-    virtual int id() const = 0;
+    virtual unsigned long long id() const = 0;
     virtual int returnCode() const = 0;
     virtual bool start(const std::shared_ptr<IndexerJob> &job) = 0;
+private:
+    Signal<std::function<void(const std::shared_ptr<Vehicle> &)> > mReadyReadStdOut, mFinished;
 };
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {
@@ -82,14 +86,14 @@ private:
     struct Node {
         unsigned long long started;
         std::shared_ptr<IndexerJob> job;
-        Vehicle *vehicle;
+        std::shared_ptr<Vehicle> vehicle;
         std::shared_ptr<Node> next, prev;
         String stdOut;
     };
 
     int mProcrastination;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
-    Hash<Vehicle *, std::shared_ptr<Node> > mActiveByVehicle;
+    Hash<std::shared_ptr<Vehicle>, std::shared_ptr<Node> > mActiveByVehicle;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;
 };
 

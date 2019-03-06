@@ -134,10 +134,10 @@ bool RPClangIndexer::exec(const String &data)
     return ClangIndexer::exec(std::move(config));
 }
 
-bool RPClangIndexer::send(const IndexDataMessage &msg)
+bool RPClangIndexer::send(const std::shared_ptr<IndexDataMessage> &msg)
 {
     StopWatch sw;
-    if (!mConnection->send(msg)) {
+    if (!mConnection->send(*msg)) {
         error() << "Couldn't send IndexDataMessage" << sourceFile();
         return false;
     }

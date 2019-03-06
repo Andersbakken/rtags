@@ -59,8 +59,11 @@ protected:
     bool diagnose();
     bool visit();
     bool parse();
-    virtual bool send(const IndexDataMessage &message) = 0;
-    virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
+    virtual bool send(const std::shared_ptr<IndexDataMessage> &message) = 0;
+    virtual bool interrupt() { return false; }
+
+    // DiagnosticsProvider
+    virtual IndexDataMessage &indexDataMessage() override { return *mIndexDataMessage.get(); }
 private:
     bool writeFiles(const Path &root, String &error);
     void tokenize(CXFile file, uint32_t fileId, const Path &path);
@@ -164,7 +167,7 @@ private:
     Path mProject;
     SourceList mSources;
     Path mSourceFile;
-    IndexDataMessage mIndexDataMessage;
+    std::shared_ptr<IndexDataMessage> mIndexDataMessage { std::make_shared<IndexDataMessage>() };
     List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;
     size_t mCurrentTranslationUnit { String::npos };
     CXCursor mLastCursor { clang_getNullCursor() };

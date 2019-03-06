@@ -28,7 +28,7 @@ public:
     bool exec(const String &data);
 protected:
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override;
-    virtual bool send(const IndexDataMessage &msg) override;
+    virtual bool send(const std::shared_ptr<IndexDataMessage> &msg) override;
 private:
     void onMessage(const std::shared_ptr<Message> &msg, const std::shared_ptr<Connection> &conn);
 

@@ -17,6 +17,7 @@
 #define Server_h
 
 #include "IndexMessage.h"
+#include "rct/ThreadPool.h"
 #include "rct/Flags.h"
 #include "rct/Hash.h"
 #include "rct/List.h"
@@ -151,6 +152,7 @@ public:
 
     void filterBlockedArguments(Source &source);
     void sourceFileModified(const std::shared_ptr<Project> &project, uint32_t fileId);
+    ThreadPool *threadPool() const { return mThreadPool.get(); }
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const;
     bool load();
@@ -235,6 +237,7 @@ private:
     Set<std::shared_ptr<Connection> > mConnections;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
+    std::unique_ptr<ThreadPool> mThreadPool;
 };
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);
