@@ -114,7 +114,7 @@ T encoded(const T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T>
-T encoded(T &&t, ReplaceMode mode = Everywhere)
+T encoded(T &t, ReplaceMode mode = Everywhere)
 {
     encode(t, mode);
     return t;
@@ -201,10 +201,10 @@ T decoded(const T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T>
-T decoded(T &&t, ReplaceMode mode = Everywhere)
+T decoded(T &t, ReplaceMode mode = Everywhere)
 {
     decode(t, mode);
-    return std::move(t);
+    return t;
 }
 
 }
