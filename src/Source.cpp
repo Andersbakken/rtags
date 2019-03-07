@@ -281,6 +281,9 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
         return true;
     if (String(fullPath.fileName()).contains("emacs", String::CaseInsensitive))
         return false;
+    if (access(fullPath.constData(), R_OK | X_OK)) // can't execute it
+        return false;
+
     static Hash<Path, bool> sCache;
 
     bool ok;
@@ -324,19 +327,16 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
     return !proc.returnCode();
 }
 
-enum Mode {
-    Mode_Executable,
-    Mode_Compiler
-};
 static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
                                              const Path &cwd,
-                                             const List<String>& environment,
+                                             const List<String> &environment,
                                              const List<Path> &pathEnvironment,
                                              SourceCache *cache)
 {
     std::pair<Path, bool> dummy;
     auto &compiler = cache ? cache->compilerCache[unresolved] : dummy;
     if (compiler.first.isEmpty()) {
+        bool wrapper = false;
         // error() << "Coming in with" << unresolved << cwd << pathEnvironment;
         Path resolve;
         Path file;
@@ -352,10 +352,9 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
         if (!resolve.isEmpty()) {
             const Path resolved = resolve.resolved();
             if (isWrapper(resolved.fileName())) {
-                file = unresolved.fileName();
-            } else {
-                compiler.first = resolve;
+                wrapper = true;
             }
+            compiler.first = resolve;
         }
 
         if (compiler.first.isEmpty()) {
@@ -376,7 +375,7 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
         } else {
             if (compiler.first.contains(".."))
                 compiler.first.canonicalize();
-            compiler.second = isCompiler(compiler.first, environment);
+            compiler.second = wrapper || isCompiler(compiler.first, environment);
         }
     }
 
