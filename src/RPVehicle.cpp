@@ -162,17 +162,64 @@ bool RPThread::interrupt()
 Location RPThread::createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr)
 {
     static_assert(sizeof(unsigned int) == sizeof(uint32_t), "We should deal with it if unsigned int is 64-bit");
-    const Path resolved = sourceFile.resolved();
-    const uint32_t fileId = Location::insertFile(resolved);
-    Location location(fileId, line, col);
-    if (mProject->visitFile(fileId, resolved, mSourceFileId)) {
+
+    FileInfo &info = mPaths[sourceFile];
+    FileInfo *resolvedInfo = nullptr;
+    const Path *path = &sourceFile;
+    Path resolved;
+    if (!info.fileId) {
+        bool changed;
+        resolved = sourceFile.resolved(Path::RealPath, Path(), &changed);
+        if (changed) {
+            FileInfo &rinfo = mPaths[resolved];
+            if (rinfo.fileId) {
+                info = rinfo;
+                if (!blockedPtr)
+                    return Location(info.fileId, line, col);
+            }
+
+            if (info.status == FileInfo::Won) {
+                *blockedPtr = false;
+                return Location(info.fileId, line, col);
+            } else if (info.status == FileInfo::Lost) {
+                *blockedPtr = true;
+                return Location(info.fileId, line, col);
+            }
+            resolvedInfo = &rinfo;
+            path = &resolved;
+        }
+        info.fileId = Location::insertFile(*path);
+    } else if (!blockedPtr) {
+        return Location(info.fileId, line, col);
+    } else if (info.status == FileInfo::Won) {
+        *blockedPtr = false;
+        return Location(info.fileId, line, col);
+    } else if (info.status == FileInfo::Lost) {
+        *blockedPtr = true;
+        return Location(info.fileId, line, col);
+    }
+
+    Flags<IndexDataMessage::FileFlag> &flags = indexDataMessage().files()[info.fileId];
+
+    if (mProject->visitFile(info.fileId, *path, mSourceFileId)) {
+        if (resolvedInfo) {
+            resolvedInfo->fileId = info.fileId;
+            resolvedInfo->status = FileInfo::Won;
+        }
+        info.status = FileInfo::Won;
         if (blockedPtr)
             *blockedPtr = false;
-        indexDataMessage().files()[fileId] |= IndexDataMessage::Visited;
-    } else if (blockedPtr) {
-        *blockedPtr = true;
+        flags |= IndexDataMessage::Visited;
+    } else {
+        if (blockedPtr)
+            *blockedPtr = true;
+        if (resolvedInfo) {
+            resolvedInfo->fileId = info.fileId;
+            resolvedInfo->status = FileInfo::Lost;
+        }
+        info.status = FileInfo::Lost;
     }
-    return Location(fileId, line, col);
+    return Location(info.fileId, line, col);
 }
 
 bool RPThread::send(const std::shared_ptr<IndexDataMessage> &message)

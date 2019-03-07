@@ -55,6 +55,15 @@ protected:
     virtual bool send(const std::shared_ptr<IndexDataMessage> &message) override;
     virtual bool interrupt() override;
 private:
+    struct FileInfo {
+        uint32_t fileId { 0 };
+        enum Status {
+            Lost,
+            Won,
+            Pending
+        } status { Pending };
+    };
+    Hash<Path, FileInfo> mPaths;
     const unsigned long long mId { 0 };
     std::shared_ptr<IndexerJob> mJob;
     std::shared_ptr<Project> mProject;

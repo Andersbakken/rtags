@@ -129,7 +129,6 @@ bool ClangIndexer::exec(Config &&config)
     mIndexDataMessage->setParseTime(parseTime);
     mIndexDataMessage->setId(config.id);
 
-    assert(mConnection->isConnected());
     assert(mSources.front().fileId);
     mIndexDataMessage->files()[mSources.front().fileId] |= IndexDataMessage::Visited;
     parse() && visit() && diagnose();
