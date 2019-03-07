@@ -107,6 +107,10 @@ void RPThread::run()
     config.debugLocations = options.debugLocations;
     config.id = mJob->id;
     exec(std::move(config));
+    std::shared_ptr<Vehicle> vehicle = shared_from_this();
+    EventLoop::mainEventLoop()->callLater([vehicle]() {
+        vehicle->finished()(vehicle);
+    });
 }
 
 String RPThread::readAllStdOut()
@@ -160,14 +164,15 @@ Location RPThread::createLocation(const Path &sourceFile, unsigned int line, uns
     static_assert(sizeof(unsigned int) == sizeof(uint32_t), "We should deal with it if unsigned int is 64-bit");
     const Path resolved = sourceFile.resolved();
     const uint32_t fileId = Location::insertFile(resolved);
+    Location location(fileId, line, col);
     if (mProject->visitFile(fileId, resolved, mSourceFileId)) {
         if (blockedPtr)
             *blockedPtr = false;
-        return Location(fileId, line, col);
+        indexDataMessage().files()[fileId] |= IndexDataMessage::Visited;
     } else if (blockedPtr) {
         *blockedPtr = true;
     }
-    return Location();
+    return Location(fileId, line, col);
 }
 
 bool RPThread::send(const std::shared_ptr<IndexDataMessage> &message)
