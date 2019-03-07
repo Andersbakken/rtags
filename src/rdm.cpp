@@ -561,6 +561,7 @@ int main(int argc, char** argv)
             break; }
         case RPThreads: {
             serverOpts.options |= Server::RPThreads;
+            setenv("RDM_FILEMAP_USE_RWLOCK", "1", 1);
             break; }
         case StartSuspended: {
             serverOpts.options |= Server::StartSuspended;

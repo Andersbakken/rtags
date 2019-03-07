@@ -23,6 +23,10 @@
 #include <sys/stat.h>
 #include <functional>
 #include <limits>
+#include <unordered_map>
+#include <pthread.h>
+#include <mutex>
+#include <condition_variable>
 
 #include "Location.h"
 #include "rct/Serializer.h"
@@ -45,6 +49,47 @@ template <> inline int compare(const Location &l, const Location &r)
 {
     return l.compare(r);
 }
+
+enum LockMode {
+    Read = F_RDLCK,
+    Write = F_WRLCK,
+    Unlock = F_UNLCK
+};
+static inline bool useRWLock()
+{
+    static const bool ret = getenv("RDM_FILEMAP_USE_RWLOCK");
+    return ret;
+}
+
+static inline void lock(const Path &path, LockMode mode)
+{
+    assert(useRWLock());
+    static std::mutex sMutex;
+    static Hash<Path, std::pair<std::shared_mutex, size_t> > sLocks;
+    auto &value = sLocks[path];
+    const pthread_t thread = pthread_self();
+    auto find = [&value, thread](bool write) {
+        auto it = value.begin();
+        while (it != value.end() && it->second != thread)
+            ++it;
+        return it;
+    };
+    switch (mode) {
+    case Read:
+        assert(find() == value.end());
+        if (
+        break;
+    case Write:
+        assert(!pthread_equal(value.writer, thread));
+        assert(find() == value.end());
+    case Unlock:
+        break;
+    }
+    switch (mode) {
+
+    }
+}
+
 
 template <typename Key, typename Value>
 class FileMap
@@ -101,9 +146,11 @@ public:
             assert(mPointer);
             munmap(const_cast<char*>(mPointer), mSize);
             if (!(mOptions & NoLock))
-                lock(mFD, Unlock);
+                lock(mFD, mPath, Unlock);
             int ret;
             eintrwrap(ret, close(mFD));
+            mFD = -1;
+            mPath.clear();
         }
     }
 
@@ -129,7 +176,7 @@ public:
             }
             return false;
         }
-        if (!(options & NoLock) && !lock(mFD, Read)) {
+        if (!(options & NoLock) && !lock(mFD, path, Read)) {
             if (error) {
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
@@ -146,7 +193,7 @@ public:
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
             }
-            lock(mFD, Unlock);
+            lock(mFD, path, Unlock);
             int ret;
             eintrwrap(ret, close(mFD));
             mFD = -1;
@@ -160,7 +207,7 @@ public:
                 *error = Rct::strerror();
                 *error << " " << __LINE__;
             }
-            lock(mFD, Unlock);
+            lock(mFD, path, Unlock);
             int ret;
             eintrwrap(ret, close(mFD));
             mFD = -1;
@@ -169,6 +216,7 @@ public:
 
         mOptions = options;
         init(pointer, st.st_size);
+        mPath = path;
         return true;
     }
 
@@ -286,7 +334,7 @@ public:
             if (fd == -1)
                 return 0;
         }
-        if (!(options & NoLock) && !lock(fd, Write)) {
+        if (!(options & NoLock) && !lock(fd, path, Write)) {
             ::close(fd);
             return 0;
         }
@@ -294,14 +342,14 @@ public:
         bool ok = ::ftruncate(fd, data.size()) != -1;
         if (!ok) {
             if (!(options & NoLock))
-                lock(fd, Unlock);
+                lock(fd, path, Unlock);
             ::close(fd);
             return 0;
         }
 
         ok = ::write(fd, data.constData(), data.size()) == static_cast<ssize_t>(data.size());
         if (!(options & NoLock))
-            ok = lock(fd, Unlock) && ok;
+            ok = lock(fd, path, Unlock) && ok;
 
         ::close(fd);
         if (!ok)
@@ -309,21 +357,21 @@ public:
         return ok ? data.size() : 0;
     }
 private:
-    enum Mode {
-        Read = F_RDLCK,
-        Write = F_WRLCK,
-        Unlock = F_UNLCK
-    };
-    static bool lock(int fd, Mode mode)
+    static bool lock(int fd, const Path &path, LockMode mode)
     {
-        struct flock fl;
-        memset(&fl, 0, sizeof(fl));
-        fl.l_type = mode;
-        fl.l_whence = SEEK_SET;
-        fl.l_pid = getpid();
-        int ret;
-        eintrwrap(ret, fcntl(fd, F_SETLKW, &fl));
-        return ret != -1;
+        if (useRWLock()) {
+            ::lock(path, mode);
+            return true;
+        } else {
+            struct flock fl;
+            memset(&fl, 0, sizeof(fl));
+            fl.l_type = mode;
+            fl.l_whence = SEEK_SET;
+            fl.l_pid = getpid();
+            int ret;
+            eintrwrap(ret, fcntl(fd, F_SETLKW, &fl));
+            return ret != -1;
+        }
     }
     const char *valuesSegment() const { return mPointer + mValuesOffset; }
     const char *keysSegment() const { return mPointer + (sizeof(uint32_t) * 2); }
@@ -349,6 +397,7 @@ private:
     uint32_t mCount;
     uint32_t mValuesOffset;
     int mFD;
+    Path mPath;
     uint32_t mOptions;
 };
 
