@@ -86,7 +86,8 @@ void JobScheduler::startJobs()
         std::shared_ptr<Project> project = Server::instance()->project(jobNode->job->project);
         if (!project) {
             cont();
-            debug() << jobNode->job->sourceFile << "doesn't have a project, discarding";
+            if (jobNode)
+                debug() << jobNode->job->sourceFile << "doesn't have a project, discarding";
             continue;
         }
 
@@ -124,9 +125,10 @@ void JobScheduler::startJobs()
         }
         const int id = vehicle->id();
         vehicle->finished().connect([this, jobId, options, id](const std::shared_ptr<Vehicle> &v) {
-            auto n = mActiveByVehicle.take(v);
-            assert(!n || n->vehicle == v);
             const String stdErr = v->readAllStdErr();
+            auto n = mActiveByVehicle.take(v);
+            // ### Don't use v after this unless n
+            // assert(!n || n->vehicle == v);
             if ((n && !n->stdOut.isEmpty()) || !stdErr.isEmpty()) {
                 error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned vehicle:"))
                         << '\n' << stdErr << (n ? n->stdOut : String());
@@ -134,8 +136,8 @@ void JobScheduler::startJobs()
             Path::rmdir(options.tempDir + String::number(id));
 
             if (n) {
-                assert(n->vehicle == proc);
-                n->vehicle = 0;
+                assert(n->vehicle == v);
+                n->vehicle.reset();
                 assert(!(n->job->flags & IndexerJob::Aborted));
                 if (!(n->job->flags & IndexerJob::Complete) && v->returnCode() != 0) {
                     auto nodeById = mActiveById.take(jobId);
