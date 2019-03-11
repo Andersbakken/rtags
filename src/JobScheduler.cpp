@@ -32,11 +32,15 @@ JobScheduler::JobScheduler()
 JobScheduler::~JobScheduler()
 {
     mPendingJobs.deleteAll();
-    if (!mActiveByProcess.isEmpty()) {
-        for (const auto &job : mActiveByProcess) {
-            job.first->kill();
-            delete job.first;
-        }
+    for (const auto &job : mActiveByProcess) {
+        mDaemons.erase(job.first);
+        job.first->kill();
+        delete job.first;
+    }
+
+    for (const auto &daemon : mDaemons) {
+        daemon.first->kill();
+        delete daemon.first;
     }
 }
 
