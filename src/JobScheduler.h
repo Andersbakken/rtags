@@ -22,6 +22,7 @@
 #include "rct/Set.h"
 #include "rct/Hash.h"
 #include "rct/String.h"
+#include "Source.h"
 
 class Connection;
 class IndexDataMessage;
@@ -61,6 +62,7 @@ public:
     size_t pendingJobCount() const { return mPendingJobs.size(); }
     size_t activeJobCount() const { return mActiveById.size(); }
     void sort();
+    void setActiveJobs(size_t active);
 private:
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
     struct Node {
@@ -68,10 +70,14 @@ private:
         std::shared_ptr<IndexerJob> job;
         Process *process;
         std::shared_ptr<Node> next, prev;
-        String stdOut;
+        String stdOut, stdErr;
     };
 
     int mProcrastination;
+    struct DaemonData {
+        SourceList cache;
+    };
+    Hash<Process *, DaemonData> mDaemons;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
     Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;

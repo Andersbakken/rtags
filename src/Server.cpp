@@ -201,6 +201,7 @@ bool Server::init(const Options &options)
     }
 
     mJobScheduler.reset(new JobScheduler);
+    mJobScheduler->setActiveJobs(mOptions.jobCount);
 
     if (!load())
         return false;

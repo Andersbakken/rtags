@@ -160,13 +160,14 @@ enum OptionType {
     IgnoreCompiler,
     CompilerWrappers,
     WatchSystemPaths,
-    RpVisitFileTimeout,
-    RpIndexerMessageTimeout,
-    RpConnectTimeout,
-    RpConnectAttempts,
-    RpNiceValue,
-    SuspendRpOnCrash,
-    RpLogToSyslog,
+    RPVisitFileTimeout,
+    RPIndexerMessageTimeout,
+    RPConnectTimeout,
+    RPConnectAttempts,
+    RPNiceValue,
+    SuspendRPOnCrash,
+    RPLogToSyslog,
+    RPDaemon,
     StartSuspended,
     SeparateDebugAndRelease,
     Separate32BitAnd64Bit,
@@ -205,7 +206,7 @@ enum OptionType {
     DebugLocations,
     ValidateFileMaps,
     TcpPort,
-    RpPath,
+    RPPath,
     LogTimestamp,
     LogFlushOption,
     SandboxRoot,
@@ -320,13 +321,13 @@ int main(int argc, char** argv)
         { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
         { CompilerWrappers, "compiler-wrappers", 0, CommandLineParser::Required, "Consider these filenames compiler wrappers (split on ;), default " DEFAULT_COMPILER_WRAPPERS "\"." },
         { WatchSystemPaths, "watch-system-paths", 'w', CommandLineParser::NoValue, "Watch system paths for changes." },
-        { RpVisitFileTimeout, "rp-visit-file-timeout", 'Z', CommandLineParser::Required, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
-        { RpIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', CommandLineParser::Required, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
-        { RpConnectTimeout, "rp-connect-timeout", 'O', CommandLineParser::Required, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
-        { RpConnectAttempts, "rp-connect-attempts", 0, CommandLineParser::Required, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
-        { RpNiceValue, "rp-nice-value", 'a', CommandLineParser::Required, "Nice value to use for rp (nice(2)) (default is no nicing)." },
-        { SuspendRpOnCrash, "suspend-rp-on-crash", 'q', CommandLineParser::NoValue, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
-        { RpLogToSyslog, "rp-log-to-syslog", 0, CommandLineParser::NoValue, "Make rp log to syslog." },
+        { RPVisitFileTimeout, "rp-visit-file-timeout", 'Z', CommandLineParser::Required, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
+        { RPIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', CommandLineParser::Required, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
+        { RPConnectTimeout, "rp-connect-timeout", 'O', CommandLineParser::Required, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
+        { RPConnectAttempts, "rp-connect-attempts", 0, CommandLineParser::Required, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
+        { RPNiceValue, "rp-nice-value", 'a', CommandLineParser::Required, "Nice value to use for rp (nice(2)) (default is no nicing)." },
+        { SuspendRPOnCrash, "suspend-rp-on-crash", 'q', CommandLineParser::NoValue, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
+        { RPLogToSyslog, "rp-log-to-syslog", 0, CommandLineParser::NoValue, "Make rp log to syslog." },
         { StartSuspended, "start-suspended", 'Q', CommandLineParser::NoValue, "Start out suspended (no reindexing enabled)." },
         { SeparateDebugAndRelease, "separate-debug-and-release", 'E', CommandLineParser::NoValue, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
         { Separate32BitAnd64Bit, "separate-32-bit-and-64-bit", 0, CommandLineParser::NoValue, "Normally rdm doesn't consider -m32 and -m64 as different builds. Pass this if you want it to." },
@@ -337,6 +338,7 @@ int main(int argc, char** argv)
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
         { CompletionDiagnostics, "completion-diagnostics", 0, CommandLineParser::Optional, "Send diagnostics from completion thread." },
+        { RPDaemon, "rp-daemon", 0, CommandLineParser::NoValue, "Keep rp's alive as daemons and cache the last tu." },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
@@ -365,7 +367,7 @@ int main(int argc, char** argv)
         { DebugLocations, "debug-locations", 0, CommandLineParser::Required, "Set debug locations." },
         { ValidateFileMaps, "validate-file-maps", 0, CommandLineParser::NoValue, "Spend some time validating project data on startup." },
         { TcpPort, "tcp-port", 0, CommandLineParser::Required, "Listen on this tcp socket (default none)." },
-        { RpPath, "rp-path", 0, CommandLineParser::Required, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
+        { RPPath, "rp-path", 0, CommandLineParser::Required, String::format<256>("Path to rp (default %s).", defaultRP().constData()) },
         { LogTimestamp, "log-timestamp", 0, CommandLineParser::NoValue, "Add timestamp to logs." },
         { LogFlushOption, "log-flush", 0, CommandLineParser::NoValue, "Flush stderr/stdout after each log." },
         { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
@@ -520,7 +522,7 @@ int main(int argc, char** argv)
         case WatchSystemPaths: {
             serverOpts.options |= Server::WatchSystemPaths;
             break; }
-        case RpVisitFileTimeout: {
+        case RPVisitFileTimeout: {
             serverOpts.rpVisitFileTimeout = atoi(value.constData());
             if (serverOpts.rpVisitFileTimeout < 0) {
                 return { String::format<1024>("Invalid argument to -Z %s", value.constData()), CommandLineParser::Parse_Error };
@@ -528,36 +530,39 @@ int main(int argc, char** argv)
             if (!serverOpts.rpVisitFileTimeout)
                 serverOpts.rpVisitFileTimeout = -1;
             break; }
-        case RpIndexerMessageTimeout: {
+        case RPIndexerMessageTimeout: {
             serverOpts.rpIndexDataMessageTimeout = atoi(value.constData());
             if (serverOpts.rpIndexDataMessageTimeout <= 0) {
                 return { String::format<1024>("Can't parse argument to -T %s.", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case RpConnectTimeout: {
+        case RPConnectTimeout: {
             serverOpts.rpConnectTimeout = atoi(value.constData());
             if (serverOpts.rpConnectTimeout < 0) {
                 return { String::format<1024>("Invalid argument to -O %s", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case RpConnectAttempts: {
+        case RPConnectAttempts: {
             serverOpts.rpConnectAttempts = atoi(value.constData());
             if (serverOpts.rpConnectAttempts <= 0) {
                 return { String::format<1024>("Invalid argument to --rp-connect-attempts %s", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case RpNiceValue: {
+        case RPNiceValue: {
             bool ok;
             serverOpts.rpNiceValue = value.toLong(&ok);
             if (!ok) {
                 return { String::format<1024>("Can't parse argument to -a %s.", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case SuspendRpOnCrash: {
+        case SuspendRPOnCrash: {
             serverOpts.options |= Server::SuspendRPOnCrash;
             break; }
-        case RpLogToSyslog: {
+        case RPLogToSyslog: {
             serverOpts.options |= Server::RPLogToSyslog;
+            break; }
+        case RPDaemon: {
+            serverOpts.options |= Server::RPDaemon;
             break; }
         case StartSuspended: {
             serverOpts.options |= Server::StartSuspended;
@@ -701,7 +706,7 @@ int main(int argc, char** argv)
                 return { String::format<1024>("Invalid port %s for --tcp-port", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
-        case RpPath: {
+        case RPPath: {
             serverOpts.rp = std::move(value);
             if (serverOpts.rp.isFile()) {
                 serverOpts.rp.resolve();

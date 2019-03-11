@@ -60,12 +60,18 @@ int main(int argc, char **argv)
 {
     LogLevel logLevel = LogLevel::Error;
     Path file;
+    bool logToSyslog = false;
+    bool daemon = false;
 
     for (int i=1; i<argc; ++i) {
         if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) {
             ++logLevel;
         } else if (!strcmp(argv[i], "--priority")) { // ignore, only for wrapping purposes
             ++i;
+        } else if (!strcmp(argv[i], "--log-to-syslog")) {
+            logToSyslog = true;
+        } else if (!strcmp(argv[i], "--daemon")) {
+            daemon = true;
         } else {
             file = argv[i];
         }
@@ -77,7 +83,8 @@ int main(int argc, char **argv)
         path.mkdir(Path::Recursive);
         setenv("TMPDIR", path.c_str(), 1);
     }
-    setenv("LIBCLANG_NOTHREADS", "1", 0);
+    if (!daemon)
+        setenv("LIBCLANG_NOTHREADS", "1", 0);
     signal(SIGSEGV, sigHandler);
     signal(SIGABRT, sigHandler);
     signal(SIGBUS, sigHandler);
@@ -94,29 +101,36 @@ int main(int argc, char **argv)
     RTags::initMessages();
     auto eventLoop = std::make_shared<EventLoop>();
     eventLoop->init(EventLoop::MainEventLoop);
-    String data;
+    while (true) {
+        String data;
 
-    if (!file.isEmpty()) {
-        data = file.readAll();
-    } else {
-        uint32_t size;
-        if (!fread(&size, sizeof(size), 1, stdin)) {
-            error() << "Failed to read from stdin";
-            return 1;
+        if (!file.isEmpty()) {
+            data = file.readAll();
+        } else {
+            uint32_t size;
+            if (!fread(&size, sizeof(size), 1, stdin)) {
+                error() << "Failed to read from stdin";
+                return 1;
+            }
+            data.resize(size);
+            if (!fread(&data[0], size, 1, stdin)) {
+                error() << "Failed to read from stdin";
+                return 2;
+            }
+            // FILE *f = fopen("/tmp/data", "w");
+            // fwrite(data.constData(), data.size(), 1, f);
+            // fclose(f);
         }
-        data.resize(size);
-        if (!fread(&data[0], size, 1, stdin)) {
-            error() << "Failed to read from stdin";
-            return 2;
+        ClangIndexer indexer;
+        if (!indexer.exec(data)) {
+            error() << "ClangIndexer error";
+            return 3;
+        } else if (daemon) {
+            printf("@FINISHED@");
+            fflush(stdout);
+        } else {
+            break;
         }
-        // FILE *f = fopen("/tmp/data", "w");
-        // fwrite(data.constData(), data.size(), 1, f);
-        // fclose(f);
-    }
-    ClangIndexer indexer;
-    if (!indexer.exec(data)) {
-        error() << "ClangIndexer error";
-        return 3;
     }
 
     return 0;

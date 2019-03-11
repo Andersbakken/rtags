@@ -26,7 +26,8 @@ enum { MaxPriority = 10 };
 // we set the priority to be this when a job has been requested and we couldn't load it
 JobScheduler::JobScheduler()
     : mProcrastination(0)
-{}
+{
+}
 
 JobScheduler::~JobScheduler()
 {
@@ -39,10 +40,20 @@ JobScheduler::~JobScheduler()
     }
 }
 
+void JobScheduler::setActiveJobs(size_t active)
+{
+    assert(active > 0);
+    const bool daemon = Server::instance()->options().options & Server::RPDaemon;
+    if (daemon) {
+        while (mDaemons.size() > active)
+            mDaemons.erase(mDaemons.begin());
+    }
+}
+
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & ~IndexerJob::Type_Mask));
-    std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String() }));
+    std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String(), String() }));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
     if (mPendingJobs.isEmpty() || job->priority() > mPendingJobs.first()->job->priority()) {
@@ -78,6 +89,7 @@ void JobScheduler::startJobs()
         jobNode = tmp;
     };
 
+    const bool isDaemon = options.options & Server::RPDaemon;
     while (mActiveByProcess.size() < options.jobCount && jobNode) {
         assert(jobNode);
         assert(jobNode->job);
@@ -90,68 +102,139 @@ void JobScheduler::startJobs()
         }
 
         const uint64_t jobId = jobNode->job->id;
-        Process *process = new Process;
-        debug() << "Starting process for" << jobId << jobNode->job->fileId() << jobNode->job.get();
-        List<String> arguments;
-        arguments << "--priority" << String::number(jobNode->job->priority());
-
-        for (int i=logLevel().toInt(); i>0; --i)
-            arguments << "-v";
-
-        process->readyReadStdOut().connect([this](Process *proc) {
-            std::shared_ptr<Node> n = mActiveByProcess[proc];
-            assert(n);
-            n->stdOut.append(proc->readAllStdOut());
-
-            std::regex rx("@CRASH@([^@]*)@CRASH@");
-            std::smatch match;
-            while (std::regex_search(n->stdOut.ref(), match, rx)) {
-                error() << match[1].str();
-                n->stdOut.remove(match.position(), match.length());
+        Process *process = nullptr;
+        DaemonData *daemonData = nullptr;
+        for (auto &daemon : mDaemons) {
+            if (daemon.second.cache == jobNode->job->sources) {
+                process = daemon.first;
+                break;
+            } else if (mDaemons.size() == options.jobCount && !process && mActiveByProcess.find(daemon.first) == mActiveByProcess.end()) {
+                process = daemon.first;
+                daemonData = &daemon.second;
             }
-        });
-
-        if (!process->start(options.rp, arguments)) {
-            error() << "Couldn't start rp" << options.rp << process->errorString();
-            delete process;
-            jobNode->job->flags |= IndexerJob::Crashed;
-            debug() << "job crashed (didn't start)" << jobId << jobNode->job->fileId() << jobNode->job.get();
-            auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
-            msg->setFlag(IndexDataMessage::ParseFailure);
-            jobFinished(jobNode->job, msg);
-            cont();
-            continue;
         }
-        const int pid = process->pid();
-        process->finished().connect([this, jobId, options, pid](Process *proc) {
-            EventLoop::deleteLater(proc);
-            auto n = mActiveByProcess.take(proc);
-            assert(!n || n->process == proc);
-            const String stdErr = proc->readAllStdErr();
-            if ((n && !n->stdOut.isEmpty()) || !stdErr.isEmpty()) {
-                error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
-                        << '\n' << stdErr << (n ? n->stdOut : String());
-            }
-            Path::rmdir(options.tempDir + String::number(pid));
+        if (daemonData)
+            daemonData->cache.clear();
 
-            if (n) {
-                assert(n->process == proc);
-                n->process = 0;
-                assert(!(n->job->flags & IndexerJob::Aborted));
-                if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
-                    auto nodeById = mActiveById.take(jobId);
-                    assert(nodeById);
-                    assert(nodeById == n);
-                    // job failed, probably no IndexDataMessage coming
-                    n->job->flags |= IndexerJob::Crashed;
-                    debug() << "job crashed" << jobId << n->job->fileId() << n->job.get();
-                    auto msg = std::make_shared<IndexDataMessage>(n->job);
-                    msg->setFlag(IndexDataMessage::ParseFailure);
-                    jobFinished(n->job, msg);
+        if (!process) {
+            process = new Process;
+            if (isDaemon)
+                mDaemons[process] = DaemonData {};
+            debug() << "Starting process for" << jobId << jobNode->job->fileId() << jobNode->job.get();
+            List<String> arguments;
+            arguments << "--priority" << String::number(jobNode->job->priority());
+
+            for (int i=logLevel().toInt(); i>0; --i)
+                arguments << "-v";
+
+            if (isDaemon)
+                arguments << "--daemon";
+
+            process->readyReadStdErr().connect([this](Process *proc) {
+                std::shared_ptr<Node> n = mActiveByProcess[proc];
+                assert(n);
+                n->stdErr.append(proc->readAllStdErr());
+            });
+
+            process->readyReadStdOut().connect([this, isDaemon](Process *proc) {
+                std::shared_ptr<Node> n = mActiveByProcess[proc];
+                if (!n)
+                    return;
+                n->stdOut.append(proc->readAllStdOut());
+
+                {
+                    std::regex rx("@CRASH@([^@]*)@CRASH@");
+                    std::smatch match;
+                    while (std::regex_search(n->stdOut.ref(), match, rx)) {
+                        error() << match[1].str();
+                        n->stdOut.remove(match.position(), match.length());
+                    }
                 }
+                {
+                    const size_t idx = n->stdOut.indexOf("@FINISHED@");
+                    if (idx != String::npos) {
+                        assert(isDaemon);
+                        mActiveByProcess.remove(proc);
+                        assert(!n || n->process == proc);
+                        n->stdOut.remove(0, idx + 10);
+                        if ((n && !n->stdOut.isEmpty()) || !n->stdErr.isEmpty()) {
+                            error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
+                                    << '\n' << n->stdErr << (n ? n->stdOut : String());
+                        }
+                        n->stdErr.clear();
+
+                        assert(mDaemons.contains(n->process));
+                        assert(n->process == proc);
+                        n->process = 0;
+                        assert(!(n->job->flags & IndexerJob::Aborted));
+                        auto it = mDaemons.find(proc);
+                        if (it != mDaemons.end()) {
+                            it->second.cache = n->job->sources;
+                        } else {
+                            proc->closeStdIn();
+                        }
+
+                        if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
+                            auto nodeById = mActiveById.take(n->job->id);
+                            assert(nodeById);
+                            assert(nodeById == n);
+                            // job failed, probably no IndexDataMessage coming
+                            n->job->flags |= IndexerJob::Crashed;
+                            debug() << "job crashed" << n->job->id << n->job->fileId() << n->job.get();
+                            auto msg = std::make_shared<IndexDataMessage>(n->job);
+                            msg->setFlag(IndexDataMessage::ParseFailure);
+                            jobFinished(n->job, msg);
+                        }
+                        startJobs();
+                    }
+                }
+            });
+
+            if (!process->start(options.rp, arguments)) {
+                error() << "Couldn't start rp" << options.rp << process->errorString();
+                delete process;
+                if (isDaemon)
+                    mDaemons.erase(process);
+                jobNode->job->flags |= IndexerJob::Crashed;
+                debug() << "job crashed (didn't start)" << jobId << jobNode->job->fileId() << jobNode->job.get();
+                auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
+                msg->setFlag(IndexDataMessage::ParseFailure);
+                jobFinished(jobNode->job, msg);
+                cont();
+                continue;
             }
-            startJobs();
-        });
+            const int pid = process->pid();
+            process->finished().connect([this, options, pid, isDaemon](Process *proc) {
+                if (isDaemon)
+                    mDaemons.erase(proc);
+                EventLoop::deleteLater(proc);
+                auto n = mActiveByProcess.take(proc);
+                assert(!n || n->process == proc);
+                if ((n && !n->stdOut.isEmpty()) || !n->stdErr.isEmpty()) {
+                    error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
+                            << '\n' << n->stdErr << (n ? n->stdOut : String());
+                }
+                Path::rmdir(options.tempDir + String::number(pid));
+
+                if (n) {
+                    assert(n->process == proc);
+                    n->process = 0;
+                    assert(!(n->job->flags & IndexerJob::Aborted));
+                    if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
+                        auto nodeById = mActiveById.take(n->job->id);
+                        assert(nodeById);
+                        assert(nodeById == n);
+                        // job failed, probably no IndexDataMessage coming
+                        n->job->flags |= IndexerJob::Crashed;
+                        debug() << "job crashed" << n->job->id << n->job->fileId() << n->job.get();
+                        auto msg = std::make_shared<IndexDataMessage>(n->job);
+                        msg->setFlag(IndexDataMessage::ParseFailure);
+                        jobFinished(n->job, msg);
+                    }
+                }
+                startJobs();
+            });
+        }
 
         jobNode->process = process;
         assert(!(jobNode->job->flags & ~IndexerJob::Type_Mask));
