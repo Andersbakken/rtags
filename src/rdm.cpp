@@ -69,6 +69,7 @@ static void signalHandler(int signal)
     if (crashDumpFile) {
         fclose(crashDumpFile);
         rename(crashDumpTempFilePath, crashDumpFilePath);
+        crashDumpFile = nullptr;
     }
     if (Server *server = Server::instance())
         server->stopServers();
@@ -117,6 +118,7 @@ public:
     {
         if (crashDumpFile) {
             fclose(crashDumpFile);
+            crashDumpFile = nullptr;
             unlink(crashDumpTempFilePath);
         }
     }
