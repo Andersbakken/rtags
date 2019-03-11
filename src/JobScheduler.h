@@ -22,29 +22,19 @@
 #include "rct/Set.h"
 #include "rct/Hash.h"
 #include "rct/String.h"
-#include "rct/Path.h"
-#include "rct/SignalSlot.h"
 
 class Connection;
 class IndexDataMessage;
 class IndexerJob;
+class Process;
+class RPThread;
+#ifdef RP_USE_THREAD
+typedef RPThread Vehicle;
+#else
+typedef Process Vehicle;
+#endif
 class Project;
 struct DependencyNode;
-
-class Vehicle
-{
-public:
-    virtual ~Vehicle() {}
-    virtual void kill() = 0;
-    virtual Signal<std::function<void(Vehicle*)> > &readyReadStdOut() = 0;
-    virtual Signal<std::function<void(Vehicle*)> > &finished() = 0;
-    virtual String readAllStdOut() = 0;
-    virtual String readAllStdErr() = 0;
-    virtual String errorString() const = 0;
-    virtual int id() const = 0;
-    virtual int returnCode() const = 0;
-    virtual bool start(const std::shared_ptr<IndexerJob> &job) = 0;
-};
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {
 public:

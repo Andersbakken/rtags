@@ -195,8 +195,12 @@ set(RTAGS_SOURCES
     SymbolInfoJob.cpp
     Token.cpp
     TokensJob.cpp
-    RPVehicle.cpp
     ${RCT_SOURCES})
+
+if (RP_USE_THREAD)
+    list(APPEND RTAGS_SOURCES RPThread.cpp)
+    add_definitions(-DRP_USE_THREAD=1)
+endif ()
 
 if (LUA_ENABLED)
     list(APPEND RTAGS_SOURCES AST.cpp)
