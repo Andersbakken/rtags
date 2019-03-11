@@ -255,7 +255,7 @@ target_link_libraries(rdm ${RTAGS_LIBRARIES})
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
-add_executable(rp rp.cpp RPClangIndexer.cpp RPClangIndexer.h)
+add_executable(rp rp.cpp)
 target_link_libraries(rp ${RTAGS_LIBRARIES})
 
 if (CYGWIN)

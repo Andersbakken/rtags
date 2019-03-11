@@ -15,6 +15,7 @@
 
 #include "Sandbox.h"
 #include "Server.h"
+#include "ClangIndexer.h"
 
 static Path sRoot;
 namespace Sandbox {
@@ -22,10 +23,8 @@ const Path &root()
 {
     return sRoot;
 }
-
 void setRoot(const Path &root)
 {
     sRoot = root;
 }
-
 }

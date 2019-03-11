@@ -120,8 +120,9 @@ Server::~Server()
 
 bool Server::init(const Options &options)
 {
-    Sandbox::setRoot(options.sandboxRoot);
     RTags::initMessages();
+
+    Sandbox::setRoot(options.sandboxRoot);
 
     mOptions = options;
     mSuspended = (options.options & StartSuspended);

@@ -729,7 +729,6 @@ int main(int argc, char** argv)
                     CommandLineParser::Parse_Error
                 };
             }
-
             break; }
         case NoRealPath: {
             Path::setRealPathEnabled(false);

@@ -28,6 +28,7 @@
 #include "rct/Connection.h"
 #include "rct/EventLoop.h"
 #include "rct/SHA256.h"
+#include "Sandbox.h"
 #include "RTags.h"
 #include "RTagsVersion.h"
 #include "VisitFileMessage.h"
@@ -74,8 +75,18 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
+Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer()
+    : mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
+      mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
+      mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
+      mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
+      mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(0),
+      mConnection(Connection::create(RClient::NumOptions)), mUnionRecursion(false),
+      mInTemplateFunction(0)
 {
+    mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
+                                                std::placeholders::_1, std::placeholders::_2));
 }
 
 ClangIndexer::~ClangIndexer()
@@ -84,15 +95,73 @@ ClangIndexer::~ClangIndexer()
         fclose(mLogFile);
 }
 
-bool ClangIndexer::exec(Config &&config)
+bool ClangIndexer::exec(const String &data)
 {
-    mSourceFile = std::move(config.sourceFile);
-    mSources = std::move(config.sources);
-    mProject = std::move(config.project);
-    mDataDir = std::move(config.dataDir);
-    mServerOpts = config.serverOpts;
+    Deserializer deserializer(data);
+    uint16_t protocolVersion;
+    deserializer >> protocolVersion;
+    if (protocolVersion != RTags::DatabaseVersion) {
+        error("Wrong protocol %d vs %d", protocolVersion, RTags::DatabaseVersion);
+        return false;
+    }
+    uint64_t id;
+    String socketFile;
+    Flags<IndexerJob::Flag> indexerJobFlags;
+    uint32_t connectTimeout, connectAttempts;
+    int32_t niceValue;
+    Hash<uint32_t, Path> blockedFiles;
+
+    Path sandboxRoot;
+    deserializer >> sandboxRoot;
+    Sandbox::setRoot(sandboxRoot);
+    deserializer >> id;
+    deserializer >> socketFile;
+    deserializer >> mProject;
+    uint32_t count;
+    deserializer >> count;
+    mSources.resize(count);
+    for (uint32_t i=0; i<count; ++i) {
+        mSources[i].decode(deserializer, Source::IgnoreSandbox);
+    }
+    deserializer >> mSourceFile;
+    deserializer >> indexerJobFlags;
+    deserializer >> mVisitFileTimeout;
+    deserializer >> mIndexDataMessageTimeout;
+    deserializer >> connectTimeout;
+    deserializer >> connectAttempts;
+    deserializer >> niceValue;
+    deserializer >> sServerOpts;
+    deserializer >> mUnsavedFiles;
+    deserializer >> mDataDir;
+    deserializer >> mDebugLocations;
+    deserializer >> blockedFiles;
+
+    if (sServerOpts & Server::NoRealPath) {
+        Path::setRealPathEnabled(false);
+    }
+
+#if 0
+    while (true) {
+        FILE *f = fopen((String("/tmp/stop_") + mSourceFile.fileName()).constData(), "r+");
+        if (f) {
+            fseek(f, 0, SEEK_END);
+            fprintf(f, "Waiting ... %d\n", getpid());
+            fclose(f);
+            sleep(1);
+        } else {
+            break;
+        }
+    }
+#endif
 
     const uint64_t parseTime = Rct::currentTimeMs();
+
+    if (niceValue != INT_MIN) {
+        errno = 0;
+        if (nice(niceValue) == -1) {
+            error() << "Failed to nice rp" << Rct::strerror();
+        }
+    }
 
     if (mSourceFile.isEmpty()) {
         error("No sourcefile");
@@ -123,11 +192,22 @@ bool ClangIndexer::exec(Config &&config)
         return false;
     }
 
+    Location::init(blockedFiles);
+    Location::set(mSourceFile, mSources.front().fileId);
+    while (true) {
+        if (mConnection->connectUnix(socketFile, connectTimeout))
+            break;
+        if (!--connectAttempts) {
+            error("Failed to connect to rdm on %s (%dms timeout)", socketFile.constData(), connectTimeout);
+            return false;
+        }
+        usleep(500 * 1000);
+    }
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mIndexDataMessage.setProject(mProject);
-    mIndexDataMessage.setIndexerJobFlags(config.indexerJobFlags);
+    mIndexDataMessage.setIndexerJobFlags(indexerJobFlags);
     mIndexDataMessage.setParseTime(parseTime);
-    mIndexDataMessage.setId(config.id);
+    mIndexDataMessage.setId(id);
 
     assert(mConnection->isConnected());
     assert(mSources.front().fileId);
@@ -184,10 +264,17 @@ bool ClangIndexer::exec(Config &&config)
 
     mIndexDataMessage.setMessage(message);
     sw.restart();
-    if (!send(mIndexDataMessage)) {
+    if (!mConnection->send(mIndexDataMessage)) {
         error() << "Couldn't send IndexDataMessage" << mSourceFile;
         return false;
     }
+    mConnection->finished().connect(std::bind(&EventLoop::quit, EventLoop::eventLoop()));
+    if (EventLoop::eventLoop()->exec(mIndexDataMessageTimeout) == EventLoop::Timeout) {
+        error() << "Timed out sending IndexDataMessage" << mSourceFile;
+        return false;
+    }
+    if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
+        error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
 
     if (mSerializeTU) {
         Path path = mDataDir + "tucache/";
@@ -201,6 +288,105 @@ bool ClangIndexer::exec(Config &&config)
         error() << "SAVED CACHED FILE FOR" << mSourceFile << path << sw2.elapsed();
     }
     return true;
+}
+
+void ClangIndexer::onMessage(const std::shared_ptr<Message> &msg, const std::shared_ptr<Connection> &/*conn*/)
+{
+    assert(msg->messageId() == VisitFileResponseMessage::MessageId);
+    const std::shared_ptr<VisitFileResponseMessage> vm = std::static_pointer_cast<VisitFileResponseMessage>(msg);
+    mVisitFileResponseMessageVisit = vm->visit();
+    mVisitFileResponseMessageFileId = vm->fileId();
+    assert(EventLoop::eventLoop());
+    EventLoop::eventLoop()->quit();
+}
+
+Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line, unsigned int col, bool *blockedPtr)
+{
+    uint32_t id = Location::fileId(sourceFile);
+    Path resolved;
+    if (!id) {
+        bool ok;
+        for (int i=0; i<4; ++i) {
+            resolved = sourceFile.resolved(Path::RealPath, Path(), &ok);
+            // if ok is false it means the file is gone, in case this happens
+            // during a git pull or something we'll give it a couple of chances.
+            if (ok)
+                break;
+            usleep(50000);
+        }
+        if (!ok)
+            return Location();
+        id = Location::fileId(resolved);
+        if (id)
+            Location::set(sourceFile, id);
+    }
+    assert(!resolved.contains("/../"));
+
+    if (id) {
+        if (blockedPtr) {
+            Hash<uint32_t, Flags<IndexDataMessage::FileFlag> >::iterator it = mIndexDataMessage.files().find(id);
+            if (it == mIndexDataMessage.files().end()) {
+                // the only reason we already have an id for a file that isn't
+                // in the mIndexDataMessage.mFiles is that it's blocked from the outset.
+                // The assumption is that we never will go and fetch a file id
+                // for a location without passing blockedPtr since any reference
+                // to a symbol in another file should have been preceded by that
+                // header in which case we would have to make a decision on
+                // whether or not to index it. This is a little hairy but we
+                // have to try to optimize this process.
+#ifndef NDEBUG
+                if (resolved.isEmpty())
+                    resolved = sourceFile.resolved();
+#endif
+                assert(id);
+                mIndexDataMessage.files()[id] = IndexDataMessage::NoFileFlag;
+                *blockedPtr = true;
+            } else if (!it->second) {
+                *blockedPtr = true;
+            }
+        }
+        return Location(id, line, col);
+    }
+
+    ++mFileIdsQueried;
+    VisitFileMessage msg(resolved, mProject, mSources.front().fileId);
+
+    mVisitFileResponseMessageFileId = UINT_MAX;
+    mVisitFileResponseMessageVisit = false;
+    mConnection->send(msg);
+    StopWatch sw;
+    EventLoop::eventLoop()->exec(mVisitFileTimeout);
+    const int elapsed = sw.elapsed();
+    mFileIdsQueriedTime += elapsed;
+    switch (mVisitFileResponseMessageFileId) {
+    case 0:
+        return Location();
+    case UINT_MAX:
+        // timed out.
+        if (mVisitFileResponseMessageFileId == UINT_MAX) {
+            error() << "Error getting fileId for" << resolved << mLastCursor
+                    << elapsed << mVisitFileTimeout;
+        }
+        exit(1);
+    default:
+        id = mVisitFileResponseMessageFileId;
+        break;
+    }
+    assert(id);
+    Flags<IndexDataMessage::FileFlag> &flags = mIndexDataMessage.files()[id];
+    if (mVisitFileResponseMessageVisit) {
+        flags |= IndexDataMessage::Visited;
+        ++mIndexed;
+    }
+    // fprintf(mLogFile, "%s %s\n", file.second ? "WON" : "LOST", resolved.constData());
+
+    Location::set(resolved, id);
+    if (resolved != sourceFile)
+        Location::set(sourceFile, id);
+
+    if (blockedPtr)
+        *blockedPtr = !mVisitFileResponseMessageVisit;
+    return Location(id, line, col);
 }
 
 CXTranslationUnit ClangIndexer::unit(size_t u) const
@@ -1641,7 +1827,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         break;
     }
 
-    if (!(mServerOpts & Server::NoComments)) {
+    if (!(ClangIndexer::serverOpts() & Server::NoComments)) {
         CXComment comment = clang_Cursor_getParsedComment(cursor);
         if (clang_Comment_getKind(comment) != CXComment_Null) {
             c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(cursor));
@@ -1689,7 +1875,7 @@ bool ClangIndexer::parse()
     StopWatch sw;
     assert(mTranslationUnits.isEmpty());
     Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
-    if (mServerOpts & Server::PCHEnabled)
+    if (ClangIndexer::serverOpts() & Server::PCHEnabled)
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
@@ -1741,7 +1927,7 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
         std::shared_ptr<RTags::TranslationUnit> unit;
-        if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
+        if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
             Path path = mDataDir + "tucache/";
             Path::mkdir(path, Path::Recursive);
             path << mSources.front().fileId;
@@ -1764,7 +1950,7 @@ bool ClangIndexer::parse()
 
         warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
         if (unit->unit) {
-            if (pch && mServerOpts & Server::PCHEnabled) {
+            if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
                 Path path = RTags::encodeSourceFilePath(mDataDir, mProject, source.fileId);
                 Path::mkdir(path, Path::Recursive);
                 path << "pch.h.gch";
@@ -1773,7 +1959,7 @@ bool ClangIndexer::parse()
                 clang_saveTranslationUnit(unit->unit, tmp.constData(), clang_defaultSaveOptions(unit->unit));
                 rename(tmp.constData(), path.constData());
                 warning() << "SAVED PCH" << path;
-            } else if (!mSerializeTU && mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && mServerOpts & Server::TranslationUnitCache) {
+            } else if (!mSerializeTU && mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
                 mSerializeTU = unit;
             }
 
@@ -1862,7 +2048,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         //           << unit->second->usrs.size()
         //           << unit->second->symbolNames.size();
         uint32_t fileMapOpts = 0;
-        if (mServerOpts & Server::NoFileLock)
+        if (ClangIndexer::serverOpts() & Server::NoFileLock)
             fileMapOpts |= FileMap<int, int>::NoLock;
 
         if (hasRoot) {

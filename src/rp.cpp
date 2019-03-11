@@ -23,16 +23,14 @@
 #include "rct/StopWatch.h"
 #include "rct/String.h"
 #include "RTags.h"
-#include "RPClangIndexer.h"
 #include "Server.h"
 #include "Source.h"
 
-bool suspendRPOnCrash = false;
 static void sigHandler(int signal)
 {
     // this is not really allowed in signal handlers but will mostly work
     const String trace = Rct::backtrace();
-    if (suspendRPOnCrash) {
+    if (ClangIndexer::serverOpts() & Server::SuspendRPOnCrash) {
         int seconds = 2;
         printf("@CRASH@Caught signal %d\n%s@CRASH@", signal, trace.constData());
         while (true) {
@@ -62,15 +60,12 @@ int main(int argc, char **argv)
 {
     LogLevel logLevel = LogLevel::Error;
     Path file;
-    bool logToSyslog = false;
 
     for (int i=1; i<argc; ++i) {
         if (!strcmp(argv[i], "-v") || !strcmp(argv[i], "--verbose")) {
             ++logLevel;
         } else if (!strcmp(argv[i], "--priority")) { // ignore, only for wrapping purposes
             ++i;
-        } else if (!strcmp(argv[i], "--log-to-syslog")) {
-            logToSyslog = true;
         } else {
             file = argv[i];
         }
@@ -89,7 +84,7 @@ int main(int argc, char **argv)
 
     Flags<LogFlag> logFlags = LogStderr;
     std::shared_ptr<SyslogCloser> closer;
-    if (logToSyslog) {
+    if (ClangIndexer::serverOpts() & Server::RPLogToSyslog) {
         logFlags |= LogSyslog;
         closer.reset(new SyslogCloser);
     }
@@ -118,7 +113,7 @@ int main(int argc, char **argv)
         // fwrite(data.constData(), data.size(), 1, f);
         // fclose(f);
     }
-    RPClangIndexer indexer;
+    ClangIndexer indexer;
     if (!indexer.exec(data)) {
         error() << "ClangIndexer error";
         return 3;

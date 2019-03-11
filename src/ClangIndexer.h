@@ -35,35 +35,14 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
-    struct Config {
-        Path sourceFile;
-        SourceList sources;
-        Path project;
-        Path dataDir;
-        UnsavedFiles unsavedFiles;
-        Flags<IndexerJob::Flag> indexerJobFlags;
-        Flags<Server::Option> serverOpts;
-        List<String> debugLocations;
-        uint64_t id { 0 };
-    };
-
-    bool exec(Config &&config);
-    const Path &sourceFile() const { return mSourceFile; }
-    const Path &project() const { return mProject; }
-    const SourceList &sources() const { return mSources; }
-    const CXCursor &lastCursor() const { return mLastCursor; }
-    int &indexed() { return mIndexed; } // ### ugh
-    int &fileIdsQueried() { return mFileIdsQueried; }
-    int &fileIdsQueriedTime() { return mFileIdsQueriedTime; }
-protected:
+    bool exec(const String &data);
+    static Flags<Server::Option> serverOpts() { return sServerOpts; }
+private:
     bool diagnose();
     bool visit();
     bool parse();
-    virtual bool send(const IndexDataMessage &message) = 0;
-    virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
-private:
-    bool writeFiles(const Path &root, String &error);
     void tokenize(CXFile file, uint32_t fileId, const Path &path);
+    bool writeFiles(const Path &root, String &error);
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
@@ -73,6 +52,7 @@ private:
 
     // DiagnosticsProvider
     using RTags::DiagnosticsProvider::createLocation;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override;
     virtual CXTranslationUnit unit(size_t u) const override;
     virtual size_t unitCount() const override
     {
@@ -92,6 +72,7 @@ private:
     }
 
     virtual uint32_t sourceFileId() const override { return mSources.front().fileId; }
+    virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
 
     String addNamePermutations(const CXCursor &cursor,
                                Location location,
@@ -166,25 +147,23 @@ private:
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
     List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;
-    size_t mCurrentTranslationUnit { String::npos };
-    CXCursor mLastCursor { clang_getNullCursor() };
-    Symbol *mLastCallExprSymbol { nullptr };
+    size_t mCurrentTranslationUnit;
+    CXCursor mLastCursor;
+    Symbol *mLastCallExprSymbol;
     Location mLastClass;
-    Flags<Server::Option> mServerOpts;
-
     uint32_t mVisitFileResponseMessageFileId;
     bool mVisitFileResponseMessageVisit;
     Path mSocketFile;
     StopWatch mTimer;
-    int mParseDuration { 0 }, mVisitDuration { 0 }, mBlocked { 0 }, mAllowed { 0 },
-        mIndexed { 1 }, mCursorsVisited { 0 },
-        mFileIdsQueried { 0 }, mFileIdsQueriedTime { 0 };
-
+    int mParseDuration, mVisitDuration, mBlocked, mAllowed,
+        mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout,
+        mFileIdsQueried, mFileIdsQueriedTime, mCursorsVisited;
     UnsavedFiles mUnsavedFiles;
     List<String> mDebugLocations;
-    FILE *mLogFile { nullptr };
+    FILE *mLogFile;
+    std::shared_ptr<Connection> mConnection;
     Path mDataDir;
-    bool mUnionRecursion { false };
+    bool mUnionRecursion;
 
     struct Scope {
         enum ScopeType {
@@ -207,7 +186,9 @@ private:
     std::shared_ptr<RTags::TranslationUnit> mSerializeTU;
     List<CXCursor> mParents;
     std::unordered_set<CXCursor> mTemplateSpecializations;
-    size_t mInTemplateFunction { 0 };
+    size_t mInTemplateFunction;
+
+    static Flags<Server::Option> sServerOpts;
 };
 
 #endif
