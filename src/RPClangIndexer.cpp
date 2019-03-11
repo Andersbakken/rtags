@@ -130,6 +130,7 @@ bool RPClangIndexer::exec(const String &data)
     }
 
     assert(mConnection->isConnected());
+    assert(sources().front().fileId);
     return ClangIndexer::exec(std::move(config));
 }
 
