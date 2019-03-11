@@ -27,12 +27,6 @@ class Connection;
 class IndexDataMessage;
 class IndexerJob;
 class Process;
-class RPThread;
-#ifdef RP_USE_THREAD
-typedef RPThread Vehicle;
-#else
-typedef Process Vehicle;
-#endif
 class Project;
 struct DependencyNode;
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
@@ -72,14 +66,14 @@ private:
     struct Node {
         unsigned long long started;
         std::shared_ptr<IndexerJob> job;
-        Vehicle *vehicle;
+        Process *process;
         std::shared_ptr<Node> next, prev;
         String stdOut;
     };
 
     int mProcrastination;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
-    Hash<Vehicle *, std::shared_ptr<Node> > mActiveByVehicle;
+    Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;
 };
 
