@@ -210,9 +210,8 @@ void JobScheduler::startJobs()
                 EventLoop::deleteLater(proc);
                 auto n = mActiveByProcess.take(proc);
                 assert(!n || n->process == proc);
-                if ((n && !n->stdOut.isEmpty()) || !n->stdErr.isEmpty()) {
-                    error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
-                            << '\n' << n->stdErr << (n ? n->stdOut : String());
+                if (n && (!n->stdOut.isEmpty() || !n->stdErr.isEmpty())) {
+                    error() << "Output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
                 }
                 Path::rmdir(options.tempDir + String::number(pid));
 
