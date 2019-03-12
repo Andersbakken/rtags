@@ -130,7 +130,7 @@ public:
     void dumpDaemons(const std::shared_ptr<Connection> &conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
-    bool hadActiveBuffers() const { return mHadActiveBuffers; }
+    bool activeBuffersSet() const { return mActiveBuffersSet; }
     bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
@@ -231,7 +231,7 @@ private:
     uint32_t mLastFileId;
     std::shared_ptr<JobScheduler> mJobScheduler;
     CompletionThread *mCompletionThread;
-    bool mHadActiveBuffers;
+    bool mActiveBuffersSet;
     Set<uint32_t> mActiveBuffers;
     Set<std::shared_ptr<Connection> > mConnections;
 
