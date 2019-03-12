@@ -116,6 +116,7 @@ bool ClangIndexer::exec(const String &data)
     mTemplateSpecializations.clear();
     mInTemplateFunction = false;
     mIndexDataMessage.clear();
+    mTranslationUnits.clear();
     mUnsavedFiles.clear();
 
     Deserializer deserializer(data);
