@@ -83,7 +83,7 @@ ClangIndexer::ClangIndexer()
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
       mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(0),
       mConnection(Connection::create(RClient::NumOptions)), mUnionRecursion(false),
-      mInTemplateFunction(0)
+      mFromCache(false), mInTemplateFunction(0)
 {
     mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                 std::placeholders::_1, std::placeholders::_2));
@@ -97,6 +97,27 @@ ClangIndexer::~ClangIndexer()
 
 bool ClangIndexer::exec(const String &data)
 {
+    mFromCache = false;
+    mTimer.restart();
+    mMacroTokens.clear();
+    mUnits.clear();
+    mCurrentTranslationUnit = 0;
+    mLastCursor = clang_getNullCursor();
+    mLastCallExprSymbol = nullptr;
+    mLastClass = Location();
+    mVisitFileResponseMessageVisit = 0;
+    mParseDuration = mVisitDuration = mBlocked = mAllowed = mIndexed = mVisitFileTimeout = 0;
+    mIndexDataMessageTimeout = mFileIdsQueried = mFileIdsQueriedTime = mCursorsVisited = 0;
+    mUnionRecursion = false;
+    mScopeStack.clear();
+    mLoopStack.clear();
+    mSerializeTU.reset();
+    mParents.clear();
+    mTemplateSpecializations.clear();
+    mInTemplateFunction = false;
+    mIndexDataMessage.clear();
+    mUnsavedFiles.clear();
+
     Deserializer deserializer(data);
     uint16_t protocolVersion;
     deserializer >> protocolVersion;
@@ -194,7 +215,7 @@ bool ClangIndexer::exec(const String &data)
 
     Location::init(blockedFiles);
     Location::set(mSourceFile, mSources.front().fileId);
-    while (true) {
+    while (!mConnection->isConnected()) {
         if (mConnection->connectUnix(socketFile, connectTimeout))
             break;
         if (!--connectAttempts) {
@@ -264,6 +285,7 @@ bool ClangIndexer::exec(const String &data)
 
     mIndexDataMessage.setMessage(message);
     sw.restart();
+    debug() << "Sending index data message" << mIndexDataMessage.id();
     if (!mConnection->send(mIndexDataMessage)) {
         error() << "Couldn't send IndexDataMessage" << mSourceFile;
         return false;
@@ -1873,23 +1895,22 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 bool ClangIndexer::parse()
 {
     StopWatch sw;
-    assert(mTranslationUnits.isEmpty());
     Flags<Source::CommandLineFlag> commandLineFlags = Source::Default;
     if (ClangIndexer::serverOpts() & Server::PCHEnabled)
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
+    if (sServerOpts & Server::RPDaemon
+        || (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache)) {
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
         flags |= CXTranslationUnit_CreatePreambleOnFirstParse;
 #endif
-    } else {
-#if CINDEX_VERSION_MINOR > 33
-        flags |= CXTranslationUnit_KeepGoing;
-#endif
     }
+#if CINDEX_VERSION_MINOR > 33
+    flags |= CXTranslationUnit_KeepGoing;
+#endif
     bool pch;
     switch (mSources.front().language) {
     case Source::CPlusPlus11Header:
@@ -1914,7 +1935,9 @@ bool ClangIndexer::parse()
     }
 
     bool ok = false;
-    for (const Source &source : mSources) {
+    mTranslationUnits.resize(mSources.size());
+    for (size_t idx = 0; idx<mSources.size(); ++idx) {
+        const Source &source = mSources.at(idx);
         if (testLog(LogLevel::Debug))
             debug() << "CI::parse: " << source.toCommandLine(commandLineFlags) << "\n";
 
@@ -1926,8 +1949,21 @@ bool ClangIndexer::parse()
         if (usedPch)
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
-        std::shared_ptr<RTags::TranslationUnit> unit;
-        if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
+        std::shared_ptr<RTags::TranslationUnit> &unit = mTranslationUnits[idx];
+        if (unit && mCachedSources.size() > idx && mCachedSources.at(idx) == source) {
+            mFromCache = true;
+            assert(mTranslationUnits.size() > idx);
+            warning() << "loaded cached unit for" << mSourceFile;
+            assert(unit);
+            StopWatch sw2;
+            if (!unit->reparse(&unsavedFiles[0], unsavedIndex)) {
+                warning() << "Failed to reparse";
+                unit.reset();
+            } else {
+                mFromCache = true;
+                warning() << "reparsed cached unit in" << sw2.restart();
+            }
+        } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
             Path path = mDataDir + "tucache/";
             Path::mkdir(path, Path::Recursive);
             path << mSources.front().fileId;
@@ -1944,11 +1980,11 @@ bool ClangIndexer::parse()
             }
         }
 
-        if (!unit)
+        if (!unit) {
             unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags, false);
-        mTranslationUnits.push_back(unit);
+            warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
+        }
 
-        warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
         if (unit->unit) {
             if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
                 Path path = RTags::encodeSourceFilePath(mDataDir, mProject, source.fileId);
@@ -1970,6 +2006,14 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
         }
     }
+    if (sServerOpts & Server::RPDaemon) {
+        if (ok) {
+            mCachedSources = mSources;
+        } else {
+            mCachedSources = SourceList();
+        }
+    }
+
     return ok;
 }
 

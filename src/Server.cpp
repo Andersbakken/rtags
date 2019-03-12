@@ -666,6 +666,7 @@ void Server::handleLogOutputMessage(const std::shared_ptr<LogOutputMessage> &mes
 
 void Server::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message, const std::shared_ptr<Connection> &conn)
 {
+    debug() << "Got handleIndexDataMessage";
     mJobScheduler->handleIndexDataMessage(message);
     conn->finish();
     mIndexDataMessageReceived();
@@ -2346,7 +2347,12 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
 
 void Server::dumpJobs(const std::shared_ptr<Connection> &conn)
 {
-    mJobScheduler->dump(conn);
+    mJobScheduler->dumpJobs(conn);
+}
+
+void Server::dumpDaemons(const std::shared_ptr<Connection> &conn)
+{
+    mJobScheduler->dumpDaemons(conn);
 }
 
 class TestConnection

@@ -96,6 +96,22 @@ public:
 
     size_t bytesWritten() const { return mBytesWritten; }
     void setBytesWritten(size_t bytes) { mBytesWritten = bytes; }
+
+    void clear()
+    {
+        clearCache();
+        mProject.clear();
+        mParseTime = 0;
+        mId = 0;
+        mIndexerJobFlags.clear();
+        mMessage.clear();
+        mFixIts.clear();
+        mDiagnostics.clear();
+        mIncludes.clear();
+        mFiles.clear();
+        mFlags.clear();
+        mBytesWritten = 0;
+    }
 private:
     Path mProject;
     uint64_t mParseTime, mId;

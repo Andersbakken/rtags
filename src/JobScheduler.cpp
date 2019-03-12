@@ -133,14 +133,17 @@ void JobScheduler::startJobs()
 
             if (isDaemon)
                 arguments << "--daemon";
+            if (options.options & Server::RPLogToSyslog)
+                arguments << "--log-to-syslog";
 
             process->readyReadStdErr().connect([this](Process *proc) {
                 std::shared_ptr<Node> n = mActiveByProcess[proc];
-                assert(n);
-                n->stdErr.append(proc->readAllStdErr());
+                if (n)
+                    n->stdErr.append(proc->readAllStdErr());
             });
 
             process->readyReadStdOut().connect([this, isDaemon](Process *proc) {
+                (void)isDaemon;
                 std::shared_ptr<Node> n = mActiveByProcess[proc];
                 if (!n)
                     return;
@@ -178,17 +181,6 @@ void JobScheduler::startJobs()
                             proc->closeStdIn();
                         }
 
-                        if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
-                            auto nodeById = mActiveById.take(n->job->id);
-                            assert(nodeById);
-                            assert(nodeById == n);
-                            // job failed, probably no IndexDataMessage coming
-                            n->job->flags |= IndexerJob::Crashed;
-                            debug() << "job crashed" << n->job->id << n->job->fileId() << n->job.get();
-                            auto msg = std::make_shared<IndexDataMessage>(n->job);
-                            msg->setFlag(IndexDataMessage::ParseFailure);
-                            jobFinished(n->job, msg);
-                        }
                         startJobs();
                     }
                 }
@@ -245,7 +237,6 @@ void JobScheduler::startJobs()
         process->write(jobNode->job->encode());
         jobNode->started = Rct::monoMs();
         mActiveByProcess[process] = jobNode;
-        // error() << "STARTING JOB" << node->job->sourceFile;
         mInactiveById.remove(jobId);
         mActiveById[jobId] = jobNode;
         cont();
@@ -256,7 +247,7 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
 {
     auto node = mActiveById.take(message->id());
     if (!node) {
-        debug() << "Got IndexDataMessage for unknown job";
+        warning() << "Got IndexDataMessage for unknown job" << message->id() << mActiveById.keys();
         return;
     }
     debug() << "job got index data message" << node->job->id << node->job->fileId() << node->job.get();
@@ -295,7 +286,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
     project->onJobFinished(job, message);
 }
 
-void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
+void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
 {
     if (!mPendingJobs.isEmpty()) {
         conn->write("Pending:");
@@ -318,6 +309,22 @@ void JobScheduler::dump(const std::shared_ptr<Connection> &conn)
                              IndexerJob::dumpFlags(node.second->job->flags).constData(),
                              now - node.second->started);
 
+        }
+    }
+}
+
+void JobScheduler::dumpDaemons(const std::shared_ptr<Connection> &conn)
+{
+    if (mDaemons.size()) {
+        conn->write("Daemons:");
+        for (const auto &daemon : mDaemons) {
+            if (!daemon.second.cache.isEmpty()) {
+                conn->write<1024>("pid: %d %s%s",
+                                  daemon.first->pid(),
+                                  daemon.second.cache.front().sourceFile().constData(),
+                                  daemon.second.cache.size() > 1 ? String::format(" (%zu builds)",
+                                                                                  daemon.second.cache.size()).constData() : "");
+            }
         }
     }
 }

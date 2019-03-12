@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
     Flags<LogFlag> logFlags = LogStderr;
     std::shared_ptr<SyslogCloser> closer;
-    if (ClangIndexer::serverOpts() & Server::RPLogToSyslog) {
+    if (logToSyslog & Server::RPLogToSyslog) {
         logFlags |= LogSyslog;
         closer.reset(new SyslogCloser);
     }
@@ -101,6 +101,7 @@ int main(int argc, char **argv)
     RTags::initMessages();
     auto eventLoop = std::make_shared<EventLoop>();
     eventLoop->init(EventLoop::MainEventLoop);
+    ClangIndexer indexer;
     while (true) {
         String data;
 
@@ -121,7 +122,6 @@ int main(int argc, char **argv)
             // fwrite(data.constData(), data.size(), 1, f);
             // fclose(f);
         }
-        ClangIndexer indexer;
         if (!indexer.exec(data)) {
             error() << "ClangIndexer error";
             return 3;

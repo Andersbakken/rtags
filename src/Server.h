@@ -127,6 +127,7 @@ public:
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
     void dumpJobs(const std::shared_ptr<Connection> &conn);
+    void dumpDaemons(const std::shared_ptr<Connection> &conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
     const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
     bool hadActiveBuffers() const { return mHadActiveBuffers; }

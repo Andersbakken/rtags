@@ -143,7 +143,7 @@ private:
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
     Path mProject;
-    SourceList mSources;
+    SourceList mSources, mCachedSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
     List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;
@@ -164,6 +164,7 @@ private:
     std::shared_ptr<Connection> mConnection;
     Path mDataDir;
     bool mUnionRecursion;
+    bool mFromCache;
 
     struct Scope {
         enum ScopeType {

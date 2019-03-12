@@ -56,7 +56,8 @@ public:
 
     void add(const std::shared_ptr<IndexerJob> &job);
     void handleIndexDataMessage(const std::shared_ptr<IndexDataMessage> &message);
-    void dump(const std::shared_ptr<Connection> &conn);
+    void dumpJobs(const std::shared_ptr<Connection> &conn);
+    void dumpDaemons(const std::shared_ptr<Connection> &conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
     void startJobs();
     size_t pendingJobCount() const { return mPendingJobs.size(); }

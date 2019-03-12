@@ -36,7 +36,7 @@ int StatusJob::execute()
         return !strncasecmp(query.constData(), name, query.size());
     };
     bool matched = false;
-    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|info|compilers|memory|project";
+    const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|daemon|info|compilers|memory|project";
 
     if (match("fileids")) {
         matched = true;
@@ -83,6 +83,13 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
             return 1;
         Server::instance()->dumpJobs(connection());
+    }
+
+    if (query.isEmpty() || match("daemon")) {
+        matched = true;
+        if (!write(delimiter) || !write("daemon") || !write(delimiter))
+            return 1;
+        Server::instance()->dumpDaemons(connection());
     }
 
     std::shared_ptr<Project> proj = project();
