@@ -120,7 +120,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             printCursor(cursor);
 
             writeToConnetion(message);
-            if (refSpecialized && false) {
+            if (refSpecialized) {
                 visit(ref);
             }
         }
