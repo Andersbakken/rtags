@@ -391,6 +391,12 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :type 'string
   :safe 'stringp)
 
+(defcustom rtags-socket-address""
+  "Socket address to pass to rc."
+  :group 'rtags
+  :type 'string
+  :safe 'stringp)
+
 (defcustom rtags-error-message-function 'rtags-error-message-default
   "Function rtags.el calls to produce errors messages
 
@@ -1311,6 +1317,20 @@ to only call this when `rtags-socket-file' is defined.
 
   (concat "--socket-file=" (car rtags--socket-file-cache)))
 
+(defvar rtags--socket-address-cache '("" ""))
+(defun rtags--get-socket-address-switch ()
+  "Private function which, validates on first access that
+`rtags-socket-address' exists and returns
+--socket-address=/expanded/path/to/socket/address.  Caller is expected
+to only call this when `rtags-socket-address' is defined.
+"
+  (when (not (string-equal (car rtags--socket-address-cache) rtags-socket-address))
+    (setq rtags--socket-address-cache (list rtags-socket-address (expand-file-name rtags-socket-address)))
+    (unless (car rtags--socket-address-cache)
+      (rtags--error 'rtags-socket-address-does-not-exist rtags-socket-address)))
+
+  (concat "--socket-address=" (car rtags--socket-address-cache)))
+
 (defun rtags--convert-output-buffer (arg)
   (cond ((null arg) nil)
         ((eq t arg) (current-buffer))
@@ -1386,6 +1406,9 @@ to only call this when `rtags-socket-file' is defined.
 
         (when (> (length rtags-socket-file) 0)
           (push (rtags--get-socket-file-switch) arguments))
+
+        (when (> (length rtags-socket-address) 0)
+          (push (rtags--get-socket-address-switch) arguments))
 
         (when rtags-rc-log-enabled
           (rtags-log (concat rc " " (rtags-combine-strings arguments))))
@@ -5452,6 +5475,8 @@ customize the messages"
          "RTags: No matches to rename. Is point on a valid symbol to rename and is the file indexed?")
         ((eq type 'rtags-socket-file-does-not-exist)
          "RTags: socket file, %S, does not exist")
+        ((eq type 'rtags-socket-address-does-not-exist)
+         "RTags: socket address, %S, does not exist")
         ((eq type 'rtags-cannot-find-rc)
          (concat "RTags: Can't find " rtags-rc-binary-name))
         ((eq type 'rtags-no-file-chosen)
