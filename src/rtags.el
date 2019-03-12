@@ -474,7 +474,7 @@ on intervals."
   :type 'hook)
 
 (defcustom rtags-is-indexable 'rtags-is-indexable-default
-  "What function to call for expansions."
+  "defun for determining what files are indexable by rtags."
   :group 'rtags
   :type 'function)
 
@@ -3632,7 +3632,7 @@ of diagnostics count"
       (rtags-clear-diagnostics))))
 
 ;;;###autoload
-(defun rtags-diagnostics (&optional restart nodirty)
+(defun rtags-diagnostics (&optional restart)
   (interactive "P")
   (when rtags-enabled
     (let ((rc (rtags-executable-find rtags-rc-binary-name)))
@@ -3645,8 +3645,6 @@ of diagnostics count"
             (let ((rtags-diagnostics-starting t))
               (with-current-buffer buf
                 (rtags-diagnostics-mode))
-              (unless nodirty
-                (rtags-reparse-file))
               (let ((process-connection-type (not rtags-diagnostics-use-pipe))) ;; use a pipe if rtags-diagnostics-use-pipe is t
                 (let ((rawbuf (get-buffer rtags-diagnostics-raw-buffer-name)))
                   (when rawbuf
@@ -4943,15 +4941,22 @@ so it knows what files may be queried which helps with responsiveness.
   (interactive)
   ;; (message "rtags-update-buffer-list")
   (when rtags-enabled
-    (let* ((buffers (rtags-visible-buffers))
-           (arg (if buffers
-                    (mapconcat 'rtags-buffer-file-name buffers ";")
-                  ";")))
+    (let* ((visible (rtags-visible-buffers))
+           (list)
+           (arg))
+      (mapc (lambda (buf)
+              (cond ((memq buf visible)
+                     (push (cons buf t) list))
+                    ((funcall rtags-is-indexable buf)
+                     (push (cons buf nil) list))
+                    (t))) (buffer-list))
+      (setq arg (concat "--set-buffers=" (mapconcat (lambda (arg)
+                                                      (concat (if (cdr arg) "+" "-") (rtags-buffer-file-name (car arg)))) list ";")))
       (when rtags-rc-log-enabled
         (rtags-log (concat "--set-buffers files: " arg)))
       (when (not (string= rtags-previous-buffer-list arg))
         (setq rtags-previous-buffer-list arg)
-        (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t "--set-buffers" arg)))))
+        (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t arg)))))
 
 (add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
 

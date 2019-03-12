@@ -74,9 +74,14 @@ int IndexerJob::priority() const
             ret += 4;
         }
         std::shared_ptr<Project> p = server->project(project);
-        if (server->isActiveBuffer(fileId)) {
+        switch (server->activeBufferType(fileId)) {
+        case Server::Active:
             ret += 8;
-        } else if (p) {
+            break;
+        case Server::Open:
+            ret += 3;
+            break;
+        case Server::Inactive:
             if (DependencyNode *node = p->dependencyNode(fileId)) {
                 Set<DependencyNode*> seen;
                 seen.insert(node);
@@ -84,7 +89,7 @@ int IndexerJob::priority() const
                     for (const auto &inc : n->includes) {
                         if (seen.insert(inc.second)
                             && !Location::path(n->fileId).isSystem()
-                            && (server->isActiveBuffer(n->fileId) || func(inc.second))) {
+                            && (server->activeBufferType(n->fileId) != Server::Inactive || func(inc.second))) {
                             return true;
                         }
                     }
@@ -154,11 +159,8 @@ String IndexerJob::encode() const
             copy.encode(serializer, Source::IgnoreSandbox);
         }
         assert(proj);
-        Flags<Flag> f = flags;
-        if (Server::instance()->isActiveBuffer(fileId()))
-            f |= Active;
         serializer << sourceFile
-                   << f
+                   << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
                    << static_cast<uint32_t>(options.rpIndexDataMessageTimeout)
                    << static_cast<uint32_t>(options.rpConnectTimeout)

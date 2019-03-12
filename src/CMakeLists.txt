@@ -130,7 +130,8 @@ endif ()
 
 set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
-set(RCT_NO_LIBRARY 1)
+set(RCT_STATIC 1)
+set(RCT_NO_LIBRARY 0)
 # Everyting which as been set either in rct/rct.cmake or rct/compiler.cmake
 # doesn't need to be set in this file again.
 include(rct/rct.cmake)
@@ -157,8 +158,6 @@ add_definitions(
 if (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
     add_definitions(-D__LONG_LONG_SUPPORTED)
 endif ()
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/bin)
 
 set(RTAGS_SOURCES
     ClangIndexer.cpp
@@ -194,8 +193,7 @@ set(RTAGS_SOURCES
     Symbol.cpp
     SymbolInfoJob.cpp
     Token.cpp
-    TokensJob.cpp
-    ${RCT_SOURCES})
+    TokensJob.cpp)
 
 if (LUA_ENABLED)
     list(APPEND RTAGS_SOURCES AST.cpp)
@@ -244,8 +242,10 @@ else ()
         COMPILE_FLAGS "-Wno-unused-but-set-parameter -Wno-unused-parameter -Wno-unused-variable -ftemplate-depth=2000 -Wno-cast-qual -Wno-shadow")
 endif()
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${RTAGS_BINARY_ROOT_DIR}/bin)
+
 # RCT_LIBRARIES and stdc++ library must be at the end
-set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES})
+set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES} rct)
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 

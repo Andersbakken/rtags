@@ -146,7 +146,7 @@ private:
     SourceList mSources, mCachedSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
-    List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits;
+    List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits, mCachedTranslationUnits;
     size_t mCurrentTranslationUnit;
     CXCursor mLastCursor;
     Symbol *mLastCallExprSymbol;

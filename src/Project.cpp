@@ -551,7 +551,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     Diagnostics::const_iterator end;
     {
         if (Server::instance()->activeBuffersSet()) {
-            Set<uint32_t> active = Server::instance()->activeBuffers();
+            Set<uint32_t> active = Server::instance()->activeBuffers(Server::Active);
             if (filter.isEmpty()) {
                 filter = std::move(active);
             } else {
@@ -758,7 +758,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     FileMapScopeScope scope(this, NoValidate);
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
-    const uint32_t fileId = job->fileId();
+    const uint32_t fileId = job->sourceFileId();
     auto j = mActiveJobs.take(fileId);
     if (!j) {
         error() << "Couldn't find JobData for" << Location::path(fileId) << msg->id() << job->id << job.get();
@@ -939,11 +939,11 @@ void Project::index(const std::shared_ptr<IndexerJob> &job)
         return;
     }
 
-    if (Server::instance()->suspended() && hasSource(job->fileId()) && (job->flags & IndexerJob::Compile)) {
+    if (Server::instance()->suspended() && hasSource(job->sourceFileId()) && (job->flags & IndexerJob::Compile)) {
         return;
     }
 
-    std::shared_ptr<IndexerJob> &ref = mActiveJobs[job->fileId()];
+    std::shared_ptr<IndexerJob> &ref = mActiveJobs[job->sourceFileId()];
     if (ref) {
         // warning() << "Aborting a job" << ref.get() << Location::path(job->fileId());
         releaseFileIds(ref->visited);

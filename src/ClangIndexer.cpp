@@ -276,32 +276,30 @@ bool ClangIndexer::exec(const String &data)
                                         mParseDuration, mVisitDuration, writeDuration);
     }
     bool paren = false;
+    auto add = [&paren, &message](const char *string) {
+        if (!paren) {
+            message += " (";
+            paren = true;
+        } else {
+            message += ",";
+        }
+        message += string;
+    };
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty) {
-        paren = true;
-        message += " (dirty";
+        add("dirty");
     } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Reindex) {
-        paren = true;
-        message += " (reindex";
+        add("reindex");
     }
 
     if (mFromCache) {
-        if (!paren) {
-            message += "(";
-            paren = true;
-        } else {
-            message += ",";
-        }
-        message += "cache";
+        add("cache");
     }
-    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
-        if (!paren) {
-            message += "(";
-            paren = true;
-        } else {
-            message += ",";
-        }
-        message += "active";
+    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::EditorActive) {
+        add("active");
+    } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::EditorOpen) {
+        add("open");
     }
+
     if (paren)
         message += ")";
 
@@ -1911,7 +1909,10 @@ bool ClangIndexer::parse()
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    if (sServerOpts & Server::RPDaemon) {
+
+    if (sServerOpts & Server::RPDaemon
+        && (mIndexDataMessage.indexerJobFlags() & (IndexerJob::EditorActive|IndexerJob::EditorOpen)
+            || mCachedTranslationUnits.isEmpty())) {
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
@@ -1960,15 +1961,17 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
         std::shared_ptr<RTags::TranslationUnit> &unit = mTranslationUnits[idx];
-        if (unit && mCachedSources.size() > idx && mCachedSources.at(idx) == source) {
+        if (mCachedSources.size() > idx && mCachedSources.at(idx) == source) {
             mFromCache = true;
-            assert(mTranslationUnits.size() > idx);
+            assert(mCachedTranslationUnits.size() > idx);
+            unit = mCachedTranslationUnits.at(idx);
             warning() << "loaded cached unit for" << mSourceFile;
             assert(unit);
             StopWatch sw2;
             if (!unit->reparse(&unsavedFiles[0], unsavedIndex)) {
                 warning() << "Failed to reparse";
                 unit.reset();
+                mCachedTranslationUnits[idx].reset();
             } else {
                 mFromCache = true;
                 warning() << "reparsed cached unit in" << sw2.restart();
@@ -1999,11 +2002,16 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
         }
     }
-    if (sServerOpts & Server::RPDaemon) {
+    if (sServerOpts & Server::RPDaemon
+        && (mIndexDataMessage.indexerJobFlags() & (IndexerJob::EditorActive|IndexerJob::EditorOpen)
+            || mCachedTranslationUnits.isEmpty())) {
+        // only overwrite cache with active/open compiles
         if (ok) {
             mCachedSources = mSources;
+            mCachedTranslationUnits = mTranslationUnits;
         } else {
             mCachedSources = SourceList();
+            mCachedTranslationUnits.clear();
         }
     }
 

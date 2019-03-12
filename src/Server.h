@@ -128,9 +128,25 @@ public:
     void dumpJobs(const std::shared_ptr<Connection> &conn);
     void dumpDaemons(const std::shared_ptr<Connection> &conn);
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
-    const Set<uint32_t> &activeBuffers() const { return mActiveBuffers; }
+    enum ActiveBufferType {
+        Inactive,
+        Active,
+        Open
+    };
+
+    Set<uint32_t> activeBuffers(ActiveBufferType type) const
+    {
+        assert(type != Inactive);
+        Set<uint32_t> ret;
+        for (const auto &buffer : mActiveBuffers) {
+            if (buffer.second == type) {
+                ret.insert(buffer.first);
+            }
+        }
+        return ret;
+    }
     bool activeBuffersSet() const { return mActiveBuffersSet; }
-    bool isActiveBuffer(uint32_t fileId) const { return mActiveBuffers.contains(fileId); }
+    ActiveBufferType activeBufferType(uint32_t fileId) const { return mActiveBuffers.value(fileId, Inactive); }
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     Hash<Path, std::shared_ptr<Project> > projects() const { return mProjects; }
@@ -231,7 +247,7 @@ private:
     std::shared_ptr<JobScheduler> mJobScheduler;
     CompletionThread *mCompletionThread;
     bool mActiveBuffersSet;
-    Set<uint32_t> mActiveBuffers;
+    Hash<uint32_t, ActiveBufferType> mActiveBuffers;
     Set<std::shared_ptr<Connection> > mConnections;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;

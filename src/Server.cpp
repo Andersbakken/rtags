@@ -1953,28 +1953,35 @@ void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::s
 {
     const String encoded = query->query();
     if (encoded.isEmpty()) {
-        for (uint32_t fileId : mActiveBuffers) {
-            conn->write(Location::path(fileId));
+        for (const auto &buffer : mActiveBuffers) {
+            conn->write<1024>("%s: %s", Location::path(buffer.first).constData(), buffer.second == Active ? "active" : "open");
         }
     } else {
         mActiveBuffersSet = true;
         Deserializer deserializer(encoded);
+        unsigned char version;
+        deserializer >> version;
+        if (version != '1') {
+            conn->write("Mismatched rc and rdm, wrong version");
+            conn->finish();
+            return;
+        }
         int mode;
         deserializer >> mode;
-        List<Path> paths;
+        Hash<Path, bool> paths;
         deserializer >> paths;
         const size_t oldCount = mActiveBuffers.size();
         if (mode == 0 || mode == 1) {
             if (mode == 0)
                 mActiveBuffers.clear();
-            for (const Path &path : paths) {
-                if (uint32_t fileId = Location::insertFile(path))
-                    mActiveBuffers.insert(fileId);
+            for (const auto &path : paths) {
+                if (uint32_t fileId = Location::insertFile(path.first))
+                    mActiveBuffers[fileId] = path.second ? Active : Open;
             }
         } else {
             assert(mode == -1);
-            for (const Path &path : paths) {
-                mActiveBuffers.remove(Location::insertFile(path));
+            for (const auto &path : paths) {
+                mActiveBuffers.remove(Location::insertFile(path.first));
             }
         }
         if (oldCount < mActiveBuffers.size()) {

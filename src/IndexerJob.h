@@ -34,7 +34,8 @@ public:
         Aborted = 0x040,
         Complete = 0x080,
         NoAbort = 0x100,
-        Active = 0x200,
+        EditorActive = 0x200, // visible in editor
+        EditorOpen = 0x400, // opened in editor
         Type_Mask = Dirty|Compile|Reindex
     };
 
@@ -49,7 +50,7 @@ public:
     void acquireId();
     String encode() const;
 
-    uint32_t fileId() const { assert(!sources.isEmpty()); return sources.begin()->fileId; }
+    uint32_t sourceFileId() const { assert(!sources.isEmpty()); return sources.begin()->fileId; }
 
     int priority() const;
     void recalculatePriority();

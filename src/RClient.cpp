@@ -993,13 +993,24 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             String encoded;
             if (!arg.isEmpty()) {
-                List<Path> paths;
+                Hash<Path, bool> paths;
                 auto addBuffer = [&paths](const String &p) {
                     if (p.isEmpty())
                         return;
-                    Path path(p);
+                    bool active = true;
+                    Path path;
+                    if (p.startsWith("\\")) {
+                        path = p.mid(1);
+                    } else if (p.startsWith("+")) {
+                        path = p.mid(1);
+                    } else if (p.startsWith("-")) {
+                        path = p.mid(1);
+                        active = false;
+                    } else {
+                        path = p;
+                    }
                     if (path.resolve() && path.isFile()) {
-                        paths.append(path);
+                        paths[path] = active;
                     } else {
                         fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
                     }
@@ -1019,6 +1030,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     }
                 }
                 Serializer serializer(encoded);
+                serializer << '1'; // version marker to not crash with older versions of rc
                 switch (type) {
                 case AddBuffers: serializer << 1; break;
                 case SetBuffers: serializer << 0; break;

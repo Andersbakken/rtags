@@ -105,6 +105,18 @@ void JobScheduler::startJobs()
             continue;
         }
 
+        switch (Server::instance()->activeBufferType(jobNode->job->sourceFileId())) {
+        case Server::Active:
+            jobNode->job->flags |= IndexerJob::EditorActive;
+            break;
+        case Server::Open:
+            jobNode->job->flags |= IndexerJob::EditorOpen;
+            break;
+        case Server::Inactive:
+            break;
+        }
+
+
         const uint64_t jobId = jobNode->job->id;
         Process *process = nullptr;
         DaemonData *daemonData = nullptr;
@@ -120,7 +132,7 @@ void JobScheduler::startJobs()
                 daemonData = &daemon.second;
             }
         }
-        if (daemonData) {
+        if (daemonData && jobNode->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen)) {
             daemonData->cache.clear();
             daemonData->touched = 0;
         }
@@ -129,7 +141,7 @@ void JobScheduler::startJobs()
             process = new Process;
             if (isDaemon)
                 mDaemons[process] = DaemonData {};
-            debug() << "Starting process for" << jobId << jobNode->job->fileId() << jobNode->job.get();
+            debug() << "Starting process for" << jobId << jobNode->job->sourceFileId() << jobNode->job.get();
             List<String> arguments;
             arguments << "--priority" << String::number(jobNode->job->priority());
 
@@ -180,11 +192,11 @@ void JobScheduler::startJobs()
                         n->process = 0;
                         assert(!(n->job->flags & IndexerJob::Aborted));
                         auto it = mDaemons.find(proc);
-                        if (it != mDaemons.end()) {
+                        if (it == mDaemons.end()) {
+                            proc->closeStdIn();
+                        } else if (n->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen) || !it->second.touched) {
                             it->second.cache = n->job->sources;
                             it->second.touched = Rct::monoMs();
-                        } else {
-                            proc->closeStdIn();
                         }
 
                         startJobs();
@@ -198,7 +210,7 @@ void JobScheduler::startJobs()
                 if (isDaemon)
                     mDaemons.erase(process);
                 jobNode->job->flags |= IndexerJob::Crashed;
-                debug() << "job crashed (didn't start)" << jobId << jobNode->job->fileId() << jobNode->job.get();
+                debug() << "job crashed (didn't start)" << jobId << jobNode->job->sourceFileId() << jobNode->job.get();
                 auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
                 msg->setFlag(IndexDataMessage::ParseFailure);
                 jobFinished(jobNode->job, msg);
@@ -227,7 +239,7 @@ void JobScheduler::startJobs()
                         assert(nodeById == n);
                         // job failed, probably no IndexDataMessage coming
                         n->job->flags |= IndexerJob::Crashed;
-                        debug() << "job crashed" << n->job->id << n->job->fileId() << n->job.get();
+                        debug() << "job crashed" << n->job->id << n->job->sourceFileId() << n->job.get();
                         auto msg = std::make_shared<IndexDataMessage>(n->job);
                         msg->setFlag(IndexDataMessage::ParseFailure);
                         jobFinished(n->job, msg);
@@ -256,7 +268,7 @@ void JobScheduler::handleIndexDataMessage(const std::shared_ptr<IndexDataMessage
         warning() << "Got IndexDataMessage for unknown job" << message->id() << mActiveById.keys();
         return;
     }
-    debug() << "job got index data message" << node->job->id << node->job->fileId() << node->job.get();
+    debug() << "job got index data message" << node->job->id << node->job->sourceFileId() << node->job.get();
     jobFinished(node->job, message);
 }
 
@@ -287,7 +299,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
             }, 500, Timer::SingleShot); // give it 500 ms before we try again
             return;
         }
-        debug() << "job crashed too many times" << job->id << job->fileId() << job.get();
+        debug() << "job crashed too many times" << job->id << job->sourceFileId() << job.get();
     }
     project->onJobFinished(job, message);
 }
@@ -345,12 +357,12 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
     job->flags &= ~IndexerJob::Running;
     auto node = mActiveById.take(job->id);
     if (!node) {
-        debug() << "Aborting inactive job" << job->sourceFile << job->fileId() << job->id << job.get();
+        debug() << "Aborting inactive job" << job->sourceFile << job->sourceFileId() << job->id << job.get();
         node = mInactiveById.take(job->id);
         assert(node);
         mPendingJobs.remove(node);
     } else {
-        debug() << "Aborting active job" << job->sourceFile << job->fileId() << job->id << job.get();
+        debug() << "Aborting active job" << job->sourceFile << job->sourceFileId() << job->id << job.get();
     }
     if (node->process) {
         debug() << "Killing process" << node->process;
