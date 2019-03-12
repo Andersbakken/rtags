@@ -56,7 +56,7 @@ void JobScheduler::setActiveJobs(size_t active)
 
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
-    assert(!(job->flags & ~IndexerJob::Type_Mask));
+    assert(!(job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
     std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String(), String() }));
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
@@ -250,7 +250,7 @@ void JobScheduler::startJobs()
         }
 
         jobNode->process = process;
-        assert(!(jobNode->job->flags & ~IndexerJob::Type_Mask));
+        assert(!(jobNode->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
         jobNode->job->flags |= IndexerJob::Running;
         process->write(jobNode->job->encode());
         jobNode->started = Rct::monoMs();
