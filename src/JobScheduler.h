@@ -23,6 +23,7 @@
 #include "rct/Hash.h"
 #include "rct/String.h"
 #include "Source.h"
+#include "IndexerJob.h"
 
 class Connection;
 class IndexDataMessage;
@@ -78,6 +79,7 @@ private:
     struct DaemonData {
         uint64_t touched { 0 };
         SourceList cache;
+        Flags<IndexerJob::Flag> flags;
     };
     Hash<Process *, DaemonData> mDaemons;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;

@@ -34,8 +34,8 @@ public:
         Aborted = 0x040,
         Complete = 0x080,
         NoAbort = 0x100,
-        EditorActive = 0x200, // visible in editor
-        EditorOpen = 0x400, // opened in editor
+        EditorOpen = 0x200, // opened in editor, the values of these are significant, EditorActive must be more than EditorOpen
+        EditorActive = 0x400, // visible in editor
         Type_Mask = Dirty|Compile|Reindex
     };
 

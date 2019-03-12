@@ -120,16 +120,26 @@ void JobScheduler::startJobs()
         const uint64_t jobId = jobNode->job->id;
         Process *process = nullptr;
         DaemonData *daemonData = nullptr;
+        int daemonDataScore = -1;
+        auto score = [](Flags<IndexerJob::Flag> f) -> int {
+            return f & (IndexerJob::EditorActive|IndexerJob::EditorOpen);
+        };
+
         for (auto &daemon : mDaemons) {
             if (daemon.second.cache == jobNode->job->sources) {
                 process = daemon.first;
                 daemonData = nullptr;
                 break;
-            } else if (mDaemons.size() == options.jobCount
-                       && mActiveByProcess.find(daemon.first) == mActiveByProcess.end()
-                       && (!daemonData || daemon.second.touched < daemonData->touched)) {
+            }
+            if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) == mActiveByProcess.end())
+                continue; // we'll just make a new daemon, we're not at capacity
+
+            const int dscore = score(daemon.second.flags);
+            if (!daemonData || dscore < daemonDataScore || (dscore == daemonDataScore && daemon.second.touched < daemonData->touched)) {
                 process = daemon.first;
                 daemonData = &daemon.second;
+                daemonDataScore = dscore;
+                continue;
             }
         }
         if (daemonData && jobNode->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen)) {
@@ -197,6 +207,7 @@ void JobScheduler::startJobs()
                         } else if (n->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen) || !it->second.touched) {
                             it->second.cache = n->job->sources;
                             it->second.touched = Rct::monoMs();
+                            it->second.flags = n->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen);
                         }
 
                         startJobs();
@@ -225,7 +236,7 @@ void JobScheduler::startJobs()
                 auto n = mActiveByProcess.take(proc);
                 assert(!n || n->process == proc);
                 if (n && (!n->stdOut.isEmpty() || !n->stdErr.isEmpty())) {
-                    error() << "Output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
+                    error() << "Finish output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
                 }
                 Path::rmdir(options.tempDir + String::number(pid));
 
