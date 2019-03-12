@@ -111,14 +111,19 @@ void JobScheduler::startJobs()
         for (auto &daemon : mDaemons) {
             if (daemon.second.cache == jobNode->job->sources) {
                 process = daemon.first;
+                daemonData = nullptr;
                 break;
-            } else if (mDaemons.size() == options.jobCount && !process && mActiveByProcess.find(daemon.first) == mActiveByProcess.end()) {
+            } else if (mDaemons.size() == options.jobCount
+                       && mActiveByProcess.find(daemon.first) == mActiveByProcess.end()
+                       && (!daemonData || daemon.second.touched < daemonData->touched)) {
                 process = daemon.first;
                 daemonData = &daemon.second;
             }
         }
-        if (daemonData)
+        if (daemonData) {
             daemonData->cache.clear();
+            daemonData->touched = 0;
+        }
 
         if (!process) {
             process = new Process;
@@ -177,6 +182,7 @@ void JobScheduler::startJobs()
                         auto it = mDaemons.find(proc);
                         if (it != mDaemons.end()) {
                             it->second.cache = n->job->sources;
+                            it->second.touched = Rct::monoMs();
                         } else {
                             proc->closeStdIn();
                         }

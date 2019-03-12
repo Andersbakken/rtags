@@ -76,6 +76,7 @@ private:
 
     int mProcrastination;
     struct DaemonData {
+        uint64_t touched { 0 };
         SourceList cache;
     };
     Hash<Process *, DaemonData> mDaemons;
