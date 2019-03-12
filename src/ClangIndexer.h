@@ -49,6 +49,7 @@ private:
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
     CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = 0);
+    CXCursor resolveTemplateUsr(CXCursor cursor) const;
     static CXCursor resolveTypedef(CXCursor cursor);
 
     // DiagnosticsProvider

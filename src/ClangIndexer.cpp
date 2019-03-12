@@ -1048,6 +1048,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         }
         break; }
     default:
+        ref = resolveTemplateUsr(ref);
         break;
     }
 
@@ -2302,7 +2303,7 @@ bool ClangIndexer::visit()
             bool ignored;
             const Location loc = createLocation(cursor, kind, &ignored);
             if (!loc.isNull()) {
-                const String refUsr = usr(resolveTemplate(ref));
+                const String refUsr = usr(resolveTemplateUsr(resolveTemplate(ref)));
                 if (!refUsr.isEmpty()) {
                     assert(!refUsr.isEmpty());
                     const uint32_t fileId = mSources.front().fileId;
@@ -2443,6 +2444,37 @@ CXCursor ClangIndexer::resolveTemplate(CXCursor cursor, Location location, bool 
             cursor = general;
         } else {
             break;
+        }
+    }
+    return cursor;
+}
+
+CXCursor ClangIndexer::resolveTemplateUsr(const CXCursor cursor) const
+{
+    // Replace specialized instance of fieldDecls or cast operators etc so
+    // we can properly reference them
+    CXCursor c = cursor;
+    CXCursorKind kind;
+    while (true) {
+        kind = clang_getCursorKind(c);
+        if (clang_isInvalid(kind))
+            break;
+
+        if ((kind == CXCursor_StructDecl
+             || kind == CXCursor_ClassDecl
+             || kind == CXCursor_ClassTemplate
+             || kind == CXCursor_ClassTemplatePartialSpecialization)
+            && !clang_isInvalid(clang_getCursorKind(clang_getSpecializedCursorTemplate(c)))) {
+            break;
+        }
+        c = clang_getCursorSemanticParent(c);
+    }
+
+    if (!clang_isInvalid(kind)) {
+        CXSourceLocation sourceLoc = clang_getCursorLocation(cursor);
+        c = clang_getCursor(mTranslationUnits.at(mCurrentTranslationUnit)->unit, sourceLoc);
+        if (c != cursor && !clang_isInvalid(clang_getCursorKind(c))) {
+            return c;
         }
     }
     return cursor;
