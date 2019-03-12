@@ -106,8 +106,9 @@ bool ClangIndexer::exec(const String &data)
     mLastCallExprSymbol = nullptr;
     mLastClass = Location();
     mVisitFileResponseMessageVisit = 0;
-    mParseDuration = mVisitDuration = mBlocked = mAllowed = mIndexed = mVisitFileTimeout = 0;
+    mParseDuration = mVisitDuration = mBlocked = mAllowed = mVisitFileTimeout = 0;
     mIndexDataMessageTimeout = mFileIdsQueried = mFileIdsQueriedTime = mCursorsVisited = 0;
+    mIndexed = 1;
     mUnionRecursion = false;
     mScopeStack.clear();
     mLoopStack.clear();
