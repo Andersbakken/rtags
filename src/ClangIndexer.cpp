@@ -275,12 +275,35 @@ bool ClangIndexer::exec(const String &data)
                                         queryData.constData(), mIndexDataMessage.flags() & IndexDataMessage::UsedPCH ? ", pch" : "",
                                         mParseDuration, mVisitDuration, writeDuration);
     }
+    bool paren = false;
     if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Dirty) {
-        message += " (dirty)";
+        paren = true;
+        message += " (dirty";
     } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Reindex) {
-        message += " (reindex)";
+        paren = true;
+        message += " (reindex";
     }
 
+    if (mFromCache) {
+        if (!paren) {
+            message += "(";
+            paren = true;
+        } else {
+            message += ",";
+        }
+        message += "cache";
+    }
+    if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active) {
+        if (!paren) {
+            message += "(";
+            paren = true;
+        } else {
+            message += ",";
+        }
+        message += "active";
+    }
+    if (paren)
+        message += ")";
 
     mIndexDataMessage.setMessage(message);
     sw.restart();
