@@ -111,7 +111,6 @@ bool ClangIndexer::exec(const String &data)
     mUnionRecursion = false;
     mScopeStack.clear();
     mLoopStack.clear();
-    mSerializeTU.reset();
     mParents.clear();
     mTemplateSpecializations.clear();
     mInTemplateFunction = false;
@@ -298,17 +297,6 @@ bool ClangIndexer::exec(const String &data)
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
         error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
 
-    if (mSerializeTU) {
-        Path path = mDataDir + "tucache/";
-        Path::mkdir(path, Path::Recursive);
-        path << mSources.front().fileId;
-        Path tmp = path;
-        tmp << ".tmp";
-        StopWatch sw2;
-        clang_saveTranslationUnit(mSerializeTU->unit, tmp.constData(), clang_defaultSaveOptions(mSerializeTU->unit));
-        rename(tmp.constData(), path.constData());
-        error() << "SAVED CACHED FILE FOR" << mSourceFile << path << sw2.elapsed();
-    }
     return true;
 }
 
@@ -1900,8 +1888,7 @@ bool ClangIndexer::parse()
         commandLineFlags |= Source::PCHEnabled;
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
-    if (sServerOpts & Server::RPDaemon
-        || (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache)) {
+    if (sServerOpts & Server::RPDaemon) {
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
@@ -1963,21 +1950,6 @@ bool ClangIndexer::parse()
                 mFromCache = true;
                 warning() << "reparsed cached unit in" << sw2.restart();
             }
-        } else if (mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
-            Path path = mDataDir + "tucache/";
-            Path::mkdir(path, Path::Recursive);
-            path << mSources.front().fileId;
-            StopWatch sw2;
-            unit = RTags::TranslationUnit::load(path);
-            if (unit) {
-                error() << "loaded cached unit in" << sw2.restart();
-                if (!unit->reparse(&unsavedFiles[0], unsavedIndex)) {
-                    error() << "Failed to reparse";
-                    unit.reset();
-                } else {
-                    error() << "reparsed cached unit in" << sw2.restart();
-                }
-            }
         }
 
         if (!unit) {
@@ -1995,8 +1967,6 @@ bool ClangIndexer::parse()
                 clang_saveTranslationUnit(unit->unit, tmp.constData(), clang_defaultSaveOptions(unit->unit));
                 rename(tmp.constData(), path.constData());
                 warning() << "SAVED PCH" << path;
-            } else if (!mSerializeTU && mIndexDataMessage.indexerJobFlags() & IndexerJob::Active && serverOpts() & Server::TranslationUnitCache) {
-                mSerializeTU = unit;
             }
 
             ok = true;
