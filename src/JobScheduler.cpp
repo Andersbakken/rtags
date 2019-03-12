@@ -131,7 +131,7 @@ void JobScheduler::startJobs()
                 daemonData = nullptr;
                 break;
             }
-            if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) == mActiveByProcess.end())
+            if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) != mActiveByProcess.end())
                 continue; // we'll just make a new daemon, we're not at capacity
 
             const int dscore = score(daemon.second.flags);
@@ -139,7 +139,6 @@ void JobScheduler::startJobs()
                 process = daemon.first;
                 daemonData = &daemon.second;
                 daemonDataScore = dscore;
-                continue;
             }
         }
         if (daemonData && jobNode->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen)) {
@@ -171,9 +170,11 @@ void JobScheduler::startJobs()
 
             process->readyReadStdOut().connect([this, isDaemon](Process *proc) {
                 (void)isDaemon;
-                std::shared_ptr<Node> n = mActiveByProcess[proc];
-                if (!n)
+                std::shared_ptr<Node> n = mActiveByProcess.value(proc);
+                if (!n) {
+                    error() << "Cannot find process in active";
                     return;
+                }
                 n->stdOut.append(proc->readAllStdOut());
 
                 {
@@ -190,11 +191,12 @@ void JobScheduler::startJobs()
                         assert(isDaemon);
                         mActiveByProcess.remove(proc);
                         assert(!n || n->process == proc);
-                        n->stdOut.remove(0, idx + 10);
-                        if ((n && !n->stdOut.isEmpty()) || !n->stdErr.isEmpty()) {
-                            error() << (n ? ("Output from " + n->job->sourceFile + ":") : String("Orphaned process:"))
-                                    << '\n' << n->stdErr << (n ? n->stdOut : String());
+                        if (idx > 0 || !n->stdErr.isEmpty()) {
+                            error() << ("Output from " + n->job->sourceFile + ":")
+                                    << '\n' << n->stdErr << n->stdOut.mid(0, idx);
                         }
+
+                        n->stdOut.remove(0, idx + 10);
                         n->stdErr.clear();
 
                         assert(mDaemons.contains(n->process));

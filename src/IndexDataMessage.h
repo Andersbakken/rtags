@@ -82,6 +82,7 @@ public:
 
     const String &message() const { return mMessage; }
     void setMessage(const String &msg) { mMessage = msg; }
+    void setMessage(String &&msg) { mMessage = std::move(msg); }
 
     FixIts &fixIts() { return mFixIts; }
     Diagnostics &diagnostics() { return mDiagnostics; }

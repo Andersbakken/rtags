@@ -305,7 +305,7 @@ bool ClangIndexer::exec(const String &data)
     if (paren)
         message += ")";
 
-    mIndexDataMessage.setMessage(message);
+    mIndexDataMessage.setMessage(std::move(message));
     sw.restart();
     debug() << "Sending index data message" << mIndexDataMessage.id();
     if (!mConnection->send(mIndexDataMessage)) {

@@ -58,6 +58,8 @@ public:
 
 int main(int argc, char **argv)
 {
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
     LogLevel logLevel = LogLevel::Error;
     Path file;
     bool logToSyslog = false;

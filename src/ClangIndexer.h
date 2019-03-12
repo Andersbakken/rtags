@@ -35,6 +35,7 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
+    Path sourceFile() const { return mSourceFile; }
     bool exec(const String &data);
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
 private:
