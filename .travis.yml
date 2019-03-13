@@ -1,6 +1,6 @@
 language: cpp
 before_cache:
-  - brew cleanup || /bin/true
+  - test -x `which brew` && brew cleanup
 cache:
   - ccache: true
   - pip: true
