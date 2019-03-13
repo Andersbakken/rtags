@@ -1,5 +1,10 @@
 language: cpp
-cache: ccache, pip
+cache:
+  - ccache: true
+  - pip: true
+  - directories:
+      - $HOME/Library/Caches/Homebrew
+
 sudo: required
 git:
   depth: 3

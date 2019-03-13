@@ -27,6 +27,7 @@
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
                          "-DBUILD_TESTING=1"
+                         "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
                          "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION")
 
 if [ "$ASAN" ]; then
