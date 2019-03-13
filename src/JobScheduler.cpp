@@ -122,7 +122,7 @@ void JobScheduler::startJobs()
         DaemonData *daemonData = nullptr;
         int daemonDataScore = -1;
         auto score = [](Flags<IndexerJob::Flag> f) -> int {
-            return f & (IndexerJob::EditorActive|IndexerJob::EditorOpen);
+            return Flags<IndexerJob::Flag>(f & (IndexerJob::EditorActive|IndexerJob::EditorOpen)).cast();
         };
 
         for (auto &daemon : mDaemons) {
