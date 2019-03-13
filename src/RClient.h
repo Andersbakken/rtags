@@ -91,6 +91,7 @@ public:
         HasFileManager,
         Help,
         IncludeFile,
+        IncludePath,
         IsIndexed,
         IsIndexing,
         JSON,
@@ -107,6 +108,7 @@ public:
         MatchCaseInsensitive,
         MatchRegex,
         Max,
+        MaxDepth,
         NoColor,
         NoContext,
         NoRealPath,
@@ -158,7 +160,6 @@ public:
         Wait,
         WildcardSymbolNames,
         XML,
-        IncludePath,
         NumOptions
     };
 
@@ -169,6 +170,7 @@ public:
     CommandLineParser::ParseStatus parse(size_t argc, char **argv);
 
     int max() const { return mMax; }
+    int maxDepth() const { return mMaxDepth; }
     LogLevel logLevel() const { return mLogLevel; }
     int timeout() const { return mTimeout; }
     int buildIndex() const { return mBuildIndex; }
@@ -205,7 +207,7 @@ private:
     void addCompile(Path &&compileCommands);
 
     Flags<QueryMessage::Flag> mQueryFlags;
-    int mMax, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
+    int mMax, mMaxDepth, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     LogLevel mLogLevel;
     Set<QueryMessage::PathFilter> mPathFilters;
     QueryMessage::KindFilters mKindFilters;

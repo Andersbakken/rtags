@@ -40,29 +40,57 @@ int IncludePathJob::execute()
             return 1;
         const Symbol prev = symbols->valueAt(idx - 1);
         if (prev.kind == CXCursor_MemberRefExpr
-                && prev.location.column() == symbol.location.column() - 1
-                && prev.location.line() == symbol.location.line()
-                && prev.symbolName.contains("~")) {
+            && prev.location.column() == symbol.location.column() - 1
+            && prev.location.line() == symbol.location.line()
+            && prev.symbolName.contains("~")) {
             symbol = prev;
         }
-    }
-
-    if (queryFlags() & QueryMessage::TargetUsrs) {
-        const Set<String> usrs = project()->findTargetUsrs(location);
-        for (const String &usr : usrs) {
-            write(usr);
-        }
-        return 0;
     }
 
     auto targets = RTags::sortTargets(project()->findTargets(symbol));
 
     String allTargetPath;
+    int maxDepth = queryMessage()->maxDepth();
+    if (maxDepth == -1)
+        maxDepth = 8;
+    const bool absolute = queryFlags() & QueryMessage::AbsolutePath;
+    const std::shared_ptr<Project> proj = project();
+    if (!proj)
+        return 1;
+    const Path projectPath = proj->path();
     for (const auto &target : targets) {
-        allTargetPath += project()->dumpIncludePath(location, target) + "\n";
+        DependencyNode *depNode = project()->dependencyNode(location.fileId());
+        if (depNode) {
+            List<uint32_t> paths;
+            bool done = false;
+            std::function<void(DependencyNode *)> process = [&](DependencyNode *n) {
+                if (done || !paths.contains(n->fileId)) {
+                    paths.append(n->fileId);
+                    if (n->fileId == target.location.fileId()) {
+                        String path;
+                        for (uint32_t fileId : paths) {
+                            if (!path.isEmpty())
+                                path += " -> ";
+                            Path p = Location::path(fileId);
+                            if (!absolute && p.startsWith(projectPath)) {
+                                path += p.mid(projectPath.size());
+                            } else {
+                                path += p;
+                            }
+                        }
+                        if (!write(path))
+                            done = true;
+                    } else if (paths.size() < static_cast<size_t>(maxDepth)) {
+                        for (const auto &includeNode : n->includes) {
+                            process(includeNode.second);
+                        }
+                    }
+                    paths.removeLast();
+                }
+            };
+            process(depNode);
+        }
     }
 
-    // debug() << "IncludePathJob::allTargetPath: " << allTargetPath;
-    write(allTargetPath);
     return 0;
 }

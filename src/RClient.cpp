@@ -179,6 +179,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, CommandLineParser::NoValue, "Include symbols for tokens." },
     { RClient::NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't resolve paths using realpath(3)." },
     { RClient::IncludePath, "include-path", 0, CommandLineParser::Required, "Dump include path for symbol." },
+    { RClient::MaxDepth, "max-depth", 0, CommandLineParser::Required, "Max search depth. Used for --include-path." },
     { RClient::None, String(), 0, CommandLineParser::NoValue, 0 }
 };
 
@@ -223,6 +224,7 @@ public:
         msg.setTerminalWidth(rc->terminalWidth());
         msg.setCurrentFile(rc->currentFile());
         msg.setCodeCompletePrefix(rc->codeCompletePrefix());
+        msg.setMaxDepth(rc->maxDepth());
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
 
@@ -315,7 +317,7 @@ public:
 };
 
 RClient::RClient()
-    : mMax(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
+    : mMax(-1), mMaxDepth(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
       mTerminalWidth(-1), mExitCode(RTags::ArgumentParseError)
@@ -1300,11 +1302,20 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case IncludePath: {
             String encoded = Location::encode(value);
             if (encoded.isEmpty()) {
-              return { String::format<1024>("include path Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("include path can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
             addQuery(QueryMessage::IncludePath, std::move(encoded));
             break; }
+        case MaxDepth: {
+            const int depth = atoi(value.constData());
+            if (depth <= 0) {
+                return { String::format<1024>("Invalid depth %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+
+            mMaxDepth = depth;
+            break; }
+
         }
         return { String(), CommandLineParser::Parse_Exec };
     };

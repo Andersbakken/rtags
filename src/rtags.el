@@ -73,7 +73,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 127)
+(defconst rtags-protocol-version 128)
 (defconst rtags-package-version "2.31")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1735,7 +1735,7 @@ instead of file from `current-buffer'.
 (defun rtags-print-include-path ()
   "Print include path of the current symbol in cursor."
   (interactive)
-  (let ((dep-buffer (rtags-get-buffer))
+  (let ((dep-buffer (rtags-get-buffer "*RTags Include Path*"))
         (arg (rtags-current-location)))
     (rtags-delete-rtags-windows)
     (rtags-location-stack-push)
@@ -4007,6 +4007,19 @@ other window instead of the current one."
            (let ((cur (rtags-dependency-tree-current-file)))
              (when cur
                (rtags-goto-location (car cur) nil other-window))))
+          ((string= (buffer-name) "*RTags Include Path*")
+           (let (start path)
+             (save-excursion
+               (setq start (if (search-backward " " (point-at-bol) t)
+                               (1+ (point))
+                             (point-at-bol))))
+             (save-excursion
+               (setq path (buffer-substring-no-properties start
+                                                          (if (search-forward " " (point-at-eol) t)
+                                                              (1- (point))
+                                                            (point-at-eol)))))
+             (unless (string= "->" path)
+               (rtags-goto-location path))))
           ((string= (buffer-name) "*RTags Location Stack*")
            (let ((index (- (length rtags-location-stack) line)))
              (setq rtags-location-stack-index index)

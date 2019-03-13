@@ -205,6 +205,9 @@ public:
     int minLine() const { return mMinLine; }
     int maxLine() const { return mMaxLine; }
 
+    int maxDepth() const { return mMaxDepth; }
+    void setMaxDepth(int depth) { mMaxDepth = depth; }
+
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
 
@@ -244,7 +247,7 @@ private:
     String mQuery, mCodeCompletePrefix;
     Type mType;
     Flags<QueryMessage::Flag> mFlags;
-    int mMax, mMinLine, mMaxLine, mBuildIndex;
+    int mMax, mMaxDepth, mMinLine, mMaxLine, mBuildIndex;
     List<PathFilter> mPathFilters;
     KindFilters mKindFilters;
     Path mCurrentFile;

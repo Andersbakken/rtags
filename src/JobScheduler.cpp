@@ -381,6 +381,7 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
     if (node->process) {
         debug() << "Killing process" << node->process;
         node->process->kill();
+        mDaemons.remove(node->process); // ### this is not ideal
         mActiveByProcess.remove(node->process);
     }
 }
