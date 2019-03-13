@@ -26,9 +26,9 @@
 #  - LUA_DISABLE (default value is "", set it to anything to disable lua
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
-                         "-DBUILD_TESTING=1"
+                         "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION"
                          "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
-                         "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION")
+                         "-DBUILD_TESTING=1")
 
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
@@ -42,19 +42,15 @@ else
     echo "Running build without Lua extension."
 fi # end ! $LUA_DISABLE
 
-function build()
+function build_and_test()
 {
+    rm -rf build
     mkdir build && pushd build > /dev/null
     emacs --version
-    cmake "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
+    cmake "$1" "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
     make VERBOSE=1 -j2
-}
-
-# All arguments will be passed on to ctest
-function run_tests()
-{
-    PATH=$(pwd)/bin:$PATH
-    ctest --output-on-failure --verbose $@
+    PATH=$(pwd)/bin:$PATH ctest --output-on-failure --verbose $@
+    popd >/dev/null
 }
 
 function add_cmake_params()
@@ -83,10 +79,8 @@ function osx()
     # Help cmake to find openssl includes/library
     add_cmake_params "-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
 
-    build
-
-    ## Step -- Test
-    run_tests
+    build_and_test -DCMAKE_BUILD_TYPE=Release
+    build_and_test -DCMAKE_BUILD_TYPE=Debug
 }
 
 function gnu_linux()
@@ -94,11 +88,8 @@ function gnu_linux()
     ## Step -- Setup
     pip3 install --user --upgrade nose PyHamcrest
 
-    ## Step -- Build
-    build
-
-    ## Step -- Test
-    run_tests
+    build_and_test -DCMAKE_BUILD_TYPE=Release
+    build_and_test -DCMAKE_BUILD_TYPE=Debug
 }
 
 if [ $TRAVIS_OS_NAME = osx ]; then
