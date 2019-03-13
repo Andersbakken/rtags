@@ -1,6 +1,15 @@
+2.30
+=========================
+- A couple of fixes regarding references in template functions/classes
+  which previously did not work correctly.
+- Introduce --rp-daemon mode which keeps rp processes alive and caches
+  their translation units. This can markedly speed up indexing times
+  when repeatedly dirtying the same files
+- Kill old translation unit cache concept which was never fully
+  functional
+
 2.22
 =========================
-
 
 - Make diagnostics from completions work and enable them by
   default. They seem to work well and are very fast.
