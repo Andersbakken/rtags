@@ -1,4 +1,5 @@
 language: cpp
+cache: ccache
 sudo: required
 git:
   depth: 3
