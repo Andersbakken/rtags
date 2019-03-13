@@ -27,7 +27,6 @@
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
                          "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION"
-                         "-DCMAKE_CXX_COMPILER_LAUNCHER=ccache"
                          "-DBUILD_TESTING=1")
 
 if [ "$ASAN" ]; then
@@ -66,6 +65,7 @@ function osx()
     brew update
     brew install llvm yarn cppunit ccache
     brew upgrade python3
+    export PATH="/usr/local/opt/ccache/libexec:$PATH"
 
     python3 -m pip install --upgrade pip
     pip3 install --user --upgrade nose PyHamcrest
