@@ -1,5 +1,5 @@
 language: cpp
-cache: ccache
+cache: ccache, pip
 sudo: required
 git:
   depth: 3
