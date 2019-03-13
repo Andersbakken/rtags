@@ -1,6 +1,8 @@
 language: cpp
 before_cache:
   - test -x `which brew` && brew cleanup
+  - rm -f $HOME/.cache/pip/log/debug.log
+
 cache:
   - ccache: true
   - pip: true
