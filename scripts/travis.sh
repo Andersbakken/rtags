@@ -41,6 +41,7 @@ else
     echo "Running build without Lua extension."
 fi # end ! $LUA_DISABLE
 
+export CCACHE_DEBUG=1
 function build_and_test()
 {
     rm -rf build
