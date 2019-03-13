@@ -1,3 +1,9 @@
+2.31
+=========================
+- Remove experimental lua support. It never worked correctly and I
+  doubt many people feel like it's the right language for the job if
+  we were to offer such a feature
+
 2.30
 =========================
 - A couple of fixes regarding references in template functions/classes
