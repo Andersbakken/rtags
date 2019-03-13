@@ -111,9 +111,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::ListCursorKinds, "list-cursor-kinds", 0, CommandLineParser::NoValue, "List spelling for known cursor kinds." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, CommandLineParser::Required, "Dump class hierarcy for struct/class at location." },
     { RClient::DebugLocations, "debug-locations", 0, CommandLineParser::Optional, "Manipulate debug locations." },
-#ifdef RTAGS_HAS_LUA
-    { RClient::VisitAST, "visit-ast", 0, CommandLineParser::Required, "Visit AST of a source file." },
-#endif
     { RClient::Validate, "validate", 0, CommandLineParser::NoValue, "Validate database files for current project." },
     { RClient::Tokens, "tokens", 0, CommandLineParser::Required, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
     { RClient::DeadFunctions, "find-dead-functions", 0, CommandLineParser::Optional, "Find functions declared/defined in the current file that are never in the project." },
@@ -179,9 +176,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::CodeCompletePrefix, "code-complete-prefix", 0, CommandLineParser::Required, "Filter out code completion results that don't start with this prefix." },
     { RClient::CodeCompletionEnabled, "code-completion-enabled", 'b', CommandLineParser::NoValue, "Inform rdm that we're code-completing. Use with --diagnose" },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, CommandLineParser::NoValue, "Don't produce spell check info in diagnostics." },
-#ifdef RTAGS_HAS_LUA
-    { RClient::VisitASTScript, "visit-ast-script", 0, CommandLineParser::Required, "Use this script visit AST (@file.js|sourcecode)." },
-#endif
     { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, CommandLineParser::NoValue, "Include symbols for tokens." },
     { RClient::NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't resolve paths using realpath(3)." },
     { RClient::None, String(), 0, CommandLineParser::NoValue, 0 }
@@ -228,9 +222,6 @@ public:
         msg.setTerminalWidth(rc->terminalWidth());
         msg.setCurrentFile(rc->currentFile());
         msg.setCodeCompletePrefix(rc->codeCompletePrefix());
-#ifdef RTAGS_HAS_LUA
-        msg.setVisitASTScripts(rc->visitASTScripts());
-#endif
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
 
@@ -1304,32 +1295,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case ReferenceName: {
             addQuery(QueryMessage::ReferencesName, std::move(value));
-            break; }
-        case VisitAST: {
-#ifdef RTAGS_HAS_LUA
-            Path p = std::move(value);
-            p.resolve(Path::MakeAbsolute);
-            if (!p.isFile()) {
-                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-            }
-            addQuery(QueryMessage::VisitAST, std::move(p));
-#endif
-            break; }
-        case VisitASTScript: {
-#ifdef RTAGS_HAS_LUA
-            String code = std::move(value);
-            if (code.startsWith("@")) {
-                const Path p = code.mid(1);
-                if (!p.isFile()) {
-                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-                }
-                code = p.readAll();
-            }
-            if (code.isEmpty()) {
-                return { String::format<1024>("Script is empty"), CommandLineParser::Parse_Error };
-            }
-            mVisitASTScripts.push_back(std::move(code));
-#endif
             break; }
         }
         return { String(), CommandLineParser::Parse_Exec };

@@ -728,9 +728,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         findFile(message, conn);
         break;
     case QueryMessage::DumpFile:
-#ifdef RTAGS_HAS_LUA
-    case QueryMessage::VisitAST:
-#endif
         startClangThread(message, conn);
         break;
     case QueryMessage::Validate:

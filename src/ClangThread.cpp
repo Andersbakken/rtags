@@ -17,9 +17,6 @@
 #include "rct/Connection.h"
 #include "RTags.h"
 #include "Server.h"
-#ifdef RTAGS_HAS_LUA
-#include "AST.h"
-#endif
 
 struct Dep : public DependencyNode
 {
@@ -153,21 +150,6 @@ void ClangThread::run()
 
     const unsigned long long parseTime = sw.restart();
     warning() << "parseTime" << parseTime;
-#ifdef RTAGS_HAS_LUA
-    if (mQueryMessage->type() == QueryMessage::VisitAST) {
-        std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit->unit);
-        if (ast) {
-            for (const String script : mQueryMessage->visitASTScripts()) {
-                warning() << "evaluating script:\n" << script;
-                for (const String &str : ast->evaluate(script)) {
-                    if (!str.isEmpty()) {
-                        writeToConnetion(str);
-                    }
-                }
-            }
-        }
-    } else
-#endif
     {
         if (mQueryMessage->type() == QueryMessage::DumpFile && mQueryMessage->flags() & QueryMessage::DumpCheckIncludes)
             writeToConnetion(String::format<128>("Indexed: %s => %s", translationUnit->clangLine.constData(), translationUnit ? "success" : "failure"));

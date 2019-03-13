@@ -155,8 +155,6 @@ public:
         Verbose,
         VerifyVersion,
         Version,
-        VisitAST,
-        VisitASTScript,
         Wait,
         WildcardSymbolNames,
         XML,
@@ -196,9 +194,6 @@ public:
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
     String codeCompletePrefix() const { return mCodeCompletePrefix; }
-#ifdef RTAGS_HAS_LUA
-    List<String> visitASTScripts() const { return mVisitASTScripts; }
-#endif
 private:
     void addQuery(QueryMessage::Type t, String &&query = String(),
                   Flags<QueryMessage::Flag> extraQueryFlags = Flags<QueryMessage::Flag>());
@@ -225,9 +220,6 @@ private:
     Path mProjectRoot;
     int mTerminalWidth;
     int mExitCode;
-#ifdef RTAGS_HAS_LUA
-    List<String> mVisitASTScripts;
-#endif
     mutable List<String> mEnvironment;
 
     String mCommandLine;

@@ -72,9 +72,6 @@ public:
         Suspend,
         SymbolInfo,
         Validate,
-#ifdef RTAGS_HAS_LUA
-        VisitAST,
-#endif
         Tokens
     };
 
@@ -178,11 +175,6 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
-#ifdef RTAGS_HAS_LUA
-    void setVisitASTScripts(const List<String> &scripts) { mVisitASTScripts = scripts; }
-    List<String> visitASTScripts() const { return mVisitASTScripts; }
-#endif
-
     void setKindFilters(const KindFilters &kindFilters) { mKindFilters = kindFilters; }
     const KindFilters &kindFilters() const { return mKindFilters; }
 
@@ -257,9 +249,6 @@ private:
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
-#ifdef RTAGS_HAS_LUA
-    List<String> mVisitASTScripts;
-#endif
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);
