@@ -1,3 +1,25 @@
+2.22
+=========================
+
+
+- Make diagnostics from completions work and enable them by
+  default. They seem to work well and are very fast.
+- Fix some warnings and build issues
+- Fix https://github.com/Andersbakken/rtags/issues/1299 by killing the
+  isTemplateDiagnostic concept. It can be determined by ClangIndexer
+  way faster.
+- Fix https://github.com/Andersbakken/rtags/issues/1286
+  Do not explicitly validate the project while it's still indexing.
+- Various contributions regarding completions and unsaved files
+- Add support to --is-indexing for checking against a single project
+- Support regex matching in the argument to --is-indexing
+- Do not remove characters from the display name of FieldDecl symbols
+- Add support to --remove for removing all files in
+  compile_commands.json
+- Documentation is now available in the wiki
+- Introduce rtags-asm-file which runs the compile command with -S to
+  produce assembler code in a buffer.
+
 2.21
 =========================
 
