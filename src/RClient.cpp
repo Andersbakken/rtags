@@ -636,7 +636,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case VerifyVersion: {
             const int version = strtoul(value.constData(), 0, 10);
             if (version != NumOptions) {
-                fprintf(stdout, "Protocol version mismatch\n");
+                fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, NumOptions);
                 mExitCode = RTags::ProtocolFailure;
                 return { String(), CommandLineParser::Parse_Error };
             }
