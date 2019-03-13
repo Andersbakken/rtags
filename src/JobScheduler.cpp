@@ -173,6 +173,7 @@ void JobScheduler::startJobs()
                 std::shared_ptr<Node> n = mActiveByProcess.value(proc);
                 if (!n) {
                     error() << "Cannot find process in active";
+                    startJobs();
                     return;
                 }
                 n->stdOut.append(proc->readAllStdOut());
