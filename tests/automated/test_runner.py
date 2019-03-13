@@ -150,6 +150,7 @@ def setup_rdm(test_dir, test_files):
         while True:
             try:
                 run_rc(["--is-indexing"])
+                time.sleep(0.01)
                 break
             except sp.CalledProcessError:
                 time.sleep(0.01)
