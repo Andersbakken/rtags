@@ -123,7 +123,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defcustom rtags-enabled t
   "Whether RTags is enabled.  We try to do nothing when it's not."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
@@ -139,7 +138,6 @@
                                                      compilation-finish-functions))))
 (defcustom rtags-suspend-during-compilation nil
   "Suspend during compilation."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp
   :set (lambda (var val)
@@ -149,13 +147,11 @@
 
 (defcustom rtags-use-mark-as-current-symbol nil
   "Use mark, when visible as default for rtags-find-symbol."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-completing-read-behavior 'insert-default
   "Behavior for completing-read"
-  :group 'rtags
   :type '(choice
           (const :tag "insert default" insert-default)
           (const :tag "default when empty" default-when-empty)
@@ -165,94 +161,79 @@
 
 (defcustom rtags-use-bookmarks t
   "Whether RTags uses bookmarks for locations."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-find-file-absolute nil
   "Whether `rtags-find-file' shows absolute paths."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-wrap-results t
   "Whether `rtags-next-match'/`rtags-previous-match' wraps around."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-focus-lost nil
   "Whether `rtags-taglist' should close when it loses focus."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-close-taglist-on-selection t
   "Whether `rtags-taglist' should close when something is selected."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-follow-symbol-try-harder t
   "Fall back to string-matching, if follow symbol fails."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-reindex-on-save nil
   "Explicitly reindex files on save.
 This is only useful if your file system watching is not working."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-use-filename-completion t
   "Whether RTags special filename completion is enabled.
 Set to nil to enable ido-ubiquitous etc."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-diagnostics-use-pipe t
   "Whether diagnostics should use pipes.
 If you're running Emacs in cygwin you might have to set this to nil."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-autostart-diagnostics nil
   "Whether RTags automatically will restart diagnostics."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
   "Whether RTags does syntax checking with overlays etc to mark errors, warnings and fixups."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-multiple-targets t
   "Whether RTags will offer multiple choices for `rtags-find-symbol-at-point' when appropriate, warnings and fixups."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-verbose-results nil
   "Print more verbose results buffer."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
   "Whether RTags sorts the references based on the input to `rtags-find-references'."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-completions-enabled nil
   "Whether completions are enabled."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
@@ -291,7 +272,6 @@ nil (Unset) means don't reparse preemptively.
 Setting this variable directly has no effect, either set this variable using
 the Customize interface, `rtags-set-periodic-reparse-timeout',
 `customize-set-variable' or `custom-set-variables'."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) number)
   :risky nil
   :set (lambda (var val)
@@ -301,31 +281,26 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
 
 (defcustom rtags-update-current-project-timer-interval .5
   "Interval for update current project timer."
-  :group 'rtags
   :type 'number
   :safe 'numberp)
 
 (defcustom rtags-imenu-syntax-highlighting nil
   "Set to t to enable syntax highlight in rtags-imenu. If rtags-imenu-syntax-highlighting is set to a number this is considered the max number of lines to highlight"
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-wildcard-symbol-names t
   "Allow use of * and ? to match symbol names."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-tracking nil
   "When on automatically jump to symbol under cursor in *RTags* buffer."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-tramp-enabled nil
   "Enable tramp support."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
@@ -387,13 +362,11 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
 ;;
 (defcustom rtags-socket-file ""
   "Socket file to pass to rc."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
 (defcustom rtags-socket-address""
   "Socket address to pass to rc."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
@@ -410,83 +383,68 @@ appropriate format string for `error'. For example,
          \"Unable to connect to the RTags server. See BLAH to start it\")
         (t
          (rtags-error-message-default type))))"
-  :group 'rtags
   :type 'function)
 
 (defcustom rtags-find-file-prompt "Find files"
   "What prompt to use for `rtags-find-file'."
-  :group 'rtags
   :type 'string
   :type 'stringp)
 
 (defcustom rtags-track-container nil
-  "When on continually update current container (function/class/namespace)
-on intervals."
-  :group 'rtags
+  "When on continually update current container (function/class/namespace) on intervals."
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer."
-  :group 'rtags
   :type 'number
   :safe 'numberp)
 
 (defcustom rtags-display-current-error-as-message t
   "Display error under cursor using (message)."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-display-current-error-as-tooltip nil
   "Display error under cursor using `popup-tip' (requires 'popup)."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-display-summary-as-tooltip rtags-popup-available
   "Display help / summary text using `popup-tip' (requires 'popup)."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-tooltips-enabled (and rtags-popup-available t)
   "Display help / summary text when hovering over symbols."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-error-timer-interval .5
   "Interval for minibuffer error timer."
-  :group 'rtags
   :type 'number
   :safe 'numberp)
 
 (defcustom rtags-tracking-timer-interval .5
   "Interval for tracking timer."
-  :group 'rtags
   :type 'number
   :safe 'numberp)
 
 (defcustom rtags-container-timer-interval .5
   "Interval for container timer."
-  :group 'rtags
   :type 'number
   :safe 'numberp)
 
 (defcustom rtags-current-container-hook nil
   "Run after RTags has set the current container."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-is-indexable 'rtags-is-indexable-default
   "defun for determining what files are indexable by rtags."
-  :group 'rtags
   :type 'function)
 
 (defcustom rtags-bury-buffer-function 'rtags-bury-or-delete
   "The function used to bury or kill the current rtags buffer."
-  :group 'rtags
   :type '(radio
           (function-item rtags-bury-or-delete)
           (function-item quit-window)
@@ -495,22 +453,18 @@ on intervals."
 
 (defcustom rtags-after-find-file-hook nil
   "Run after RTags has jumped to a location possibly in a new file."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-mode-hook nil
   "Run when `rtags-mode' is started."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-diagnostics-hook nil
   "Run after diagnostics have been parsed."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-diagnostics-summary-in-mode-line t
   "Display diagnostics count (warnings, errors, fixits) in the mode line"
-  :group 'rtags
   :type 'boolean
   :set (lambda (var val)
          (set var val)
@@ -520,135 +474,112 @@ on intervals."
 
 (defcustom rtags-completions-hook nil
   "Run after completions have been parsed."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-edit-hook nil
   "Run before RTags tries to modify a buffer (from rtags-rename)
 return t if RTags is allowed to modify this file."
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-switch-to-buffer-hook nil
   "Run after RTags has switched to a buffer"
-  :group 'rtags
   :type 'hook)
 
 (defcustom rtags-jump-to-first-match t
   "If t, jump to first match."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-highlight-current-line t
   "If t, highlight the current line in *RTags* buffer."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-timeout nil
   "Max amount of ms to wait before timing out requests."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) integer)
   :safe 'integerp)
 
 (defcustom rtags-rc-binary-name "rc"
   "Name of rc binary file."
-  :group 'rtags
   :type 'string
   :risky t)
 
 (defcustom rtags-rdm-binary-name "rdm"
   "Name of rdm binary file."
-  :group 'rtags
   :type 'string
   :risky t)
 
 (defcustom rtags-path nil
   "Path to RTags executables."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
 
 (defcustom rtags-rc-config-path nil
   "Path to for configuration file for rc."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
 
 (defcustom rtags-install-path nil
   "Path to install rtags using rtags-package-install RTags executables."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) directory)
   :risky t)
 
 (defcustom rtags-max-bookmark-count 100
   "How many bookmarks to keep on the stack."
-  :group 'rtags
   :type 'integer
   :safe 'integerp)
 
 (defcustom rtags-rc-log-enabled nil
   "If t, log rc commands and responses."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-show-containing-function nil
   "If t, pass -o to rc to include containing function."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-enable-unsaved-reparsing nil
   "Whether rtags will reparse unsaved buffers as needed."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-reparse-timeout nil
   "Max number of ms you're willing to wait for a reparse to finish."
-  :group 'rtags
   :type '(choice (const :tag "Unset" nil) integer)
   :safe 'integerp)
 
 (defcustom rtags-find-file-case-insensitive nil
   "Treat files case-insensitively."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-symbolnames-case-insensitive nil
   "Treat symbol names case-insensitively."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-find-file-prefer-exact-match t
   "Jump directly to files that exactly match the filename for `rtags-find-file'."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-other-window-window-size-percentage 30
   "Percentage size of other buffer."
-  :group 'rtags
   :type 'integer)
 
 (defcustom rtags-split-window-function 'split-window
   "Function to split window.  default is `split-window'."
-  :group 'rtags
   :type 'function)
 
 (defcustom rtags-results-buffer-other-window nil
   "Open rtags find results buffer in `other-window'."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-other-window-function #'(lambda () (other-window 1))
   "Function select another window.  default is (`other-window' 1)."
-  :group 'rtags
   :type 'function)
 
 (defcustom rtags-buffer-follows-sandbox-id-match 'ask
@@ -663,7 +594,6 @@ return t if RTags is allowed to modify this file."
 Note: If *RTags Diagnostics* is not running, then the 'match check'
       is not performed, because sandbox tracking is not needed then.
 Note: It is recommended to run each sandbox is separate Emacs process."
-  :group 'rtags
   :type '(choice
           (const :tag "Perform query without update" nil)
           (const :tag "Ask the user" ask)
@@ -672,30 +602,25 @@ Note: It is recommended to run each sandbox is separate Emacs process."
 
 (defcustom rtags-includes-func 'rtags-dummy-includes-func
   "Function to return flags and include flags for rdm."
-  :group 'rtags
   :type 'function)
 
 (defcustom rtags-rdm-includes ""
   "Additional include paths."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
 (defcustom rtags-process-flags ""
   "Flags for rdm."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
 (defcustom rtags-rdm-process-use-pipe nil
   "If t, use pipes to communicate with rdm."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-popup-results-buffer t
   "Popup the *RTags* buffer when more than one search result is obtained."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
@@ -705,13 +630,11 @@ Note: It is recommended to run each sandbox is separate Emacs process."
           (const :tag "RTags (default)" default)
           (const :tag "Helm" helm)
           (const :tag "Ivy" ivy))
-  :group 'rtags
   :type 'symbol
   :risky t)
 
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
   "Argument passed to --kind-filter for `rtags-imenu'."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
@@ -727,14 +650,12 @@ Effected interactive functions:
  - `rtags-find-references-at-point'
  - `rtags-find-all-references-at-point'
  - `rtags-print-class-hierarchy'"
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-use-multiple-cursors nil
   "When non-nil, commands like `rtags-rename-symbol' may use features
 of the package `multiple-cursors', if it is installed."
-  :group 'rtags
   :type 'boolean
   :safe 'booleanp)
 
@@ -742,64 +663,58 @@ of the package `multiple-cursors', if it is installed."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Faces
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defface rtags-path nil "Path" :group 'rtags)
-(defface rtags-context nil "Context" :group 'rtags)
+(defface rtags-path nil "Path")
+(defface rtags-context nil "Context")
 
 (defface rtags-warnline
-  '((((class color) (background light) (supports :underline (:style wave)))
-     :underline (:style wave :color "black")
-     :foreground "black" :background "yellow")
-    (((class color) (background dark) (supports :underline (:style wave)))
-     :underline (:style wave :color "white")
-     :foreground "white" :background "OrangeRed")
-    (t
-     :underline t :inherit error))
-  "Face used for marking error lines."
-  :group 'rtags)
+    '((((class color) (background light) (supports :underline (:style wave)))
+       :underline (:style wave :color "black")
+       :foreground "black" :background "yellow")
+      (((class color) (background dark) (supports :underline (:style wave)))
+       :underline (:style wave :color "white")
+       :foreground "white" :background "OrangeRed")
+      (t
+       :underline t :inherit error))
+  "Face used for marking error lines.")
 
 (defface rtags-errline
-  '((((class color) (background light) (supports :underline (:style wave)))
-     :underline (:style wave :color "red")
-     :foreground "red" :background "yellow")
-    (((class color) (background dark) (supports :underline (:style wave)))
-     :underline (:style wave :color "white")
-     :foreground "white" :background "red")
-    (t
-     :underline t :inherit error))
-  "Face used for marking warning lines."
-  :group 'rtags)
+    '((((class color) (background light) (supports :underline (:style wave)))
+       :underline (:style wave :color "red")
+       :foreground "red" :background "yellow")
+      (((class color) (background dark) (supports :underline (:style wave)))
+       :underline (:style wave :color "white")
+       :foreground "white" :background "red")
+      (t
+       :underline t :inherit error))
+  "Face used for marking warning lines.")
 
 (defface rtags-fixitline
-  '((((class color) (background light) (supports :underline (:style wave)))
-     :underline (:style wave :color "brown")
-     :foreground "brown" :background "yellow" :slant italic)
-    (((class color) (background dark) (supports :underline (:style wave)))
-     :underline (:style wave :color "white")
-     :foreground "white" :background "brown" :slant italic)
-    (t
-     :underline t :inherit error))
-  "Face used for marking fixit lines."
-  :group 'rtags)
+    '((((class color) (background light) (supports :underline (:style wave)))
+       :underline (:style wave :color "brown")
+       :foreground "brown" :background "yellow" :slant italic)
+      (((class color) (background dark) (supports :underline (:style wave)))
+       :underline (:style wave :color "white")
+       :foreground "white" :background "brown" :slant italic)
+      (t
+       :underline t :inherit error))
+  "Face used for marking fixit lines.")
 
 (defface rtags-current-line
-  '((((class color) (background dark)) (:background "gray19"))
-    (((class color) (background light)) (:background "LightGray"))
-    (t (:bold t)))
-  "Face used for highlighting current line."
-  :group 'rtags)
+    '((((class color) (background dark)) (:background "gray19"))
+      (((class color) (background light)) (:background "LightGray"))
+      (t (:bold t)))
+  "Face used for highlighting current line.")
 
 (defface rtags-skippedline
-  '((((class color) (background dark)) (:background "gray12"))
-    (((class color) (background light)) (:background "light gray")))
-  "Face used for marking skipped lines."
-  :group 'rtags)
+    '((((class color) (background dark)) (:background "gray12"))
+      (((class color) (background light)) (:background "light gray")))
+  "Face used for marking skipped lines.")
 
 (defface rtags-argument-face
-  '((((class color) (background dark)) (:background "blue")) ;; e.g. white on blue
-    (((class color) (background light)) (:background "cyan" )) ;; e.g. black on cyan
-    (t (:bold t)))
-  "Face used for marking error lines."
-  :group 'rtags)
+    '((((class color) (background dark)) (:background "blue")) ;; e.g. white on blue
+      (((class color) (background light)) (:background "cyan" )) ;; e.g. black on cyan
+      (t (:bold t)))
+  "Face used for marking error lines.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Logic
@@ -1579,7 +1494,6 @@ It uses the stored compile command from the RTags database for assembling."
 
 (defcustom rtags-completing-read-behavior 'insert-default-marked
   "Behavior for completing-read"
-  :group 'rtags
   :type '(choice
           (const :tag "insert default" insert-default)
           (const :tag "default when empty" helm)
@@ -5411,7 +5325,6 @@ the user enter missing field manually."
 
 (defcustom rtags-install-cmake-args nil
   "Additional arguments to cmake when building rtags with rtags-install."
-  :group 'rtags
   :type 'string
   :safe 'stringp)
 
