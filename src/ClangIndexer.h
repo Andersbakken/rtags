@@ -35,6 +35,23 @@ public:
     ClangIndexer();
     ~ClangIndexer();
 
+    enum State {
+        NotStarted,
+        Stopped,
+        Running
+    };
+
+    static void transition(State state)
+    {
+        std::unique_lock<std::mutex> lock(sStateMutex);
+        sState = state;
+    }
+
+    static State state()
+    {
+        std::unique_lock<std::mutex> lock(sStateMutex);
+        return sState;
+    }
     Path sourceFile() const { return mSourceFile; }
     bool exec(const String &data);
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
@@ -191,6 +208,9 @@ private:
     size_t mInTemplateFunction;
 
     static Flags<Server::Option> sServerOpts;
+
+    static State sState;
+    static std::mutex sStateMutex;
 };
 
 #endif

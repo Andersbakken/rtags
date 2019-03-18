@@ -90,6 +90,9 @@ int main(int argc, char **argv)
     signal(SIGSEGV, sigHandler);
     signal(SIGABRT, sigHandler);
     signal(SIGBUS, sigHandler);
+    signal(SIGALRM, [](int) {
+        ClangIndexer::transition(ClangIndexer::Stopped);
+    });
 
     Flags<LogFlag> logFlags = LogStderr;
     std::shared_ptr<SyslogCloser> closer;
@@ -127,9 +130,14 @@ int main(int argc, char **argv)
         if (!indexer.exec(data)) {
             error() << "ClangIndexer error";
             return 3;
-        } else if (daemon) {
-            printf("@FINISHED@");
-            fflush(stdout);
+        }
+
+        if (daemon) {
+            if (ClangIndexer::state() == ClangIndexer::Running) {
+                printf("@FINISHED@");
+                fflush(stdout);
+            }
+            ClangIndexer::transition(ClangIndexer::NotStarted);
         } else {
             break;
         }

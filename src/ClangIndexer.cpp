@@ -75,6 +75,8 @@ struct VerboseVisitorUserData {
     ClangIndexer *indexer;
 };
 
+ClangIndexer::State ClangIndexer::sState = ClangIndexer::NotStarted;
+std::mutex ClangIndexer::sStateMutex;
 Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer()
     : mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
@@ -97,6 +99,15 @@ ClangIndexer::~ClangIndexer()
 
 bool ClangIndexer::exec(const String &data)
 {
+    {
+        std::unique_lock<std::mutex> lock(sStateMutex);
+        if (sState == Stopped) {
+            sState = NotStarted;
+            return true;
+        }
+        assert(sState == NotStarted);
+        sState = Running;
+    }
     mFromCache = false;
     mTimer.restart();
     mMacroTokens.clear();
@@ -214,6 +225,9 @@ bool ClangIndexer::exec(const String &data)
         return false;
     }
 
+    if (ClangIndexer::state() == Stopped)
+        return true;
+
     Location::init(blockedFiles);
     Location::set(mSourceFile, mSources.front().fileId);
     while (!mConnection->isConnected()) {
@@ -225,6 +239,9 @@ bool ClangIndexer::exec(const String &data)
         }
         usleep(500 * 1000);
     }
+
+    if (ClangIndexer::state() == Stopped)
+        return true;
     // mLogFile = fopen(String::format("/tmp/%s", mSourceFile.fileName()).constData(), "w");
     mIndexDataMessage.setProject(mProject);
     mIndexDataMessage.setIndexerJobFlags(indexerJobFlags);
@@ -234,7 +251,16 @@ bool ClangIndexer::exec(const String &data)
     assert(mConnection->isConnected());
     assert(mSources.front().fileId);
     mIndexDataMessage.files()[mSources.front().fileId] |= IndexDataMessage::Visited;
-    parse() && visit() && diagnose();
+    bool ok = parse();
+    if (ClangIndexer::state() == Stopped)
+        return true;
+    if (ok)
+        ok = visit();
+    if (ClangIndexer::state() == Stopped)
+        return true;
+    if (ok)
+        ok = diagnose();
+
     String message = mSourceFile.toTilde();
     String err;
 
@@ -254,6 +280,8 @@ bool ClangIndexer::exec(const String &data)
     } else {
         writeDuration = sw.elapsed();
     }
+    if (ClangIndexer::state() == Stopped)
+        return true;
     message += String::format<16>(" in %lldms. ", mTimer.elapsed());
     if (mSources.size() > 1) {
         message += String::format("(%zu builds) ", mSources.size());
@@ -307,6 +335,8 @@ bool ClangIndexer::exec(const String &data)
 
     mIndexDataMessage.setMessage(std::move(message));
     sw.restart();
+    if (ClangIndexer::state() == Stopped)
+        return true;
     debug() << "Sending index data message" << mIndexDataMessage.id();
     if (!mConnection->send(mIndexDataMessage)) {
         error() << "Couldn't send IndexDataMessage" << mSourceFile;
@@ -317,6 +347,7 @@ bool ClangIndexer::exec(const String &data)
         error() << "Timed out sending IndexDataMessage" << mSourceFile;
         return false;
     }
+
     if (getenv("RDM_DEBUG_INDEXERMESSAGE"))
         error() << "Send took" << sw.elapsed() << "for" << mSourceFile;
 
@@ -717,6 +748,8 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 
 CXChildVisitResult ClangIndexer::visitorHelper(CXCursor cursor, CXCursor, CXClientData data)
 {
+    if (ClangIndexer::state() == Stopped)
+        return CXChildVisit_Break;
     ClangIndexer *indexer = static_cast<ClangIndexer*>(data);
     const CXChildVisitResult res = indexer->indexVisitor(cursor);
     if (res == CXChildVisit_Recurse)

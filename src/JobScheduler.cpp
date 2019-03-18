@@ -379,9 +379,13 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
         debug() << "Aborting active job" << job->sourceFile << job->sourceFileId() << job->id << job.get();
     }
     if (node->process) {
-        debug() << "Killing process" << node->process;
-        node->process->kill();
-        mDaemons.remove(node->process); // ### this is not ideal
+        if (Server::instance()->options().options & Server::RPDaemon) {
+            debug() << "Killing process with SIGALRM" << node->process;
+            node->process->kill(SIGALRM);
+        } else {
+            debug() << "Killing process" << node->process;
+            node->process->kill();
+        }
         mActiveByProcess.remove(node->process);
     }
 }
