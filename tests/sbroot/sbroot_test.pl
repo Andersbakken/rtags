@@ -264,6 +264,7 @@ sub StartRDM {
     my $cmd = ("$rdm ".
                "--socket-file=$sockFile ".
                "--no-rc ".
+               "--enable-compiler-manager ".
                "--data-dir=$rtagsDir/rtags_db ".
                "--log-file-log-level=debug ".
                "--log-file=$rtagsDir/rdm.log ".
