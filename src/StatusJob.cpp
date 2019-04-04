@@ -270,7 +270,7 @@ int StatusJob::execute()
                                        Location::path(info.first).constData(),
                                        String::formatTime(info.second.lastModifiedMs / 1000).constData(),
                                        static_cast<unsigned long long>(info.second.lastModifiedMs),
-                                       proj->bytesWritten());
+                                       proj->bytesWritten()));
 
         }
         matched = true;
