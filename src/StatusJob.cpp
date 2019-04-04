@@ -266,13 +266,11 @@ int StatusJob::execute()
             }
             write(String::format<1024>("    File: %s\n"
                                        "    Last-Modified: %s (%llu)\n"
-                                       "    Bytes written: %zu\n"
-                                       "    Environment: %s\n",
+                                       "    Bytes written: %zu\n",
                                        Location::path(info.first).constData(),
                                        String::formatTime(info.second.lastModifiedMs / 1000).constData(),
                                        static_cast<unsigned long long>(info.second.lastModifiedMs),
-                                       proj->bytesWritten(),
-                                       String::join(info.second.environment, '\n').constData()));
+                                       proj->bytesWritten());
 
         }
         matched = true;
