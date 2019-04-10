@@ -145,6 +145,13 @@
          (rtags-set-suspend-during-compilation-enabled)))
 
 
+(defcustom rtags-verify-protocol-version t
+  "Set to nil if you don't want to verify the protocol version.
+Note that all sorts of wrong things could happen when running
+with mismatched versions"
+  :type 'boolean
+  :safe 'booleanp)
+
 (defcustom rtags-use-mark-as-current-symbol nil
   "Use mark, when visible as default for rtags-find-symbol."
   :type 'boolean
@@ -1281,7 +1288,8 @@ to only call this when `rtags-socket-address' is defined.
         (setq arguments (mapcar 'rtags-untrampify arguments))
         ;; other way to ignore colors would IMHO be to configure tramp,
         ;; but: do we need colors from rc?
-        (push (format "-t%d" rtags-protocol-version) arguments)
+        (when rtags-verify-protocol-version
+          (push (format "-t%d" rtags-protocol-version) arguments))
         (push "-z" arguments)
         (setq path (rtags-untrampify path))
         (when path-filter
