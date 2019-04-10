@@ -650,7 +650,7 @@ struct No
 bool resolveAuto(const CXCursor &cursor, Auto *a)
 {
     CXType type = clang_getCursorType(cursor);
-    while (type.kind == CXType_Pointer)
+    while (type.kind == CXType_Pointer || type.kind == CXType_LValueReference || type.kind == CXType_RValueReference)
         type = clang_getPointeeType(type);
 
     if (
