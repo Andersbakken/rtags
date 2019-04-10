@@ -164,8 +164,9 @@ void JobScheduler::startJobs()
 
             process->readyReadStdErr().connect([this](Process *proc) {
                 std::shared_ptr<Node> n = mActiveByProcess[proc];
+                String out = proc->readAllStdErr();
                 if (n)
-                    n->stdErr.append(proc->readAllStdErr());
+                    n->stdErr.append(out);
             });
 
             process->readyReadStdOut().connect([this, isDaemon](Process *proc) {
