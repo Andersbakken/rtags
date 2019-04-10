@@ -576,6 +576,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
     SourceList sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
     bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
+    debug() << "Got" << sources.size() << "sources, and" << unresolvedPaths << "from" << arguments;
     size_t idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();
@@ -610,6 +611,8 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             if (!list.contains(source))
                 list.append(source);
             ret = true;
+        } else {
+            debug() << "Shouldn't index" << source;
         }
     }
     return ret;
