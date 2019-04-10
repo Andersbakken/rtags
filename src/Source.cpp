@@ -580,7 +580,7 @@ SourceList Source::parse(const String &cmdLine,
                     language = ObjectiveC;
                 } else if (a == "objective-c++") {
                     language = ObjectiveCPlusPlus;
-                } else if (arg.size() == 2) {
+                } else if (arg.size() > 2) {
                     // intel compiler passes compiler options like SSE this way,
                     // just ignore:
                     // https://software.intel.com/en-us/cpp-compiler-developer-guide-and-reference-x-qx
