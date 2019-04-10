@@ -173,7 +173,8 @@ void JobScheduler::startJobs()
                 (void)isDaemon;
                 std::shared_ptr<Node> n = mActiveByProcess.value(proc);
                 if (!n) {
-                    error() << "Cannot find process in active" << proc->pid() << mDaemons.contains(proc);
+                    debug() << "Cannot find process in active" << proc->pid()
+                            << proc->readAllStdOut();
                     startJobs();
                     return;
                 }
