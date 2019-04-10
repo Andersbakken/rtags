@@ -47,7 +47,7 @@ static inline void setType(Symbol &symbol, const CXType &type)
     const CXType canonical = clang_getCanonicalType(type);
     if (!clang_equalTypes(type, canonical)
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
-        && (symbol.typeName == "auto" || type.kind != CXType_Auto)
+        && (symbol.typeName == "auto" || type.kind == CXType_Auto)
 #endif
         ) {
         symbol.typeName += " => " + RTags::eatString(clang_getTypeSpelling(canonical));
