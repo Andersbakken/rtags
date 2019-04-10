@@ -2591,7 +2591,7 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "I")) 'rtags-imenu)
   (define-key map (kbd (concat prefix "T")) 'rtags-taglist)
   (define-key map (kbd (concat prefix "h")) 'rtags-print-class-hierarchy)
-  (define-key map (kbd (concat prefix "a")) 'rtags-print-source-arguments)
+  (define-key map (kbd (concat prefix "a")) 'rtags-expand-auto)
   (define-key map (kbd (concat prefix "A")) 'rtags-find-functions-called-by-this-function)
   (define-key map (kbd (concat prefix "l")) 'rtags-list-results)
   (define-key map (kbd (concat prefix "Z")) 'rtags-location-stack-visualize))
@@ -5330,6 +5330,16 @@ the user enter missing field manually."
            (switch-to-buffer (process-buffer process)))
           (t nil))))
 
+(defun rtags-expand-auto ()
+  (interactive)
+  (let* ((symbolinfo (rtags-symbol-info-internal))
+         (auto (cdr (assoc 'auto symbolinfo)))
+         (type (and auto (cdr (assoc 'type symbolinfo)))))
+    (when type
+      (save-excursion
+        (when (re-search-backward "\\<auto\\>" nil t)
+          (kill-forward-chars 4)
+          (insert type))))))
 
 (defcustom rtags-install-cmake-args nil
   "Additional arguments to cmake when building rtags with rtags-install."
