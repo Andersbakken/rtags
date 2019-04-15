@@ -5,19 +5,20 @@ DIR="$(dirname $SCRIPT)"
 
 MAJOR=$(echo $1 | awk -F. '{print $1}')
 MINOR=$(echo $1 | awk -F. '{print $2}')
+PROTOCOL=$(echo $1 | awk -F. '{print $3}')
 
-if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+$"; then
+if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
     echo "Bad argument: \"$1\""
-    echo "Usage bump-version.sh 3.22"
+    echo "Usage bump-version.sh 3.22.122"
     exit 1
 fi
 
 JOBS=$(getconf _NPROCESSORS_ONLN)
 
 if [ "$(uname)" == "Darwin" ]; then
-    SED=$(which gsed)
+    SED=$(command -v gsed)
 else
-    SED=$(which sed)
+    SED=$(command -v sed)
 fi
 
 if [ ! -x "$SED" ]; then
@@ -26,13 +27,15 @@ if [ ! -x "$SED" ]; then
 fi
 
 cd $DIR/..
-$SED -i""                                                                       \
-     -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR),"  \
-     -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR),"  \
+$SED -i""                                                                               \
+     -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR),"          \
+     -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR),"          \
+     -e "s,^set(RTAGS_VERSION_DATABASE [0-9]\+),set(RTAGS_VERSION_DATABASE $PROTOCOL)," \
      CMakeLists.txt
 $SED -i""                                                                                                                       \
      -e "s,^(defconst rtags-package-version \"[0-9]\+\.[0-9]\+\"),(defconst rtags-package-version \"${MAJOR}.${MINOR}\"),"      \
-     -e "s,^;; Version: [0-9]\+\.[0-9]\+,;; Version: ${MAJOR}.${MINOR},"                                                        \
+     -e "s,^(defconst rtags-protocol-version [0-9]\+),(defconst rtags-protocol-version ${PROTOCOL}),"                            \
+     -e "s,^;; Version: [0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?,;; Version: ${MAJOR}.${MINOR}.${PROTOCOL},"                              \
      src/rtags.el
 
 echo "Generating manpages"
