@@ -38,13 +38,14 @@ function build_and_test()
     emacs --version
     cmake "$1" "${CMAKE_PARAMS[@]}" .. || cat CMakeFiles/CMakeError.log
     make VERBOSE=1 -j2
-    PATH=$(pwd)/bin:$PATH ctest --output-on-failure --verbose $@
+    shift
+    PATH=$(pwd)/bin:$PATH ctest --output-on-failure --verbose "$@"
     popd >/dev/null
 }
 
 function add_cmake_params()
 {
-    for param in $@; do
+    for param in "$@"; do
         CMAKE_PARAMS[${#CMAKE_PARAMS[@]}]="$param"
     done
 }
@@ -69,8 +70,9 @@ function osx()
     # Help cmake to find openssl includes/library
     add_cmake_params "-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
 
-    build_and_test -DCMAKE_BUILD_TYPE=Release
-    build_and_test -DCMAKE_BUILD_TYPE=Debug
+    # Note sure why the "elisptests" target is generated even though Emacs is to old (Works locally) :/
+    build_and_test -DCMAKE_BUILD_TYPE=Release -E elisp
+    build_and_test -DCMAKE_BUILD_TYPE=Debug -E elisp
 }
 
 function gnu_linux()

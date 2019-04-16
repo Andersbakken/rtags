@@ -262,8 +262,8 @@ if (EMACS_EXECUTABLE)
         set(RTAGS_NO_ELISP_FILES TRUE)
     endif ()
 else ()
-    set(RTAGS_NO_ELISP_FILES TRUE)
     message(STATUS "Emacs was not found, elisp files are not going to be installed!")
+    set(RTAGS_NO_ELISP_FILES TRUE)
 endif ()
 
 set(RTAGS_ELISP_FILES
