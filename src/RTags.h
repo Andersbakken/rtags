@@ -297,8 +297,12 @@ struct DiagnosticsProvider
             clang_disposeString(fn);
             return Location();
         }
-        const Path p = Path::resolved(cstr);
+        bool ok;
+        Path p = Path::resolved(cstr, Path::RealPath, Path(), &ok);
         clang_disposeString(fn);
+        if (!ok) {
+            p.canonicalize();
+        }
         return createLocation(p, line, col, blocked);
     }
     Location createLocation(const CXCursor &cursor, CXCursorKind kind = CXCursor_FirstInvalid, bool *blocked = 0, unsigned *offset = 0);
