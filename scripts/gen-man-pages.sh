@@ -26,9 +26,9 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-SED=$(which sed)
+SED=$(command -v sed)
 if [ "$(uname)" == "Darwin" ]; then
-    SED=$(which gsed)
+    SED=$(command -v gsed)
 fi
 
 if [ ! -x "$SED" ]; then
