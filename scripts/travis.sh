@@ -53,14 +53,11 @@ function add_cmake_params()
 function osx()
 {
     ## Step -- Setup
-    python3 -m pip install --upgrade pip
     pip3 install --user --upgrade nose PyHamcrest
 
     ## Step -- Build
     mkdir -p ~/.local/bin
-    ln -s /usr/local/Cellar/numpy/*/libexec/nose/bin/nosetests-3.6 \
-       ~/.local/bin/nosetests
-    export PYTHONPATH=/usr/local/lib/python3.6/site-packages
+    ln -s /usr/local/Cellar/numpy/*/libexec/nose/bin/nosetests-3.6 ~/.local/bin/nosetests
     export LIBCLANG_LLVM_CONFIG_EXECUTABLE=$(find /usr/local/Cellar/llvm/*/bin -name llvm-config 2>/dev/null)
     # Help cmake to find openssl includes/library
     add_cmake_params "-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
