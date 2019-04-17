@@ -38,6 +38,12 @@ jobs:
       script: ./scripts/travis.sh
       compiler: clang
       env: T=clang-osx
+      addons:
+        homebrew:
+          packages:
+            - llvm
+            - yarn
+            - cppunit
     - stage: Release
       before_deploy: ./scripts/rtags-release.sh
       script: true
