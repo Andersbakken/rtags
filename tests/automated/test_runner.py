@@ -61,6 +61,9 @@ def read_locations(test_dir, lines):
     return [Location(
         os.path.join(test_dir, line[0]), line[1], line[2]) for line in lines]
 
+def read_outputs(lines):
+    """Read output."""
+    return [line for line in lines.split("\n") if len(line) > 0]
 
 class Location(object):
     """Class representing location in file."""
@@ -96,6 +99,7 @@ class TestType(object):
     location = 1
     parse = 2
     completion = 3
+    output = 4
 
 def run_location(test_dir, rc_command, expected):
     """Run location test, and compare with EXPECTED output."""
@@ -121,6 +125,15 @@ def run_completion(test_dir, rc_command, expected):
     for output in outputs:
         assert_that(expected, has_item(output))
 
+def run_output(test_dir, rc_command, expected):
+    """Run output test, and compare with EXPECTED output."""
+    actual_outputs = read_outputs(run_rc([c.format(test_dir) for c in rc_command]))
+    # Compare that we have the same results in length and content
+    assert_that(actual_outputs, has_length(len(expected)))
+    for expected_output_string in expected:
+        expected_output = expected_output_string.format(test_dir)
+        assert_that(actual_outputs, has_item(expected_output))
+
 def run(test_dir, rc_command, expected, test_type):
     """Run test."""
     if test_type == TestType.location:
@@ -129,7 +142,8 @@ def run(test_dir, rc_command, expected, test_type):
         run_parse(test_dir, rc_command, expected)
     elif test_type == TestType.completion:
         run_completion(test_dir, rc_command, expected)
-
+    elif test_type == TestType.output:
+        run_output(test_dir, rc_command, expected)
 
 def setup_rdm(test_dir, test_files):
     """Start rdm and parse the test files."""
@@ -172,6 +186,9 @@ def get_type(test_dir):
 
     if "Completion" in test_dir:
         return TestType.completion
+
+    if "Output" in test_dir:
+        return TestType.output
 
     return TestType.location
 

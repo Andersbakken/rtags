@@ -1,0 +1,5 @@
+[
+    { "name": "print_include_path",
+      "rc-command": [ "--include-path", "{0}/main.cpp:4:5"],
+      "expectation": ["main.cpp -> a.hpp"] }
+]
