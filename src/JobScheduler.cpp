@@ -148,11 +148,13 @@ void JobScheduler::startJobs()
 
         if (!process) {
             process = new Process;
-            if (isDaemon)
-                mDaemons[process] = DaemonData {};
             debug() << "Starting process for" << jobId << jobNode->job->sourceFileId() << jobNode->job.get();
             List<String> arguments;
-            arguments << "--priority" << String::number(jobNode->job->priority());
+            if (isDaemon) {
+                mDaemons[process] = DaemonData {};
+            } else {
+                arguments << "--priority" << String::number(jobNode->job->priority());
+            }
 
             for (int i=logLevel().toInt(); i>0; --i)
                 arguments << "-v";
