@@ -60,6 +60,12 @@ public:
             return *this;
         }
 
+        void clearSources()
+        {
+            lastModifiedMs = 0;
+            sources.clear();
+        }
+
         uint64_t lastModifiedMs;
         Sources sources;
         List<String> environment;

@@ -2593,7 +2593,6 @@ void Server::sourceFileModified(const std::shared_ptr<Project> &project, uint32_
     // error() << Location::path(fileId) << "modified" << (mCompletionThread ? (mCompletionThread->isCached(project, fileId) ? 1 : 0) : -1);
     if (mCompletionThread && mCompletionThread->isCached(project, fileId)) {
         mCompletionThread->reparse(project, fileId);
-
     }
 }
 

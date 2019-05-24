@@ -980,7 +980,7 @@ void Project::onFileAdded(const Path &path)
 
 void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
 {
-    // error() << file.fileName() << mCompileCommandsInfos.dir << file;
+    // error() << file.fileName() << fileId << mIndexParseData.compileCommands.keys();
     if (mIndexParseData.compileCommands.contains(fileId)) {
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
@@ -2543,23 +2543,21 @@ void Project::reloadCompileCommands()
         data.project = mPath;
         data.environment = mIndexParseData.environment;
         bool found = false;
-        auto it = mIndexParseData.compileCommands.begin();
-        while (it != mIndexParseData.compileCommands.end()) {
+
+        for (auto it = mIndexParseData.compileCommands.begin(); it != mIndexParseData.compileCommands.end(); ++it) {
             const Path file = Location::path(it->first);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
                 for (auto src : it->second.sources) {
                     removed[src.first] = it->first;
                 }
-                mIndexParseData.compileCommands.erase(it++);
-                continue;
+                it->second.clearSources();
+            } else {
+                if (lastModified != it->second.lastModifiedMs
+                    && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
+                    found = true;
+                }
             }
-
-            if (lastModified != it->second.lastModifiedMs
-                && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
-                found = true;
-            }
-            ++it;
         }
         removeSources(removed);
         if (found)
