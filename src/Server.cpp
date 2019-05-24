@@ -338,6 +338,8 @@ std::shared_ptr<Project> Server::addProject(const Path &path)
         project.reset(new Project(path));
         if (!project->init()) {
             Path::rmdir(project->projectDataDir());
+            mProjects.erase(path);
+            return std::shared_ptr<Project>();
         }
     }
     return project;
@@ -2132,7 +2134,7 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
     if (project && project->isActiveJob(id)) {
         assert(message->file() == message->file().resolved());
         fileId = Location::insertFile(message->file());
-        visit = project->visitFile(fileId, message->file(), id);
+        visit = project->visitFile(fileId, id);
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);

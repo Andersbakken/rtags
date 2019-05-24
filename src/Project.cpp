@@ -218,9 +218,7 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
         file >> fileId;
         if (!fileId)
             return false;
-        Flags<DependencyNode::Flag> flags;
-        file >> flags;
-        dependencies[fileId] = new DependencyNode(fileId, flags);
+        dependencies[fileId] = new DependencyNode(fileId);
     }
     for (int i=0; i<size; ++i) {
         int links;
@@ -250,7 +248,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 {
     file << static_cast<int>(dependencies.size());
     for (const auto &it : dependencies) {
-        file << it.first << it.second->flags;
+        file << it.first;
     }
     for (const auto &it : dependencies) {
         file << static_cast<int>(it.second->dependents.size());
@@ -349,10 +347,12 @@ bool Project::init()
 
     String err;
     if (!Project::readSources(mSourcesFilePath, mIndexParseData, &err)) {
-        if (!err.isEmpty())
+        if (!err.isEmpty()) {
             error("Sources restore error %s: %s", mPath.constData(), err.constData());
+            return false;
+        }
 
-        return false;
+        return true;
     }
 
     auto reindexAll = [this]() {
@@ -381,7 +381,6 @@ bool Project::init()
     {
         std::lock_guard<std::mutex> lock(mMutex);
         file >> mVisitedFiles;
-        Sandbox::decode(mVisitedFiles);
     }
     file >> mDiagnostics;
     for (const auto &info : mIndexParseData.compileCommands)
@@ -815,7 +814,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
-    updateDependencies(fileId, msg, job->unsavedFiles);
+    updateDependencies(fileId, msg);
     if (success) {
         forEachSources([&msg, fileId](Sources &sources) -> VisitResult {
                 // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
@@ -912,11 +911,7 @@ bool Project::save()
         }
         {
             std::lock_guard<std::mutex> lock(mMutex);
-            if (Sandbox::hasRoot()) {
-                file << Sandbox::encoded(mVisitedFiles);
-            } else {
-                file << mVisitedFiles;
-            }
+            file << mVisitedFiles;
         }
         file << mDiagnostics;
         saveDependencies(file, mDependencies);
@@ -1104,12 +1099,11 @@ void Project::removeDependencies(uint32_t fileId)
     }
 }
 
-void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg, const UnsavedFiles &unsavedFiles)
+void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg)
 {
     static_cast<void>(fileId);
     const bool prune = !(msg->flags() & IndexDataMessage::ParseFailure);
     // error() << "updateDependencies" << Location::path(fileId) << prune;
-    Set<uint32_t> includeErrors, dirty;
     for (auto pair : msg->files()) {
         assert(pair.first);
         DependencyNode *&node = mDependencies[pair.first];
@@ -1118,32 +1112,13 @@ void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDat
             node = new DependencyNode(pair.first);
         }
 
-        if (pair.second & IndexDataMessage::Visited) {
-            if (pair.second & IndexDataMessage::IncludeError) {
-                node->flags |= DependencyNode::Flag_IncludeError;
-                includeErrors.insert(pair.first);
-                // error() << "got include error for" << Location::path(pair.first);
-            } else if (node->flags & DependencyNode::Flag_IncludeError) {
-                // error() << "used to have include error for" << Location::path(pair.first) << node->includes.size();
-                node->flags &= ~DependencyNode::Flag_IncludeError;
-                dirty.insert(pair.first);
-                // for (auto dep : node->includes) {
-                //     dirty.insert(dep.first);
-                //     // error() << "dirty" << Location::path(dep.first);
-                // }
-                for (auto dep : node->dependents) {
-                    dirty.insert(dep.first);
-                    // error() << "dirty" << Location::path(dep.first);
-                }
+        if (pair.second & IndexDataMessage::Visited && prune) {
+            for (auto it : node->includes) {
+                it.second->dependents.remove(pair.first);
+                // error() << "removing" << Location::path(pair.first) << "from" << Location::path(it.first);
             }
-            if (prune) {
-                for (auto it : node->includes) {
-                    it.second->dependents.remove(pair.first);
-                    // error() << "removing" << Location::path(pair.first) << "from" << Location::path(it.first);
-                }
-                // error() << "Removing all includes for" << Location::path(pair.first) << node->includes.size();
-                node->includes.clear();
-            }
+            // error() << "Removing all includes for" << Location::path(pair.first) << node->includes.size();
+            node->includes.clear();
         }
         watchFile(pair.first);
     }
@@ -1162,22 +1137,6 @@ void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDat
         includer->include(inclusiary);
     }
 
-    if (!includeErrors.isEmpty()) {
-        // error() << "releasing files";
-        // for (uint32_t f : includeErrors) {
-        //     error() << Location::path(f);
-        // }
-        releaseFileIds(includeErrors);
-    }
-    if (!dirty.isEmpty()) {
-        // error() << "dirtying";
-        // for (uint32_t f : dirty) {
-        //     error() << Location::path(f);
-        // }
-        SimpleDirty simple;
-        simple.init(shared_from_this(), dirty);
-        startDirtyJobs(&simple, IndexerJob::Dirty, unsavedFiles);
-    }
     // for (auto node : mDependencies) {
     //     for (auto inc : node.second->includes) {
     //         if (!inc.second->dependents.contains(node.first)) {
@@ -2969,8 +2928,8 @@ Set<Symbol> Project::findDeadFunctions(uint32_t fileId)
     };
     if (!fileId) {
         Set<String> seenUsrs;
-        for (const auto &file : mVisitedFiles) {
-            processFile(file.first, &seenUsrs);
+        for (uint32_t id : mVisitedFiles) {
+            processFile(id, &seenUsrs);
         }
     } else {
         processFile(fileId);
