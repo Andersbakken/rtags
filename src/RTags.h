@@ -152,14 +152,11 @@ RCT_FLAGS(CXTranslationUnit_Flags);
 
 struct TranslationUnit {
     TranslationUnit()
-        : index(0), unit(0)
+        : index(nullptr), unit(nullptr)
     {}
     ~TranslationUnit()
     {
-        if (unit)
-            clang_disposeTranslationUnit(unit);
-        if (index)
-            clang_disposeIndex(index);
+        clear();
     }
     static void visit(CXCursor c, std::function<CXChildVisitResult(CXCursor)> func)
     {
@@ -170,6 +167,18 @@ struct TranslationUnit {
     void visit(std::function<CXChildVisitResult(CXCursor)> func)
     {
         visit(cursor(), func);
+    }
+
+    void clear()
+    {
+        if (unit) {
+            clang_disposeTranslationUnit(unit);
+            unit = nullptr;
+        }
+        if (index) {
+            clang_disposeIndex(index);
+            index = nullptr;
+        }
     }
 
     CXCursor cursor() const { return clang_getTranslationUnitCursor(unit); }
