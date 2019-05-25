@@ -772,7 +772,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     assert(((job->flags & (IndexerJob::Complete|IndexerJob::Crashed)) == IndexerJob::Complete)
            || ((job->flags & (IndexerJob::Complete|IndexerJob::Crashed)) == IndexerJob::Crashed));
     const auto &options = Server::instance()->options();
-    if (!success) {
+    if (!success || msg->flags() & IndexDataMessage::ParseFailure) {
         releaseFileIds(job->visited);
     }
 
