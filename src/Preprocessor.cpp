@@ -46,6 +46,13 @@ Preprocessor::Preprocessor(Mode mode, const Source &source, const std::shared_pt
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));
 }
 
+Preprocessor::~Preprocessor()
+{
+    if (mProcess && mProcess->returnCode() == Process::ReturnUnset) {
+        mProcess->kill();
+    }
+}
+
 void Preprocessor::preprocess()
 {
     mProcess->start(mSource.compiler(), mArgs);
@@ -63,3 +70,4 @@ void Preprocessor::onProcessFinished()
     mConnection->finish();
     EventLoop::deleteLater(this);
 }
+

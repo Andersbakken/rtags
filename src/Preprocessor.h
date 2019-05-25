@@ -28,6 +28,7 @@ public:
     enum Mode { Preprocess, Asm };
 
     Preprocessor(Mode mode, const Source &source, const std::shared_ptr<Connection> &connection);
+    ~Preprocessor();
 
     void preprocess();
 private:
