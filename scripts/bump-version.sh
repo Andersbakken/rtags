@@ -47,7 +47,7 @@ if [ ! -d build ]; then
     mkdir build
 fi
 cd build
-cmake ..
+cmake -G "Unix Makefiles" ..
 make man -j$JOBS
 cd ..
 
