@@ -15,7 +15,20 @@ jobs:
     - os: linux
       compiler: g++
       dist: trusty
-      env: T=g++-linux COMPILER_VERSION=-7
+      env: T=g++-linux COMPILER_VERSION=-7 CMAKE_BUILD_TYPE=Debug
+      script: ./scripts/travis.sh
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+            - python3-pip
+            - libcppunit-dev
+    - os: linux
+      compiler: g++
+      dist: trusty
+      env: T=g++-linux COMPILER_VERSION=-7 CMAKE_BUILD_TYPE=Release
       script: ./scripts/travis.sh
       addons:
         apt:
@@ -28,7 +41,17 @@ jobs:
     - os: osx
       script: ./scripts/travis.sh
       compiler: clang
-      env: T=clang-osx
+      env: T=clang-osx CMAKE_BUILD_TYPE=Debug
+      addons:
+        homebrew:
+          packages:
+            - llvm
+            - yarn
+            - cppunit
+    - os: osx
+      script: ./scripts/travis.sh
+      compiler: clang
+      env: T=clang-osx CMAKE_BUILD_TYPE=Release
       addons:
         homebrew:
           packages:

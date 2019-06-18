@@ -63,8 +63,7 @@ function osx()
     add_cmake_params "-DOPENSSL_ROOT_DIR=/usr/local/opt/openssl"
 
     # Note sure why the "elisptests" target is generated even though Emacs is to old (Works locally) :/
-    build_and_test -DCMAKE_BUILD_TYPE=Release -E elisp
-    build_and_test -DCMAKE_BUILD_TYPE=Debug -E elisp
+    build_and_test -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -E elisp
 }
 
 function gnu_linux()
@@ -72,8 +71,7 @@ function gnu_linux()
     ## Step -- Setup
     pip3 install --user --upgrade nose PyHamcrest
 
-    build_and_test -DCMAKE_BUILD_TYPE=Release
-    build_and_test -DCMAKE_BUILD_TYPE=Debug
+    build_and_test -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 }
 
 if [ $TRAVIS_OS_NAME = osx ]; then
