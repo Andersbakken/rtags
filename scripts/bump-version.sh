@@ -7,12 +7,6 @@ MAJOR=$(echo $1 | awk -F. '{print $1}')
 MINOR=$(echo $1 | awk -F. '{print $2}')
 PROTOCOL=$(echo $1 | awk -F. '{print $3}')
 
-if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
-    echo "Bad argument: \"$1\""
-    echo "Usage bump-version.sh 3.22.122"
-    exit 1
-fi
-
 JOBS=$(getconf _NPROCESSORS_ONLN)
 
 if [ "$(uname)" == "Darwin" ]; then
@@ -27,6 +21,16 @@ if [ ! -x "$SED" ]; then
 fi
 
 cd $DIR/..
+
+if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
+    echo "Bad argument: \"$1\""
+    CURRENT_MAJOR=$(grep -o "^set(RTAGS_VERSION_MAJOR [0-9]*" CMakeLists.txt | awk '{print $2}')
+    CURRENT_MINOR=$(grep -o "^set(RTAGS_VERSION_MINOR [0-9]*" CMakeLists.txt | awk '{print $2}')
+    CURRENT_DATABASE=$(grep -o "^set(RTAGS_VERSION_DATABASE [0-9]*" CMakeLists.txt | awk '{print $2}')
+    echo "Usage bump-version.sh ${CURRENT_MAJOR}.${CURRENT_MINOR}.${CURRENT_DATABASE}"
+    exit 1
+fi
+
 $SED -i""                                                                               \
      -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR),"          \
      -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR),"          \
