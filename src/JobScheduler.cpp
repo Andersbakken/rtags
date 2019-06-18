@@ -93,7 +93,21 @@ void JobScheduler::startJobs()
         jobNode = tmp;
     };
 
-    const bool isDaemon = options.options & Server::RPDaemon;
+    bool isDaemon = options.options & Server::RPDaemon;
+    if (isDaemon && mPendingJobs.size() > options.jobCount - mActiveByProcess.size()) {
+        auto it = mDaemons.begin();
+        while (it != mDaemons.end()) {
+            if (mActiveByProcess.find(it->first) == mActiveByProcess.end()) {
+                it->first->kill();
+                mDaemons.erase(it++);
+            } else {
+                ++it;
+            }
+        }
+        if (mPendingJobs.size() > options.jobCount)
+            isDaemon = false;
+    }
+    debug() << "startJobs" << isDaemon << "pending" << mPendingJobs.size() << "active" << mActiveByProcess.size();
     while (mActiveByProcess.size() < options.jobCount && jobNode) {
         assert(jobNode);
         assert(jobNode->job);
@@ -116,7 +130,6 @@ void JobScheduler::startJobs()
             break;
         }
 
-
         const uint64_t jobId = jobNode->job->id;
         Process *process = nullptr;
         DaemonData *daemonData = nullptr;
@@ -125,20 +138,22 @@ void JobScheduler::startJobs()
             return Flags<IndexerJob::Flag>(f & (IndexerJob::EditorActive|IndexerJob::EditorOpen)).cast();
         };
 
-        for (auto &daemon : mDaemons) {
-            if (daemon.second.cache == jobNode->job->sources) {
-                process = daemon.first;
-                daemonData = nullptr;
-                break;
-            }
-            if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) != mActiveByProcess.end())
-                continue; // we'll just make a new daemon, we're not at capacity
+        if (isDaemon) {
+            for (auto &daemon : mDaemons) {
+                if (daemon.second.cache == jobNode->job->sources) {
+                    process = daemon.first;
+                    daemonData = nullptr;
+                    break;
+                }
+                if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) != mActiveByProcess.end())
+                    continue; // we'll just make a new daemon, we're not at capacity
 
-            const int dscore = score(daemon.second.flags);
-            if (!daemonData || dscore < daemonDataScore || (dscore == daemonDataScore && daemon.second.touched < daemonData->touched)) {
-                process = daemon.first;
-                daemonData = &daemon.second;
-                daemonDataScore = dscore;
+                const int dscore = score(daemon.second.flags);
+                if (!daemonData || dscore < daemonDataScore || (dscore == daemonDataScore && daemon.second.touched < daemonData->touched)) {
+                    process = daemon.first;
+                    daemonData = &daemon.second;
+                    daemonDataScore = dscore;
+                }
             }
         }
         if (daemonData && jobNode->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen)) {
