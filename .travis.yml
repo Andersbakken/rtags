@@ -12,6 +12,26 @@ branches:
 
 jobs:
   include:
+    - os: osx
+      script: ./scripts/travis.sh
+      compiler: clang
+      env: T=clang-osx CMAKE_BUILD_TYPE=Debug
+      addons:
+        homebrew:
+          packages:
+            - llvm
+            - yarn
+            - cppunit
+    - os: osx
+      script: ./scripts/travis.sh
+      compiler: clang
+      env: T=clang-osx CMAKE_BUILD_TYPE=Release
+      addons:
+        homebrew:
+          packages:
+            - llvm
+            - yarn
+            - cppunit
     - os: linux
       compiler: g++
       dist: trusty
@@ -38,26 +58,6 @@ jobs:
             - g++-7
             - python3-pip
             - libcppunit-dev
-    - os: osx
-      script: ./scripts/travis.sh
-      compiler: clang
-      env: T=clang-osx CMAKE_BUILD_TYPE=Debug
-      addons:
-        homebrew:
-          packages:
-            - llvm
-            - yarn
-            - cppunit
-    - os: osx
-      script: ./scripts/travis.sh
-      compiler: clang
-      env: T=clang-osx CMAKE_BUILD_TYPE=Release
-      addons:
-        homebrew:
-          packages:
-            - llvm
-            - yarn
-            - cppunit
     - stage: Release
       before_deploy: ./scripts/rtags-release.sh
       script: true
