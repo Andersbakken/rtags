@@ -202,7 +202,10 @@ bool Server::init(const Options &options)
     }
 
     mJobScheduler.reset(new JobScheduler);
-    mJobScheduler->setActiveJobs(mOptions.jobCount);
+    if (!mJobScheduler->start()) {
+        error() << "Failed to start job scheduler";
+        return false;
+    }
 
     if (!load())
         return false;

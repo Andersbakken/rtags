@@ -32,7 +32,11 @@ struct Unit;
 class ClangIndexer : public RTags::DiagnosticsProvider
 {
 public:
-    ClangIndexer();
+    enum Mode {
+        Normal,
+        Daemon
+    };
+    ClangIndexer(Mode mode);
     ~ClangIndexer();
 
     enum State {
@@ -161,6 +165,7 @@ private:
 
     Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
 
+    const Mode mMode;
     Path mProject;
     SourceList mSources, mCachedSources;
     Path mSourceFile;

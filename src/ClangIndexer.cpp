@@ -78,8 +78,8 @@ struct VerboseVisitorUserData {
 ClangIndexer::State ClangIndexer::sState = ClangIndexer::NotStarted;
 std::mutex ClangIndexer::sStateMutex;
 Flags<Server::Option> ClangIndexer::sServerOpts;
-ClangIndexer::ClangIndexer()
-    : mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
+ClangIndexer::ClangIndexer(Mode mode)
+    : mMode(mode), mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
       mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
@@ -1945,9 +1945,7 @@ bool ClangIndexer::parse()
 
     Flags<CXTranslationUnit_Flags> flags = CXTranslationUnit_DetailedPreprocessingRecord;
 
-    if (sServerOpts & Server::RPDaemon
-        && (mIndexDataMessage.indexerJobFlags() & (IndexerJob::EditorActive|IndexerJob::EditorOpen)
-            || mCachedTranslationUnits.isEmpty())) {
+    if (mMode == Daemon) {
         flags |= CXTranslationUnit_PrecompiledPreamble;
         flags |= CXTranslationUnit_ForSerialization;
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 32)
@@ -2037,10 +2035,7 @@ bool ClangIndexer::parse()
             mIndexDataMessage.setFlag(IndexDataMessage::ParseFailure);
         }
     }
-    if (sServerOpts & Server::RPDaemon
-        && (mIndexDataMessage.indexerJobFlags() & (IndexerJob::EditorActive|IndexerJob::EditorOpen)
-            || mCachedTranslationUnits.isEmpty())) {
-        // only overwrite cache with active/open compiles
+    if (mMode == Daemon) {
         if (ok) {
             mCachedSources = mSources;
             mCachedTranslationUnits = mTranslationUnits;

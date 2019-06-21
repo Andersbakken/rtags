@@ -257,7 +257,7 @@ int main(int argc, char** argv)
     serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
     serverOpts.errorLimit = DEFAULT_ERROR_LIMIT;
     serverOpts.rpNiceValue = INT_MIN;
-    serverOpts.options = Server::Wall|Server::SpellChecking|Server::CompletionDiagnostics|Server::RPDaemon;
+    serverOpts.options = Server::Wall|Server::SpellChecking|Server::CompletionDiagnostics;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
@@ -338,7 +338,7 @@ int main(int argc, char** argv)
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
         { CompletionDiagnostics, "completion-diagnostics", 0, CommandLineParser::Optional, "Send diagnostics from completion thread." },
-        { RPDaemon, "rp-daemon", 0, CommandLineParser::Optional, "Keep rp's alive as daemons and cache the last tu. Default to true" },
+        { RPDaemon, "rp-daemon", 0, CommandLineParser::Required, "Keep this many rp daemons alive and cache the last tu. Default to 1" },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
@@ -561,11 +561,13 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::RPLogToSyslog;
             break; }
         case RPDaemon: {
-            if (value == "false" || value == "0") {
-                serverOpts.options &= ~Server::RPDaemon;
-            } else {
-                serverOpts.options |= Server::RPDaemon;
+            serverOpts.daemonCount = atoi(value.constData());
+            if (!serverOpts.daemonCount && value != "0")
+                serverOpts.daemonCount = -1;
+            if (serverOpts.daemonCount < 0) {
+                return { String::format<1024>("Invalid argument to --rp-daemon %s", value.constData()), CommandLineParser::Parse_Error };
             }
+
             break; }
         case StartSuspended: {
             serverOpts.options |= Server::StartSuspended;

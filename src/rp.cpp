@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     RTags::initMessages();
     auto eventLoop = std::make_shared<EventLoop>();
     eventLoop->init(EventLoop::MainEventLoop);
-    ClangIndexer indexer;
+    ClangIndexer indexer(daemon ? ClangIndexer::Daemon : ClangIndexer::Normal);
     while (true) {
         String data;
 

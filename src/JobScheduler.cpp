@@ -25,12 +25,13 @@
 enum { MaxPriority = 10 };
 // we set the priority to be this when a job has been requested and we couldn't load it
 JobScheduler::JobScheduler()
-    : mProcrastination(0)
+    : mProcrastination(0), mStopped(false)
 {
 }
 
 JobScheduler::~JobScheduler()
 {
+    mStopped = true;
     mPendingJobs.deleteAll();
     for (const auto &job : mActiveByProcess) {
         mDaemons.erase(job.first);
@@ -44,20 +45,40 @@ JobScheduler::~JobScheduler()
     }
 }
 
-void JobScheduler::setActiveJobs(size_t active)
+bool JobScheduler::start()
 {
-    assert(active > 0);
-    const bool daemon = Server::instance()->options().options & Server::RPDaemon;
-    if (daemon) {
-        while (mDaemons.size() > active)
-            mDaemons.erase(mDaemons.begin());
+    return initDaemons();
+}
+
+bool JobScheduler::initDaemons()
+{
+    const auto &options = Server::instance()->options();
+    assert(mDaemons.size() <= static_cast<size_t>(options.daemonCount));
+    const int needed = options.daemonCount - static_cast<int>(mDaemons.size());
+    for (int i=0; i<needed; ++i) {
+        Process *process = new Process;
+        connectProcess(process);
+        debug() << "Starting daemon" << i << process;
+        List<String> arguments;
+        for (int l=logLevel().toInt(); l>0; --l)
+            arguments << "-v";
+        arguments << "--daemon";
+        if (options.options & Server::RPLogToSyslog)
+            arguments << "--log-to-syslog";
+        if (!process->start(options.rp, arguments)) {
+            error() << "Couldn't start rp" << options.rp << process->errorString();
+            delete process;
+            return false;
+        }
+        mDaemons[process] = {};
     }
+    return true;
 }
 
 void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
 {
     assert(!(job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
-    std::shared_ptr<Node> node(new Node({ 0, job, 0, 0, 0, String(), String() }));
+    std::shared_ptr<Node> node(new Node);
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
     if (mPendingJobs.isEmpty() || job->priority() > mPendingJobs.first()->job->priority()) {
@@ -86,211 +107,96 @@ void JobScheduler::startJobs()
         return;
     }
     const auto &options = server->options();
-    std::shared_ptr<Node> jobNode = mPendingJobs.first();
-    auto cont = [&jobNode, this]() {
-        auto tmp = jobNode->next;
-        mPendingJobs.remove(jobNode);
-        jobNode = tmp;
-    };
+    int slots = std::max<int>(0, options.jobCount - mActiveByProcess.size());
+    int daemonSlots = std::max<int>(0, options.daemonCount - mActiveDaemonsByProcess.size());
 
-    bool isDaemon = options.options & Server::RPDaemon;
-    if (isDaemon && mPendingJobs.size() > options.jobCount - mActiveByProcess.size()) {
-        auto it = mDaemons.begin();
-        while (it != mDaemons.end()) {
-            if (mActiveByProcess.find(it->first) == mActiveByProcess.end()) {
-                it->first->kill();
-                mDaemons.erase(it++);
-            } else {
-                ++it;
-            }
-        }
-        if (mPendingJobs.size() > options.jobCount)
-            isDaemon = false;
-    }
-    debug() << "startJobs" << isDaemon << "pending" << mPendingJobs.size() << "active" << mActiveByProcess.size();
-    while (mActiveByProcess.size() < options.jobCount && jobNode) {
-        assert(jobNode);
-        assert(jobNode->job);
-        assert(!(jobNode->job->flags & (IndexerJob::Running|IndexerJob::Complete|IndexerJob::Crashed|IndexerJob::Aborted)));
-        std::shared_ptr<Project> project = Server::instance()->project(jobNode->job->project);
-        if (!project) {
-            cont();
-            debug() << jobNode->job->sourceFile << "doesn't have a project, discarding";
-            continue;
-        }
+    std::shared_ptr<Node> node = mPendingJobs.first();
+    while (node && (slots || daemonSlots)) {
+        const Server::ActiveBufferType type = Server::instance()->activeBufferType(node->job->sourceFileId());
+        if (daemonSlots && type == Server::Active) {
+            auto cand = mDaemons.end();
+            bool cacheHit = false;
+            for (auto it = mDaemons.begin(); it != mDaemons.end(); ++it) {
+                if (mActiveDaemonsByProcess.contains(it->first))
+                    continue;
 
-        switch (Server::instance()->activeBufferType(jobNode->job->sourceFileId())) {
-        case Server::Active:
-            jobNode->job->flags |= IndexerJob::EditorActive;
-            break;
-        case Server::Open:
-            jobNode->job->flags |= IndexerJob::EditorOpen;
-            break;
-        case Server::Inactive:
-            break;
-        }
-
-        const uint64_t jobId = jobNode->job->id;
-        Process *process = nullptr;
-        DaemonData *daemonData = nullptr;
-        int daemonDataScore = -1;
-        auto score = [](Flags<IndexerJob::Flag> f) -> int {
-            return Flags<IndexerJob::Flag>(f & (IndexerJob::EditorActive|IndexerJob::EditorOpen)).cast();
-        };
-
-        if (isDaemon) {
-            for (auto &daemon : mDaemons) {
-                if (daemon.second.cache == jobNode->job->sources) {
-                    process = daemon.first;
-                    daemonData = nullptr;
+                if (node->job->sources == it->second.cache) {
+                    cand = it;
+                    cacheHit = true;
                     break;
-                }
-                if (mDaemons.size() < options.jobCount || mActiveByProcess.find(daemon.first) != mActiveByProcess.end())
-                    continue; // we'll just make a new daemon, we're not at capacity
-
-                const int dscore = score(daemon.second.flags);
-                if (!daemonData || dscore < daemonDataScore || (dscore == daemonDataScore && daemon.second.touched < daemonData->touched)) {
-                    process = daemon.first;
-                    daemonData = &daemon.second;
-                    daemonDataScore = dscore;
+                } else if (cand == mDaemons.end() || cand->second.touched > it->second.touched) {
+                    cand = it;
                 }
             }
+            if (cand != mDaemons.end()) {
+                if (!cacheHit) {
+                    cand->second.touched = 0;
+                    cand->second.cache.clear();
+                }
+                node->process = cand->first;
+                assert(!(node->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
+                node->job->flags |= IndexerJob::Running|IndexerJob::EditorActive;
+                node->daemon = true;
+                cand->first->write(node->job->encode());
+                node->started = Rct::monoMs();
+                mActiveDaemonsByProcess[cand->first] = node;
+                mInactiveById.remove(node->job->id);
+                mActiveById[node->job->id] = node;
+                --daemonSlots;
+                std::shared_ptr<Node> tmp = node;
+                node = node->next;
+                mPendingJobs.remove(tmp);
+                continue;
+            }
         }
-        if (daemonData && jobNode->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen)) {
-            daemonData->cache.clear();
-            daemonData->touched = 0;
-        }
-
-        if (!process) {
-            process = new Process;
-            debug() << "Starting process for" << jobId << jobNode->job->sourceFileId() << jobNode->job.get();
+        if (slots) {
+            Process *process = new Process;
+            debug() << "Starting process for" << node->job->id << node->job->sourceFileId() << node->job.get();
             List<String> arguments;
-            if (isDaemon) {
-                mDaemons[process] = DaemonData {};
-            } else {
-                arguments << "--priority" << String::number(jobNode->job->priority());
-            }
-
+            arguments << "--priority" << String::number(node->job->priority());
             for (int i=logLevel().toInt(); i>0; --i)
                 arguments << "-v";
-
-            if (isDaemon)
-                arguments << "--daemon";
             if (options.options & Server::RPLogToSyslog)
                 arguments << "--log-to-syslog";
 
-            process->readyReadStdErr().connect([this](Process *proc) {
-                std::shared_ptr<Node> n = mActiveByProcess[proc];
-                String out = proc->readAllStdErr();
-                if (n)
-                    n->stdErr.append(out);
-            });
+            connectProcess(process);
 
-            process->readyReadStdOut().connect([this, isDaemon](Process *proc) {
-                (void)isDaemon;
-                std::shared_ptr<Node> n = mActiveByProcess.value(proc);
-                if (!n) {
-                    debug() << "Cannot find process in active" << proc->pid()
-                            << proc->readAllStdOut();
-                    startJobs();
-                    return;
-                }
-                n->stdOut.append(proc->readAllStdOut());
-
-                {
-                    std::regex rx("@CRASH@([^@]*)@CRASH@");
-                    std::smatch match;
-                    while (std::regex_search(n->stdOut.ref(), match, rx)) {
-                        error() << match[1].str();
-                        n->stdOut.remove(match.position(), match.length());
-                    }
-                }
-                {
-                    const size_t idx = n->stdOut.indexOf("@FINISHED@");
-                    if (idx != String::npos) {
-                        assert(isDaemon);
-                        mActiveByProcess.remove(proc);
-                        assert(!n || n->process == proc);
-                        if (idx > 0 || !n->stdErr.isEmpty()) {
-                            error() << ("Output from " + n->job->sourceFile + ":")
-                                    << '\n' << n->stdErr << n->stdOut.mid(0, idx);
-                        }
-
-                        n->stdOut.remove(0, idx + 10);
-                        n->stdErr.clear();
-
-                        assert(mDaemons.contains(n->process));
-                        assert(n->process == proc);
-                        n->process = 0;
-                        assert(!(n->job->flags & IndexerJob::Aborted));
-                        auto it = mDaemons.find(proc);
-                        if (it == mDaemons.end()) {
-                            proc->closeStdIn();
-                        } else if (n->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen) || !it->second.touched) {
-                            it->second.cache = n->job->sources;
-                            it->second.touched = Rct::monoMs();
-                            it->second.flags = n->job->flags & (IndexerJob::EditorActive|IndexerJob::EditorOpen);
-                        }
-
-                        startJobs();
-                    }
-                }
-            });
+            switch (type) {
+            case Server::Active:
+                node->job->flags |= IndexerJob::EditorActive;
+                break;
+            case Server::Open:
+                node->job->flags |= IndexerJob::EditorOpen;
+                break;
+            case Server::Inactive:
+                break;
+            }
 
             if (!process->start(options.rp, arguments)) {
                 error() << "Couldn't start rp" << options.rp << process->errorString();
                 delete process;
-                if (isDaemon)
-                    mDaemons.erase(process);
-                jobNode->job->flags |= IndexerJob::Crashed;
-                debug() << "job crashed (didn't start)" << jobId << jobNode->job->sourceFileId() << jobNode->job.get();
-                auto msg = std::make_shared<IndexDataMessage>(jobNode->job);
+                node->job->flags |= IndexerJob::Crashed;
+                debug() << "job crashed (didn't start)" << node->job->id << node->job->sourceFileId() << node->job.get();
+                auto msg = std::make_shared<IndexDataMessage>(node->job);
                 msg->setFlag(IndexDataMessage::ParseFailure);
-                jobFinished(jobNode->job, msg);
-                cont();
-                continue;
+                jobFinished(node->job, msg);
+            } else {
+                node->process = process;
+                assert(!(node->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
+                node->job->flags |= IndexerJob::Running;
+                process->write(node->job->encode());
+                node->started = Rct::monoMs();
+                mActiveByProcess[process] = node;
+                mActiveById[node->job->id] = node;
+                --slots;
             }
-            const int pid = process->pid();
-            process->finished().connect([this, options, pid, isDaemon](Process *proc) {
-                if (isDaemon)
-                    mDaemons.erase(proc);
-                EventLoop::deleteLater(proc);
-                auto n = mActiveByProcess.take(proc);
-                assert(!n || n->process == proc);
-                if (n && (!n->stdOut.isEmpty() || !n->stdErr.isEmpty())) {
-                    error() << "Finish output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
-                }
-                Path::rmdir(options.tempDir + String::number(pid));
-
-                if (n) {
-                    assert(n->process == proc);
-                    n->process = 0;
-                    assert(!(n->job->flags & IndexerJob::Aborted));
-                    if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
-                        auto nodeById = mActiveById.take(n->job->id);
-                        assert(nodeById);
-                        assert(nodeById == n);
-                        // job failed, probably no IndexDataMessage coming
-                        n->job->flags |= IndexerJob::Crashed;
-                        debug() << "job crashed" << n->job->id << n->job->sourceFileId() << n->job.get();
-                        auto msg = std::make_shared<IndexDataMessage>(n->job);
-                        msg->setFlag(IndexDataMessage::ParseFailure);
-                        jobFinished(n->job, msg);
-                    }
-                }
-                startJobs();
-            });
+            mInactiveById.remove(node->job->id);
+            std::shared_ptr<Node> tmp = node;
+            node = node->next;
+            mPendingJobs.remove(tmp);
+        } else {
+            node = node->next;
         }
-
-        jobNode->process = process;
-        assert(!(jobNode->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
-        jobNode->job->flags |= IndexerJob::Running;
-        process->write(jobNode->job->encode());
-        jobNode->started = Rct::monoMs();
-        mActiveByProcess[process] = jobNode;
-        mInactiveById.remove(jobId);
-        mActiveById[jobId] = jobNode;
-        cont();
     }
 }
 
@@ -339,8 +245,8 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
 
 void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
 {
+    conn->write<1024>("Pending: %zu", mPendingJobs.size());
     if (!mPendingJobs.isEmpty()) {
-        conn->write("Pending:");
         for (const auto &node : mPendingJobs) {
             conn->write<128>("%s: %s %d %s",
                              node->job->sourceFile.constData(),
@@ -349,8 +255,9 @@ void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
                              IndexerJob::dumpFlags(node->job->flags).constData());
         }
     }
+
+    conn->write<1024>("Active: %zu/%zu", mActiveById.size(), Server::instance()->options().jobCount);
     if (!mActiveById.isEmpty()) {
-        conn->write("Active:");
         const unsigned long long now = Rct::monoMs();
         for (const auto &node : mActiveById) {
             conn->write<128>("%s: %s priority: %d %s %lldms",
@@ -367,14 +274,16 @@ void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
 void JobScheduler::dumpDaemons(const std::shared_ptr<Connection> &conn)
 {
     if (mDaemons.size()) {
-        conn->write("Daemons:");
+        conn->write<1024>("Daemons: %zu", mDaemons.size());
         for (const auto &daemon : mDaemons) {
             if (!daemon.second.cache.isEmpty()) {
                 conn->write<1024>("pid: %d %s%s",
-                                  daemon.first->pid(),
+                                  static_cast<int>(daemon.first->pid()),
                                   daemon.second.cache.front().sourceFile().constData(),
                                   daemon.second.cache.size() > 1 ? String::format(" (%zu builds)",
                                                                                   daemon.second.cache.size()).constData() : "");
+            } else {
+                conn->write<1024>("pid: %d: empty", static_cast<int>(daemon.first->pid()));
             }
         }
     }
@@ -398,13 +307,14 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
         debug() << "Aborting active job" << job->sourceFile << job->sourceFileId() << job->id << job.get();
     }
     if (node->process) {
-        if (Server::instance()->options().options & Server::RPDaemon) {
+        if (node->daemon) {
             debug() << "Killing process with SIGALRM" << node->process;
             node->process->kill(SIGALRM);
         } else {
             debug() << "Killing process" << node->process;
             node->process->kill();
         }
+
         mActiveByProcess.remove(node->process);
     }
 }
@@ -425,4 +335,109 @@ void JobScheduler::sort()
     for (std::shared_ptr<Node> &n : nodes) {
         mPendingJobs.append(std::move(n));
     }
+}
+
+void JobScheduler::onProcessReadyReadStdErr(Process *proc)
+{
+    std::shared_ptr<Node> n = mActiveByProcess[proc];
+    String out = proc->readAllStdErr();
+    if (n)
+        n->stdErr.append(out);
+}
+
+void JobScheduler::onProcessReadyReadStdOut(Process *proc)
+{
+    std::shared_ptr<Node> n = mActiveByProcess.value(proc);
+    bool daemon = false;
+    if (!n) {
+        n = mActiveDaemonsByProcess.value(proc);
+        daemon = true;
+    }
+    if (!n) {
+        debug() << "Cannot find process in active" << proc->pid()
+                << proc->readAllStdOut();
+        startJobs();
+        return;
+    }
+    n->stdOut.append(proc->readAllStdOut());
+
+    {
+        std::regex rx("@CRASH@([^@]*)@CRASH@");
+        std::smatch match;
+        while (std::regex_search(n->stdOut.ref(), match, rx)) {
+            error() << match[1].str();
+            n->stdOut.remove(match.position(), match.length());
+        }
+    }
+    if (daemon) {
+        const size_t idx = n->stdOut.indexOf("@FINISHED@");
+        if (idx != String::npos) {
+            const bool removed = mActiveDaemonsByProcess.remove(proc);
+            static_cast<void>(removed);
+            assert(removed);
+            assert(n->process == proc);
+            if (idx > 0 || !n->stdErr.isEmpty()) {
+                error() << ("Output from " + n->job->sourceFile + ":")
+                        << '\n' << n->stdErr << n->stdOut.mid(0, idx);
+            }
+
+            n->stdOut.remove(0, idx + 10);
+            n->stdErr.clear();
+            assert(mDaemons.contains(n->process));
+
+            DaemonData &data = mDaemons[n->process];
+            data.cache = n->job->sources;
+            data.touched = Rct::monoMs();
+            assert(n->process == proc);
+            n->process = 0;
+            assert(!(n->job->flags & IndexerJob::Aborted));
+            startJobs();
+        }
+    }
+}
+
+void JobScheduler::onProcessFinished(Process *proc, pid_t pid)
+{
+    const bool daemon = mDaemons.erase(proc);
+    // ### restart daemon?
+    EventLoop::deleteLater(proc);
+    auto n = mActiveByProcess.take(proc);
+    if (!n) {
+        n = mActiveDaemonsByProcess.take(proc);
+    }
+    if (n && (!n->stdOut.isEmpty() || !n->stdErr.isEmpty())) {
+        error() << "Finish output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
+    }
+    const auto &options = Server::instance()->options();
+    Path::rmdir(options.tempDir + String::number(pid));
+
+    if (n) {
+        assert(n->process == proc);
+        n->process = 0;
+        assert(!(n->job->flags & IndexerJob::Aborted));
+        if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
+            auto nodeById = mActiveById.take(n->job->id);
+            assert(nodeById);
+            assert(nodeById == n);
+            // job failed, probably no IndexDataMessage coming
+            n->job->flags |= IndexerJob::Crashed;
+            debug() << "job crashed" << n->job->id << n->job->sourceFileId() << n->job.get();
+            auto msg = std::make_shared<IndexDataMessage>(n->job);
+            msg->setFlag(IndexDataMessage::ParseFailure);
+            jobFinished(n->job, msg);
+        }
+    }
+    if (!mStopped) {
+        if (daemon)
+            initDaemons();
+        startJobs();
+    }
+}
+
+void JobScheduler::connectProcess(Process *process)
+{
+    assert(process);
+    process->readyReadStdOut().connect(std::bind(&JobScheduler::onProcessReadyReadStdOut, this, std::placeholders::_1));
+    process->readyReadStdOut().connect(std::bind(&JobScheduler::onProcessReadyReadStdErr, this, std::placeholders::_1));
+    process->finished().connect(std::bind(&JobScheduler::onProcessFinished, this, std::placeholders::_1, std::placeholders::_2));
 }

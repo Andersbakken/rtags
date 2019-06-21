@@ -87,8 +87,7 @@ public:
         Separate32BitAnd64Bit = (1ull << 31),
         SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
         NoLibClangIncludePath = (1ull << 33),
-        CompletionDiagnostics = (1ull << 34),
-        RPDaemon = (1ull << 35)
+        CompletionDiagnostics = (1ull << 34)
     };
     struct Options {
         Options()
@@ -97,7 +96,7 @@ public:
               rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512), pollTimer(0), maxSocketWriteBufferSize(0),
-              tcpPort(0)
+              daemonCount(0), tcpPort(0)
         {
         }
 
@@ -107,7 +106,7 @@ public:
         int rpVisitFileTimeout, rpIndexDataMessageTimeout,
             rpConnectTimeout, rpConnectAttempts, rpNiceValue, maxCrashCount,
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit,
-            pollTimer, maxSocketWriteBufferSize;
+            pollTimer, maxSocketWriteBufferSize, daemonCount;
         uint16_t tcpPort;
         List<String> defaultArguments, excludeFilters;
         Set<String> blockedArguments;

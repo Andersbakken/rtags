@@ -37,6 +37,8 @@ public:
     JobScheduler();
     ~JobScheduler();
 
+    bool start();
+
     struct JobScope {
         JobScope(const std::shared_ptr<JobScheduler> &scheduler)
             : mScheduler(scheduler)
@@ -64,26 +66,31 @@ public:
     size_t pendingJobCount() const { return mPendingJobs.size(); }
     size_t activeJobCount() const { return mActiveById.size(); }
     void sort();
-    void setActiveJobs(size_t active);
 private:
+    bool initDaemons();
+    void onProcessReadyReadStdErr(Process *process);
+    void onProcessReadyReadStdOut(Process *process);
+    void onProcessFinished(Process *process, pid_t pid);
+    void connectProcess(Process *process);
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
     struct Node {
-        unsigned long long started;
+        unsigned long long started { 0 };
         std::shared_ptr<IndexerJob> job;
-        Process *process;
+        Process *process { nullptr };
         std::shared_ptr<Node> next, prev;
         String stdOut, stdErr;
+        bool daemon { false };
     };
 
     int mProcrastination;
+    bool mStopped;
     struct DaemonData {
         uint64_t touched { 0 };
         SourceList cache;
-        Flags<IndexerJob::Flag> flags;
     };
     Hash<Process *, DaemonData> mDaemons;
     EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
-    Hash<Process *, std::shared_ptr<Node> > mActiveByProcess;
+    Hash<Process *, std::shared_ptr<Node> > mActiveByProcess, mActiveDaemonsByProcess;
     Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;
 };
 
