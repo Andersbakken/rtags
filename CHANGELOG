@@ -1,3 +1,12 @@
+2.33
+=========================
+- Rework how daemons work. Make it possible to separately configure
+  how many daemons you have
+
+2.32
+=========================
+- Try to reduce memory usage with --rp-daemon
+
 2.31
 =========================
 - Remove experimental lua support. It never worked correctly and I
