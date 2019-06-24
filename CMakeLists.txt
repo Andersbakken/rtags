@@ -37,6 +37,7 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
 
     include(CPack)
 else ()
+    set(BUILD_TESTING 0 CACHE BOOL "Build testing files; requires cppunit.")
 
     set(RCT_WITH_TESTS ${BUILD_TESTING})
 
