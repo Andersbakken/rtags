@@ -6,6 +6,7 @@ DIR="$(dirname $SCRIPT)"
 MAJOR=$(echo $1 | awk -F. '{print $1}')
 MINOR=$(echo $1 | awk -F. '{print $2}')
 PROTOCOL=$(echo $1 | awk -F. '{print $3}')
+TAG="v${MAJOR}.${MINOR}"
 
 JOBS=$(getconf _NPROCESSORS_ONLN)
 
@@ -55,5 +56,18 @@ git commit -m "Bump version to ${MAJOR}.${MINOR}"       \
     CMakeLists.txt                                      \
     src/rtags.el                                        \
     man
-git tag -a "v${MAJOR}.${MINOR}" -m "RTags release ${MAJOR}.${MINOR}"
-git push --follow-tags
+git tag -a $TAG -m "RTags release ${MAJOR}.${MINOR}"
+
+# Only push the tag in case the travis build fails.
+# Procedure:
+# - while :
+#     git tag -a $TAG -m "RTags release ${MAJOR}.${MINOR}"
+#     git push https://github.com/Andersbakken/rtags.git refs/tags/$TAG
+#     if build succeeds
+#       git push (push refs to master)
+#       break
+#     else
+#       git tag --delete $TAG
+#       git push --prune https://github.com/Andersbakken/rtags.git refs/tags/$TAG
+#
+git push https://github.com/Andersbakken/rtags.git refs/tags/$TAG
