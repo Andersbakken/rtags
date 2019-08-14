@@ -186,6 +186,7 @@ bool Server::init(const Options &options)
         return false;
     }
 
+    mDefaultJobCount = options.jobCount;
     {
         Log l(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine);
         l << "Running with" << mOptions.jobCount << "jobs, using args:"
@@ -1680,7 +1681,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         bool ok;
         if (q == "default") {
             ok = true;
-            jobCount = std::max(2, ThreadPool::idealThreadCount());
+            jobCount = mDefaultJobCount;
         } else {
             jobCount = q.toLongLong(&ok);
         }
