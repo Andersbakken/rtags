@@ -252,6 +252,7 @@ private:
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
     size_t mDefaultJobCount { 0 };
+    List<size_t> mJobCountStack;
 };
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);

@@ -1673,19 +1673,33 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
 
 void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
+    enum { MaxJobCount = 512 };
     String q = query->query();
     if (q.isEmpty()) {
         conn->write<128>("Running with %zu jobs", mOptions.jobCount);
     } else {
-        int jobCount;
-        bool ok;
+        int jobCount = -1;
+        bool ok = false;
         if (q == "default") {
             ok = true;
             jobCount = mDefaultJobCount;
+        } else if (q == "pop") {
+            if (mJobCountStack.isEmpty()) {
+                conn->write<128>("Job count stack is empty");
+            } else {
+                jobCount = mJobCountStack.back();
+                mJobCountStack.pop_back();
+                ok = true;
+            }
+        } else if (q.startsWith("push:")) {
+            jobCount = q.mid(5).toLongLong(&ok);
+            if (ok && jobCount > 0 && jobCount < MaxJobCount) {
+                mJobCountStack.append(mOptions.jobCount);
+            };
         } else {
             jobCount = q.toLongLong(&ok);
         }
-        if (!ok || jobCount < 0 || jobCount > 100) {
+        if (!ok || jobCount < 0 || jobCount > MaxJobCount) {
             conn->write<128>("Invalid job count %s (%d)", query->query().constData(), jobCount);
         } else {
             mOptions.jobCount = jobCount;
