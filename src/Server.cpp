@@ -1689,6 +1689,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         } else {
             mOptions.jobCount = jobCount;
             conn->write<128>("Changed jobs to %zu", mOptions.jobCount);
+            mJobScheduler->startJobs();
         }
     }
     conn->finish();

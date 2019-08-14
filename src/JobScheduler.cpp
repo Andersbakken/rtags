@@ -110,6 +110,10 @@ void JobScheduler::startJobs()
     int slots = std::max<int>(0, options.jobCount - mActiveByProcess.size());
     int daemonSlots = std::max<int>(0, options.daemonCount - mActiveDaemonsByProcess.size());
 
+    debug() << "JobScheduler::startJobs" << "jobCount" << options.jobCount << "active" << mActiveByProcess.size() << "\n"
+            << "slots" << slots << "daemonCount" << options.daemonCount << "active daemons" << mActiveDaemonsByProcess.size() << "\n"
+            << "daemonSlots" << daemonSlots;
+
     std::shared_ptr<Node> node = mPendingJobs.first();
     while (node && (slots || daemonSlots)) {
         const Server::ActiveBufferType type = Server::instance()->activeBufferType(node->job->sourceFileId());
@@ -137,6 +141,7 @@ void JobScheduler::startJobs()
                 assert(!(node->job->flags & (IndexerJob::Crashed|IndexerJob::Aborted|IndexerJob::Complete|IndexerJob::Running)));
                 node->job->flags |= IndexerJob::Running|IndexerJob::EditorActive;
                 node->daemon = true;
+                debug() << "starting daemon job" << node->job->sourceFile;
                 cand->first->write(node->job->encode());
                 node->started = Rct::monoMs();
                 mActiveDaemonsByProcess[cand->first] = node;
@@ -151,7 +156,7 @@ void JobScheduler::startJobs()
         }
         if (slots) {
             Process *process = new Process;
-            debug() << "Starting process for" << node->job->id << node->job->sourceFileId() << node->job.get();
+            debug() << "Starting process for" << node->job->id << node->job->sourceFile << node->job.get();
             List<String> arguments;
             arguments << "--priority" << String::number(node->job->priority());
             for (int i=logLevel().toInt(); i>0; --i)
@@ -339,7 +344,7 @@ void JobScheduler::sort()
 
 void JobScheduler::onProcessReadyReadStdErr(Process *proc)
 {
-    std::shared_ptr<Node> n = mActiveByProcess[proc];
+    std::shared_ptr<Node> n = mActiveByProcess.value(proc);
     String out = proc->readAllStdErr();
     if (n)
         n->stdErr.append(out);
