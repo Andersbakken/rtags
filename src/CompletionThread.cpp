@@ -229,11 +229,7 @@ void CompletionThread::process(Request *request)
     List<CXUnsavedFile> unsavedFiles;
     unsavedFiles.reserve(request->unsavedFiles.size());
     for (const auto &it : request->unsavedFiles) {
-        unsavedFiles.push_back({
-                it.first.constData(),
-                it.second.constData(),
-                static_cast<unsigned long>(it.second.size())
-                });
+        unsavedFiles.push_back({ it.first.constData(), it.second.constData(), static_cast<unsigned long>(it.second.size()) });
     }
 
     const auto &options = Server::instance()->options();
