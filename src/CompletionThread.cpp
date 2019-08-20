@@ -230,10 +230,10 @@ void CompletionThread::process(Request *request)
     unsavedFiles.reserve(request->unsavedFiles.size());
     for (const auto &it : request->unsavedFiles) {
         unsavedFiles.push_back({
-            it.first.constData(),
-            it.second.constData(),
-            static_cast<unsigned long>(it.second.size())
-        });
+                it.first.constData(),
+                it.second.constData(),
+                static_cast<unsigned long>(it.second.size())
+                });
     }
 
     const auto &options = Server::instance()->options();
@@ -367,9 +367,6 @@ void CompletionThread::process(Request *request)
             candidate->parent = RTags::eatString(clang_getCompletionParent(string, nullptr));
             candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
 
-            candidates.push_back(candidate);
-
-            bool ok = true;
             const int chunkCount = clang_getNumCompletionChunks(string);
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
@@ -377,7 +374,8 @@ void CompletionThread::process(Request *request)
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     candidate->name = text;
                     if (candidate->name.isEmpty()) {
-                        ok = false;
+                        delete candidate;
+                        candidate = nullptr;
                         break;
                     }
                     candidate->signature += candidate->name;
@@ -387,8 +385,8 @@ void CompletionThread::process(Request *request)
                         candidate->signature += ' ';
                 }
             }
-
-            if (ok) {
+            if (candidate) {
+                candidates.push_back(candidate);
                 const unsigned int annotations = clang_getCompletionNumAnnotations(string);
                 for (unsigned j=0; j<annotations; ++j) {
                     const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
