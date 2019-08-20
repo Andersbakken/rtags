@@ -358,10 +358,6 @@ void CompletionThread::process(Request *request)
             const int priority = clang_getCompletionPriority(string);
 
             CompletionCandidate *candidate = new CompletionCandidate;
-            candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
-            candidate->priority = priority;
-            candidate->parent = RTags::eatString(clang_getCompletionParent(string, nullptr));
-            candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
 
             const int chunkCount = clang_getNumCompletionChunks(string);
             for (int j=0; j<chunkCount; ++j) {
@@ -369,7 +365,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     candidate->name = text;
-                    if (candidate->name.isEmpty()) {
+                    if (candidate->name.isEmpty() || (candidate->name == "RTAGS" && kind == CXCursor_MacroDefinition)) {
                         delete candidate;
                         candidate = nullptr;
                         break;
@@ -382,6 +378,10 @@ void CompletionThread::process(Request *request)
                 }
             }
             if (candidate) {
+                candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
+                candidate->priority = priority;
+                candidate->parent = RTags::eatString(clang_getCompletionParent(string, nullptr));
+                candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
                 candidates.push_back(candidate);
                 const unsigned int annotations = clang_getCompletionNumAnnotations(string);
                 for (unsigned j=0; j<annotations; ++j) {
