@@ -19,10 +19,10 @@
 
 #include "Project.h"
 #include "QueryMessage.h"
-#include "rct/Connection.h"
-#include "rct/EventLoop.h"
 #include "RTags.h"
 #include "Server.h"
+#include "rct/Connection.h"
+#include "rct/EventLoop.h"
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,
@@ -65,7 +65,7 @@ bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
             String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;
-            for (size_t i=0; i<out.size(); ++i) {
+            for (size_t i = 0; i < out.size(); ++i) {
                 const char c = out.at(i);
                 switch (c) {
                 case '"':
@@ -117,8 +117,9 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
 }
 
 bool QueryJob::locationToString(Location location,
-                                const std::function<void(LocationPiece, const String &)> &cb,
-                                Flags<WriteFlag> writeFlags)
+    const std::function<void(LocationPiece, const String &)> &cb,
+    Flags<WriteFlag>
+        writeFlags)
 {
     if (location.isNull())
         return false;
@@ -156,14 +157,14 @@ bool QueryJob::locationToString(Location location,
                         symbol = fileMap->valueAt(--idx);
                         if (symbol.location.fileId() != fileId)
                             break;
-                        if (symbol.isDefinition()
-                            && RTags::isContainer(symbol.kind)
+                        if (symbol.isDefinition() && RTags::isContainer(symbol.kind)
                             && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
                             && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
                             if (containingFunction)
                                 cb(Piece_ContainingFunctionName, symbol.symbolName);
                             if (containingFunctionLocation)
-                                cb(Piece_ContainingFunctionLocation, symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
+                                cb(Piece_ContainingFunctionLocation,
+                                    symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
                             break;
                         }
                     }
@@ -185,7 +186,8 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
     }
 
     String out;
-    if (!locationToString(location, [&out](LocationPiece piece, const String &string) {
+    if (!locationToString(location,
+            [&out](LocationPiece piece, const String &string) {
                 switch (piece) {
                 case Piece_Location:
                     break;
@@ -200,7 +202,8 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
                     break;
                 }
                 out << string;
-            }, flags))
+            },
+            flags))
         return false;
     return write(out, flags);
 }
@@ -216,9 +219,9 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
         toStringFlags |= Symbol::IncludeParents;
     if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
         toStringFlags |= Symbol::IncludeBaseClasses;
-    if (queryFlags() & (QueryMessage::ContainingFunction|QueryMessage::JSON|QueryMessage::Elisp))
+    if (queryFlags() & (QueryMessage::ContainingFunction | QueryMessage::JSON | QueryMessage::Elisp))
         toStringFlags |= Symbol::IncludeContainingFunction;
-    if (queryFlags() & (QueryMessage::ContainingFunctionLocation|QueryMessage::JSON|QueryMessage::Elisp))
+    if (queryFlags() & (QueryMessage::ContainingFunctionLocation | QueryMessage::JSON | QueryMessage::Elisp))
         toStringFlags |= Symbol::IncludeContainingFunctionLocation;
 
     if (symbol.isNull())
@@ -231,7 +234,7 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
         return false;
 
     String out;
-    if (queryFlags() & (QueryMessage::Elisp|QueryMessage::JSON)) {
+    if (queryFlags() & (QueryMessage::Elisp | QueryMessage::JSON)) {
         Value val = symbol.toValue(project(), toStringFlags, locationToStringFlags() | Location::NoColor, mPieceFilters);
         if (queryFlags() & QueryMessage::Elisp) {
             out = RTags::toElisp(val);
@@ -241,7 +244,7 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
     } else {
         out = symbol.toString(project(), toStringFlags, locationToStringFlags(), mPieceFilters);
     }
-    return write(out, writeFlags|Unfiltered);
+    return write(out, writeFlags | Unfiltered);
 }
 
 bool QueryJob::filter(const String &value) const
@@ -283,7 +286,7 @@ int QueryJob::run(const std::shared_ptr<Connection> &connection)
     assert(connection);
     mConnection = connection;
     const int ret = execute();
-    mConnection = 0;
+    mConnection = nullptr;
     return ret;
 }
 

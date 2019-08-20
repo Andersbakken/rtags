@@ -39,7 +39,7 @@ static uint64_t start = 0;
                                       Rct::currentTimeString().constData())
 
 CompletionThread::CompletionThread(int cacheSize)
-    : mShutdown(false), mCacheSize(cacheSize), mDump(0)
+    : mShutdown(false), mCacheSize(cacheSize), mDump(nullptr)
 {
 }
 
@@ -51,8 +51,8 @@ CompletionThread::~CompletionThread()
 void CompletionThread::run()
 {
     while (true) {
-        Request *request = 0;
-        Dump *dump = 0;
+        Request *request = nullptr;
+        Dump *dump = nullptr;
         {
             std::unique_lock<std::mutex> lock(mMutex);
             while (!mShutdown && mPending.isEmpty() && !mDump) {
@@ -67,7 +67,7 @@ void CompletionThread::run()
                     std::unique_lock<std::mutex> dumpLock(mDump->mutex);
                     mDump->done = true;
                     mDump->cond.notify_one();
-                    mDump = 0;
+                    mDump = nullptr;
                 }
                 break;
             } else if (mDump) {
@@ -202,7 +202,7 @@ void CompletionThread::process(Request *request)
               << cache->source << "vs" << request->source;
         mCacheList.remove(cache);
         delete cache;
-        cache = 0;
+        cache = nullptr;
     }
     if (!cache) {
         cache = new SourceFile;
@@ -308,7 +308,7 @@ void CompletionThread::process(Request *request)
         LOG() << "Warmed up unit" << cache->source.sourceFile();
         return;
     } else if (request->flags & Diagnose) {
-        processDiagnostics(request, 0, cache->translationUnit->unit);
+        processDiagnostics(request, nullptr, cache->translationUnit->unit);
         return;
     }
 
@@ -364,7 +364,7 @@ void CompletionThread::process(Request *request)
             CompletionCandidate *candidate = new CompletionCandidate;
             candidate->kind = RTags::eatString(clang_getCursorKindSpelling(kind));
             candidate->priority = priority;
-            candidate->parent = RTags::eatString(clang_getCompletionParent(string, 0));
+            candidate->parent = RTags::eatString(clang_getCompletionParent(string, nullptr));
             candidate->brief_comment = RTags::eatString(clang_getCompletionBriefComment(string));
 
             candidates.push_back(candidate);
@@ -742,7 +742,7 @@ public:
     {
         return clang_getDiagnostic(mUnit, idx);
     }
-    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) override
     {
         if (blocked)
             *blocked = false;
@@ -788,7 +788,7 @@ public:
         return clang_codeCompleteGetDiagnostic(mResults, idx);
     }
 
-    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) override
     {
         if (blocked)
             *blocked = false;

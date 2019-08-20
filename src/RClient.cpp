@@ -180,7 +180,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't resolve paths using realpath(3)." },
     { RClient::IncludePath, "include-path", 0, CommandLineParser::Required, "Dump include path for symbol." },
     { RClient::MaxDepth, "max-depth", 0, CommandLineParser::Required, "Max search depth. Used for --include-path." },
-    { RClient::None, String(), 0, CommandLineParser::NoValue, 0 }
+    { RClient::None, String(), 0, CommandLineParser::NoValue, nullptr }
 };
 
 class RCCommand
@@ -636,7 +636,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok }; }
         case VerifyVersion: {
-            const int version = strtoul(value.constData(), 0, 10);
+            const int version = strtoul(value.constData(), nullptr, 10);
             if (version != NumOptions) {
                 fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, NumOptions);
                 mExitCode = RTags::ProtocolFailure;

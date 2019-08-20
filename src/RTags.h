@@ -201,7 +201,7 @@ struct TranslationUnit {
 struct CreateLocation
 {
     virtual ~CreateLocation() {}
-    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = nullptr, unsigned *offset = nullptr)
     {
         CXString fileName;
         unsigned int line, col;
@@ -226,7 +226,7 @@ struct CreateLocation
         const Location ret = createLocation(path, line, col, blocked);
         return ret;
     }
-    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
+    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = nullptr)
     {
         if (blocked)
             *blocked = false;
@@ -243,7 +243,7 @@ struct CreateLocation
         clang_disposeString(fn);
         return createLocation(p, line, col, blocked);
     }
-    inline Location createLocation(const CXCursor &cursor, bool *blocked = 0, unsigned *offset = 0)
+    inline Location createLocation(const CXCursor &cursor, bool *blocked = nullptr, unsigned *offset = nullptr)
     {
         const CXSourceLocation location = clang_getCursorLocation(cursor);
         if (!location)
@@ -251,7 +251,7 @@ struct CreateLocation
         return createLocation(location, blocked, offset);
     }
 
-    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) = 0;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) = 0;
 };
 
 struct DiagnosticsProvider
@@ -268,7 +268,7 @@ struct DiagnosticsProvider
         return clang_getCursor(unit(idx), location);
     }
 
-    inline Location createLocation(const CXSourceLocation &location, bool *blocked = 0, unsigned *offset = 0)
+    inline Location createLocation(const CXSourceLocation &location, bool *blocked = nullptr, unsigned *offset = nullptr)
     {
         CXString fileName;
         unsigned int line, col;
@@ -293,7 +293,7 @@ struct DiagnosticsProvider
         const Location ret = createLocation(path, line, col, blocked);
         return ret;
     }
-    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = 0)
+    inline Location createLocation(CXFile file, unsigned int line, unsigned int col, bool *blocked = nullptr)
     {
         if (blocked)
             *blocked = false;
@@ -314,11 +314,11 @@ struct DiagnosticsProvider
         }
         return createLocation(p, line, col, blocked);
     }
-    Location createLocation(const CXCursor &cursor, CXCursorKind kind = CXCursor_FirstInvalid, bool *blocked = 0, unsigned *offset = 0);
+    Location createLocation(const CXCursor &cursor, CXCursorKind kind = CXCursor_FirstInvalid, bool *blocked = nullptr, unsigned *offset = nullptr);
     virtual size_t unitCount() const = 0;
     virtual size_t diagnosticCount(size_t unit) const = 0;
     virtual CXDiagnostic diagnostic(size_t unit, size_t idx) const = 0;
-    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) = 0;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) = 0;
     virtual uint32_t sourceFileId() const = 0;
     virtual IndexDataMessage &indexDataMessage() = 0;
     virtual CXTranslationUnit unit(size_t unit) const = 0;
@@ -330,9 +330,9 @@ struct Auto {
     CXCursor cursor;
     CXType type;
 };
-bool resolveAuto(const CXCursor &cursor, Auto *a = 0);
+bool resolveAuto(const CXCursor &cursor, Auto *a = nullptr);
 
-int cursorArguments(const CXCursor &cursor, List<CXCursor> *args = 0);
+int cursorArguments(const CXCursor &cursor, List<CXCursor> *args = nullptr);
 
 struct Filter
 {
@@ -407,7 +407,7 @@ inline const char *tokenKindSpelling(CXTokenKind kind)
     case CXToken_Literal: return "Literal";
     case CXToken_Comment: return "Comment";
     }
-    return 0;
+    return nullptr;
 }
 
 template <typename T>
@@ -571,7 +571,7 @@ inline bool needsQualifiers(CXCursorKind kind)
 String typeName(const CXCursor &cursor);
 inline const char *builtinTypeName(CXTypeKind kind)
 {
-    const char *ret = 0;
+    const char *ret = nullptr;
     switch (kind) {
     case CXType_Void: ret = "void"; break;
     case CXType_Bool: ret = "bool"; break;
@@ -625,7 +625,7 @@ inline const char *completionChunkKindSpelling(CXCompletionChunkKind kind)
     case CXCompletionChunk_HorizontalSpace: return "HorizontalSpace";
     case CXCompletionChunk_VerticalSpace: return "VerticalSpace";
     }
-    return 0;
+    return nullptr;
 }
 
 String typeString(const CXType &type);
@@ -776,15 +776,15 @@ enum ProjectRootMode {
     SourceRoot,
     BuildRoot
 };
-Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache = 0);
+Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache = nullptr);
 enum FindAncestorFlag {
     Shallow = 0x1,
     Wildcard = 0x2,
     Authoritative = 0x4
 };
 RCT_FLAGS(FindAncestorFlag);
-Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache = 0);
-Map<String, String> rtagsConfig(const Path &path, SourceCache *cache = 0);
+Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache = nullptr);
+Map<String, String> rtagsConfig(const Path &path, SourceCache *cache = nullptr);
 
 enum { DefinitionBit = 0x1000 };
 inline CXCursorKind targetsValueKind(uint16_t val)
@@ -950,7 +950,7 @@ inline const String elispEscape(const String &data)
 }
 String toElisp(const Value &value);
 
-inline Location createLocation(CXSourceLocation loc, int *offsetPtr = 0)
+inline Location createLocation(CXSourceLocation loc, int *offsetPtr = nullptr)
 {
     if (offsetPtr)
         *offsetPtr = -1;
@@ -980,7 +980,7 @@ inline Location createLocation(CXSourceLocation loc, int *offsetPtr = 0)
     return Location(fileId, line, col);
 }
 
-inline Location createLocation(const CXCursor &cursor, int *offsetPtr = 0)
+inline Location createLocation(const CXCursor &cursor, int *offsetPtr = nullptr)
 {
     return createLocation(clang_getCursorLocation(cursor), offsetPtr);
 }

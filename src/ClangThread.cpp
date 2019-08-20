@@ -61,7 +61,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             CXSourceRange range = clang_getCursorExtent(cursor);
             CXSourceLocation rangeEnd = clang_getRangeEnd(range);
             unsigned int endLine, endColumn;
-            clang_getPresumedLocation(rangeEnd, 0, &endLine, &endColumn);
+            clang_getPresumedLocation(rangeEnd, nullptr, &endLine, &endColumn);
             if (!(mQueryMessage->flags() & QueryMessage::DumpIncludeHeaders) && location.fileId() != mSource.fileId) {
                 return CXChildVisit_Continue;
             }
@@ -86,7 +86,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                     message += "auto resolves to " + RTags::cursorToString(autoResolved.cursor, RTags::AllCursorToStringFlags);
                 }
             }
-            auto printCursor = [&message](const CXCursor &c, bool *spec = 0) {
+            auto printCursor = [&message](const CXCursor &c, bool *spec = nullptr) {
                 CXCursor canonical = clang_getCanonicalCursor(c);
                 if (canonical != c && RTags::isValid(canonical)) {
                     message.append(" canonical ");

@@ -394,7 +394,7 @@ void JobScheduler::onProcessReadyReadStdOut(Process *proc)
             data.cache = n->job->sources;
             data.touched = Rct::monoMs();
             assert(n->process == proc);
-            n->process = 0;
+            n->process = nullptr;
             assert(!(n->job->flags & IndexerJob::Aborted));
             startJobs();
         }
@@ -418,7 +418,7 @@ void JobScheduler::onProcessFinished(Process *proc, pid_t pid)
 
     if (n) {
         assert(n->process == proc);
-        n->process = 0;
+        n->process = nullptr;
         assert(!(n->job->flags & IndexerJob::Aborted));
         if (!(n->job->flags & IndexerJob::Complete) && proc->returnCode() != 0) {
             auto nodeById = mActiveById.take(n->job->id);

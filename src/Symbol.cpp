@@ -1,4 +1,3 @@
-
 /* This file is part of RTags (http://rtags.net).
 
    RTags is free software: you can redistribute it and/or modify
@@ -117,7 +116,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
             ret << key << ": ";
         ret << piece << "\n";
     };
-    writePiece(0, "location", location.toString(locationToStringFlags));
+    writePiece(nullptr, "location", location.toString(locationToStringFlags));
     writePiece("SymbolName", "symbolname", symbolName);
     writePiece("Kind", "kind", kindSpelling());
     if (filterPiece("type")) {
@@ -140,7 +139,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     if (isDefinition() && RTags::isFunction(kind))
         writePiece("Stack cost", "stackcost", std::to_string(stackCost));
 #endif
-    writePiece(0, "linkage", linkageSpelling(linkage));
+    writePiece(nullptr, "linkage", linkageSpelling(linkage));
     ret += properties();
     writePiece("Usr", "usr", usr);
     if (size)
@@ -258,9 +257,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
-                                                                         const char *keyFilter = 0,
-                                                                         const char *ctxKeyFilter = 0,
-                                                                         Value *val = 0) {
+                                                                         const char *keyFilter = nullptr,
+                                                                         const char *ctxKeyFilter = nullptr,
+                                                                         Value *val = nullptr) {
             if (!val)
                 val = &ret;
             if (filterPiece(keyFilter ? keyFilter : key))
@@ -274,7 +273,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
         }
         if (!symbol.isNull()) {
             if (symbol.argumentUsage.index != String::npos) {
-                formatLocation(symbol.argumentUsage.invocation, "invocation", "invocationContext", 0, "invocationcontext");
+                formatLocation(symbol.argumentUsage.invocation, "invocation", "invocationContext", nullptr, "invocationcontext");
                 if (filterPiece("invokedfunction"))
                     ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
                 formatLocation(symbol.argumentUsage.argument.location, "functionArgumentLocation", "functionArgumentLocationContext",

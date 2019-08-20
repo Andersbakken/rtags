@@ -91,10 +91,10 @@ static const List<Path> sSystemIncludePaths = {
 };
 #endif
 
-Server *Server::sInstance = 0;
+Server *Server::sInstance = nullptr;
 Server::Server()
     : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0),
-      mLastFileId(0), mCompletionThread(0), mActiveBuffersSet(false)
+      mLastFileId(0), mCompletionThread(nullptr), mActiveBuffersSet(false)
 {
     assert(!sInstance);
     sInstance = this;
@@ -109,13 +109,13 @@ Server::~Server()
         mCompletionThread->stop();
         mCompletionThread->join();
         delete mCompletionThread;
-        mCompletionThread = 0;
+        mCompletionThread = nullptr;
     }
 
     stopServers();
     mProjects.clear(); // need to be destroyed before sInstance is set to 0
     assert(sInstance == this);
-    sInstance = 0;
+    sInstance = nullptr;
     Message::cleanup();
 }
 
@@ -158,7 +158,7 @@ bool Server::init(const Options &options)
             "__builtin_ia32_xsaveopt",
             "__builtin_ia32_xsaveopt64",
             "__builtin_ia32_sbb_u32",
-            0
+            nullptr
         };
         for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
             mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
@@ -293,7 +293,7 @@ bool Server::initServers()
 #endif
 
     char *listenFds = getenv("LISTEN_FDS");
-    if (listenFds != NULL) {
+    if (listenFds != nullptr) {
         auto numFDs = atoi(listenFds);
         if (numFDs != 1) {
             error("Unexpected number of sockets from systemd: %d", numFDs);

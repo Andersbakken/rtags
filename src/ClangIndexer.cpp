@@ -54,13 +54,13 @@ static inline void setType(Symbol &symbol, const CXType &type)
     }
 }
 
-static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = 0)
+static inline void setRange(Symbol &symbol, const CXSourceRange &range, uint16_t *length = nullptr)
 {
     CXSourceLocation rangeStart = clang_getRangeStart(range);
     CXSourceLocation rangeEnd = clang_getRangeEnd(range);
     unsigned int startLine, startColumn, endLine, endColumn, startOffset, endOffset;
-    clang_getSpellingLocation(rangeStart, 0, &startLine, &startColumn, &startOffset);
-    clang_getSpellingLocation(rangeEnd, 0, &endLine, &endColumn, &endOffset);
+    clang_getSpellingLocation(rangeStart, nullptr, &startLine, &startColumn, &startOffset);
+    clang_getSpellingLocation(rangeEnd, nullptr, &endLine, &endColumn, &endOffset);
     symbol.startLine = startLine;
     symbol.endLine = endLine;
     symbol.startColumn = startColumn;
@@ -80,10 +80,10 @@ std::mutex ClangIndexer::sStateMutex;
 Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer(Mode mode)
     : mMode(mode), mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
-      mLastCallExprSymbol(0), mVisitFileResponseMessageFileId(0),
+      mLastCallExprSymbol(nullptr), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
-      mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(0),
+      mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(nullptr),
       mConnection(Connection::create(RClient::NumOptions)), mUnionRecursion(false),
       mFromCache(false), mInTemplateFunction(0)
 {
@@ -856,7 +856,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
             List<Symbol::Argument> arguments;
             extractArguments(&arguments, cursor);
-            Symbol *old = 0;
+            Symbol *old = nullptr;
             Location oldLoc;
             std::swap(mLastCallExprSymbol, old);
             const CXCursor ref = clang_getCursorReferenced(cursor);
@@ -951,7 +951,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     // shit. See https://github.com/Andersbakken/rtags/issues/62 and commit
     // for details. I really should report this as a bug.
     if (cursorPtr)
-        *cursorPtr = 0;
+        *cursorPtr = nullptr;
     if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.last()) != CXCursor_CallExpr)
         return false;
 
@@ -969,7 +969,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     const CXSourceRange range = clang_getCursorExtent(cursor);
     const CXSourceLocation end = clang_getRangeEnd(range);
     unsigned int offset;
-    clang_getSpellingLocation(end, 0, 0, 0, &offset);
+    clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &offset);
 
     String name;
     while (offset > 0) {
@@ -1012,7 +1012,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
 bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Location location, CXCursor ref, Symbol **cursorPtr)
 {
     if (cursorPtr)
-        *cursorPtr = 0;
+        *cursorPtr = nullptr;
     // error() << "handleReference" << cursor << kind << location << ref;
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
@@ -1233,7 +1233,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     if (!c->symbolLength) {
         unit(location)->symbols.remove(location);
         if (cursorPtr)
-            *cursorPtr = 0;
+            *cursorPtr = nullptr;
         return false;
     }
     setType(*c, clang_getCursorType(kind == CXCursor_MemberRefExpr ? ref : cursor));
@@ -1245,7 +1245,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         if ((kind == CXCursor_DeclRefExpr && mParents.last() == CXCursor_MemberRefExpr)
             || (kind == CXCursor_TypeRef && mParents.last() == CXCursor_DeclRefExpr)) {
             CXSourceRange parentRange = clang_getCursorExtent(mParents.last());
-            CXToken *tokens = 0;
+            CXToken *tokens = nullptr;
             unsigned numTokens = 0;
             auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
             clang_tokenize(tu, parentRange, &tokens, &numTokens);
@@ -1257,7 +1257,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                         assert(i < numTokens);
                         CXSourceRange memberRange = clang_getTokenExtent(tu, tokens[i]);
                         unsigned line, column;
-                        clang_getSpellingLocation(clang_getRangeStart(memberRange), 0, &line, &column, 0);
+                        clang_getSpellingLocation(clang_getRangeStart(memberRange), nullptr, &line, &column, nullptr);
                         const CXStringScope memberSpelling(clang_getTokenSpelling(tu, tokens[i]));
                         const Location loc(location.fileId(), line, column);
                         Symbol &sym = unit(loc)->symbols[loc];
@@ -1369,7 +1369,7 @@ void ClangIndexer::handleLiteral(const CXCursor &cursor, CXCursorKind kind, Loca
 
     String symbolName;
     if (kind != CXCursor_StringLiteral) {
-        CXToken *tokens = 0;
+        CXToken *tokens = nullptr;
         unsigned numTokens = 0;
         clang_tokenize(tu, range, &tokens, &numTokens);
         if (numTokens) {
@@ -1399,7 +1399,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
         }
         setRange(c, clang_getCursorExtent(cursor));
         const Scope scope = {
-            Scope::Other, 0,
+            Scope::Other, nullptr,
             Location(location.fileId(), c.startLine, c.startColumn),
             Location(location.fileId(), c.endLine, c.endColumn - 1)
         };
@@ -1550,8 +1550,8 @@ void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXC
         CXSourceRange range = clang_getCursorExtent(arg);
         unsigned startOffset, endOffset;
 
-        ref.location = createLocation(clang_getRangeStart(range), 0, &startOffset);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+        ref.location = createLocation(clang_getRangeStart(range), nullptr, &startOffset);
+        clang_getSpellingLocation(clang_getRangeEnd(range), nullptr, nullptr, nullptr, &endOffset);
         ref.length = endOffset - startOffset;
         ref.cursor = createLocation(arg);
     }
@@ -1615,7 +1615,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         default:
             unit(location)->symbols.remove(location);
             if (cursorPtr)
-                *cursorPtr = 0;
+                *cursorPtr = nullptr;
             return CXChildVisit_Recurse;
         }
     } else {
@@ -1688,7 +1688,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 #endif
         break;
     case CXCursor_MacroDefinition: {
-        CXToken *tokens = 0;
+        CXToken *tokens = nullptr;
         unsigned numTokens = 0;
         clang_tokenize(tu, range, &tokens, &numTokens);
         MacroData &macroData = mMacroTokens[location];
@@ -1697,7 +1697,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             GettingArgs,
             ArgsDone
         } macroState = Unset;
-        MacroLocationData *last = 0;
+        MacroLocationData *last = nullptr;
         bool lastWasHashHash = false;
         for (size_t i=1; i<numTokens; ++i) {
             const CXTokenKind k = clang_getTokenKind(tokens[i]);
@@ -1741,10 +1741,10 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                 if (!strcmp(scope.data(), "##")) {
                     isHashHash = true;
                 } else {
-                    last = 0;
+                    last = nullptr;
                 }
             } else {
-                last = 0;
+                last = nullptr;
             }
             lastWasHashHash = isHashHash;
         }
@@ -1914,7 +1914,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
-        mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : 0,
+        mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : nullptr,
                 Location(location.fileId(), c.startLine, c.startColumn),
                 Location(location.fileId(), c.endLine, c.endColumn - 1)});
         bool isTemplateFunction = c.kind == CXCursor_FunctionTemplate;
@@ -2013,7 +2013,7 @@ bool ClangIndexer::parse()
 
         if (!unit) {
             unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags, false);
-            warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != 0);
+            warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != nullptr);
         }
 
         if (unit->unit) {
@@ -2251,7 +2251,7 @@ void ClangIndexer::tokenize(CXFile file, uint32_t fileId, const Path &path)
     const CXSourceLocation endLoc = clang_getLocationForOffset(tu, file, path.fileSize());
 
     CXSourceRange range = clang_getRange(startLoc, endLoc);
-    CXToken *tokens = 0;
+    CXToken *tokens = nullptr;
     unsigned numTokens = 0;
     auto &map = unit(fileId)->tokens;
     clang_tokenize(tu, range, &tokens, &numTokens);
@@ -2259,8 +2259,8 @@ void ClangIndexer::tokenize(CXFile file, uint32_t fileId, const Path &path)
         range = clang_getTokenExtent(tu, tokens[i]);
         unsigned offset, endOffset;
         const CXSourceLocation start = clang_getRangeStart(range);
-        clang_getSpellingLocation(start, 0, 0, 0, &offset);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+        clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &offset);
+        clang_getSpellingLocation(clang_getRangeEnd(range), nullptr, nullptr, nullptr, &endOffset);
         map[offset] = {
             clang_getTokenKind(tokens[i]),
             RTags::eatString(clang_getTokenSpelling(tu, tokens[i])),

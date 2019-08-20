@@ -42,7 +42,7 @@
 
 char crashDumpTempFilePath[PATH_MAX];
 char crashDumpFilePath[PATH_MAX - 4];
-FILE *crashDumpFile = 0;
+FILE *crashDumpFile = nullptr;
 static void signalHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
@@ -234,12 +234,12 @@ int main(int argc, char** argv)
     bool daemon = false;
     Server::Options serverOpts;
     const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
-    if (runtimeDir == NULL) {
+    if (runtimeDir == nullptr) {
         serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
     } else {
         serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
     }
-    const char *tempDir = 0;
+    const char *tempDir = nullptr;
     for (const char *tmp : { "TMPDIR", "TMP", "TEMP", "TEMPDIR" }) {
         if ((tempDir = getenv(tmp))) {
             break;
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
     int inactivityTimeout = 0;
 
     const std::initializer_list<CommandLineParser::Option<OptionType> > opts = {
-        { None, 0, 0, CommandLineParser::NoValue, "Options:" },
+        { None, nullptr, 0, CommandLineParser::NoValue, "Options:" },
         { Help, "help", 'h', CommandLineParser::NoValue, "Display this page." },
         { Version, "version", 0, CommandLineParser::NoValue, "Display version." },
         { IncludePath, "include-path", 'I', CommandLineParser::Required, "Add additional include path to clang." },
@@ -614,7 +614,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::CompletionLogs;
             break; }
         case MaxIncludeCompletionDepth: {
-            serverOpts.maxIncludeCompletionDepth = strtoul(value.constData(), 0, 10);
+            serverOpts.maxIncludeCompletionDepth = strtoul(value.constData(), nullptr, 10);
             break; }
         case AllowWpedantic: {
             serverOpts.options |= Server::AllowPedantic;

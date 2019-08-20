@@ -169,8 +169,8 @@ public:
         ConvertToRelative = 0x8
     };
 
-    String toString(Flags<ToStringFlag> flags = NoFlag, Hash<Path, String> *contextCache = 0) const;
-    String context(Flags<ToStringFlag> flags, Hash<Path, String> *cache = 0) const;
+    String toString(Flags<ToStringFlag> flags = NoFlag, Hash<Path, String> *contextCache = nullptr) const;
+    String context(Flags<ToStringFlag> flags, Hash<Path, String> *cache = nullptr) const;
 
     inline String debug() const;
 

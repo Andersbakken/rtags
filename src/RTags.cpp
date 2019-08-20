@@ -130,7 +130,7 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fil
 
 Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache)
 {
-    Path *cacheResult = 0;
+    Path *cacheResult = nullptr;
     if (cache) {
         const Path parent = path.parentDir();
         cacheResult = &cache->ancestorCache[parent][SourceCache::AncestorCacheKey { fn, flags }];
@@ -215,7 +215,7 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
                 continue;
             }
         }
-        Map<String, String> *cacheEntry = 0;
+        Map<String, String> *cacheEntry = nullptr;
         if (cache) {
             cacheEntry = &cache->rtagsConfigCache[dir];
             // we want to cache empty entries
@@ -230,7 +230,7 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
                     buf[len] = '\0';
                     String key;
                     char *colon = strchr(buf, ':');
-                    char *value = 0;
+                    char *value = nullptr;
                     if (colon) {
                         key.assign(buf, colon - buf);
                         value = colon + 1;
@@ -323,7 +323,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
             { "GNUMakefile*", Wildcard },
             { "INSTALL*", Wildcard },
             { "README*", Wildcard },
-            { 0, Flags<FindAncestorFlag>() }
+            { nullptr, Flags<FindAncestorFlag>() }
         };
         {
             const Path e = checkEntries(before, path, home, cache);
@@ -427,7 +427,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
         { "build.ninja", Flags<FindAncestorFlag>() },
         { "Makefile*", Wildcard },
         { "compile_commands.json", Flags<FindAncestorFlag>() },
-        { 0, Flags<FindAncestorFlag>() }
+        { nullptr, Flags<FindAncestorFlag>() }
     };
 
     {
@@ -590,7 +590,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
     ret->index = clang_createIndex(0, displayDiagnostics);
 
     int idx = 0;
-    List<const char*> clangArgs(args.size() + 2, 0);
+    List<const char*> clangArgs(args.size() + 2, nullptr);
 
     const int count = args.size();
     for (int j=0; j<count; ++j) {
@@ -630,7 +630,7 @@ bool TranslationUnit::reparse(CXUnsavedFile *unsaved, int unsavedCount)
     const int ret = clang_reparseTranslationUnit(unit, unsavedCount, unsaved, clang_defaultReparseOptions(unit));
     if (ret) {
         clang_disposeTranslationUnit(unit);
-        unit = 0;
+        unit = nullptr;
         return false;
     }
     return true;
@@ -701,7 +701,7 @@ void DiagnosticsProvider::diagnose()
         flags |= convertDiagnosticType(clang_getDiagnosticSeverity(d));
         if ((flags & Diagnostic::Type_Mask) != Diagnostic::None) {
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(d);
-            Location location = createLocation(diagLoc, 0);
+            Location location = createLocation(diagLoc, nullptr);
             const uint32_t fileId = location.fileId();
 
             int length = -1;
@@ -715,11 +715,11 @@ void DiagnosticsProvider::diagnose()
                 const CXSourceLocation end = clang_getRangeEnd(range);
 
                 unsigned int startOffset, endOffset;
-                clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
-                clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &startOffset);
+                clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &endOffset);
                 if (startOffset && endOffset) {
                     unsigned int line, column;
-                    clang_getSpellingLocation(start, 0, &line, &column, 0);
+                    clang_getSpellingLocation(start, nullptr, &line, &column, nullptr);
                     const Location l(fileId, line, column);
                     if (first) {
                         first = false;
@@ -738,7 +738,7 @@ void DiagnosticsProvider::diagnose()
                 message << ": ";
             message << RTags::eatString(clang_getDiagnosticSpelling(d));
 
-            const String option = RTags::eatString(clang_getDiagnosticOption(d, 0));
+            const String option = RTags::eatString(clang_getDiagnosticOption(d, nullptr));
             if (!option.isEmpty()) {
                 message << ": " << option;
             }
@@ -776,7 +776,7 @@ void DiagnosticsProvider::diagnose()
         for (size_t j=0; j<diagCount; ++j) {
             CXDiagnostic diag = diagnostic(u, j);
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diag);
-            const uint32_t fileId = createLocation(diagLoc, 0).fileId();
+            const uint32_t fileId = createLocation(diagLoc, nullptr).fileId();
             if (!fileId) {
                 clang_disposeDiagnostic(diag);
                 // error() << "Couldn't get location for diagnostics" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
@@ -821,7 +821,7 @@ void DiagnosticsProvider::diagnose()
 
                 unsigned int line, column;
                 CXFile file;
-                clang_getSpellingLocation(start, &file, &line, &column, 0);
+                clang_getSpellingLocation(start, &file, &line, &column, nullptr);
                 if (!file)
                     continue;
                 CXStringScope fileName(clang_getFileName(file));
@@ -830,8 +830,8 @@ void DiagnosticsProvider::diagnose()
                 if (indexData.files().value(loc.fileId()) & IndexDataMessage::Visited) {
                     unsigned int startOffset, endOffset;
                     CXSourceLocation end = clang_getRangeEnd(range);
-                    clang_getSpellingLocation(start, 0, 0, 0, &startOffset);
-                    clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                    clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &startOffset);
+                    clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &endOffset);
                     const char *string = clang_getCString(stringScope);
                     assert(string);
                     if (!*string) {
@@ -874,11 +874,11 @@ void DiagnosticsProvider::diagnose()
                             CXSourceLocation start = clang_getRangeStart(s->ranges[j]);
 
                             unsigned int line, column, startOffset, endOffset;
-                            clang_getSpellingLocation(start, 0, &line, &column, &startOffset);
+                            clang_getSpellingLocation(start, nullptr, &line, &column, &startOffset);
                             Diagnostic &entry = diags[Location(loc.fileId(), line, column)];
                             entry.sourceFileId = sourceFile;
                             CXSourceLocation end = clang_getRangeEnd(s->ranges[j]);
-                            clang_getSpellingLocation(end, 0, 0, 0, &endOffset);
+                            clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &endOffset);
                             entry.flags = Diagnostic::Skipped;
                             entry.length = endOffset - startOffset;
                             // error() << line << column << startOffset << endOffset;

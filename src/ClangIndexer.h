@@ -69,13 +69,13 @@ private:
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
     void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
-    CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = 0);
+    CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = nullptr);
     CXCursor resolveTemplateUsr(CXCursor cursor) const;
     static CXCursor resolveTypedef(CXCursor cursor);
 
     // DiagnosticsProvider
     using RTags::DiagnosticsProvider::createLocation;
-    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = 0) override;
+    virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) override;
     virtual CXTranslationUnit unit(size_t u) const override;
     virtual size_t unitCount() const override
     {
@@ -102,10 +102,10 @@ private:
                                RTags::CursorType cursorType);
 
     CXChildVisitResult handleCursor(const CXCursor &cursor, CXCursorKind kind,
-                                    Location location, Symbol **cursorPtr = 0);
+                                    Location location, Symbol **cursorPtr = nullptr);
     bool handleReference(const CXCursor &cursor, CXCursorKind kind,
                          Location loc, CXCursor reference,
-                         Symbol **cursorPtr = 0);
+                         Symbol **cursorPtr = nullptr);
     void handleBaseClassSpecifier(const CXCursor &cursor);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, Location location);
     void handleLiteral(const CXCursor &cursor, CXCursorKind kind, Location location);
@@ -114,7 +114,7 @@ private:
     std::unordered_set<CXCursor> addOverriddenCursors(const CXCursor &cursor, Location location);
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   Location location, const CXCursor &ref,
-                                                  Symbol **cursorPtr = 0);
+                                                  Symbol **cursorPtr = nullptr);
     void visit(CXCursor cursor)
     {
         mParents.append(cursor);

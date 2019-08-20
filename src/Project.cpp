@@ -263,7 +263,7 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
 
 Project::Project(const Path &path)
     : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(0)), mBytesWritten(0), mSaveDirty(false)
+      mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(nullptr)), mBytesWritten(0), mSaveDirty(false)
 {
     mProjectFilePath = mProjectDataDir + "project";
     mSourcesFilePath = mProjectDataDir + "sources";
@@ -541,7 +541,7 @@ inline static const char *severityToString(Diagnostic::Flag type)
         error() << "bad boy" << type;
         assert(0);
     }
-    return 0;
+    return nullptr;
 }
 
 static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, Set<uint32_t> &&filter = Set<uint32_t>())
@@ -610,7 +610,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         Value val;
         Value &checkStyle = val["checkStyle"];
         checkStyle = Value(Value::Type_Map);
-        Value *currentFile = 0;
+        Value *currentFile = nullptr;
         uint32_t lastFileId = 0;
         uint32_t ignoredFileId = 0;
         while (it != end) {
@@ -825,7 +825,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
             });
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
                                                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                                                  String::formatTime(time(0), String::Time).constData(),
+                                                  String::formatTime(time(nullptr), String::Time).constData(),
                                                   msg->message().constData(),
                                                   String::format<16>("priority %d", job->priority()).constData()),
                   LogOutput::StdOut|LogOutput::TrailingNewLine);
@@ -833,13 +833,13 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.",
                                                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                                                  String::formatTime(time(0), String::Time).constData(),
+                                                  String::formatTime(time(nullptr), String::Time).constData(),
                                                   Location::path(fileId).toTilde().constData()),
                   LogOutput::StdOut|LogOutput::TrailingNewLine);
     }
 
     if (mActiveJobs.isEmpty()) {
-        mLastIdleTime = time(0);
+        mLastIdleTime = time(nullptr);
         save();
         double timerElapsed = (mTimer.elapsed() / 1000.0);
         const double averageJobTime = timerElapsed / mJobsStarted;
@@ -1760,7 +1760,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
 static Set<Symbol> findReferences(const Symbol &in,
                                   const std::shared_ptr<Project> &project,
                                   std::function<bool(const Symbol &, const Symbol &)> filter,
-                                  Set<Symbol> *inputsPtr = 0)
+                                  Set<Symbol> *inputsPtr = nullptr)
 {
     Set<Symbol> inputs;
     Symbol s;
@@ -2908,7 +2908,7 @@ void Project::validateAll()
 Set<Symbol> Project::findDeadFunctions(uint32_t fileId)
 {
     Set<Symbol> ret;
-    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = 0) {
+    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = nullptr) {
         auto symbols = openSymbols(file);
         if (!symbols)
             return;

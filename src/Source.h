@@ -155,7 +155,7 @@ struct Source
     bool operator<(const Source &other) const;
     bool operator>(const Source &other) const;
 
-    List<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>(), bool *usedPch = 0) const;
+    List<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>(), bool *usedPch = nullptr) const;
     inline bool isIndexable() const;
     static inline bool isIndexable(Language lang);
 
@@ -169,8 +169,8 @@ struct Source
     static SourceList parse(const String &cmdLine,
                             const Path &pwd,
                             const List<String> &environment,
-                            List<Path> *unresolvedInputLocation = 0,
-                            SourceCache *cache = 0);
+                            List<Path> *unresolvedInputLocation = nullptr,
+                            SourceCache *cache = nullptr);
     enum EncodeMode {
         IgnoreSandbox,
         EncodeSandbox

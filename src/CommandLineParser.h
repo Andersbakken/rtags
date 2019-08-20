@@ -70,7 +70,7 @@ ParseStatus parse(int argc, char **argv,
                   const std::function<ParseStatus(T, String &&value, size_t &idx, const List<String> &args)> &handler,
                   const String &app = String(),
                   std::initializer_list<Option<ConfigOptionType> > configOpts = std::initializer_list<Option<ConfigOptionType> >(),
-                  String *cmdLine = 0)
+                  String *cmdLine = nullptr)
 {
     Hash<String, const Option<T> *> longOpts;
     Hash<char, const Option<T> *> shortOpts;
@@ -214,7 +214,7 @@ ParseStatus parse(int argc, char **argv,
                 addArg(shortOpts.value(arg.at(j)));
             }
         } else {
-            addArg(0);
+            addArg(nullptr);
         }
 
         for (const Option<T> *opt : opts) {

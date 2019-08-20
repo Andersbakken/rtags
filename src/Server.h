@@ -156,7 +156,7 @@ public:
                String &&arguments,
                const Path &pwd,
                uint32_t compileCommandsFileId = 0,
-               SourceCache *cache = 0) const;
+               SourceCache *cache = nullptr) const;
     enum FileIdsFileFlag {
         None = 0x0,
         HasSandboxRoot = 0x1,

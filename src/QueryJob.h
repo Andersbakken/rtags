@@ -93,7 +93,7 @@ public:
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
     std::shared_ptr<Project> project() const { return mProject; }
     virtual int execute() = 0;
-    int run(const std::shared_ptr<Connection> &connection = 0);
+    int run(const std::shared_ptr<Connection> &connection = nullptr);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
     void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
     std::mutex &mutex() const { return mMutex; }

@@ -76,7 +76,7 @@ String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *context
 String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) const
 {
     String copy;
-    String *code = 0;
+    String *code = nullptr;
     const Path p = path();
 
     auto readAll = [&p, this]() {

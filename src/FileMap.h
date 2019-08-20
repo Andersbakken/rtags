@@ -51,7 +51,7 @@ class FileMap
 {
 public:
     FileMap()
-        : mPointer(0), mSize(0), mCount(0), mValuesOffset(0), mFD(-1), mOptions(0)
+        : mPointer(nullptr), mSize(0), mCount(0), mValuesOffset(0), mFD(-1), mOptions(0)
     {}
     FileMap(FileMap &&other)
         : mPointer(other.mPointer), mSize(other.mSize), mCount(other.mCount), mValuesOffset(other.mValuesOffset),
@@ -119,7 +119,7 @@ public:
         None = 0x0,
         NoLock = 0x1
     };
-    bool load(const Path &path, uint32_t options, String *error = 0)
+    bool load(const Path &path, uint32_t options, String *error = nullptr)
     {
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
         if (mFD == -1) {
@@ -153,7 +153,7 @@ public:
             return false;
         }
 
-        const char *pointer = static_cast<const char*>(mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, mFD, 0));
+        const char *pointer = static_cast<const char*>(mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
             if (error) {
@@ -172,7 +172,7 @@ public:
         return true;
     }
 
-    Value value(const Key &key, bool *matched = 0) const
+    Value value(const Key &key, bool *matched = nullptr) const
     {
         bool match;
         const uint32_t idx = lowerBound(key, &match);
@@ -198,7 +198,7 @@ public:
         return read<Value>(valuesSegment(), index);
     }
 
-    uint32_t lowerBound(const Key &k, bool *match = 0) const
+    uint32_t lowerBound(const Key &k, bool *match = nullptr) const
     {
         if (!mCount) {
             if (match)

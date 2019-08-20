@@ -69,7 +69,7 @@ public:
 
     Path path() const { return mPath; }
     Path projectDataDir() const { return mProjectDataDir; }
-    bool match(const Match &match, bool *indexed = 0) const;
+    bool match(const Match &match, bool *indexed = nullptr) const;
 
     enum FileMapType {
         Symbols,
@@ -87,30 +87,30 @@ public:
         case Usrs: return "usrs";
         case Tokens: return "tokens";
         }
-        return 0;
+        return nullptr;
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId, String *err = 0)
+    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames, err);
     }
-    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId, String *err = 0)
+    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId, String *err = 0)
+    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId, String *err = 0)
+    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
     }
 
-    std::shared_ptr<FileMap<uint32_t, Token> > openTokens(uint32_t fileId, String *err = 0)
+    std::shared_ptr<FileMap<uint32_t, Token> > openTokens(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<uint32_t, Token>(Tokens, fileId, mFileMapScope->tokens, err);
@@ -149,7 +149,7 @@ public:
         return Rct::wildCmp(pattern.constData(), symbolName.constData(), cs);
     }
 
-    Symbol findSymbol(Location location, int *index = 0);
+    Symbol findSymbol(Location location, int *index = nullptr);
     Set<Symbol> findTargets(Location location) { return findTargets(findSymbol(location)); }
     Set<Symbol> findTargets(const Symbol &symbol);
     Symbol findTarget(Location location) { return RTags::bestTarget(findTargets(location)); }
@@ -311,7 +311,7 @@ private:
         Validate,
         ValidateSilent
     };
-    bool validate(uint32_t fileId, ValidateMode mode, String *error = 0) const;
+    bool validate(uint32_t fileId, ValidateMode mode, String *error = nullptr) const;
     void removeDependencies(uint32_t fileId);
     void updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg);
     void loadFailed(uint32_t fileId);

@@ -90,7 +90,7 @@ private:
     } *mDump;
 
     struct Completions {
-        Completions(Location loc) : location(loc), next(0), prev(0) {}
+        Completions(Location loc) : location(loc), next(nullptr), prev(nullptr) {}
         struct Candidate {
             String completion, signature, annotation, parent, briefComment;
             int priority = 0;
@@ -129,7 +129,7 @@ private:
 
     struct SourceFile {
         SourceFile()
-            : lastModified(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(0), prev(0)
+            : lastModified(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(nullptr), prev(nullptr)
         {}
         std::shared_ptr<RTags::TranslationUnit> translationUnit;
         UnsavedFiles unsavedFiles;

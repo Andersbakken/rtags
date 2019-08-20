@@ -42,6 +42,9 @@ else ()
     set(RCT_WITH_TESTS ${BUILD_TESTING})
 
     set(CMAKE_LEGACY_CYGWIN_WIN32 0)
+    if (CMAKE_COMPILER_IS_GNUCXX)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wzero-as-null-pointer-constant")
+    endif ()
 
     if (APPLE)
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g")
