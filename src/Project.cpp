@@ -659,7 +659,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         "\n  </checkstyle>",
         ")"
     };
-    std::function<String(Location , const Diagnostic &, uint32_t)> formatDiagnostic;
+    std::function<String(Location , const Diagnostic &, uint32_t, size_t)> formatDiagnostic;
 
     enum DiagnosticsFormat {
         Diagnostics_XML,
@@ -667,20 +667,38 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     } const format = flags & QueryMessage::Elisp ? Diagnostics_Elisp : Diagnostics_XML;
 
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [](Location loc, const Diagnostic &diagnostic, uint32_t) {
-            return String::format<1024>("\n      <error line=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"/>",
-                                        loc.line(), loc.column(),
-                                        (diagnostic.length <= 0 ? ""
-                                         : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                        severityToString(diagnostic.type()), RTags::xmlEscape(diagnostic.message).constData());
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t, size_t indent) {
+            String tagEnd;
+            String endTag;
+            String children;
+            String file;
+
+            if (!diagnostic.children.isEmpty()) {
+                tagEnd = ">";
+                endTag = String::format("\n%s</error>", String((indent * 2) + 6, ' ').constData());
+                for (const auto &c : diagnostic.children) {
+                    children += formatDiagnostic(c.first, c.second, c.first.fileId(), indent + 1);
+                }
+            } else {
+                tagEnd = "/>";
+            }
+            if (indent > 0) {
+                file = String::format("file=\"%s\" ", loc.path().constData());
+            }
+            return String::format<1024>("\n%s<error %sline=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"%s%s%s",
+                                        String((indent * 2) + 6, ' ').constData(),
+                                        file.constData(), loc.line(), loc.column(),
+                                        (diagnostic.length <= 0 ? "" : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
+                                        severityToString(diagnostic.type()), RTags::xmlEscape(diagnostic.message).constData(),
+                                        tagEnd.constData(), children.constData(), endTag.constData());
         };
     } else {
-        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file, size_t indent) {
             String children;
             if (!diagnostic.children.isEmpty()) {
                 children = "(list";
                 for (const auto &c : diagnostic.children) {
-                    children << ' ' << formatDiagnostic(c.first, c.second, file);
+                    children << ' ' << formatDiagnostic(c.first, c.second, file, indent + 1);
                 }
                 children << ")";
             } else {
@@ -725,7 +743,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             ret << String::format<1024>(startFile[format], loc.path().constData());
         }
         const Diagnostic &diagnostic = entry.second;
-        ret << formatDiagnostic(loc, diagnostic, lastFileId);
+        ret << formatDiagnostic(loc, diagnostic, lastFileId, 0);
     }
     if (lastFileId) {
         ret << endFile[format];
