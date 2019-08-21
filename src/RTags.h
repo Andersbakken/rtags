@@ -1048,6 +1048,7 @@ inline Log operator<<(Log dbg, CXType type);
 inline Log operator<<(Log dbg, CXCursorKind kind);
 inline Log operator<<(Log dbg, CXTypeKind kind);
 inline Log operator<<(Log dbg, CXLinkageKind kind);
+inline Log operator<<(Log dbg, CXCompletionChunkKind kind);
 
 class CXStringScope
 {
@@ -1113,6 +1114,34 @@ inline Log operator<<(Log dbg, CXLinkageKind kind)
     case CXLinkage_External:
         dbg << "External";
         break;
+    }
+    return dbg;
+}
+
+inline Log operator<<(Log dbg, CXCompletionChunkKind kind)
+{
+    switch (kind) {
+    case CXCompletionChunk_Optional: dbg << "CXCompletionChunk_Optional"; break;
+    case CXCompletionChunk_TypedText: dbg << "CXCompletionChunk_TypedText"; break;
+    case CXCompletionChunk_Text: dbg << "CXCompletionChunk_Text"; break;
+    case CXCompletionChunk_Placeholder: dbg << "CXCompletionChunk_Placeholder"; break;
+    case CXCompletionChunk_Informative: dbg << "CXCompletionChunk_Informative"; break;
+    case CXCompletionChunk_CurrentParameter: dbg << "CXCompletionChunk_CurrentParameter"; break;
+    case CXCompletionChunk_LeftParen: dbg << "CXCompletionChunk_LeftParen"; break;
+    case CXCompletionChunk_RightParen: dbg << "CXCompletionChunk_RightParen"; break;
+    case CXCompletionChunk_LeftBracket: dbg << "CXCompletionChunk_LeftBracket"; break;
+    case CXCompletionChunk_RightBracket: dbg << "CXCompletionChunk_RightBracket"; break;
+    case CXCompletionChunk_LeftBrace: dbg << "CXCompletionChunk_LeftBrace"; break;
+    case CXCompletionChunk_RightBrace: dbg << "CXCompletionChunk_RightBrace"; break;
+    case CXCompletionChunk_LeftAngle: dbg << "CXCompletionChunk_LeftAngle"; break;
+    case CXCompletionChunk_RightAngle: dbg << "CXCompletionChunk_RightAngle"; break;
+    case CXCompletionChunk_Comma: dbg << "CXCompletionChunk_Comma"; break;
+    case CXCompletionChunk_ResultType: dbg << "CXCompletionChunk_ResultType"; break;
+    case CXCompletionChunk_Colon: dbg << "CXCompletionChunk_Colon"; break;
+    case CXCompletionChunk_SemiColon: dbg << "CXCompletionChunk_SemiColon"; break;
+    case CXCompletionChunk_Equal: dbg << "CXCompletionChunk_Equal"; break;
+    case CXCompletionChunk_HorizontalSpace: dbg << "CXCompletionChunk_HorizontalSpace"; break;
+    case CXCompletionChunk_VerticalSpace: dbg << "CXCompletionChunk_VerticalSpace"; break;
     }
     return dbg;
 }
