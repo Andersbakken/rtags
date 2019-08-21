@@ -76,7 +76,6 @@ static void signalHandler(int signal)
     _exit(1);
 }
 
-int foo() { return 0; }
 #define DEFAULT_EXCLUDEFILTER "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*"
 #define DEFAULT_COMPILER_WRAPPERS "ccache"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
