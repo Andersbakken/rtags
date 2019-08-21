@@ -58,7 +58,7 @@
               (if (= (point-at-eol) (point-max))
                   (setq done t)
                 (forward-line 1)))))))
-    ret))
+    (reverse ret)))
 
 (defun ivy-rtags-select (candidate)
   "Select CANDIDATE."
