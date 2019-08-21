@@ -187,7 +187,8 @@ otherwise 'meta property. See also `company-rtags--meta'."
   (let ((meta (company-rtags--meta candidate insert)))
     (cond
      ((null meta) nil)
-     ((string-match "\\((.*)\\)" meta)
+     ((and (string-match "\\((.*)\\)" meta)
+           (not (string-match "^struct (anonymous)" meta)))
       (match-string 1 meta)))))
 
 (defun company-rtags-completions-calculate-maxwidth ()
