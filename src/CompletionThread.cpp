@@ -313,11 +313,11 @@ void CompletionThread::process(Request *request)
     if (request->flags & IncludeMacros)
         completionFlags |= CXCodeComplete_IncludeMacros;
 
-    CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit->unit, sourceFile.constData(),
+    CXCodeCompleteResults *results = clang_codeCompleteAt(cache->translationUnit->unit, request->location.path().c_str(),
                                                           request->location.line(), request->location.column(),
                                                           unsavedFiles.data(), static_cast<unsigned int>(unsavedFiles.size()), completionFlags);
     completeTime = cache->codeCompleteTime = sw.restart();
-    LOG() << "Generated" << (results ? results->NumResults : 0) << "completions for" << request->location << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
+    LOG() << "Generated" << (results ? results->NumResults : 0) << "completions for" << request->location << "from" << sourceFile << (results ? "successfully" : "unsuccessfully") << "in" << completeTime << "ms";
 
     ++cache->completions;
     if (results) {
