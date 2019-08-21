@@ -76,25 +76,26 @@ static void signalHandler(int signal)
     _exit(1);
 }
 
-#define DEFAULT_EXCLUDEFILTER "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*"
-#define DEFAULT_BLOCKED_ARGUMENTS "-save-temps;-save-temps="
-#define DEFAULT_COMPILER_WRAPPERS "ccache"
-#define DEFAULT_RP_VISITFILE_TIMEOUT 60000
-#define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
-#define DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT 60000
-#define DEFAULT_RP_CONNECT_TIMEOUT 0 // won't time out
-#define DEFAULT_RP_CONNECT_ATTEMPTS 3
-#define DEFAULT_COMPLETION_CACHE_SIZE 10
-#define DEFAULT_ERROR_LIMIT 50
-#define DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH 3
-#define DEFAULT_MAX_CRASH_COUNT 5
-#define XSTR(s) #s
-#define STR(s) XSTR(s)
+static const char *DEFAULT_EXCLUDEFILTER = "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*";
+static const char *DEFAULT_BLOCKED_ARGUMENTS = "-save-temps;-save-temps=";
+static const char *DEFAULT_COMPILER_WRAPPERS = "ccache";
 #ifdef NDEBUG
-#define DEFAULT_SUSPEND_RP "off"
+const char *DEFAULT_SUSPEND_RP = "off";
 #else
-#define DEFAULT_SUSPEND_RP "on"
+const char *DEFAULT_SUSPEND_RP = "on";
 #endif
+
+enum {
+    DEFAULT_RP_VISITFILE_TIMEOUT = 60000,
+    DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE = 500,
+    DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT = 60000,
+    DEFAULT_RP_CONNECT_TIMEOUT = 0, // won't time out
+    DEFAULT_RP_CONNECT_ATTEMPTS = 3,
+    DEFAULT_COMPLETION_CACHE_SIZE = 10,
+    DEFAULT_ERROR_LIMIT = 50,
+    DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH = 3,
+    DEFAULT_MAX_CRASH_COUNT = 5
+};
 
 static inline Path defaultRP()
 {
@@ -262,7 +263,7 @@ int main(int argc, char** argv)
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
     serverOpts.rp = defaultRP();
-    serverOpts.blockedArguments = String::split(DEFAULT_BLOCKED_ARGUMENTS, ";");
+    serverOpts.blockedArguments = String::split(DEFAULT_BLOCKED_ARGUMENTS, ';').toSet();
     strcpy(crashDumpFilePath, "crash.dump");
 #ifdef FILEMANAGER_OPT_IN
     serverOpts.options |= Server::NoFileManagerWatch;
@@ -308,11 +309,11 @@ int main(int argc, char** argv)
         { CleanSlate, "clean-slate", 'C', CommandLineParser::NoValue, "Clear out all data." },
         { DisableSigHandler, "disable-sighandler", 'x', CommandLineParser::NoValue, "Disable signal handler to dump stack for crashes." },
         { Silent, "silent", 'S', CommandLineParser::NoValue, "No logging to stdout/stderr." },
-        { ExcludeFilter, "exclude-filter", 'X', CommandLineParser::Required, "Files to exclude from rdm, default \"" DEFAULT_EXCLUDEFILTER "\"." },
+        { ExcludeFilter, "exclude-filter", 'X', CommandLineParser::Required, String::format("Files to exclude from rdm, default \"%s\".", DEFAULT_EXCLUDEFILTER) },
         { SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this file for the server socket (default ~/.rdm)." },
         { DataDir, "data-dir", 'd', CommandLineParser::Required, "Use this directory to store persistent data (default $XDG_CACHE_HOME/rtags otherwise ~/.cache/rtags)." },
         { IgnorePrintfFixits, "ignore-printf-fixits", 'F', CommandLineParser::NoValue, "Disregard any clang fixit that looks like it's trying to fix format for printf and friends." },
-        { ErrorLimit, "error-limit", 'f', CommandLineParser::Required, "Set error limit to argument (-ferror-limit={arg} (default " STR(DEFAULT_ERROR_LIMIT) ")." },
+        { ErrorLimit, "error-limit", 'f', CommandLineParser::Required, String::format("Set error limit to argument (-ferror-limit={arg} (default %d).", DEFAULT_ERROR_LIMIT) },
         { BlockArgument, "block-argument", 'G', CommandLineParser::Required, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
         { NoSpellChecking, "no-spell-checking", 'l', CommandLineParser::NoValue, "Don't pass -fspell-checking." },
         { LargeByValueCopy, "large-by-value-copy", 'r', CommandLineParser::Required, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
@@ -320,33 +321,33 @@ int main(int argc, char** argv)
         { NoStartupProject, "no-startup-project", 'o', CommandLineParser::NoValue, "Don't restore the last current project on startup." },
         { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', CommandLineParser::NoValue, "Don't pass -Wno-unknown-warning-option." },
         { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
-        { CompilerWrappers, "compiler-wrappers", 0, CommandLineParser::Required, "Consider these filenames compiler wrappers (split on ;), default " DEFAULT_COMPILER_WRAPPERS "\"." },
+        { CompilerWrappers, "compiler-wrappers", 0, CommandLineParser::Required, String::format("Consider these filenames compiler wrappers (split on ;), default \"%s\".", DEFAULT_COMPILER_WRAPPERS) },
         { WatchSystemPaths, "watch-system-paths", 'w', CommandLineParser::NoValue, "Watch system paths for changes." },
-        { RPVisitFileTimeout, "rp-visit-file-timeout", 'Z', CommandLineParser::Required, "Timeout for rp visitfile commands in ms (0 means no timeout) (default " STR(DEFAULT_RP_VISITFILE_TIMEOUT) ")." },
-        { RPIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', CommandLineParser::Required, "Timeout for rp indexer-message in ms (0 means no timeout) (default " STR(DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) ")." },
-        { RPConnectTimeout, "rp-connect-timeout", 'O', CommandLineParser::Required, "Timeout for connection from rp to rdm in ms (0 means no timeout) (default " STR(DEFAULT_RP_CONNECT_TIMEOUT) ")." },
-        { RPConnectAttempts, "rp-connect-attempts", 0, CommandLineParser::Required, "Number of times rp attempts to connect to rdm before giving up. (default " STR(DEFAULT_RP_CONNECT_ATTEMPTS) ")." },
+        { RPVisitFileTimeout, "rp-visit-file-timeout", 'Z', CommandLineParser::Required, String::format("Timeout for rp visitfile commands in ms (0 means no timeout) (default %d).", DEFAULT_RP_VISITFILE_TIMEOUT) },
+        { RPIndexerMessageTimeout, "rp-indexer-message-timeout", 'T', CommandLineParser::Required, String::format("Timeout for rp indexer-message in ms (0 means no timeout) (default %d).", DEFAULT_RP_INDEXER_MESSAGE_TIMEOUT) },
+        { RPConnectTimeout, "rp-connect-timeout", 'O', CommandLineParser::Required, String::format("Timeout for connection from rp to rdm in ms (0 means no timeout) (default %d).", DEFAULT_RP_CONNECT_TIMEOUT) },
+        { RPConnectAttempts, "rp-connect-attempts", 0, CommandLineParser::Required, String::format("Number of times rp attempts to connect to rdm before giving up. (default %d).", DEFAULT_RP_CONNECT_ATTEMPTS) },
         { RPNiceValue, "rp-nice-value", 'a', CommandLineParser::Required, "Nice value to use for rp (nice(2)) (default is no nicing)." },
-        { SuspendRPOnCrash, "suspend-rp-on-crash", 'q', CommandLineParser::NoValue, "Suspend rp in SIGSEGV handler (default " DEFAULT_SUSPEND_RP ")." },
+        { SuspendRPOnCrash, "suspend-rp-on-crash", 'q', CommandLineParser::NoValue, String::format("Suspend rp in SIGSEGV handler (default %s).", DEFAULT_SUSPEND_RP) },
         { RPLogToSyslog, "rp-log-to-syslog", 0, CommandLineParser::NoValue, "Make rp log to syslog." },
         { StartSuspended, "start-suspended", 'Q', CommandLineParser::NoValue, "Start out suspended (no reindexing enabled)." },
         { SeparateDebugAndRelease, "separate-debug-and-release", 'E', CommandLineParser::NoValue, "Normally rdm doesn't consider release and debug as different builds. Pass this if you want it to." },
         { Separate32BitAnd64Bit, "separate-32-bit-and-64-bit", 0, CommandLineParser::NoValue, "Normally rdm doesn't consider -m32 and -m64 as different builds. Pass this if you want it to." },
         { SourceIgnoreIncludePathDifferencesInUsr, "ignore-include-path-differences-in-usr", 0, CommandLineParser::NoValue, "Don't consider sources that only differ in includepaths within /usr (not including /usr/home/) as different builds." },
-        { MaxCrashCount, "max-crash-count", 'K', CommandLineParser::Required, "Max number of crashes before giving up a sourcefile (default " STR(DEFAULT_MAX_CRASH_COUNT) ")." },
+        { MaxCrashCount, "max-crash-count", 'K', CommandLineParser::Required, String::format("Max number of crashes before giving up a sourcefile (default %d).", DEFAULT_MAX_CRASH_COUNT) },
         { MaxSocketWriteBufferSize, "max-socket-write-buffer-size", 0, CommandLineParser::Required, "Max number of bytes buffered after EAGAIN." },
-        { CompletionCacheSize, "completion-cache-size", 'i', CommandLineParser::Required, "Number of translation units to cache (default " STR(DEFAULT_COMPLETION_CACHE_SIZE) ")." },
+        { CompletionCacheSize, "completion-cache-size", 'i', CommandLineParser::Required, String::format("Number of translation units to cache (default %d).", DEFAULT_COMPLETION_CACHE_SIZE) },
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
         { CompletionDiagnostics, "completion-diagnostics", 0, CommandLineParser::Optional, "Send diagnostics from completion thread." },
         { RPDaemon, "rp-daemon", 0, CommandLineParser::Required, "Keep this many rp daemons alive and cache the last tu. Default to 1" },
-        { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, "Max recursion depth for header completion (default " STR(DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) ")." },
+        { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, String::format("Max recursion depth for header completion (default %d).", DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
         { EnableCompilerManager, "enable-compiler-manager", 'R', CommandLineParser::NoValue, "Query compilers for their actual include paths instead of letting clang use its own." },
         { EnableNDEBUG, "enable-NDEBUG", 'g', CommandLineParser::NoValue, "Don't remove -DNDEBUG from compile lines." },
         { Progress, "progress", 'p', CommandLineParser::NoValue, "Report compilation progress in diagnostics output." },
-        { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', CommandLineParser::Required, "Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default " STR(DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) ")." },
+        { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', CommandLineParser::Required, String::format("Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default %d).", DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) },
 #ifdef FILEMANAGER_OPT_IN
         { FileManagerWatch, "filemanager-watch", 'M', CommandLineParser::NoValue, "Use a file system watcher for filemanager." },
 #else
@@ -517,7 +518,7 @@ int main(int argc, char** argv)
             serverOpts.ignoredCompilers.insert(Path::resolved(value));
             break; }
         case CompilerWrappers: {
-            serverOpts.compilerWrappers = String(value).split(";", String::SkipEmpty).toSet();
+            serverOpts.compilerWrappers = String::split(value, ";", String::SkipEmpty).toSet();
             break; }
         case WatchSystemPaths: {
             serverOpts.options |= Server::WatchSystemPaths;
