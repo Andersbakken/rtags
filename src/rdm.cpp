@@ -77,6 +77,7 @@ static void signalHandler(int signal)
 }
 
 #define DEFAULT_EXCLUDEFILTER "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*"
+#define DEFAULT_BLOCKED_ARGUMENTS "-save-temps;-save-temps="
 #define DEFAULT_COMPILER_WRAPPERS "ccache"
 #define DEFAULT_RP_VISITFILE_TIMEOUT 60000
 #define DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE 500
@@ -261,6 +262,7 @@ int main(int argc, char** argv)
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
     serverOpts.rp = defaultRP();
+    serverOpts.blockedArguments = String::split(DEFAULT_BLOCKED_ARGUMENTS, ";");
     strcpy(crashDumpFilePath, "crash.dump");
 #ifdef FILEMANAGER_OPT_IN
     serverOpts.options |= Server::NoFileManagerWatch;
