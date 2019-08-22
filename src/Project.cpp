@@ -1365,8 +1365,6 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
 
     {
         uint32_t lastFileId = 0;
-        // if (debug)
-        //     error() << "gonna fucking do" << diagnostics.size();
         for (const auto &it : diagnostics) {
             const uint32_t f = it.first.fileId();
             if (lastFileId != f) {
@@ -1493,7 +1491,6 @@ void Project::findSymbols(const String &unencoded,
         }
     };
 
-    error() << "fucking here" << fileFilter << Location::path(fileFilter);
     if (fileFilter) {
         processFile(fileFilter);
     } else {
