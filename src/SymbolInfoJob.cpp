@@ -44,7 +44,8 @@ int SymbolInfoJob::execute()
             bool exact = false;
             uint32_t idx = symbols->lowerBound(start, &exact);
             if (exact) {
-                write("(list");
+                if (queryFlags() & QueryMessage::Elisp)
+                    write("(list");
                 write(symbols->valueAt(idx++));
                 ret = 0;
             } else {
@@ -65,14 +66,14 @@ int SymbolInfoJob::execute()
                 if (loc > end)
                     break;
                 if (loc >= start) {
-                    if (ret)
+                    if (ret && queryFlags() & QueryMessage::Elisp)
                         write("(list");
                     write(symbols->valueAt(idx));
                     ret = 0;
                 }
                 ++idx;
             }
-            if (!ret)
+            if (!ret && queryFlags() & QueryMessage::Elisp)
                 write(")");
         }
     }
