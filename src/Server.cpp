@@ -1549,12 +1549,13 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
 std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMessage> &query)
 {
     List<Match> matches;
-    if (query->flags() & QueryMessage::HasLocation)
+    if (query->flags() & QueryMessage::HasLocation) {
         matches << query->location().path();
+    } else if (query->flags() & QueryMessage::HasMatch) {
+        matches << query->match();
+    }
     if (!query->currentFile().isEmpty())
         matches << query->currentFile();
-    if (!(query->flags() & QueryMessage::HasLocation))
-        matches << query->match();
 
     return projectForMatches(matches);
 }

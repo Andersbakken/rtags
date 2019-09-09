@@ -656,7 +656,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
-            addQuery(QueryMessage::CodeCompleteAt, std::move(encoded));
+            addQuery(QueryMessage::CodeCompleteAt, std::move(encoded), QueryMessage::HasLocation);
             break; }
         case Silent: {
             mLogLevel = LogLevel::None;
@@ -888,7 +888,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case IncludeFile:
         case JobCount:
         case Status: {
-            Flags<QueryMessage::Flag> extraQueryFlags;
             QueryMessage::Type queryType = QueryMessage::Invalid;
             bool resolve = true;
             switch (type) {
@@ -942,12 +941,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 Path p(arg);
                 if (resolve && p.exists()) {
                     p.resolve();
-                    addQuery(queryType, std::move(p), extraQueryFlags);
+                    addQuery(queryType, std::move(p), QueryMessage::HasLocation);
                 } else {
-                    addQuery(queryType, std::move(arg), extraQueryFlags);
+                    addQuery(queryType, std::move(arg));
                 }
             } else {
-                addQuery(queryType, String(), extraQueryFlags);
+                addQuery(queryType, String());
             }
             assert(!mCommands.isEmpty());
             if (queryType == QueryMessage::Project)
@@ -1077,7 +1076,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             if (p.isDir() && !p.endsWith('/'))
                 p.append('/');
-            addQuery(QueryMessage::HasFileManager, std::move(p));
+            addQuery(QueryMessage::HasFileManager, std::move(p), QueryMessage::HasMatch);
             break; }
         case ProjectRoot: {
             Path p = std::move(value);
@@ -1185,9 +1184,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     p.append('/');
                 }
             }
-            if (!p.isEmpty())
-                p.resolve();
             Flags<QueryMessage::Flag> extraQueryFlags;
+            if (!p.isEmpty()) {
+                p.resolve();
+                extraQueryFlags |= QueryMessage::HasMatch;
+            }
             QueryMessage::Type queryType = QueryMessage::Invalid;
             switch (type) {
             case GenerateTest:
@@ -1282,7 +1283,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!p.isFile()) {
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
-            addQuery(QueryMessage::PreprocessFile, std::move(p));
+            addQuery(QueryMessage::PreprocessFile, std::move(p), QueryMessage::HasMatch);
             break; }
         case AsmFile: {
             Path p = std::move(value);
@@ -1290,14 +1291,14 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!p.isFile()) {
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
-            addQuery(QueryMessage::AsmFile, std::move(p));
+            addQuery(QueryMessage::AsmFile, std::move(p), QueryMessage::HasMatch);
             break; }
         case RemoveFile: {
             Path p = Path::resolved(value, Path::MakeAbsolute);
             if (!p.exists()) {
-                addQuery(QueryMessage::RemoveFile, std::move(p));
+                addQuery(QueryMessage::RemoveFile, std::move(p), QueryMessage::HasMatch);
             } else {
-                addQuery(QueryMessage::RemoveFile, std::move(value));
+                addQuery(QueryMessage::RemoveFile, std::move(value), QueryMessage::HasMatch);
             }
             break; }
         case ReferenceName: {
@@ -1309,7 +1310,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("include path can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
-            addQuery(QueryMessage::IncludePath, std::move(encoded));
+            addQuery(QueryMessage::IncludePath, std::move(encoded), QueryMessage::HasLocation);
             break; }
         case MaxDepth: {
             const int depth = atoi(value.constData());

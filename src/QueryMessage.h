@@ -126,7 +126,8 @@ public:
         SynchronousDiagnostics = (1ull << 45),
         CodeCompleteNoWait = (1ull << 46),
         SymbolInfoIncludeSourceCode = (1ull << 47),
-        AllTargets = (1ull << 48)
+        AllTargets = (1ull << 48),
+        HasMatch = (1ull << 29)
     };
 
     QueryMessage(Type type = Invalid);
