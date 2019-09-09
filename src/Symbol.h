@@ -161,8 +161,8 @@ struct Symbol
         IncludeParents = 0x04,
         IncludeBaseClasses = 0x08,
         IncludeContainingFunction = 0x10,
-        IncludeContainingFunctionLocation = 0x20
-
+        IncludeContainingFunctionLocation = 0x20,
+        IncludeSourceCode = 0x40
     };
     Value toValue(const std::shared_ptr<Project> &project,
                   Flags<ToStringFlag> toStringFlags,

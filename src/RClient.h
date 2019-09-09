@@ -146,6 +146,7 @@ public:
         SymbolInfoIncludeParents,
         SymbolInfoIncludeReferences,
         SymbolInfoIncludeTargets,
+        SymbolInfoIncludeSourceCode,
         SynchronousCompletions,
         SynchronousDiagnostics,
         TargetUsrs,

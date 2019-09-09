@@ -283,7 +283,6 @@ static inline Path checkEntries(const Entry *entries, const Path &path, const Pa
     return best;
 }
 
-
 Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
 {
     if (path == "-")
@@ -443,6 +442,23 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
         return findProjectRoot(path, SourceRoot, cache);
 
     return Path();
+}
+
+size_t findOffset(int line, int col, const String &contents, size_t offset)
+{
+    // ### this does not handle multibyte
+    String ret;
+    unsigned int l = line;
+    if (!l)
+        return String::npos;
+    const char *ch = contents.constData() + offset;
+    while (--l) {
+        ch = strchr(ch, '\n');
+        if (!ch)
+            return String::npos;
+        ++ch;
+    }
+    return (ch - contents.constData()) + col - 1;
 }
 
 void initMessages()

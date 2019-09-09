@@ -219,6 +219,8 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
         toStringFlags |= Symbol::IncludeParents;
     if (queryFlags() & QueryMessage::SymbolInfoIncludeBaseClasses)
         toStringFlags |= Symbol::IncludeBaseClasses;
+    if (queryFlags() & QueryMessage::SymbolInfoIncludeSourceCode)
+        toStringFlags |= Symbol::IncludeSourceCode;
     if (queryFlags() & (QueryMessage::ContainingFunction | QueryMessage::JSON | QueryMessage::Elisp))
         toStringFlags |= Symbol::IncludeContainingFunction;
     if (queryFlags() & (QueryMessage::ContainingFunctionLocation | QueryMessage::JSON | QueryMessage::Elisp))

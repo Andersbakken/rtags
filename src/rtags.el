@@ -73,7 +73,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 128)
+(defconst rtags-protocol-version 129)
 (defconst rtags-package-version "2.33")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1546,6 +1546,7 @@ Uses `completing-read' to ask for the project."
 (defun* rtags-symbol-info-internal (&rest foo
                                           &key
                                           (parents nil)
+                                          (source-code nil)
                                           (references nil)
                                           (targets nil)
                                           (base-classes nil)
@@ -1564,6 +1565,7 @@ Uses `completing-read' to ask for the project."
                                          (when parents "--symbol-info-include-parents")
                                          (when references "--symbol-info-include-references")
                                          (when targets "--symbol-info-include-targets")
+                                         (when source-code "--symbol-info-include-source-code")
                                          (when base-classes "--symbol-info-include-base-classes"))
                           (goto-char (point-min))
                           (looking-at "(")

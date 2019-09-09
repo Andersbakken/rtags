@@ -147,6 +147,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::SymbolInfoIncludeTargets, "symbol-info-include-targets", 0, CommandLineParser::NoValue, "Use to make --symbol-info include target symbols." },
     { RClient::SymbolInfoIncludeReferences, "symbol-info-include-references", 0, CommandLineParser::NoValue, "Use to make --symbol-info include reference symbols." },
     { RClient::SymbolInfoIncludeBaseClasses, "symbol-info-include-base-classes", 0, CommandLineParser::NoValue, "Use to make --symbol-info include baseclasses' symbols." },
+    { RClient::SymbolInfoIncludeSourceCode, "symbol-info-include-source-code", 0, CommandLineParser::NoValue, "Use to make --symbol-info include source code." },
     { RClient::CursorKind, "cursor-kind", 0, CommandLineParser::NoValue, "Include cursor kind in --find-symbols output." },
     { RClient::DisplayName, "display-name", 0, CommandLineParser::NoValue, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, CommandLineParser::Required, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
@@ -539,6 +540,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case SymbolInfoIncludeBaseClasses: {
             mQueryFlags |= QueryMessage::SymbolInfoIncludeBaseClasses;
+            break; }
+        case SymbolInfoIncludeSourceCode: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeSourceCode;
             break; }
         case CursorKind: {
             mQueryFlags |= QueryMessage::CursorKind;

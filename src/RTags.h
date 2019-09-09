@@ -776,6 +776,7 @@ enum ProjectRootMode {
     SourceRoot,
     BuildRoot
 };
+size_t findOffset(int line, int col, const String &contents, size_t offset = 0);
 Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache = nullptr);
 enum FindAncestorFlag {
     Shallow = 0x1,
