@@ -39,6 +39,7 @@ jobs:
             - python3-pip
             - libcppunit-dev
     - os: osx
+      osx_image: xcode11
       script: ./scripts/travis.sh
       compiler: clang
       env: T=clang-osx CMAKE_BUILD_TYPE=Debug
@@ -49,6 +50,7 @@ jobs:
             - yarn
             - cppunit
     - os: osx
+      osx_image: xcode11
       script: ./scripts/travis.sh
       compiler: clang
       env: T=clang-osx CMAKE_BUILD_TYPE=Release
