@@ -166,6 +166,9 @@ with mismatched versions"
 
 (rtags-set-suspend-during-compilation-enabled)
 
+(defcustom rtags-references-tree-truncate t
+  "Whether RTags should truncate the output. Set to t to truncate to window-width, a number to truncate to that many columns or nil for no truncation")
+
 (defcustom rtags-use-bookmarks t
   "Whether RTags uses bookmarks for locations."
   :type 'boolean
@@ -2066,7 +2069,7 @@ instead of file from `current-buffer'.
                     (when (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
                       (incf rtags-buffer-bookmarks)
                       (1- rtags-buffer-bookmarks)))))))))
-    (insert (rtags-tree-indent level) (file-name-nondirectory location) " " (rtags-format-context (cdr (assoc 'ctx ref)) .4))
+    (insert (rtags-tree-indent level) (file-name-nondirectory location) " " (rtags-end-quote (rtags-format-context (cdr (assoc 'ctx ref)) .4)))
     (let ((cf (cdr (assoc 'cf ref)))
           (props (list 'rtags-ref-containing-function-location (cdr (assoc 'cfl ref))
                        'rtags-ref-location components))
@@ -2081,35 +2084,35 @@ instead of file from `current-buffer'.
         (set-text-properties pos (point) (append props (list 'rtags-ref-cf t)))))))
 
 (defun rtags-references-tree-align-cfs ()
-  (save-excursion
-    (goto-char (point-min))
-    (let ((longest 0)
-          (max)
-          (cfs))
-      (while (not (eobp))
-        (goto-char (point-at-eol))
-        (cond ((not (search-backward " <= " (point-at-bol) t))
-               (push nil cfs))
-              ((not (get-text-property (1+ (point)) 'rtags-ref-cf))
-               (push nil cfs))
-              (t (push (buffer-substring (point) (point-at-eol)) cfs)
-                 (delete-region (point) (point-at-eol))
-                 (delete-horizontal-space)))
-        (setq longest (max longest (current-column)))
-        (or (eobp) (forward-char 1)))
+  (when rtags-references-tree-truncate
+    (save-excursion
       (goto-char (point-min))
-      (setq max (- (frame-width) 2 longest))
-      (mapc (lambda (cf)
-              (goto-char (point-at-eol))
-              (when cf
-                (when (> (length cf) max)
-                  ;; (message "truncating %s %d vs %d to " cf (length cf) max (substring cf 0 max))
-                  (setq cf (substring cf 0 max)))
-                (insert (make-string (+ (- longest (current-column))) ? ) cf))
-              (unless (eobp)
-                (forward-char)))
-            (nreverse cfs)))))
-
+      (let ((longest 0)
+            (max)
+            (cfs))
+        (while (not (eobp))
+          (goto-char (point-at-eol))
+          (cond ((not (search-backward " <= " (point-at-bol) t))
+                 (push nil cfs))
+                ((not (get-text-property (1+ (point)) 'rtags-ref-cf))
+                 (push nil cfs))
+                (t (push (buffer-substring (point) (point-at-eol)) cfs)
+                   (delete-region (point) (point-at-eol))
+                   (delete-horizontal-space)))
+          (setq longest (max longest (current-column)))
+          (or (eobp) (forward-char 1)))
+        (goto-char (point-min))
+        (setq max (- (frame-width) 2 longest))
+        (mapc (lambda (cf)
+                (goto-char (point-at-eol))
+                (when cf
+                  (when (> (length cf) max)
+                    ;; (message "truncating %s %d vs %d to " cf (length cf) max (substring cf 0 max))
+                    (setq cf (substring cf 0 max)))
+                  (insert (make-string (+ (- longest (current-column))) ? ) cf))
+                (unless (eobp)
+                  (forward-char)))
+              (nreverse cfs))))))
 
 ;;;###autoload
 (defun rtags-references-tree ()
@@ -3277,7 +3280,25 @@ of diagnostics count"
 (defun rtags-format-context (str fraction)
   (when (string-match "^[ \t]+" str)
     (setq str (substring str (match-end 0))))
-  (rtags-elide-text str (truncate (* (frame-width) fraction)) 'right))
+  (cond ((null rtags-references-tree-truncate) str)
+        ((and (integerp rtags-references-tree-truncate) (> rtags-references-tree-truncate 4))
+         (rtags-elide-text str (truncate (* rtags-references-tree-truncate fraction)) 'right))
+        (t (rtags-elide-text str (truncate (* (frame-width) fraction)) 'right))))
+
+(defun rtags-end-quote (str)
+  (let ((start)
+        (idx)
+        (in))
+    (while (setq idx (string-match "\"" str start))
+      (setq in (not in))
+      (setq start (1+ idx)))
+    (cond ((not in) str)
+          ((string-match "\.\.\." str)
+           (if (string= (substring str -4 -3) "\"")
+               (concat (substring str 0 -4) " ...")
+             (concat (substring str 0 -4) "\"...")))
+          ((string= (substring str -1) "\"") (concat (substring str 0 -1) " "))
+          (t (concat (substring str 0 -1) "\"")))))
 
 (defun rtags-elide-text (str len part)
   (cond ((<= (length str) len) str)
