@@ -275,6 +275,10 @@ set(RTAGS_ELISP_FILES
     flycheck-rtags.el)
 
 if (NOT RTAGS_NO_ELISP_FILES)
+    if ("${EMACS_VERSION}" GREATER "25.0" OR "${EMACS_VERSION}" EQUAL "25.0")
+        list(APPEND RTAGS_ELISP_FILES rtags-xref.el)
+    endif ()
+
     if (NOT RTAGS_ELISP_INSTALL_LOCATION)
         set(RTAGS_ELISP_INSTALL_LOCATION ${CMAKE_INSTALL_PREFIX}/share/emacs/site-lisp/rtags/)
     endif ()

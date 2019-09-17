@@ -807,6 +807,7 @@ void DiagnosticsProvider::diagnose()
             {
                 Flags<Diagnostic::Flag> f = Diagnostic::DisplayCategory;
                 if (!(fileFlags & IndexDataMessage::Visited)) {
+#if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
                     CXCursor cursor = cursorAt(u, diagLoc);
                     bool found = false;
                     do {
@@ -824,6 +825,9 @@ void DiagnosticsProvider::diagnose()
                         clang_disposeDiagnostic(diag);
                         continue;
                     }
+#else
+                    continue;
+#endif
                 }
                 process(u, diag, indexData.diagnostics(), f);
             }
