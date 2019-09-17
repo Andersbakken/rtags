@@ -167,7 +167,8 @@ with mismatched versions"
 (rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-references-tree-truncate t
-  "Whether RTags should truncate the output. Set to t to truncate to window-width, a number to truncate to that many columns or nil for no truncation")
+  "Whether RTags should truncate the output. Set to t to truncate to window-width, a number to truncate to that many columns or nil for no truncation"
+  :type 'sexp)
 
 (defcustom rtags-use-bookmarks t
   "Whether RTags uses bookmarks for locations."
