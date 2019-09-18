@@ -99,6 +99,8 @@ static inline Source::Language guessLanguageFromSourceFile(const Path &sourceFil
             return Source::CPlusPlus;
         } else if (!strcmp(suffix, "c")) {
             return Source::C;
+        } else if (!strcmp(suffix, "cu")) {
+            return Source::C;
         } else if (!strcmp(suffix, "M")) {
             return Source::ObjectiveCPlusPlus;
         } else if (!strcmp(suffix, "mm")) {
