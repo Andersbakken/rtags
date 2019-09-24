@@ -922,6 +922,12 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
         remove = config.value("remove-arguments").split(";").toSet();
     }
 
+    if (!(f & ExcludeDefaultArguments)) {
+        assert(server);
+        for (const auto &arg : server->options().defaultArguments)
+            ret.append(arg);
+    }
+
     for (size_t i=0; i<arguments.size(); ++i) {
         const String &arg = arguments.at(i);
         const bool hasValue = ::hasValue(arg);
@@ -938,11 +944,6 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
         } else if (hasValue) {
             ++i;
         }
-    }
-    if (!(f & ExcludeDefaultArguments)) {
-        assert(server);
-        for (const auto &arg : server->options().defaultArguments)
-            ret.append(arg);
     }
 
     if (f & IncludeDefines) {
