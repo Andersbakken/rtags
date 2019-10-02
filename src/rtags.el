@@ -2361,9 +2361,12 @@ instead of file from `current-buffer'.
 
 (defun rtags-find-file-or-buffer (file-or-buffer &optional other-window)
   (if (file-exists-p file-or-buffer)
-      (if other-window
-          (find-file-other-window file-or-buffer)
-        (find-file file-or-buffer))
+      (let ((buf (find-file-noselect file-or-buffer)))
+        (unless buf
+          (error "Can't open file %s" file-or-buffer))
+        (if other-window
+            (switch-to-buffer-other-window buf)
+          (switch-to-buffer buf)))
     (let ((buf (get-buffer file-or-buffer)))
       (if buf(not buf)
         (rtags-switch-to-buffer file-or-buffer other-window)
