@@ -10,3 +10,6 @@
 	path = src/lua
 	url = https://github.com/LuaDist/lua.git
     branch = master
+[submodule "src/v8"]
+	path = src/v8
+	url = https://github.com/Andersbakken/libv8.git

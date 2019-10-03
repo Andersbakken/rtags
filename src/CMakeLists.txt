@@ -33,6 +33,12 @@ if (RTAGS_BUILD_CLANG)
     set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include")
 endif ()
 
+if (RCT_BUILD_SCRIPTENGINE)
+
+
+
+endif ()
+
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
 
@@ -120,12 +126,31 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-if (LUA_ENABLED)
-    ExternalProject_Add(lua
-        DOWNLOAD_COMMAND ""
-        SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lua
-        INSTALL_COMMAND ""
-        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
+if (SCRIPTENGINE_ENABLED)
+    # # URL "https://github.com/v8/v8/archive/7.9.198.tar.gz"
+    ExternalProject_Add(v8
+        DOWNLOAD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/downloadv8.sh
+        CONFIGURE_COMMAND ${PROJECT_SOURCE_DIR}/scripts/configurev8.sh
+        BUILD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/buildv8.sh
+        INSTALL_COMMAND ${PROJECT_SOURCE_DIR}/scripts/installv8.sh
+        PREFIX ${CMAKE_BINARY_DIR}/v8
+        BUILD_IN_SOURCE 1
+        LOG_DOWNLOAD 1            # Wrap download in script to log output
+        LOG_UPDATE 1              # Wrap update in script to log output
+        LOG_CONFIGURE 1           # Wrap configure in script to log output
+        LOG_BUILD 1               # Wrap build in script to log output
+        LOG_TEST 1                # Wrap test in script to log output
+        LOG_INSTALL 1             # Wrap install in script to log output
+        )
+
+
+    # ExternalProject_Add(lua
+    #     DOWNLOAD_COMMAND ""
+    #     SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lua
+    #     INSTALL_COMMAND ""
+    #     CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
+# set(RCT_BUILD_SCRIPTENGINE 1)
+
 endif ()
 
 set(RCT_RTTI_ENABLED 1)
@@ -204,8 +229,11 @@ add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
 endif ()
-if (LUA_ENABLED)
-    add_dependencies(rtags lua)
+# if (LUA_ENABLED)
+#     add_dependencies(rtags lua)
+# endif ()
+if (SCRIPTENGINE_ENABLED)
+    add_dependencies(rct v8)
 endif ()
 
 if (RTAGS_COTIRE)
