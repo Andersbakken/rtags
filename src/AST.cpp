@@ -15,7 +15,6 @@
 
 #include "AST.h"
 #include "ClangThread.h"
-#include "selene.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)
@@ -28,7 +27,7 @@ CXChildVisitResult AST::visitor(CXCursor cursor, CXCursor, CXClientData u)
 {
     UserData *userData = reinterpret_cast<UserData*>(u);
     assert(userData);
-    Cursor::Data *p = userData->parents.isEmpty() ? 0 : userData->parents.back().data.get();
+    Cursor::Data *p = userData->parents.isEmpty() ? nullptr : userData->parents.back().data.get();
     Cursor c = userData->ast->construct(cursor, p);
     userData->parents.push_back(Cursor { c.data } );
     clang_visitChildren(cursor, visitor, u);
@@ -37,6 +36,7 @@ CXChildVisitResult AST::visitor(CXCursor cursor, CXCursor, CXClientData u)
     return CXChildVisit_Continue;
 }
 
+#if 0
 template <typename T> static void assign(sel::Selector selector, const T &t) { selector = t; }
 void assign(sel::Selector selector, const String &str) { selector = str.ref(); }
 
@@ -114,9 +114,13 @@ static void registerClasses(sel::State &state)
                                  "isDynamicCall", &AST::Cursor::isDynamicCall);
 }
 
+#endif
+
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
     std::shared_ptr<AST> ast(new AST);
+    return ast;
+    /*
     ast->mState.reset(new sel::State {true});
     sel::State &state = *ast->mState;
     registerClasses(state);
@@ -149,10 +153,11 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
             // sscanf
             // return mByUsr.value(usr);
         };
-        const String script = Path(TO_STR(RTAGS_SOURCE_DIR) "/rtags.lua").readAll();
+        const String script = Path(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js").readAll();
         state(script.constData());
     }
     return ast;
+    */
 }
 
 List<AST::Diagnostic> AST::diagnostics() const
@@ -168,10 +173,10 @@ List<AST::SkippedRange> AST::skippedRanges() const
 List<String> AST::evaluate(const String &script)
 {
     assert(mReturnValues.isEmpty());
-    try {
-        mState->operator()(script.constData());
-    } catch (...) {
-        error() << "Got exception";
-    }
+    // try {
+    //     mState->operator()(script.constData());
+    // } catch (...) {
+    //     error() << "Got exception";
+    // }
     return std::move(mReturnValues);
 }

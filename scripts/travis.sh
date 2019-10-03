@@ -22,8 +22,8 @@
 #
 # Description: The following variables can be changed from the build matrix:
 #  - ASAN        (default value is "1")
-#  - LUA_VERSION (default value is "5.3.2")
-#  - LUA_DISABLE (default value is "", set it to anything to disable lua
+#  - SCRIPT_VERSION (default value is "5.3.2")
+#  - SCRIPT_DISABLE (default value is "", set it to anything to disable script
 #                 extension for that matrix)
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
                          "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION"
@@ -33,13 +33,13 @@ if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")
 fi
 
-LUA_DISABLE=${LUA_DISABLE:-""}
-if [ ! $LUA_DISABLE ]; then
-    CMAKE_PARAMS+=("-DLUA_ENABLED=1")
-    echo "Running build with Lua extension."
+SCRIPT_DISABLE=${SCRIPT_DISABLE:-""}
+if [ ! $SCRIPT_DISABLE ]; then
+    CMAKE_PARAMS+=("-DSCRIPT_ENABLED=1")
+    echo "Running build with js extension."
 else
-    echo "Running build without Lua extension."
-fi # end ! $LUA_DISABLE
+    echo "Running build without js extension."
+fi # end ! $SCRIPT_DISABLE
 
 export CCACHE_DEBUG=1
 function build_and_test()

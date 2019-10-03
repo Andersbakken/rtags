@@ -200,7 +200,7 @@ public:
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
     String codeCompletePrefix() const { return mCodeCompletePrefix; }
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
 private:
@@ -229,7 +229,7 @@ private:
     Path mProjectRoot;
     int mTerminalWidth;
     int mExitCode;
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     List<String> mVisitASTScripts;
 #endif
     mutable List<String> mEnvironment;

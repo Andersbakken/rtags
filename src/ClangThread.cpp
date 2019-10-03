@@ -17,7 +17,7 @@
 #include "rct/Connection.h"
 #include "RTags.h"
 #include "Server.h"
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
 #include "AST.h"
 #endif
 
@@ -153,7 +153,7 @@ void ClangThread::run()
 
     const unsigned long long parseTime = sw.restart();
     warning() << "parseTime" << parseTime;
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
         std::shared_ptr<AST> ast = AST::create(mSource, sourceCode, translationUnit->unit);
         if (ast) {

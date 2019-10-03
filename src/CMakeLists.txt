@@ -120,12 +120,8 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-if (LUA_ENABLED)
-    ExternalProject_Add(lua
-        DOWNLOAD_COMMAND ""
-        SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/lua
-        INSTALL_COMMAND ""
-        CMAKE_ARGS -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=0 -DCMAKE_GENERATOR=${CMAKE_GENERATOR})
+if (SCRIPT_ENABLED)
+    set(RCT_BUILD_SCRIPTENGINE ON)
 endif ()
 
 set(RCT_RTTI_ENABLED 1)
@@ -196,16 +192,13 @@ set(RTAGS_SOURCES
     Token.cpp
     TokensJob.cpp)
 
-if (LUA_ENABLED)
+if (SCRIPT_ENABLED)
     list(APPEND RTAGS_SOURCES AST.cpp)
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
     add_dependencies(rtags llvmclang)
-endif ()
-if (LUA_ENABLED)
-    add_dependencies(rtags lua)
 endif ()
 
 if (RTAGS_COTIRE)
@@ -214,12 +207,8 @@ if (RTAGS_COTIRE)
     cotire(rtags)
 endif ()
 
-include_directories(
-    ${CMAKE_CURRENT_LIST_DIR}
-    ${RCT_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_LIST_DIR}/selene/include
-    ${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build
-    ${CMAKE_CURRENT_LIST_DIR}/lua/src)
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${RCT_INCLUDE_DIRS})
+include_directories(SYSTEM ${RCT_SYSTEM_INCLUDE_DIRS})
 
 if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     set(START_GROUP "")
@@ -230,9 +219,8 @@ else ()
 endif ()
 
 set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
-if (LUA_ENABLED)
-    list(APPEND RTAGS_LIBRARIES -L${CMAKE_CURRENT_BINARY_DIR}/lua-prefix/src/lua-build/ liblua.a)
-    add_definitions(-DRTAGS_HAS_LUA)
+if (SCRIPT_ENABLED)
+    add_definitions(-DRTAGS_HAS_SCRIPT)
 endif ()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -298,11 +286,11 @@ set(RTAGS_ELISP_FILES
     company-rtags.el
     flycheck-rtags.el)
 
-if (LUA_ENABLED AND NOT RTAGS_NO_LUA_FILES AND LUA_FOUND AND NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua
-        COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/rtags.lua -> ${CMAKE_CURRENT_BINARY_DIR}/rtags.lua")
+if (SCRIPT_ENABLED AND NOT RTAGS_NO_JS_FILES AND NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
+    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/rtags.js
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js ${CMAKE_CURRENT_BINARY_DIR}/rtags.js
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js
+        COMMENT "Copying ${CMAKE_CURRENT_SOURCE_DIR}/rtags.js -> ${CMAKE_CURRENT_BINARY_DIR}/rtags.js")
 endif ()
 
 if (NOT RTAGS_NO_ELISP_FILES)

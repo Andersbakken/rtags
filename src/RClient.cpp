@@ -111,7 +111,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::ListCursorKinds, "list-cursor-kinds", 0, CommandLineParser::NoValue, "List spelling for known cursor kinds." },
     { RClient::ClassHierarchy, "class-hierarchy", 0, CommandLineParser::Required, "Dump class hierarcy for struct/class at location." },
     { RClient::DebugLocations, "debug-locations", 0, CommandLineParser::Optional, "Manipulate debug locations." },
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     { RClient::VisitAST, "visit-ast", 0, CommandLineParser::Required, "Visit AST of a source file." },
 #endif
     { RClient::Validate, "validate", 0, CommandLineParser::NoValue, "Validate database files for current project." },
@@ -180,7 +180,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::CodeCompletePrefix, "code-complete-prefix", 0, CommandLineParser::Required, "Filter out code completion results that don't start with this prefix." },
     { RClient::CodeCompletionEnabled, "code-completion-enabled", 'b', CommandLineParser::NoValue, "Inform rdm that we're code-completing. Use with --diagnose" },
     { RClient::NoSpellCheckinging, "no-spell-checking", 0, CommandLineParser::NoValue, "Don't produce spell check info in diagnostics." },
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     { RClient::VisitASTScript, "visit-ast-script", 0, CommandLineParser::Required, "Use this script visit AST (@file.js|sourcecode)." },
 #endif
     { RClient::TokensIncludeSymbols, "tokens-include-symbols", 0, CommandLineParser::NoValue, "Include symbols for tokens." },
@@ -232,7 +232,7 @@ public:
         msg.setCurrentFile(rc->currentFile());
         msg.setCodeCompletePrefix(rc->codeCompletePrefix());
         msg.setMaxDepth(rc->maxDepth());
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
         msg.setVisitASTScripts(rc->visitASTScripts());
 #endif
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
@@ -1331,7 +1331,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
 
         case VisitAST: {
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
             Path p = std::move(value);
             p.resolve(Path::MakeAbsolute);
             if (!p.isFile()) {
@@ -1341,7 +1341,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 #endif
             break; }
         case VisitASTScript: {
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
             String code = std::move(value);
             if (code.startsWith("@")) {
                 const Path p = code.mid(1);

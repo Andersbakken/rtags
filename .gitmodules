@@ -2,11 +2,3 @@
         path = src/rct
         url = https://github.com/Andersbakken/rct
         branch = master
-[submodule "src/selene"]
-	path = src/selene
-	url = https://github.com/jeremyong/Selene.git
-    branch = master
-[submodule "src/lua"]
-	path = src/lua
-	url = https://github.com/LuaDist/lua.git
-    branch = master

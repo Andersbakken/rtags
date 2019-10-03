@@ -121,7 +121,7 @@ public:
         {
             unsigned count = 0;
             if (data) {
-                CXCursor *overridden = 0;
+                CXCursor *overridden = nullptr;
                 clang_getOverriddenCursors(data->cursor, &overridden, &count);
                 if (overridden)
                     clang_disposeOverriddenCursors(overridden);
@@ -132,7 +132,7 @@ public:
         {
             Cursors ret;
             if (data) {
-                CXCursor *overridden = 0;
+                CXCursor *overridden = nullptr;
                 unsigned count;
                 clang_getOverriddenCursors(data->cursor, &overridden, &count);
                 ret.resize(count);
@@ -275,7 +275,7 @@ public:
 
     struct CursorType {
         CursorType(const AST *a, const CXType &t) : ast(a), type(t) {}
-        CursorType(const AST *a = 0) : ast(a) { memset(&type, 0, sizeof(type)); }
+        CursorType(const AST *a = nullptr) : ast(a) { memset(&type, 0, sizeof(type)); }
 
         std::string spelling() const { return toString(clang_getTypeSpelling(type)); }
         Cursor declaration() const { return ast ? ast->create(clang_getTypeDeclaration(type)) : Cursor(); }
@@ -394,12 +394,12 @@ public:
                     return ret;
             }
         }
-        return construct(cursor, 0, loc, usr);
+        return construct(cursor, nullptr, loc, usr);
     }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData u);
     Cursor construct(const CXCursor &cursor,
-                     Cursor::Data *parent = 0,
+                     Cursor::Data *parent = nullptr,
                      SourceLocation loc = SourceLocation(),
                      std::string usr = std::string()) const
     {
@@ -418,7 +418,7 @@ private:
         return ret;
     }
     AST()
-        : mRoot(0)
+        : mRoot(nullptr)
     {}
     mutable Hash<std::string, Cursors> mByUsr;
     mutable Map<SourceLocation, Cursors> mByLocation;

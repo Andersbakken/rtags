@@ -74,7 +74,7 @@ public:
         Validate,
         Tokens,
         IncludePath
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
         , VisitAST
 #endif
     };
@@ -181,7 +181,7 @@ public:
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     void setVisitASTScripts(const List<String> &scripts) { mVisitASTScripts = scripts; }
     List<String> visitASTScripts() const { return mVisitASTScripts; }
 #endif
@@ -263,7 +263,7 @@ private:
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
-#ifdef RTAGS_HAS_LUA
+#ifdef RTAGS_HAS_SCRIPT
     List<String> mVisitASTScripts;
 #endif
 };
