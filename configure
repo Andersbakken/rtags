@@ -21,6 +21,8 @@ function usage ()
     echo "  --clang-libdir [arg]            Sets the libdir RTags will use for clang."
     echo "  --cotire                        Enable cotire when building RTags"
     echo "  --emacs                         Use arg instead of \"emacs\" when byte-compiling elisp"
+    echo "  --lua-enabled                   Enable LUA AST scripting"
+    echo "  --no-lua-files-install          Don't install RTags lua files"
     echo "  --no-elisp-files-install        Don't install RTags elisp files"
     echo "  --no-elisp-bytecompile          Don't bytecompile RTags elisp files"
     echo "  --elisp-install-location [arg]  Install elisp files to this location"
@@ -75,6 +77,9 @@ while [ -n "$1" ]; do
             shift
             CMAKE_ARGS="${CMAKE_ARGS} -DCMAKE_INSTALL_PREFIX=\"$1\""
             ;;
+        --lua-enabled)
+            CMAKE_ARGS="${CMAKE_ARGS} -DLUA_ENABLED=1"
+            ;;
         --clang-libraries)
             shift
             CMAKE_ARGS="${CMAKE_ARGS} -DLIBCLANG_LIBRARIES=\"$1\""
@@ -93,6 +98,9 @@ while [ -n "$1" ]; do
         --emacs)
             shift
             CMAKE_ARGS="${CMAKE_ARGS} -DEMACS=\"$1\""
+            ;;
+        --no-lua-files-install)
+            CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_LUA_FILES=1"
             ;;
         --no-elisp-files-install)
             CMAKE_ARGS="${CMAKE_ARGS} -DRTAGS_NO_ELISP_FILES=1"
