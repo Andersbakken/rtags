@@ -21,11 +21,9 @@
 #include "Location.h"
 #include "RTags.h"
 #include "rct/String.h"
+#include "rct/ScriptEngine.h"
 #include "rct/List.h"
 
-namespace sel {
-class State;
-};
 class AST
 {
 public:
@@ -425,7 +423,7 @@ private:
     String mSourceCode;
     List<String> mReturnValues;
     Cursor *mRoot;
-    std::shared_ptr<sel::State> mState;
+    std::unique_ptr<ScriptEngine> mEngine;
 };
 
 
