@@ -367,7 +367,7 @@ void RClient::exec()
 {
     RTags::initMessages();
     OnDestruction onDestruction([]() { Message::cleanup(); });
-    EventLoop::SharedPtr loop(new EventLoop);
+    std::shared_ptr<EventLoop> loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
 
     const int commandCount = mCommands.size();

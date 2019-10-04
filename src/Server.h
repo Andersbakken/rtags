@@ -239,7 +239,7 @@ private:
     static Server *sInstance;
     Options mOptions;
     bool mSuspended;
-    SocketServer::SharedPtr mUnixServer, mTcpServer;
+    std::shared_ptr<SocketServer> mUnixServer, mTcpServer;
     List<String> mEnvironment;
 
     int mPollTimer, mExitCode;

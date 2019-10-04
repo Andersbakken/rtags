@@ -352,7 +352,7 @@ std::shared_ptr<Project> Server::addProject(const Path &path)
 void Server::onNewConnection(SocketServer *server)
 {
     while (true) {
-        SocketClient::SharedPtr client = server->nextConnection();
+        std::shared_ptr<SocketClient> client = server->nextConnection();
         if (!client) {
             break;
         }
@@ -360,7 +360,7 @@ void Server::onNewConnection(SocketServer *server)
         if (mOptions.maxSocketWriteBufferSize) {
             client->setMaxWriteBufferSize(mOptions.maxSocketWriteBufferSize);
         }
-        conn->setErrorHandler([](const SocketClient::SharedPtr &, Message::MessageError &&error) {
+        conn->setErrorHandler([](const std::shared_ptr<SocketClient> &, Message::MessageError &&error) {
                 if (error.type == Message::Message_VersionError) {
                     ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
                 } else {
