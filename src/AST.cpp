@@ -15,6 +15,8 @@
 
 #include "AST.h"
 #include "ClangThread.h"
+#include <v8.h>
+#include <libplatform/libplatform.h>
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)
@@ -119,8 +121,41 @@ static void registerClasses(ScriptEngine *engine)
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
     std::shared_ptr<AST> ast(new AST);
+    // v8::V8::InitializeICU();
+    // const Path exec = Rct::executablePath();
+    // v8::V8::InitializeExternalStartupData(exec.constData());
+    // std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+    // v8::V8::InitializePlatform(platform.get());
+    // v8::Isolate::CreateParams params;
+    // struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator
+    // {
+    //     virtual void* Allocate(size_t length) { return calloc(length, 1); }
+    //     virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+    //     virtual void Free(void* data, size_t /*length*/) { free(data); }
+    // } static sArrayBufferAllocator;
+
+    // params.array_buffer_allocator = &sArrayBufferAllocator;
+    // ast->mIsolate = v8::Isolate::New(params);
+
     // ast->mEngine.reset(new ScriptEngine);
-    return ast;
+    ast->mContext.reset(new v8pp::context);
+    ast->mContext->set_lib_path(TO_STR(RTAGS_V8PP_LIB_PATH));
+    // ast->mContext->set("log", [](v8::FunctionCallbackInfo<v8::Value> const& args) {
+    //     v8::HandleScope handle_scope(args.GetIsolate());
+
+    //     for (int i = 0; i < args.Length(); ++i)
+    //     {
+    //         if (i > 0) std::cout << ' ';
+    //         v8::String::Utf8Value str(args[i]);
+    //         error() <<  *str;
+    //     }
+    //     std::cout << std::endl;
+    // });
+
+    v8::Local<v8::Value> rtagsDotJSResult = ast->mContext->run_file(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js");
+    v8::String::Utf8Value str(ast->mContext->isolate(), rtagsDotJSResult);
+    error() << "got result" << *str;
+
     /*
     ast->mState.reset(new sel::State {true});
     sel::State &state = *ast->mState;
@@ -157,8 +192,8 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
         const String script = Path(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js").readAll();
         state(script.constData());
     }
-    return ast;
     */
+    return ast;
 }
 
 List<AST::Diagnostic> AST::diagnostics() const

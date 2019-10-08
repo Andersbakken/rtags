@@ -1337,7 +1337,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (!p.isFile()) {
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
-            addQuery(QueryMessage::VisitAST, std::move(p));
+            addQuery(QueryMessage::VisitAST, std::move(p), QueryMessage::HasMatch);
 #endif
             break; }
         case VisitASTScript: {

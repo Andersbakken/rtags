@@ -959,6 +959,7 @@ void Server::startClangThread(const std::shared_ptr<QueryMessage> &query, const 
 {
     const uint32_t fileId = Location::fileId(query->query());
     if (!fileId) {
+        printf("[Server.cpp:%d]: if (!fileId) {\n", __LINE__); fflush(stdout);
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
@@ -966,12 +967,14 @@ void Server::startClangThread(const std::shared_ptr<QueryMessage> &query, const 
 
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
+        printf("[Server.cpp:%d]: if (!project) {\n", __LINE__); fflush(stdout);
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
     }
 
     if (!project->dependencies().contains(fileId)) {
+        printf("[Server.cpp:%d]: if (!project->dependencies().contains(fileId)) {\n", __LINE__); fflush(stdout);
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
         return;
@@ -982,6 +985,7 @@ void Server::startClangThread(const std::shared_ptr<QueryMessage> &query, const 
         ClangThread *thread = new ClangThread(query, source, conn);
         thread->start(Thread::Normal, 8 * 1024 * 1024); // 8MiB stack size
     } else {
+        printf("[Server.cpp:%d]: } else {\n", __LINE__); fflush(stdout);
         conn->write<256>("%s build: %d not found", query->query().constData(), query->buildIndex());
         conn->finish();
     }

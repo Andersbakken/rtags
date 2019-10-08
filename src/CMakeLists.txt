@@ -138,6 +138,8 @@ if (SCRIPT_ENABLED)
         LOG_TEST 1
         LOG_INSTALL 1)
     set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${PROJECT_BINARY_DIR}/v8pp/src/v8pp/libv8pp.a ${V8_LIBRARY})
+    include_directories(${PROJECT_BINARY_DIR}/v8pp/src/v8pp)
+    add_definitions(-DRTAGS_V8PP_LIB_PATH=${PROJECT_BINARY_DIR}/src)
 endif ()
 
 set(RCT_RTTI_ENABLED 1)

@@ -22,6 +22,8 @@
 #include "RTags.h"
 #include "rct/String.h"
 #include "rct/List.h"
+#include <v8pp/context.hpp>
+#include <v8.h>
 
 class AST
 {
@@ -415,14 +417,13 @@ private:
         return ret;
     }
     AST()
-        : mRoot(nullptr)
     {}
     mutable Hash<std::string, Cursors> mByUsr;
     mutable Map<SourceLocation, Cursors> mByLocation;
     String mSourceCode;
     List<String> mReturnValues;
-    Cursor *mRoot;
-    // std::unique_ptr<ScriptEngine> mEngine;
+    Cursor *mRoot { nullptr };
+    std::unique_ptr<v8pp::context> mContext;
 };
 
 

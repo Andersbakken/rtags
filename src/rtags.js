@@ -16,3 +16,5 @@ function findChildren(cursor, kind, depth, max)
     }
     return undefined;
 }
+
+typeof console;
