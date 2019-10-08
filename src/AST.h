@@ -22,7 +22,6 @@
 #include "RTags.h"
 #include "rct/String.h"
 #include "rct/List.h"
-#include <v8pp/context.hpp>
 #include <v8.h>
 
 class AST
@@ -41,24 +40,26 @@ public:
     }
     struct SourceLocation {
         SourceLocation()
-            : offset(-1)
         {}
 
-        bool operator<(const SourceLocation &other) const { return location < other.location; }
+        bool operator<(const SourceLocation &other) const { return mLocation < other.mLocation; }
 
-        bool isNull() const { return location.isNull(); }
-        Location location;
-        int offset;
+        bool isNull() const { return mLocation.isNull(); }
+        int offset() { return mOffset; }
 
-        int line() const { return location.line(); }
-        int column() const { return location.column(); }
-        std::string file() const { return location.path(); }
+        int line() const { return mLocation.line(); }
+        int column() const { return mLocation.column(); }
+        std::string file() const { return mLocation.path(); }
         std::string toString() const
         {
             return String::format<256>("%s,%d",
-                                       location.toString(Location::AbsolutePath|Location::NoColor).constData(),
-                                       offset);
+                                       mLocation.toString(Location::AbsolutePath|Location::NoColor).constData(),
+                                       mOffset);
         }
+
+
+        Location mLocation;
+        int mOffset { -1 };
 
     };
 
@@ -70,7 +71,7 @@ public:
 
         SourceLocation start() const { return AST::createLocation(clang_getRangeStart(range)); }
         SourceLocation end() const { return AST::createLocation(clang_getRangeEnd(range)); }
-        int length() const { return end().offset - start().offset; }
+        int length() const { return end().offset() - start().offset(); }
         std::string toString() const { return start().toString() + " - " + end().toString(); }
     };
     struct CursorType;
@@ -169,7 +170,7 @@ public:
              return data ? clang_Cursor_getNumTemplateArguments(data->cursor) : 0;
 #else
              return 0;
-#endif
+`#endif
         }
         CursorType templateArgumentType(unsigned idx) const
         {
@@ -353,7 +354,7 @@ public:
     static SourceLocation createLocation(const CXSourceLocation &location)
     {
         SourceLocation loc;
-        loc.location = RTags::createLocation(location, &loc.offset);
+        loc.mLocation = RTags::createLocation(location, &loc.mOffset);
         return loc;
     }
 
@@ -423,7 +424,6 @@ private:
     String mSourceCode;
     List<String> mReturnValues;
     Cursor *mRoot { nullptr };
-    std::unique_ptr<v8pp::context> mContext;
 };
 
 

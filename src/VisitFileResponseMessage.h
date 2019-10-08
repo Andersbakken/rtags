@@ -31,8 +31,8 @@ public:
     uint32_t fileId() const { return mFileId; }
     bool visit() const { return mVisit; }
 
-    void encode(Serializer &serializer) const { serializer << mFileId << mVisit; }
-    void decode(Deserializer &deserializer) { deserializer >> mFileId >> mVisit; }
+    void encode(Serializer &serializer) const override { serializer << mFileId << mVisit; }
+    void decode(Deserializer &deserializer) override { deserializer >> mFileId >> mVisit; }
 private:
     uint32_t mFileId;
     bool mVisit;

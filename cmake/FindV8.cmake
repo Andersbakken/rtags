@@ -242,9 +242,38 @@ find_library(V8_LIBRARY_SELF
     )
 
 set(V8_FOUND "NO")
- message(STATUS BASE "BASE " ${V8_BASE_LIBRARY} "\nSNAPSHOT " ${V8_SNAPSHOT_LIBRARY} "\nICUUC " ${V8_ICUUC_LIBRARY} "\nICUI18N " ${V8_ICUI18N_LIBRARY} "\nINCLUDE " ${V8_INCLUDE_DIR})
+message(STATUS "BASE " ${V8_BASE_LIBRARY} "\nSNAPSHOT " ${V8_SNAPSHOT_LIBRARY} "\nICUUC " ${V8_ICUUC_LIBRARY} "\nICUI18N " ${V8_ICUI18N_LIBRARY} "\nINCLUDE " ${V8_INCLUDE_DIR})
 
 if(V8_LIBRARY_SELF AND V8_BASE_LIBRARY AND V8_LIBBASE_LIBRARY AND V8_LIBPLATFORM_LIBRARY AND V8_INCLUDE_DIR) # AND V8_SNAPSHOT_LIBRARY
-    set(V8_LIBRARY ${V8_LIBRARY_SELF} ${V8_BASE_LIBRARY} ${V8_LIBBASE_LIBRARY} ${V8_LIBPLATFORM_LIBRARY}) # ${V8_SNAPSHOT_LIBRARY})
+    set(V8_LIBS)
+    list(APPEND V8_LIBS ${V8_LIBRARY_SELF})
+    list(APPEND V8_LIBS ${V8_BASE_LIBRARY})
+    list(APPEND V8_LIBS ${V8_LIBBASE_LIBRARY})
+    list(APPEND V8_LIBS ${V8_LIBPLATFORM_LIBRARY})
+    # ${V8_SNAPSHOT_LIBRARY})
     set(V8_FOUND "YES")
+else()
+    find_library(V8_MONOLITH
+        NAMES v8_monolith libv8_monolith
+        PATHS
+        ${V8_DIR}
+        ${V8_DIR}/lib
+        ${V8_DIR}/build/Release/lib
+        $ENV{V8_DIR}
+        $ENV{V8_DIR}/lib
+        ~/Library/Frameworks
+        /Library/Frameworks
+        /usr/local/lib
+        /usr/lib
+        /sw/lib
+        /opt/local/lib
+        /opt/csw/lib
+        /opt/lib
+        /usr/freeware/lib64
+        )
+    if (V8_MONOLITH AND V8_INCLUDE_DIR)
+        set(V8_FOUND "YES")
+        set(V8_LIBS ${V8_MONOLITH})
+        set(V8_DEFINITIONS -DV8_31BIT_SMIS_ON_64BIT_ARCH)
+    endif ()
 endif()

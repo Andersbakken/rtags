@@ -1,3 +1,4 @@
+/*global log */
 function findChildren(cursor, kind, depth, max)
 {
     let children = cursor.children();
@@ -17,4 +18,7 @@ function findChildren(cursor, kind, depth, max)
     return undefined;
 }
 
-typeof console;
+let foo = log("testing the log here", 12, 13);
+log("got foo", foo.toString(), foo.line, foo.column);
+// typeof console;
+// typeof console.log;

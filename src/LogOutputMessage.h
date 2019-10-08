@@ -32,12 +32,12 @@ public:
     LogLevel level() const { return mLevel; }
     Flags<QueryMessage::Flag> flags() const { return mFlags; }
 
-    void encode(Serializer &serializer) const
+    void encode(Serializer &serializer) const override
     {
         serializer << mCommandLine << mLevel << mFlags;
     }
 
-    void decode(Deserializer &deserializer)
+    void decode(Deserializer &deserializer) override
     {
         deserializer >> mCommandLine >> mLevel >> mFlags;
     }

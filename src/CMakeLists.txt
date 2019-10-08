@@ -33,7 +33,8 @@ if (RTAGS_BUILD_CLANG)
     set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include")
 endif ()
 
-set(RTAGS_LIBRARIES rtags)
+set(RTAGS_LIBRARIES)
+list(APPEND RTAGS_LIBRARIES rtags)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
 
@@ -124,22 +125,9 @@ endif ()
 if (SCRIPT_ENABLED)
     find_package(V8 REQUIRED)
     include_directories(SYSTEM ${V8_INCLUDE_DIR})
-    ExternalProject_Add(v8pp
-        GIT_REPOSITORY https://github.com/pmed/v8pp.git
-        CONFIGURE_COMMAND echo "no configure"
-        BINARY_DIR ${PROJECT_BINARY_DIR}/v8pp
-        PREFIX ${PROJECT_BINARY_DIR}/v8pp
-        BUILD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/build-v8pp.sh --source ${PROJECT_SOURCE_DIR}/v8pp/src/v8pp --build ${PROJECT_BINARY_DIR}/v8pp/src/v8pp -I${V8_INCLUDE_DIR} --libs ${V8_LIBRARY}
-        INSTALL_COMMAND echo "no install"
-        LOG_DOWNLOAD 1
-        LOG_UPDATE 1
-        LOG_CONFIGURE 1
-        LOG_BUILD 1
-        LOG_TEST 1
-        LOG_INSTALL 1)
-    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${PROJECT_BINARY_DIR}/v8pp/src/v8pp/libv8pp.a ${V8_LIBRARY})
-    include_directories(${PROJECT_BINARY_DIR}/v8pp/src/v8pp)
+    list(APPEND RTAGS_LIBRARIES "${V8_LIBS}")
     add_definitions(-DRTAGS_V8PP_LIB_PATH=${PROJECT_BINARY_DIR}/src)
+    add_definitions(${V8_DEFINITIONS})
 endif ()
 
 set(RCT_RTTI_ENABLED 1)
@@ -211,7 +199,7 @@ set(RTAGS_SOURCES
     TokensJob.cpp)
 
 if (SCRIPT_ENABLED)
-    list(APPEND RTAGS_SOURCES AST.cpp)
+    list(APPEND RTAGS_SOURCES AST.cpp V8Utils.cpp TypeConverter.cpp V8SourceLocation.cpp)
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
@@ -236,7 +224,7 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+list(APPEND RTAGS_LIBRARIES ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
 if (SCRIPT_ENABLED)
     add_definitions(-DRTAGS_HAS_SCRIPT)
 endif ()
@@ -252,7 +240,7 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${RTAGS_BINARY_ROOT_DIR}/bin)
 
 # RCT_LIBRARIES and stdc++ library must be at the end
-set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES} rct)
+list(APPEND RTAGS_LIBRARIES -lstdc++ ${RCT_LIBRARIES} rct)
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 

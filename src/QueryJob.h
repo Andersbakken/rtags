@@ -111,7 +111,7 @@ private:
     {
     public:
         PathFilter(const Path &p) : pattern(p) {}
-        virtual bool match(uint32_t, const Path &path) const { return path.startsWith(pattern); }
+        virtual bool match(uint32_t, const Path &path) const override { return path.startsWith(pattern); }
 
         const Path pattern;
     };
@@ -119,7 +119,7 @@ private:
     {
     public:
         RegexFilter(const String &str, bool caseInsensitive) : regex(str.ref(), caseInsensitive ? std::regex::icase : std::regex::ECMAScript) {}
-        virtual bool match(uint32_t, const Path &path) const { return std::regex_search(path.constData(), regex); }
+        virtual bool match(uint32_t, const Path &path) const override { return std::regex_search(path.constData(), regex); }
 
         const std::regex regex;
     };
@@ -128,7 +128,7 @@ private:
     {
     public:
         DependencyFilter(uint32_t f, const std::shared_ptr<Project> &p) : fileId(f), project(p) {}
-        virtual bool match(uint32_t f, const Path &) const { return project->dependsOn(fileId, f); }
+        virtual bool match(uint32_t f, const Path &) const override { return project->dependsOn(fileId, f); }
 
         const uint32_t fileId;
         const std::shared_ptr<Project> project;
