@@ -121,24 +121,24 @@ static void registerClasses(ScriptEngine *engine)
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
     std::shared_ptr<AST> ast(new AST);
-    // v8::V8::InitializeICU();
-    // const Path exec = Rct::executablePath();
-    // v8::V8::InitializeExternalStartupData(exec.constData());
-    // std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
-    // v8::V8::InitializePlatform(platform.get());
-    // v8::Isolate::CreateParams params;
-    // struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator
-    // {
-    //     virtual void* Allocate(size_t length) { return calloc(length, 1); }
-    //     virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-    //     virtual void Free(void* data, size_t /*length*/) { free(data); }
-    // } static sArrayBufferAllocator;
+    v8::V8::InitializeICU();
+    const Path exec = Rct::executablePath();
+    v8::V8::InitializeExternalStartupData(exec.constData());
+    std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+    v8::V8::InitializePlatform(platform.get());
+    v8::Isolate::CreateParams params;
+    struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator
+    {
+        virtual void* Allocate(size_t length) { return calloc(length, 1); }
+        virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+        virtual void Free(void* data, size_t /*length*/) { free(data); }
+    } static sArrayBufferAllocator;
 
-    // params.array_buffer_allocator = &sArrayBufferAllocator;
-    // ast->mIsolate = v8::Isolate::New(params);
+    params.array_buffer_allocator = &sArrayBufferAllocator;
+    v8::Isolate *isolate = v8::Isolate::New(params);
 
     // ast->mEngine.reset(new ScriptEngine);
-    ast->mContext.reset(new v8pp::context);
+    ast->mContext.reset(new v8pp::context(isolate));
     ast->mContext->set_lib_path(TO_STR(RTAGS_V8PP_LIB_PATH));
     // ast->mContext->set("log", [](v8::FunctionCallbackInfo<v8::Value> const& args) {
     //     v8::HandleScope handle_scope(args.GetIsolate());
