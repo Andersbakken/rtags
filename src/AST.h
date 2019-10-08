@@ -21,7 +21,6 @@
 #include "Location.h"
 #include "RTags.h"
 #include "rct/String.h"
-#include "rct/ScriptEngine.h"
 #include "rct/List.h"
 
 class AST
@@ -423,7 +422,7 @@ private:
     String mSourceCode;
     List<String> mReturnValues;
     Cursor *mRoot;
-    std::unique_ptr<ScriptEngine> mEngine;
+    // std::unique_ptr<ScriptEngine> mEngine;
 };
 
 

@@ -48,8 +48,9 @@ static void exposeArray(sel::Selector selector, const std::vector<T> &array)
         assign(selector[i++], t);
     }
 }
-
-static void registerClasses(sel::State &state)
+#endif
+#if 0
+static void registerClasses(ScriptEngine *engine)
 {
     state["SourceLocation"].SetClass<AST::SourceLocation>("line", &AST::SourceLocation::line,
                                                           "column", &AST::SourceLocation::column,
@@ -113,12 +114,12 @@ static void registerClasses(sel::State &state)
                                  "isDefinition", &AST::Cursor::isDefinition,
                                  "isDynamicCall", &AST::Cursor::isDynamicCall);
 }
-
 #endif
 
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit)
 {
     std::shared_ptr<AST> ast(new AST);
+    // ast->mEngine.reset(new ScriptEngine);
     return ast;
     /*
     ast->mState.reset(new sel::State {true});

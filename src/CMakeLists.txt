@@ -33,6 +33,7 @@ if (RTAGS_BUILD_CLANG)
     set(LIBCLANG_CXXFLAGS "-I${CLANG_INSTALL_PATH}/include")
 endif ()
 
+set(RTAGS_LIBRARIES rtags)
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/RTagsVersion.h.in" "${CMAKE_CURRENT_BINARY_DIR}/include/RTagsVersion.h")
 
@@ -121,7 +122,22 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
 endif ()
 
 if (SCRIPT_ENABLED)
-    set(RCT_BUILD_SCRIPTENGINE ON)
+    find_package(V8 REQUIRED)
+    include_directories(SYSTEM ${V8_INCLUDE_DIR})
+    ExternalProject_Add(v8pp
+        GIT_REPOSITORY https://github.com/pmed/v8pp.git
+        CONFIGURE_COMMAND echo "no configure"
+        BINARY_DIR ${PROJECT_BINARY_DIR}/v8pp
+        PREFIX ${PROJECT_BINARY_DIR}/v8pp
+        BUILD_COMMAND ${PROJECT_SOURCE_DIR}/scripts/build-v8pp.sh --source ${PROJECT_SOURCE_DIR}/v8pp/src/v8pp --build ${PROJECT_BINARY_DIR}/v8pp/src/v8pp -I${V8_INCLUDE_DIR} --libs ${V8_LIBRARY}
+        INSTALL_COMMAND echo "no install"
+        LOG_DOWNLOAD 1
+        LOG_UPDATE 1
+        LOG_CONFIGURE 1
+        LOG_BUILD 1
+        LOG_TEST 1
+        LOG_INSTALL 1)
+    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${PROJECT_BINARY_DIR}/v8pp/src/v8pp/libv8pp.a ${V8_LIBRARY})
 endif ()
 
 set(RCT_RTTI_ENABLED 1)
@@ -218,7 +234,7 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
 if (SCRIPT_ENABLED)
     add_definitions(-DRTAGS_HAS_SCRIPT)
 endif ()
