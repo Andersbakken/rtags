@@ -59,47 +59,44 @@ public:
     // Cursor *root() const { return mRoot; }
     // List<Diagnostic> diagnostics() const;
     // List<SkippedRange> skippedRanges() const;
-    static SourceLocation createLocation(const CXCursor &cursor) { return createLocation(clang_getCursorLocation(cursor)); }
-    static SourceLocation createLocation(const CXSourceLocation &location)
+    static std::shared_ptr<SourceLocation> createLocation(const CXCursor &cursor) { return createLocation(clang_getCursorLocation(cursor)); }
+    static std::shared_ptr<SourceLocation> createLocation(const CXSourceLocation &location)
     {
-        SourceLocation loc;
-        loc.mLocation = RTags::createLocation(location, &loc.mOffset);
+        std::shared_ptr<SourceLocation> loc = std::make_shared<SourceLocation>();
+        loc->mLocation = RTags::createLocation(location, &loc->mOffset);
         return loc;
     }
 
-    Cursor create(const CXCursor &cursor) const
+    std::shared_ptr<Cursor> create(const CXCursor &cursor) const
     {
         if (clang_isInvalid(clang_getCursorKind(cursor)))
-            return Cursor();
+            return nullptr;
 
-        auto match = [&cursor](const std::vector<Cursor> &cursors) -> Cursor {
-            for (const Cursor &c : cursors) {
-                assert(c.data);
-                if (clang_equalCursors(c.data->cursor, cursor)) {
+        auto match = [&cursor](const std::vector<std::shared_ptr<Cursor> > &cursors) -> std::shared_ptr<Cursor> {
+            for (const std::shared_ptr<Cursor> &c : cursors) {
+                if (clang_equalCursors(c->mCursor, cursor)) {
                     return c;
                 }
             }
-            // The explicit const cast is here to satisfy travis clang matrix.
-            // clang 3.4 does not allow to use two different return types
-            return Cursor();
+            return std::shared_ptr<Cursor>();
         };
 
         const std::string usr = toString(clang_getCursorUSR(cursor));
         if (!usr.empty()) {
             auto it = mByUsr.find(usr);
             if (it != mByUsr.end()) {
-                const Cursor ret = match(it->second);
-                if (ret.data)
+                const std::shared_ptr<Cursor> ret = match(it->second);
+                if (ret)
                     return ret;
             }
         }
 
-        const SourceLocation loc = createLocation(cursor);
-        if (!loc.isNull()) {
-            auto it = mByLocation.find(loc);
+        const std::shared_ptr<SourceLocation> loc = createLocation(cursor);
+        if (!loc->isNull()) {
+            auto it = mByLocation.find(*loc);
             if (it != mByLocation.end()) {
-                const Cursor ret = match(it->second);
-                if (ret.data)
+                const std::shared_ptr<Cursor> ret = match(it->second);
+                if (ret)
                     return ret;
             }
         }
@@ -108,14 +105,14 @@ public:
     String &currentOutput() { return mCurrentOutput; }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData u);
-    Cursor construct(const CXCursor &cursor,
-                     Cursor::Data *parent = nullptr,
-                     SourceLocation loc = SourceLocation(),
-                     std::string usr = std::string()) const;
+    std::shared_ptr<Cursor>  construct(const CXCursor &cursor,
+                                       const std::shared_ptr<Cursor> &parent = nullptr,
+                                       const std::shared_ptr<SourceLocation> &loc = nullptr,
+                                       std::string usr = std::string()) const;
     AST()
     {}
-    mutable Hash<std::string, std::vector<Cursor> > mByUsr;
-    mutable Map<SourceLocation, std::vector<Cursor> > mByLocation;
+    mutable Hash<std::string, std::vector<std::shared_ptr<Cursor> > > mByUsr;
+    mutable Map<SourceLocation, std::vector<std::shared_ptr<Cursor> > > mByLocation;
     String mCurrentOutput;
 };
 

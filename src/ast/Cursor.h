@@ -10,27 +10,9 @@
 
 class AST;
 struct CursorType;
-struct Cursor {
-    struct Data : public std::enable_shared_from_this<Data> {
-        Data(AST *a, Data *p, const CXCursor &c, const SourceLocation &loc, const std::string &u = std::string())
-            : ast(a), parent(p), cursor(c), location(loc), usr(u)
-        {
-        }
-        ~Data()
-        {
-            for (Data *child : children)
-                delete child;
-        }
-
-        AST *ast;
-        Data *parent;
-        List<Data*> children;
-        CXCursor cursor;
-        SourceLocation location;
-        std::string usr;
-    };
-
-    SourceLocation location() const { return data ? data->location : SourceLocation(); }
+struct Cursor : public std::enable_shared_from_this<Cursor>
+{
+    std::shared_ptr<SourceLocation> location() const { return mLocation; }
     std::string usr() const;
     std::string kind() const;
     std::string linkage() const;
@@ -43,31 +25,29 @@ struct Cursor {
 
     std::string mangledName() const;
     std::string templateKind() const;
-    SourceRange range() const { return data ? SourceRange { clang_getCursorExtent(data->cursor) } : SourceRange(); }
+    std::shared_ptr<SourceRange> range() const { return std::make_shared<SourceRange>(clang_getCursorExtent(mCursor)); }
     unsigned overriddenCount() const
     {
         unsigned count = 0;
-        if (data) {
-            CXCursor *overridden = nullptr;
-            clang_getOverriddenCursors(data->cursor, &overridden, &count);
-            if (overridden)
-                clang_disposeOverriddenCursors(overridden);
-        }
+        CXCursor *overridden = nullptr;
+        clang_getOverriddenCursors(mCursor, &overridden, &count);
+        if (overridden)
+            clang_disposeOverriddenCursors(overridden);
         return count;
     }
-    std::vector<Cursor> overriddenCursors() const;
+    std::vector<std::shared_ptr<Cursor> > overriddenCursors() const;
 
-    unsigned argumentCount() const { return data ? RTags::cursorArguments(data->cursor) : 0; }
-    std::vector<Cursor> arguments() const;
+    unsigned argumentCount() const { return RTags::cursorArguments(mCursor); }
+    std::vector<std::shared_ptr<Cursor> > arguments() const;
 
     int fieldBitWidth() const;
-    CursorType typedefUnderlyingType() const;
-    CursorType enumIntegerType() const;
+    std::shared_ptr<CursorType> typedefUnderlyingType() const;
+    std::shared_ptr<CursorType> enumIntegerType() const;
     long long enumConstantValue() const;
     std::string includedFile() const
     {
-        if (data && clang_getCursorKind(data->cursor) == CXCursor_InclusionDirective) {
-            CXFile includedFile = clang_getIncludedFile(data->cursor);
+        if (clang_getCursorKind(mCursor) == CXCursor_InclusionDirective) {
+            CXFile includedFile = clang_getIncludedFile(mCursor);
             if (includedFile) {
                 CXStringScope fn = clang_getFileName(includedFile);
                 const char *cstr = clang_getCString(fn);
@@ -81,16 +61,16 @@ struct Cursor {
     unsigned templateArgumentCount() const
     {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
-        return data ? clang_Cursor_getNumTemplateArguments(data->cursor) : 0;
+        return clang_Cursor_getNumTemplateArguments(mCursor);
 #else
         return 0;
 #endif
     }
-    CursorType templateArgumentType(unsigned idx) const;
+    std::shared_ptr<CursorType> templateArgumentType(unsigned idx) const;
     long long templateArgumentValue(unsigned idx) const
     {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 28)
-        return data ? clang_Cursor_getTemplateArgumentValue(data->cursor, idx) : -1;
+        return clang_Cursor_getTemplateArgumentValue(mCursor, idx);
 #else
         (void)idx;
         return -1;
@@ -104,9 +84,9 @@ struct Cursor {
     Cursor semanticParent() const;
     Cursor definitionCursor() const;
     Cursor specializedCursorTemplate() const;
-    int childCount() const { return data ? data->children.size() : 0; }
-    Cursor child(int idx) const { return data ? Cursor{ data->children.value(idx)->shared_from_this() } : Cursor(); }
-    std::vector<Cursor> children() const;
+    int childCount() const { return mChildren.size(); }
+    std::shared_ptr<Cursor> child(int idx) const { return mChildren.value(idx); }
+    std::vector<std::shared_ptr<Cursor> > children() const;
     enum QueryResult {
         None = 0x0,
         Add = 0x1,
@@ -118,16 +98,13 @@ struct Cursor {
     std::vector<Cursor> query(const std::function<unsigned(const Cursor&)> callback, int depth = INT_MAX) const
     {
         std::vector<Cursor> ret;
-        if (data) {
-            const unsigned result = callback(*this);
-            if (result & Add)
-                ret.push_back(*this);
-            if (result & Recurse && depth > 0) {
-                for (Data *childData : data->children) {
-                    const Cursor child = { childData->shared_from_this() };
-                    const auto query = child.query(callback, depth - 1);
-                    ret.insert(ret.end(), query.begin(), query.end());
-                }
+        const unsigned result = callback(*this);
+        if (result & Add)
+            ret.push_back(*this);
+        if (result & Recurse && depth > 0) {
+            for (const std::shared_ptr<Cursor> &child : mChildren) {
+                const auto query = child->query(callback, depth - 1);
+                ret.insert(ret.end(), query.begin(), query.end());
             }
         }
         return ret;
@@ -142,7 +119,17 @@ struct Cursor {
     bool isDefinition() const;
     bool isDynamicCall() const;
 
-    std::shared_ptr<Data> data;
+    Cursor(AST *a, const std::shared_ptr<Cursor> &p, const CXCursor &c, const std::shared_ptr<SourceLocation> &loc, const std::string &u = std::string())
+        : mAst(a), mParent(p), mCursor(c), mLocation(loc), mUsr(u)
+    {
+    }
+
+    AST *mAst;
+    std::weak_ptr<Cursor> mParent;
+    List<std::shared_ptr<Cursor> > mChildren;
+    CXCursor mCursor;
+    std::shared_ptr<SourceLocation> mLocation;
+    std::string mUsr;
 };
 
 #endif /* CURSOR_H */
