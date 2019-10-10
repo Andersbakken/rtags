@@ -51,11 +51,14 @@ public:
 
     };
 
-    static std::shared_ptr<AST> create(const Source &source, const String &sourceCode, CXTranslationUnit unit);
-    List<String> evaluate(const String &script);
-    Cursor *root() const { return mRoot; }
-    List<Diagnostic> diagnostics() const;
-    List<SkippedRange> skippedRanges() const;
+    static std::shared_ptr<AST> create(const Source &source,
+                                       const String &sourceCode,
+                                       CXTranslationUnit unit,
+                                       const std::vector<String> &scripts,
+                                       const std::function<void(const String &)> &outputHandler);
+    // Cursor *root() const { return mRoot; }
+    // List<Diagnostic> diagnostics() const;
+    // List<SkippedRange> skippedRanges() const;
     static SourceLocation createLocation(const CXCursor &cursor) { return createLocation(clang_getCursorLocation(cursor)); }
     static SourceLocation createLocation(const CXSourceLocation &location)
     {
@@ -102,6 +105,7 @@ public:
         }
         return construct(cursor, nullptr, loc, usr);
     }
+    String &currentOutput() { return mCurrentOutput; }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData u);
     Cursor construct(const CXCursor &cursor,
@@ -110,11 +114,9 @@ private:
                      std::string usr = std::string()) const;
     AST()
     {}
-    mutable Hash<std::string, std::vector<Cursor>> mByUsr;
-    mutable Map<SourceLocation, std::vector<Cursor>> mByLocation;
-    String mSourceCode;
-    List<String> mReturnValues;
-    Cursor *mRoot { nullptr };
+    mutable Hash<std::string, std::vector<Cursor> > mByUsr;
+    mutable Map<SourceLocation, std::vector<Cursor> > mByLocation;
+    String mCurrentOutput;
 };
 
 #endif

@@ -1,5 +1,3 @@
-/* (c) 2019 Netflix, Inc. Do not copy or use without prior written permission from Netflix, Inc. */
-
 #include "TypeConverter.h"
 
 #include <v8.h>

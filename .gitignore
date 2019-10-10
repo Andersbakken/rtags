@@ -57,4 +57,12 @@ compile_commands.json
 /testfile.txt
 /empty.txt
 /src/CTestTestfile.cmake
-/v8pp/
+/src/ast/V8Cursor.cpp
+/src/ast/V8Cursor.h
+/src/ast/V8CursorType.cpp
+/src/ast/V8CursorType.h
+/src/ast/V8SourceLocation.cpp
+/src/ast/V8SourceLocation.h
+/src/ast/V8SourceRange.cpp
+/src/ast/V8SourceRange.h
+

@@ -1,5 +1,5 @@
-#ifndef SRC_NBP_V8_BRIDGE_V8_WEAK_WRAPPER_H_
-#define SRC_NBP_V8_BRIDGE_V8_WEAK_WRAPPER_H_
+#ifndef V8_WEAK_WRAPPER_H_
+#define V8_WEAK_WRAPPER_H_
 
 #include <v8.h>
 // TODO: move this one to V8Utils and share
@@ -37,4 +37,4 @@ private:
     Callback m_callback;
 };
 
-#endif // SRC_NBP_V8_BRIDGE_V8_WEAK_WRAPPER_H_
+#endif

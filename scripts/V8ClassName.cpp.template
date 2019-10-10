@@ -1,92 +1,91 @@
-/* (c) 2019 Netflix, Inc. Do not copy or use without prior written permission from Netflix, Inc. */
-
 #include "V8${config.className}.h"
 #include <v8.h>
 #include "${config.className}.h"
 #include "V8Utils.h"
 
-${config.implDependencies.map(v => `#include "V8${v}.h"`).join('\n')}
+${config.implDependencies.map(v => { if (/\.h$/.exec(v)) { return `#include \"${v}\"`; } else { return `#include "V8${v}.h"`; } }).join('\n')}
 
 #include "TypeConverter.h"
 
 namespace TypeConverter {
-bool toV8(v8::Isolate* isolate, const std::shared_ptr<${config.className}>& value, v8::Local<v8::Value>* result) {
-  if (!value) {
-    *result = v8::Null(isolate);
-    return false;
-  }
-  v8::Local<v8::Object> object;
-  if (!V8${config.className}::wrap(isolate, isolate->GetCurrentContext(), value.get()).ToLocal(&object))
-    return false;
-  new V8WeakWrapper<${config.className}>(isolate, object, value);
-  *result = object;
-  return true;
+bool toV8(v8::Isolate* isolate, const std::shared_ptr<${config.className}>& value, v8::Local<v8::Value>* result)
+{
+    if (!value) {
+        *result = v8::Null(isolate);
+        return false;
+    }
+    v8::Local<v8::Object> object;
+    if (!V8${config.className}::wrap(isolate, isolate->GetCurrentContext(), value.get()).ToLocal(&object))
+        return false;
+    new V8WeakWrapper<${config.className}>(isolate, object, value);
+    *result = object;
+    return true;
 }
 
-bool toImpl(v8::Local<v8::Context> /*context*/, v8::Local<v8::Value> value, std::shared_ptr<${config.className}>* result) {
-  if (value->IsNullOrUndefined())
-    return true;
-  if (!value->IsObject())
-    return false;
-  *result = V8WeakWrapper<${config.className}>::unwrap(v8::Local<v8::Object>::Cast(value));
-  return !!*result;
+bool toImpl(v8::Local<v8::Context> /*context*/, v8::Local<v8::Value> value, std::shared_ptr<${config.className}>* result)
+{
+    if (value->IsNullOrUndefined())
+        return true;
+    if (!value->IsObject())
+        return false;
+    *result = V8WeakWrapper<${config.className}>::unwrap(v8::Local<v8::Object>::Cast(value));
+    return !!*result;
 }
 } // namespace TypeConverter
 
 // static
-v8::MaybeLocal<v8::Object> V8${config.className}::wrap(v8::Isolate* isolate, v8::Local<v8::Context> context, ${config.className}* impl) {
-  v8::Local<v8::Function> cstor;
-  if (constructorTemplate(isolate)->GetFunction(context).ToLocal(&cstor)) {
-    v8::Local<v8::Object> instance;
-    if (cstor->NewInstance(context).ToLocal(&instance)) {
-      int index = 0;
-      void* values[] = {impl};
-      instance->SetAlignedPointerInInternalFields(1, &index, values);
-      return instance;
+v8::MaybeLocal<v8::Object> V8${config.className}::wrap(v8::Isolate* isolate, v8::Local<v8::Context> context, ${config.className}* impl)
+{
+    v8::Local<v8::Function> cstor;
+    if (constructorTemplate(isolate)->GetFunction(context).ToLocal(&cstor)) {
+        v8::Local<v8::Object> instance;
+        if (cstor->NewInstance(context).ToLocal(&instance)) {
+            int index = 0;
+            void* values[] = {impl};
+            instance->SetAlignedPointerInInternalFields(1, &index, values);
+            return instance;
+        }
     }
-  }
-  return v8::MaybeLocal<v8::Object>();
+    return v8::MaybeLocal<v8::Object>();
 }
 
 // static
-${config.className}* V8${config.className}::impl(v8::Local<v8::Object> object) {
-  if (object->InternalFieldCount() < 1)
-    return nullptr;
-  return static_cast<${config.className}*>(object->GetAlignedPointerFromInternalField(0));
+${config.className}* V8${config.className}::impl(v8::Local<v8::Object> object)
+{
+    if (object->InternalFieldCount() < 1)
+        return nullptr;
+    return static_cast<${config.className}*>(object->GetAlignedPointerFromInternalField(0));
 }
 
 namespace {
-void cstorCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  int index = 0;
-  void* values[] = {nullptr};
-  info.This()->SetAlignedPointerInInternalFields(1, &index, values);
+void cstorCallback(const v8::FunctionCallbackInfo<v8::Value>& info)
+{
+    int index = 0;
+    void* values[] = {nullptr};
+    info.This()->SetAlignedPointerInInternalFields(1, &index, values);
 }
 }
 
 // static
-v8::Local<v8::FunctionTemplate> V8${config.className}::constructorTemplate(v8::Isolate* isolate) {
-  auto& cacheValue = V8PerIsolateData::CstorCache(isolate, "${config.className}");
-  if (!cacheValue.IsEmpty())
-    return cacheValue.Get(isolate);
-  v8::Local<v8::FunctionTemplate> cstorTemplate = v8::FunctionTemplate::New(isolate, cstorCallback);
-  cstorTemplate->SetClassName(V8PerIsolateData::String(isolate, "${config.className}"));
-  v8::Local<v8::ObjectTemplate> templ = cstorTemplate->InstanceTemplate();${config.functions.length  || config.properties.length ? `
-  v8::Local<v8::ObjectTemplate> prototypeTempl = cstorTemplate->PrototypeTemplate();` : ''}
-  templ->SetInternalFieldCount(2);
-${config.constants.map(c => `  templ->SetLazyDataProperty(
-      V8PerIsolateData::String(isolate, "${c.name}"),
-      ${c.name}ConstCallback);`).join('\n')}
-${config.functions.map(f => `  prototypeTempl->Set(
-      V8PerIsolateData::String(isolate, "${f.name}"),
-      v8::FunctionTemplate::New(isolate, ${f.name}Callback));`).join('\n')}
-${config.properties.map(p => `  prototypeTempl->SetAccessorProperty(
-      V8PerIsolateData::String(isolate, "${p.jsName || p.name}"),
-      v8::FunctionTemplate::New(isolate, ${p.name}GetterCallback)${p.readonly ? '' : `,
-      v8::FunctionTemplate::New(isolate, ${p.name}SetterCallback)`});`).join('\n')}
-${debugInvocations ? `  v8::NamedPropertyHandlerConfiguration conf(_debugGetterCallback, _debugSetterCallback);
-  templ->SetHandler(conf);` : ''}
-  cacheValue.Set(isolate, cstorTemplate);
-  return cstorTemplate;
+v8::Local<v8::FunctionTemplate> V8${config.className}::constructorTemplate(v8::Isolate* isolate)
+{
+    auto& cacheValue = V8PerIsolateData::CstorCache(isolate, "${config.className}");
+    if (!cacheValue.IsEmpty())
+        return cacheValue.Get(isolate);
+    v8::Local<v8::FunctionTemplate> cstorTemplate = v8::FunctionTemplate::New(isolate, cstorCallback);
+    cstorTemplate->SetClassName(V8PerIsolateData::String(isolate, "${config.className}"));
+    v8::Local<v8::ObjectTemplate> templ = cstorTemplate->InstanceTemplate();${config.functions.length  || config.properties.length ? `
+                                                                                v8::Local<v8::ObjectTemplate> prototypeTempl = cstorTemplate->PrototypeTemplate();` : ''}
+    templ->SetInternalFieldCount(2);
+    ${config.constants.map(c => `    templ->SetLazyDataProperty(V8PerIsolateData::String(isolate, "${c.name}"), ${c.name}ConstCallback);`).join('\n')}
+    ${config.functions.map(f => `    prototypeTempl->Set(V8PerIsolateData::String(isolate, "${f.name}"), v8::FunctionTemplate::New(isolate, ${f.name}Callback));`).join('\n')}
+    ${config.properties.map(p => `    prototypeTempl->SetAccessorProperty(V8PerIsolateData::String(isolate, "${p.jsName || p.name}"),
+                                                                          v8::FunctionTemplate::New(isolate, ${p.name}GetterCallback)${p.readonly ? '' : `,
+                                                                          v8::FunctionTemplate::New(isolate, ${p.name}SetterCallback)`});`).join('\n')}
+    ${debugInvocations ? `  v8::NamedPropertyHandlerConfiguration conf(_debugGetterCallback, _debugSetterCallback);
+        templ->SetHandler(conf);` : ''}
+    cacheValue.Set(isolate, cstorTemplate);
+    return cstorTemplate;
 }
 
 ${config.constants.filter(c => !c.custom).map(c => `// static
@@ -94,8 +93,7 @@ void V8${config.className}::${c.name}ConstCallback(v8::Local<v8::Name>, const v8
   breakpoint(info.GetIsolate(), "${config.className}::${c.name}");` : ''}
   ${config.className}* i = impl(info.This());
   ${config.ignoreReceiverCheck ? 'if (!i) return;' : `if (!i) {
-    info.GetIsolate()->ThrowException(
-        v8::String::NewFromUtf8(info.GetIsolate(), "${config.className}::${c.name}").ToLocalChecked());
+    info.GetIsolate()->ThrowException(createV8String(info.GetIsolate(), "${config.className}::${c.name}").ToLocalChecked());
     return;
   }`}
   v8::Local<v8::Value> value;
@@ -108,7 +106,7 @@ void V8${config.className}::${f.name}Callback(const v8::FunctionCallbackInfo<v8:
   v8::Isolate* isolate = info.GetIsolate();
   ${config.className}* i = impl(info.This());
   if (!i) {
-    info.GetIsolate()->ThrowException(v8::String::NewFromUtf8(isolate, "${config.className}::${f.name}").ToLocalChecked());
+    info.GetIsolate()->ThrowException(createV8String(isolate, "${config.className}::${f.name}"));
     return;
   }
 ${f.inputArgs.map((arg, index) =>
@@ -135,7 +133,7 @@ void V8${config.className}::${p.name}GetterCallback(const v8::FunctionCallbackIn
   breakpoint(info.GetIsolate(), "${config.className}::${p.name}");` : ''}
   ${config.className}* i = impl(info.This());
   if (!i) {
-    // info.GetIsolate()->ThrowException(v8::String::NewFromUtf8(info.GetIsolate(), "${config.className}::${p.name}").ToLocalChecked());
+    // info.GetIsolate()->ThrowException(createV8String(info.GetIsolate(), "${config.className}::${p.name}").ToLocalChecked());
     return;
   }
   v8::Local<v8::Value> value;
@@ -215,7 +213,7 @@ ${debugInvocations ? `
     TypeConverter::toImpl(isolate->GetCurrentContext(), name, &strName);
   v8::TryCatch tryCatch(isolate);
   std::string sourceStr = std::string("((v) => {debugger;/* ${config.className}." + strName + " */})\\n//# sourceURL=") + source + ".js";
-  v8::Local<v8::Script> script = v8::Script::Compile(context, v8::String::NewFromUtf8(isolate, sourceStr.c_str()).ToLocalChecked()).ToLocalChecked();
+  v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, sourceStr.c_str())).ToLocalChecked();
   v8::Local<v8::Function> f = script->Run(context).ToLocalChecked().As<v8::Function>();
   v8::Local<v8::Value> values[] = {v8::Boolean::New(isolate, true)};
   f->Call(context, context->Global(), 1, values).ToLocalChecked();` : ''}

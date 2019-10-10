@@ -16,19 +16,23 @@ class String;
 
 class V8PerIsolateData {
 public:
-  static void Init(v8::Isolate* isolate);
-  static void Dispose(v8::Isolate* isolate);
+    static void Init(v8::Isolate* isolate);
+    static void Dispose(v8::Isolate* isolate);
 
-  static v8::Eternal<v8::FunctionTemplate>& CstorCache(v8::Isolate* isolate, const char* name);
-  static v8::Local<v8::String> String(v8::Isolate* isolate, const char* identifier);
+    static v8::Eternal<v8::FunctionTemplate>& CstorCache(v8::Isolate* isolate, const char* name);
+    static v8::Local<v8::String> String(v8::Isolate* isolate, const char* identifier);
 
-  static void Breakpoint(v8::Isolate* isolate, const char* source);
+    static void Breakpoint(v8::Isolate* isolate, const char* source);
 
 private:
-  V8PerIsolateData();
+    V8PerIsolateData();
 
-  struct Impl;
-  std::unique_ptr<Impl> m_impl;
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
 };
+
+v8::Local<v8::String> createV8String(v8::Isolate *iso, const char *utf8);
+v8::Local<v8::String> createV8String(v8::Isolate *iso, const std::string &utf8);
+
 
 #endif // V8UTILS_H_

@@ -58,7 +58,7 @@ struct Cursor {
     std::vector<Cursor> overriddenCursors() const;
 
     unsigned argumentCount() const { return data ? RTags::cursorArguments(data->cursor) : 0; }
-    inline std::vector<Cursor> arguments() const;
+    std::vector<Cursor> arguments() const;
 
     int fieldBitWidth() const;
     CursorType typedefUnderlyingType() const;

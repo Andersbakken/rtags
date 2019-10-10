@@ -193,7 +193,7 @@
         "className": "Cursor",
         "types": [],
         "constants": [],
-        "implDependencies": [ "SourceLocation", "CursorType" ],
+        "implDependencies": [ "SourceLocation", "CursorType", "SourceRange", "CursorType.h", "SourceRange.h", "SourceLocation.h" ],
         "properties": [
             {
                 "name": "location",
