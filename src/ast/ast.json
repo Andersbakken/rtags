@@ -1,0 +1,417 @@
+[
+    {
+        "className": "SourceLocation",
+        "types": [],
+        "constants": [],
+        "properties": [
+            {
+                "name": "line",
+                "type": "int",
+                "readonly": true
+            },
+            {
+                "name": "column",
+                "type": "int",
+                "readonly": true
+            },
+            {
+                "name": "offset",
+                "type": "int",
+                "readonly": true
+            },
+            {
+                "name": "file",
+                "type": "std::string",
+                "readonly": true
+            }
+        ],
+        "functions": [
+            {
+                "name": "toString",
+                "returnType": "std::string",
+                "inputArgs": []
+            }
+        ]
+    },
+    {
+        "className": "SourceRange",
+        "types": [],
+        "constants": [],
+        "implDependencies": [ "SourceLocation" ],
+        "properties": [
+            {
+                "name": "start",
+                "type": "SourceLocation",
+                "readonly": true
+            },
+            {
+                "name": "end",
+                "type": "SourceLocation",
+                "readonly": true
+            },
+            {
+                "name": "length",
+                "type": "int",
+                "readonly": true
+            }
+        ],
+        "functions": [
+            {
+                "name": "toString",
+                "returnType": "std::string",
+                "inputArgs": [],
+                "readonly": true
+            }
+        ]
+    },
+    {
+        "className": "CursorType",
+        "types": [],
+        "constants": [],
+        "implDependencies": [ "Cursor" ],
+        "properties": [
+            {
+                "name": "spelling",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "declaration",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "callingConvention",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "referenceType",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "argumentCount",
+                "type": "unsigned",
+                "readonly": true
+            },
+            {
+                "name": "templateArgumentCount",
+                "type": "unsigned",
+                "readonly": true
+            },
+            {
+                "name": "canonicalType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "pointeeType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "resultType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "elementType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "arrayElementType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "classType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "isConstQualified",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isEstrictQualified",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isVolatileQualified",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isVariadic",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isPod",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "numElements",
+                "type": "long long",
+                "readonly": true
+            },
+            {
+                "name": "arraySize",
+                "type": "long long",
+                "readonly": true
+            },
+            {
+                "name": "alignOf",
+                "type": "long long",
+                "readonly": true
+            },
+            {
+                "name": "sizeOf",
+                "type": "long long",
+                "readonly": true
+            }
+        ],
+        "functions": [
+            {
+                "name": "argument",
+                "returnType": "CursorType",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+            },
+            {
+                "name": "templateArgument",
+                "returnType": "CursorType",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+           }
+        ]
+    },
+    {
+        "className": "Cursor",
+        "types": [],
+        "constants": [],
+        "implDependencies": [ "SourceLocation", "CursorType" ],
+        "properties": [
+            {
+                "name": "location",
+                "type": "SourceLocation",
+                "readonly": true
+            },
+            {
+                "name": "usr",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "kind",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "linkage",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "availability",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "language",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "spelling",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "displayName",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "rawComment",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "briefComment",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "mangledName",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "templateKind",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "range",
+                "type": "SourceRange",
+                "readonly": true
+            },
+            {
+                "name": "overriddenCount",
+                "type": "unsigned",
+                "readonly": true
+            },
+            {
+                "name": "overriddenCursors",
+                "type": "std::vector<Cursor>",
+                "readonly": true
+            },
+            {
+                "name": "argumentCount",
+                "type": "unsigned",
+                "readonly": true
+            },
+            {
+                "name": "arguments",
+                "type": "std::vector<Cursor>",
+                "readonly": true
+            },
+            {
+                "name": "fieldBitWidth",
+                "type": "int",
+                "readonly": true
+            },
+            {
+                "name": "typedefUnderlyingType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "enumIntegerType",
+                "type": "CursorType",
+                "readonly": true
+            },
+            {
+                "name": "enumConstantValue",
+                "type": "long long",
+                "readonly": true
+            },
+            {
+                "name": "includedFile",
+                "type": "std::string",
+                "readonly": true
+            },
+            {
+                "name": "templateArgumentCount",
+                "type": "unsigned",
+                "readonly": true
+            },
+            {
+                "name": "referenced",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "canonical",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "lexicalParent",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "semanticParent",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "definitionCursor",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "specializedCursorTemplate",
+                "type": "Cursor",
+                "readonly": true
+            },
+            {
+                "name": "childCount",
+                "type": "int",
+                "readonly": true
+            },
+            {
+                "name": "children",
+                "type": "std::vector<Cursor>",
+                "readonly": true
+            },
+            {
+                "name": "isBitField",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isVirtualBase",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isStatic",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isVirtual",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isPureVirtual",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isConst",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isDefinition",
+                "type": "bool",
+                "readonly": true
+            },
+            {
+                "name": "isDynamicCall",
+                "type": "bool",
+                "readonly": true
+            }
+        ],
+        "functions": [
+            {
+                "name": "child",
+                "returnType": "Cursor",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+            },
+            {
+                "name": "templateArgumentType",
+                "returnType": "CursorType",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+            },
+            {
+                "name": "templateArgumentValue",
+                "returnType": "long long",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+            },
+            {
+                "name": "templateArgumentKind",
+                "returnType": "std::string",
+                "inputArgs": [ { "name": "index", "type": "int" } ]
+            }
+        ]
+    }
+]

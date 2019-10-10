@@ -18,7 +18,7 @@
 #include "RTags.h"
 #include "Server.h"
 #ifdef RTAGS_HAS_SCRIPT
-#include "AST.h"
+#include "ast/AST.h"
 #endif
 
 struct Dep : public DependencyNode

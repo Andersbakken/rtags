@@ -7,8 +7,6 @@
 #include <string>
 #include <unordered_map>
 
-namespace bridge {
-
 namespace {
 const int kPerIsolateDataIndex = 2;
 }
@@ -55,4 +53,3 @@ void V8PerIsolateData::Breakpoint(v8::Isolate* isolate, const char* source) {
   v8::Local<v8::Function> f = script->Run(context).ToLocalChecked().As<v8::Function>();
   f->Call(context, context->Global(), 0, nullptr).ToLocalChecked();
 }
-} // namespace bridge

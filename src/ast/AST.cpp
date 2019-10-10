@@ -25,7 +25,7 @@
 #define TO_STR(x) TO_STR1(x)
 
 struct UserData {
-    List<AST::Cursor> parents;
+    List<Cursor> parents;
     AST *ast;
 };
 CXChildVisitResult AST::visitor(CXCursor cursor, CXCursor, CXClientData u)
@@ -129,12 +129,12 @@ static void log(const v8::FunctionCallbackInfo<v8::Value> &info)
         l << *str;
     }
 
-    std::shared_ptr<AST::SourceLocation> loc = std::make_shared<AST::SourceLocation>();
-    loc->mLocation = { 1, 2, 3 };
-    loc->mOffset = 120;
-    v8::Local<v8::Value> value;
-    bridge::TypeConverter::toV8(info.GetIsolate(), loc, &value);
-    info.GetReturnValue().Set(value);
+    // std::shared_ptr<SourceLocation> loc = std::make_shared<SourceLocation>();
+    // loc->mLocation = { 1, 2, 3 };
+    // loc->mOffset = 120;
+    // v8::Local<v8::Value> value;
+    // TypeConverter::toV8(info.GetIsolate(), loc, &value);
+    // info.GetReturnValue().Set(value);
 }
 
 // class V8SourceLocation
@@ -197,7 +197,7 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     v8::Isolate *isolate = v8::Isolate::New(params);
     v8::Isolate::Scope isolateScope(isolate);
     v8::HandleScope handleScope(isolate);
-    bridge::V8PerIsolateData::Init(isolate);
+    V8PerIsolateData::Init(isolate);
     v8::Local<v8::ObjectTemplate> globalTemplate = v8::ObjectTemplate::New(isolate);
     globalTemplate->Set(isolate, "log", v8::FunctionTemplate::New(isolate, &log));
 
@@ -315,4 +315,24 @@ List<String> AST::evaluate(const String &script)
     //     error() << "Got exception";
     // }
     return std::move(mReturnValues);
+}
+
+Cursor AST::construct(const CXCursor &cursor,
+                      Cursor::Data *parent,
+                      SourceLocation loc,
+                      std::string usr) const
+{
+    Cursor ret;
+    if (loc.isNull())
+        loc = createLocation(cursor);
+    if (usr.empty())
+        usr = toString(clang_getCursorUSR(cursor));
+    ret.data.reset(new Cursor::Data(const_cast<AST*>(this), parent, cursor, loc, usr));
+    if (!loc.isNull())
+        mByLocation[loc].push_back(ret);
+    if (!ret.data->usr.empty())
+        mByUsr[usr].push_back(ret);
+    if (parent)
+        parent->children.append(ret.data.get());
+    return ret;
 }

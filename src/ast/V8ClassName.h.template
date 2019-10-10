@@ -1,0 +1,36 @@
+#ifndef V8_${config.className.toUpperCase()}_H_
+#define V8_${config.className.toUpperCase()}_H_
+
+#include <memory>
+
+#include "V8Forward.h"
+#include "V8WeakWrapper.h"
+
+class ${config.className};
+
+namespace TypeConverter {
+bool toV8(v8::Isolate* isolate, const ${config.className}& value, v8::Local<v8::Value>*);
+bool toImpl(v8::Local<v8::Context>, v8::Local<v8::Value> value, ${config.className}* result);
+} // namespace TypeConverter
+
+class V8${config.className}
+{
+public:
+    static v8::MaybeLocal<v8::Object> wrap(v8::Isolate* isolate, v8::Local<v8::Context> context, ${config.className}* impl);
+    static ${config.className}* impl(v8::Local<v8::Object> object);
+
+    static v8::Local<v8::FunctionTemplate> constructorTemplate(v8::Isolate* isolate);
+${config.constants.map(c => `  static void ${c.name}ConstCallback(v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info);`).join('\n')}
+${config.functions.map(f => `  static void ${f.name}Callback(const v8::FunctionCallbackInfo<v8::Value>& info);`).join('\n')}
+${config.properties.map(p => `  static void ${p.name}GetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info);${p.readonly ? '' : `
+  static void ${p.name}SetterCallback(const v8::FunctionCallbackInfo<v8::Value>& info);`}`).join('\n')};
+${debugInvocations ? `
+  static void _debugGetterCallback(
+    v8::Local<v8::Name> property, const v8::PropertyCallbackInfo<v8::Value>& info);
+  static void _debugSetterCallback(
+    v8::Local<v8::Name> property, v8::Local<v8::Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info);` : ''}
+  static void breakpoint(v8::Isolate* isolate, const char* source, v8::Local<v8::Name> name = v8::Local<v8::Name>(), v8::Local<v8::Value> value = v8::Local<v8::Value>());
+};
+
+#endif

@@ -122,14 +122,6 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-if (SCRIPT_ENABLED)
-    find_package(V8 REQUIRED)
-    include_directories(SYSTEM ${V8_INCLUDE_DIR})
-    list(APPEND RTAGS_LIBRARIES "${V8_LIBS}")
-    add_definitions(-DRTAGS_V8PP_LIB_PATH=${PROJECT_BINARY_DIR}/src)
-    add_definitions(${V8_DEFINITIONS})
-endif ()
-
 set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
 set(RCT_STATIC 1)
@@ -199,7 +191,9 @@ set(RTAGS_SOURCES
     TokensJob.cpp)
 
 if (SCRIPT_ENABLED)
-    list(APPEND RTAGS_SOURCES AST.cpp V8Utils.cpp TypeConverter.cpp V8SourceLocation.cpp)
+    add_subdirectory(ast)
+    add_definitions(-DRTAGS_HAS_SCRIPT)
+    list(APPEND RTAGS_LIBRARIES ast)
 endif ()
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
@@ -225,9 +219,6 @@ else ()
 endif ()
 
 list(APPEND RTAGS_LIBRARIES ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
-if (SCRIPT_ENABLED)
-    add_definitions(-DRTAGS_HAS_SCRIPT)
-endif ()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES
