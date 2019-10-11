@@ -48,6 +48,7 @@ static void log(const v8::FunctionCallbackInfo<v8::Value> &info)
     Log l(&ast->currentOutput());
     for (int i = 0; i < info.Length(); ++i) {
         v8::String::Utf8Value str(info.GetIsolate(), info[i]);
+        printf("SHIT %s\n", (*str));
         l << *str;
     }
 }
@@ -57,7 +58,8 @@ static void log(const v8::FunctionCallbackInfo<v8::Value> &info)
 #warning expose diagnostics
 
 std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode, CXTranslationUnit unit,
-                                 const std::vector<String> &scripts, const std::function<void(const String &)> &outputHandler)
+                                 const std::vector<std::pair<Path, String> > &scripts,
+                                 const std::function<void(const String &)> &outputHandler)
 {
     assert(unit);
     std::shared_ptr<AST> ast(new AST);
@@ -97,9 +99,11 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     }
     globalObject->Set(context, createV8String(isolate, "commandLine"), commandLine).IsJust();
 
-    String src = Path(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js").readAll();
+    const Path rtagsDotJS(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js");
+    String src = rtagsDotJS.readAll();
     {
         v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, src.constData())).ToLocalChecked();
+        globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, rtagsDotJS)).IsJust();
         script->Run(context).ToLocalChecked();
     }
     UserData userData;
@@ -111,9 +115,11 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
         outputHandler(ast->mCurrentOutput);
         ast->mCurrentOutput.clear();
         globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, root.get()).ToLocalChecked()).ToChecked();
-        for (const String &s : scripts) {
-            v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.constData())).ToLocalChecked();
+        for (const std::pair<Path, String> &s : scripts) {
+            globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, s.first)).ToChecked();
+            v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.second)).ToLocalChecked();
             script->Run(context).ToLocalChecked();
+            printf("RAN SOME SHIT %s -> %s\n", s.first.constData(), s.second.constData());
             if (!ast->mCurrentOutput.isEmpty()) {
                 outputHandler(ast->mCurrentOutput);
                 ast->mCurrentOutput.clear();

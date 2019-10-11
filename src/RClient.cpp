@@ -1342,18 +1342,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case VisitASTScript: {
 #ifdef RTAGS_HAS_SCRIPT
-            String code = std::move(value);
-            if (code.startsWith("@")) {
-                const Path p = code.mid(1);
-                if (!p.isFile()) {
-                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-                }
-                code = p.readAll();
+            const Path p = Path::resolved(value);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
-            if (code.isEmpty()) {
-                return { String::format<1024>("Script is empty"), CommandLineParser::Parse_Error };
-            }
-            mVisitASTScripts.push_back(std::move(code));
+            String code = p.readAll();
+            mVisitASTScripts.push_back(std::make_pair(p, code));
 #endif
             break; }
         }

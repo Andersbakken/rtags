@@ -54,7 +54,7 @@ public:
     static std::shared_ptr<AST> create(const Source &source,
                                        const String &sourceCode,
                                        CXTranslationUnit unit,
-                                       const std::vector<String> &scripts,
+                                       const std::vector<std::pair<Path, String> > &scripts,
                                        const std::function<void(const String &)> &outputHandler);
     // Cursor *root() const { return mRoot; }
     // List<Diagnostic> diagnostics() const;

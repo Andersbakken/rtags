@@ -155,6 +155,7 @@ void ClangThread::run()
     warning() << "parseTime" << parseTime;
 #ifdef RTAGS_HAS_SCRIPT
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
+        error() << "Balls" << mQueryMessage->visitASTScripts();
         if (!translationUnit->unit) {
             writeToConnection(String::format<128>("Failed to index: %s", translationUnit->clangLine.constData()));
         } else {

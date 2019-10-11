@@ -182,8 +182,8 @@ public:
     }
 
 #ifdef RTAGS_HAS_SCRIPT
-    void setVisitASTScripts(const List<String> &scripts) { mVisitASTScripts = scripts; }
-    List<String> visitASTScripts() const { return mVisitASTScripts; }
+    void setVisitASTScripts(const List<std::pair<Path, String> > &scripts) { mVisitASTScripts = scripts; }
+    List<std::pair<Path, String> > visitASTScripts() const { return mVisitASTScripts; }
 #endif
 
     void setKindFilters(const KindFilters &kindFilters) { mKindFilters = kindFilters; }
@@ -264,7 +264,7 @@ private:
     UnsavedFiles mUnsavedFiles;
     int mTerminalWidth;
 #ifdef RTAGS_HAS_SCRIPT
-    List<String> mVisitASTScripts;
+    List<std::pair<Path, String> > mVisitASTScripts;
 #endif
 };
 
