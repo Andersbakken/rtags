@@ -131,25 +131,14 @@ bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, unsigned
 bool toV8(v8::Isolate *isolate, const MemoryBuffer &buffer, v8::Local<v8::Value> *result);
 bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, MemoryBuffer *view);
 
-template <typename T> bool toV8(v8::Isolate *isolate, const Optional<T> &value, v8::Local<v8::Value> *result);
-template <typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<T> *result);
+template<typename T> bool toV8(v8::Isolate* isolate, const Optional<T>& value, v8::Local<v8::Value>* result);
+template<typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<T>* result);
 
-template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<T> &value, v8::Local<v8::Value> *result)
-{
-    v8::Local<v8::Array> ret = v8::Array::New(isolate, value.size());
-    for (size_t i=0; i<value.size(); ++i) {
-        ret->Set(isolate->GetCurrentContext(), i, createV8String(isolate, value.at(i))).ToChecked();
-    }
-    *result = ret;
-    return true;
-}
-template <typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<T> *result)
-{
+// template<typename T> bool toV8(v8::Isolate* isolate, const std::vector<T>& values, v8::Local<v8::Value>* result);
+// template<typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<T>* result);
 
+// template<typename T> bool toV8(v8::Isolate* isolate, const std::vector<std::pair<std::string, T>>& values, v8::Local<v8::Value>* result);
+// template<typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::pair<std::string, T>>* result);
 }
-// template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<std::pair<std::string, T>> &value, v8::Local<v8::Value> *result);
-// template <typename T>
-// bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::pair<std::string, T>> *result);
-} // namespace TypeConverter
 
 #endif

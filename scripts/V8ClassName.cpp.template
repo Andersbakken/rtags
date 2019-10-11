@@ -4,7 +4,7 @@
 
 ${config.implDependencies.map(v => { if (/\.h$/.exec(v)) { return `#include \"${v}\"`; } else { return `#include "V8${v}.h"`; } }).join('\n')}
 
-#include "TypeConverter.h"
+#include "V8Utils.h"
 
 namespace TypeConverter {
 bool toV8(v8::Isolate* isolate, const std::shared_ptr<${config.className}>& value, v8::Local<v8::Value>* result)
@@ -30,6 +30,34 @@ bool toImpl(v8::Local<v8::Context> /*context*/, v8::Local<v8::Value> value, std:
     *result = V8WeakWrapper<${config.className}>::unwrap(v8::Local<v8::Object>::Cast(value));
     return !!*result;
 }
+
+bool toV8(v8::Isolate* isolate, const std::vector<std::shared_ptr<${config.className}> >& values, v8::Local<v8::Value>* result)
+{
+    std::vector<v8::Local<v8::Value>> resultValues(values.size());
+    for (size_t i = 0; i < values.size(); ++i) {
+        if (!toV8(isolate, values[i], &resultValues[i]))
+            return false;
+    }
+    *result = v8::Array::New(isolate, resultValues.data(), resultValues.size());
+    return true;
+}
+
+bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::shared_ptr<${config.className}> >* result)
+{
+    if (!value->IsArray())
+        return false;
+    v8::Local<v8::Array> arrayValue = value.As<v8::Array>();
+    result->resize(arrayValue->Length());
+    for (uint32_t i = 0; i < arrayValue->Length(); ++i) {
+        v8::Local<v8::Value> v;
+        if (!arrayValue->Get(context, i).ToLocal(&v))
+            return false;
+        if (!toImpl(context, v, &(*result)[i]))
+            return false;
+    }
+    return true;
+}
+
 } // namespace TypeConverter
 
 // static

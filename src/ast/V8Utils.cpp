@@ -1,4 +1,5 @@
-#include "TypeConverter.h"
+#include "V8Utils.h"
+#include <unordered_map>
 
 namespace
 {
@@ -238,94 +239,7 @@ bool toImpl(v8::Local<v8::Context> /* context */, v8::Local<v8::Value> value, un
 //     return false;
 // }
 
-template<typename T>
-bool toV8(v8::Isolate* isolate, const std::vector<T>& values, v8::Local<v8::Value>* result) {
-    std::vector<v8::Local<v8::Value>> resultValues(values.size());
-    for (size_t i = 0; i < values.size(); ++i) {
-        if (!toV8(isolate, values[i], &resultValues[i]))
-            return false;
-    }
-    *result = v8::Array::New(isolate, resultValues.data(), resultValues.size());
-    return true;
-}
-
-template<typename T>
-bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<T>* result) {
-    if (!value->IsArray())
-        return false;
-    v8::Local<v8::Array> arrayValue = value.As<v8::Array>();
-    result->resize(arrayValue->Length());
-    for (uint32_t i = 0; i < arrayValue->Length(); ++i) {
-        v8::Local<v8::Value> v;
-        if (!arrayValue->Get(context, i).ToLocal(&v))
-            return false;
-        if (!toImpl(context, v, &(*result)[i]))
-            return false;
-    }
-    return true;
-}
-
-template<typename T>
-bool toV8(v8::Isolate* isolate, const std::vector<std::pair<std::string, T>>& values, v8::Local<v8::Value>* result) {
-    std::vector<v8::Local<v8::Name>> keyValues(values.size());
-    std::vector<v8::Local<v8::Value>> valueValues(values.size());
-    for (size_t i = 0; i < values.size(); ++i) {
-        if (!toV8(isolate, values[i].first, reinterpret_cast<v8::Local<v8::Value>*>(&keyValues[i])))
-            return false;
-        if (!toV8(isolate, values[i].second, &valueValues[i]))
-            return false;
-    }
-    *result = v8::Object::New(isolate, v8::Null(isolate), &keyValues[0], &valueValues[0], keyValues.size());
-    return true;
-}
-
-template<typename T>
-bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::pair<std::string, T>>* result) {
-    if (!value->IsObject())
-        return false;
-    v8::Local<v8::Object> objectValue = value.As<v8::Object>();
-    v8::Local<v8::Array> propertyNames;
-    if (!objectValue->GetOwnPropertyNames(context).ToLocal(&propertyNames))
-        return false;
-    result->resize(propertyNames->Length());
-    for (uint32_t i = 0; i < propertyNames->Length(); ++i) {
-        v8::Local<v8::Value> keyValue;
-        if (!propertyNames->Get(context, i).ToLocal(&keyValue))
-            return false;
-        v8::Local<v8::Value> valueValue;
-        if (!objectValue->Get(context, keyValue).ToLocal(&valueValue))
-            return false;
-        if (!toImpl(context, keyValue, &(*result)[i].first))
-            return false;
-        if (!toImpl(context, valueValue, &(*result)[i].second))
-            return false;
-    }
-    return true;
-}
-
-template<typename T>
-bool toV8(v8::Isolate* isolate, const Optional<T>& value, v8::Local<v8::Value>* result) {
-    if (!value) {
-        *result = v8::Undefined(isolate);
-        return true;
-    }
-    return toV8(isolate, *value, result);
-}
-
-template<typename T>
-bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<T>* result) {
-    if (value->IsNullOrUndefined()) {
-        *result = Optional<T>();
-        return true;
-    }
-    T resultValue;
-    if (toImpl(context, value, &resultValue)) {
-        *result = resultValue;
-        return true;
-    }
-    return false;
-}
-
+#if 0
 template bool toV8(v8::Isolate* isolate, const std::vector<int>& value, v8::Local<v8::Value>* result);
 template bool toV8(v8::Isolate* isolate, const std::vector<uint32_t>& value, v8::Local<v8::Value>* result);
 template bool toV8(v8::Isolate* isolate, const std::vector<std::string>& value, v8::Local<v8::Value>* result);
@@ -354,6 +268,7 @@ template bool toV8(v8::Isolate* isolate, const Optional<std::vector<std::string>
 template bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<std::vector<std::string>>* result);
 template bool toV8(v8::Isolate* isolate, const Optional<std::vector<Optional<std::string>>>& value, v8::Local<v8::Value>* result);
 template bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<std::vector<Optional<std::string>>>* result);
+#endif
 } // namespace TypeConverter
 
 // home; tree (not elka or palma); human; unexistent animal

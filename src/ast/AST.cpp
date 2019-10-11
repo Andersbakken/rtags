@@ -18,7 +18,7 @@
 #include <v8.h>
 #include <libplatform/libplatform.h>
 #include "V8SourceLocation.h"
-#include "TypeConverter.h"
+#include "V8Utils.h"
 #include "V8Cursor.h"
 
 #define TO_STR1(x) #x

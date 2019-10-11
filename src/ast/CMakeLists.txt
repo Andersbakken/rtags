@@ -27,7 +27,7 @@ add_library(ast
             Cursor.cpp
             CursorType.cpp
             SourceRange.cpp
-            TypeConverter.cpp
+            V8Utils.cpp
             ${CMAKE_CURRENT_BINARY_DIR}/V8Cursor.cpp
             ${CMAKE_CURRENT_BINARY_DIR}/V8CursorType.cpp
             ${CMAKE_CURRENT_BINARY_DIR}/V8SourceLocation.cpp

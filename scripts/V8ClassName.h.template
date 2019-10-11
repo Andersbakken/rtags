@@ -4,15 +4,15 @@
 #include <memory>
 
 #include "V8Forward.h"
-#include "V8WeakWrapper.h"
+#include "V8Utils.h"
 
 class ${config.className};
 
 namespace TypeConverter {
-bool toV8(v8::Local<v8::Context> context, const std::shared_ptr<${config.className}> &value, v8::Local<v8::Value>*);
-/* bool toV8(v8::Local<v8::Context> context, const std::vector<std::shared_ptr<${config.className}> > &value, v8::Local<v8::Value>*); */
+bool toV8(v8::Isolate *isolate, const std::shared_ptr<${config.className}> &value, v8::Local<v8::Value>*);
+bool toV8(v8::Isolate *isolate, const std::vector<std::shared_ptr<${config.className}> > &value, v8::Local<v8::Value>*);
 bool toImpl(v8::Local<v8::Context>, v8::Local<v8::Value> value, std::shared_ptr<${config.className}> *result);
-/* bool toImpl(v8::Local<v8::Context>, v8::Local<v8::Value> value, std::vector<std::shared_ptr<${config.className}> > *result); */
+bool toImpl(v8::Local<v8::Context>, v8::Local<v8::Value> value, std::vector<std::shared_ptr<${config.className}> > *result);
 } // namespace TypeConverter
 
 class V8${config.className}
