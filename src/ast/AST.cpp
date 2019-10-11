@@ -64,13 +64,12 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     assert(unit);
     std::shared_ptr<AST> ast(new AST);
     const Path exec = Rct::executablePath();
-    std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
-    v8::V8::InitializePlatform(platform.get());
-    static bool first = true;
-    if (first) {
-        first = false;
+    static std::once_flag init;
+    std::call_once(init, [] {
+        static std::unique_ptr<v8::Platform> platform = v8::platform::NewDefaultPlatform();
+        v8::V8::InitializePlatform(platform.get());
         v8::V8::Initialize();
-    }
+    });
     v8::Isolate::CreateParams params;
     struct ArrayBufferAllocator : public v8::ArrayBuffer::Allocator
     {
@@ -114,16 +113,16 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     if (!ast->mCurrentOutput.isEmpty()) {
         outputHandler(ast->mCurrentOutput);
         ast->mCurrentOutput.clear();
-        globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, root.get()).ToLocalChecked()).ToChecked();
-        for (const std::pair<Path, String> &s : scripts) {
-            globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, s.first)).ToChecked();
-            v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.second)).ToLocalChecked();
-            script->Run(context).ToLocalChecked();
-            printf("RAN SOME SHIT %s -> %s\n", s.first.constData(), s.second.constData());
-            if (!ast->mCurrentOutput.isEmpty()) {
-                outputHandler(ast->mCurrentOutput);
-                ast->mCurrentOutput.clear();
-            }
+    }
+    globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, root.get()).ToLocalChecked()).ToChecked();
+    for (const std::pair<Path, String> &s : scripts) {
+        globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, s.first)).ToChecked();
+        v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.second)).ToLocalChecked();
+        script->Run(context).ToLocalChecked();
+        printf("RAN SOME SHIT %s -> %s\n", s.first.constData(), s.second.constData());
+        if (!ast->mCurrentOutput.isEmpty()) {
+            outputHandler(ast->mCurrentOutput);
+            ast->mCurrentOutput.clear();
         }
     }
     // state["root"] = [root]() { return root; };
