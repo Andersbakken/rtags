@@ -11,11 +11,11 @@ struct CursorType {
     CursorType(const AST *a = nullptr) : ast(a) { memset(&type, 0, sizeof(type)); }
 
     std::string spelling() const;
-    Cursor declaration() const;
+    std::shared_ptr<Cursor> declaration() const;
     std::string callingConvention() const;
     std::string referenceType() const;
     unsigned argumentCount() const { return clang_getNumArgTypes(type); }
-    CursorType argument(unsigned idx) const { return CursorType(ast, clang_getArgType(type, idx)); }
+    std::shared_ptr<CursorType> argument(unsigned idx) const { return std::make_shared<CursorType>(ast, clang_getArgType(type, idx)); }
     unsigned templateArgumentCount() const
     {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
@@ -24,26 +24,26 @@ struct CursorType {
         return 0;
 #endif
     }
-    CursorType templateArgument(unsigned idx) const
+    std::shared_ptr<CursorType> templateArgument(unsigned idx) const
     {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
-        return CursorType(ast, clang_Type_getTemplateArgumentAsType(type, idx));
+        return std::make_shared<CursorType>(ast, clang_Type_getTemplateArgumentAsType(type, idx));
 #else
         (void)idx;
-        return CursorType();
+        return nullptr;
 #endif
     }
-    CursorType canonicalType() const { return CursorType(ast, clang_getCanonicalType(type)); }
-    CursorType pointeeType() const { return CursorType(ast, clang_getPointeeType(type)); }
-    CursorType resultType() const { return CursorType(ast, clang_getResultType(type)); }
-    CursorType elementType() const { return CursorType(ast, clang_getElementType(type)); }
-    CursorType arrayElementType() const { return CursorType(ast, clang_getElementType(type)); }
-    CursorType classType() const
+    std::shared_ptr<CursorType> canonicalType() const { return std::make_shared<CursorType>(ast, clang_getCanonicalType(type)); }
+    std::shared_ptr<CursorType> pointeeType() const { return std::make_shared<CursorType>(ast, clang_getPointeeType(type)); }
+    std::shared_ptr<CursorType> resultType() const { return std::make_shared<CursorType>(ast, clang_getResultType(type)); }
+    std::shared_ptr<CursorType> elementType() const { return std::make_shared<CursorType>(ast, clang_getElementType(type)); }
+    std::shared_ptr<CursorType> arrayElementType() const { return std::make_shared<CursorType>(ast, clang_getElementType(type)); }
+    std::shared_ptr<CursorType> classType() const
     {
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
-        return CursorType(ast, clang_Type_getClassType(type));
+        return std::make_shared<CursorType>(ast, clang_Type_getClassType(type));
 #else
-        return CursorType();
+        return nullptr;
 #endif
     }
 

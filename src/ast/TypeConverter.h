@@ -3,20 +3,65 @@
 
 #include <string>
 #include <vector>
+#include <v8.h>
 
-namespace v8
-{
-class Isolate;
-template <typename Value> class Local;
-class Value;
-class Context;
-} // namespace v8
+struct Empty {};
 
-class MemoryBuffer;
+template<typename T>
+class V8WeakWrapper {
+public:
+    typedef void (*Callback)(v8::Isolate* isolate);
+    V8WeakWrapper(v8::Isolate* isolate, v8::Local<v8::Object> object, const std::shared_ptr<T> &value, Callback callback = nullptr)
+        : m_value(value)
+        , m_isolate(isolate)
+        , m_holder(isolate, object)
+        , m_callback(callback) {
+        object->SetAlignedPointerInInternalField(1, this);
+        m_holder.SetWeak(this, weakCallback, v8::WeakCallbackType::kInternalFields);
+    }
+    ~V8WeakWrapper() {
+        if (m_callback)
+            m_callback(m_isolate);
+    }
 
-struct Empty {
+    static std::shared_ptr<T> unwrap(v8::Local<v8::Object> object) {
+        if (object->InternalFieldCount() != 2)
+            return nullptr;
+        return static_cast<V8WeakWrapper<T>*>(object->GetAlignedPointerFromInternalField(1))->m_value;
+    }
+
+private:
+    static void weakCallback(const v8::WeakCallbackInfo<V8WeakWrapper>& data) {
+        delete static_cast<V8WeakWrapper*>(data.GetInternalField(1));
+    }
+
+    std::shared_ptr<T> m_value;
+    v8::Isolate* m_isolate;
+    v8::Global<v8::Object> m_holder;
+    Callback m_callback;
 };
 
+class V8PerIsolateData {
+public:
+    static void Init(v8::Isolate* isolate);
+    static void Dispose(v8::Isolate* isolate);
+
+    static v8::Eternal<v8::FunctionTemplate>& CstorCache(v8::Isolate* isolate, const char* name);
+    static v8::Local<v8::String> String(v8::Isolate* isolate, const char* identifier);
+
+    static void Breakpoint(v8::Isolate* isolate, const char* source);
+
+private:
+    V8PerIsolateData();
+
+    struct Impl;
+    std::unique_ptr<Impl> m_impl;
+};
+
+v8::Local<v8::String> createV8String(v8::Isolate *iso, const char *utf8);
+v8::Local<v8::String> createV8String(v8::Isolate *iso, const std::string &utf8);
+
+class MemoryBuffer;
 template <typename T> class Optional
 {
 public:
@@ -89,11 +134,22 @@ bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, MemoryBu
 template <typename T> bool toV8(v8::Isolate *isolate, const Optional<T> &value, v8::Local<v8::Value> *result);
 template <typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, Optional<T> *result);
 
-template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<T> &value, v8::Local<v8::Value> *result);
-template <typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<T> *result);
-template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<std::pair<std::string, T>> &value, v8::Local<v8::Value> *result);
-template <typename T>
-bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::pair<std::string, T>> *result);
+template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<T> &value, v8::Local<v8::Value> *result)
+{
+    v8::Local<v8::Array> ret = v8::Array::New(isolate, value.size());
+    for (size_t i=0; i<value.size(); ++i) {
+        ret->Set(isolate->GetCurrentContext(), i, createV8String(isolate, value.at(i))).ToChecked();
+    }
+    *result = ret;
+    return true;
+}
+template <typename T> bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<T> *result)
+{
+
+}
+// template <typename T> bool toV8(v8::Isolate *isolate, const std::vector<std::pair<std::string, T>> &value, v8::Local<v8::Value> *result);
+// template <typename T>
+// bool toImpl(v8::Local<v8::Context> context, v8::Local<v8::Value> value, std::vector<std::pair<std::string, T>> *result);
 } // namespace TypeConverter
 
 #endif

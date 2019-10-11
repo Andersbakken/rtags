@@ -1,7 +1,6 @@
 #include "V8${config.className}.h"
 #include <v8.h>
 #include "${config.className}.h"
-#include "V8Utils.h"
 
 ${config.implDependencies.map(v => { if (/\.h$/.exec(v)) { return `#include \"${v}\"`; } else { return `#include "V8${v}.h"`; } }).join('\n')}
 

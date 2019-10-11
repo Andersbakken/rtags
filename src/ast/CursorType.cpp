@@ -5,9 +5,9 @@ std::string CursorType::spelling() const
 {
     return AST::toString(clang_getTypeSpelling(type));
 }
-Cursor CursorType::declaration() const
+std::shared_ptr<Cursor> CursorType::declaration() const
 {
-    return ast ? ast->create(clang_getTypeDeclaration(type)) : Cursor();
+    return ast->create(clang_getTypeDeclaration(type));
 }
 std::string CursorType::callingConvention() const
 {

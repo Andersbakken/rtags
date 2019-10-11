@@ -19,23 +19,22 @@
 #include <libplatform/libplatform.h>
 #include "V8SourceLocation.h"
 #include "TypeConverter.h"
-#include "V8Utils.h"
 #include "V8Cursor.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)
 
 struct UserData {
-    List<Cursor> parents;
+    List<std::shared_ptr<Cursor> > parents;
     AST *ast;
 };
 CXChildVisitResult AST::visitor(CXCursor cursor, CXCursor, CXClientData u)
 {
     UserData *userData = reinterpret_cast<UserData*>(u);
     assert(userData);
-    Cursor::Data *p = userData->parents.isEmpty() ? nullptr : userData->parents.back().data.get();
-    Cursor c = userData->ast->construct(cursor, p);
-    userData->parents.push_back(Cursor { c.data } );
+    std::shared_ptr<Cursor> p = userData->parents.isEmpty() ? nullptr : userData->parents.back();
+    std::shared_ptr<Cursor> c = userData->ast->construct(cursor, p);
+    userData->parents.push_back(c);
     clang_visitChildren(cursor, visitor, u);
     if (userData->parents.size() > 1)
         userData->parents.pop_back();
@@ -107,11 +106,11 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     userData.ast = ast.get();
     visitor(clang_getTranslationUnitCursor(unit), clang_getNullCursor(), &userData);
 
-    Cursor root = userData.parents.front();
+    std::shared_ptr<Cursor> root = userData.parents.front();
     if (!ast->mCurrentOutput.isEmpty()) {
         outputHandler(ast->mCurrentOutput);
         ast->mCurrentOutput.clear();
-        // globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, &root).ToLocalChecked());
+        globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, root.get()).ToLocalChecked()).ToChecked();
         for (const String &s : scripts) {
             v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.constData())).ToLocalChecked();
             script->Run(context).ToLocalChecked();
@@ -149,22 +148,22 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
 //     return List<SkippedRange>();
 // }
 
-Cursor AST::construct(const CXCursor &cursor,
-                      Cursor::Data *parent,
-                      SourceLocation loc,
-                      std::string usr) const
+std::shared_ptr<Cursor> AST::construct(const CXCursor &cursor,
+                                       const std::shared_ptr<Cursor> &parent,
+                                       std::shared_ptr<SourceLocation> loc,
+                                       std::string usr) const
 {
-    Cursor ret;
-    if (loc.isNull())
+    std::shared_ptr<Cursor> ret;
+    if (!loc)
         loc = createLocation(cursor);
     if (usr.empty())
         usr = toString(clang_getCursorUSR(cursor));
-    ret.data.reset(new Cursor::Data(const_cast<AST*>(this), parent, cursor, loc, usr));
-    if (!loc.isNull())
-        mByLocation[loc].push_back(ret);
-    if (!ret.data->usr.empty())
+    ret.reset(new Cursor(const_cast<AST*>(this), parent, cursor, loc, usr));
+    if (!loc->isNull())
+        mByLocation[*loc].push_back(ret);
+    if (!usr.empty())
         mByUsr[usr].push_back(ret);
     if (parent)
-        parent->children.append(ret.data.get());
+        parent->mChildren.append(ret);
     return ret;
 }

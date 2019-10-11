@@ -1,12 +1,8 @@
 #include "SourceRange.h"
 #include "AST.h"
 
-SourceLocation SourceRange::start() const
+SourceRange::SourceRange(const CXSourceRange &range)
+    : mStart(AST::createLocation(clang_getRangeStart(range))), mEnd(AST::createLocation(clang_getRangeEnd(range)))
 {
-    return AST::createLocation(clang_getRangeStart(range));
 }
 
-SourceLocation SourceRange::end() const
-{
-    return AST::createLocation(clang_getRangeEnd(range));
-}

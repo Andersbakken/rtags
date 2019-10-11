@@ -5,18 +5,18 @@
 #include "SourceLocation.h"
 #include <string>
 
-struct SourceRange {
-    SourceRange(const CXSourceRange &r = clang_getNullRange())
-        : range(r)
-    {}
-    CXSourceRange range;
+class SourceRange
+{
+public:
+    SourceRange(const CXSourceRange &r = clang_getNullRange());
 
-    SourceLocation start() const;
-    SourceLocation end() const;
-    int length() const { return end().offset() - start().offset(); }
-    std::string toString() const { return start().toString() + " - " + end().toString(); }
+    std::shared_ptr<SourceLocation> start() const { return mStart; }
+    std::shared_ptr<SourceLocation> end() const { return mEnd; }
+    int length() const { return mEnd->offset() - mStart->offset(); }
+    std::string toString() const { return mStart->toString() + " - " + mEnd->toString(); }
+private:
+    std::shared_ptr<SourceLocation> mStart, mEnd;
 };
-
 
 
 #endif /* SOURCERANGE_H */

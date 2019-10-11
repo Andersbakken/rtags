@@ -107,7 +107,7 @@ private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData u);
     std::shared_ptr<Cursor>  construct(const CXCursor &cursor,
                                        const std::shared_ptr<Cursor> &parent = nullptr,
-                                       const std::shared_ptr<SourceLocation> &loc = nullptr,
+                                       std::shared_ptr<SourceLocation> loc = nullptr,
                                        std::string usr = std::string()) const;
     AST()
     {}

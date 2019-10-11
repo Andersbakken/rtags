@@ -13,7 +13,7 @@ struct CursorType;
 struct Cursor : public std::enable_shared_from_this<Cursor>
 {
     std::shared_ptr<SourceLocation> location() const { return mLocation; }
-    std::string usr() const;
+    std::string usr() const { return mUsr; }
     std::string kind() const;
     std::string linkage() const;
     std::string availability() const;
@@ -78,12 +78,12 @@ struct Cursor : public std::enable_shared_from_this<Cursor>
     }
     std::string templateArgumentKind(unsigned idx) const;
 
-    Cursor referenced() const;
-    Cursor canonical() const;
-    Cursor lexicalParent() const;
-    Cursor semanticParent() const;
-    Cursor definitionCursor() const;
-    Cursor specializedCursorTemplate() const;
+    std::shared_ptr<Cursor> referenced() const;
+    std::shared_ptr<Cursor> canonical() const;
+    std::shared_ptr<Cursor> lexicalParent() const;
+    std::shared_ptr<Cursor> semanticParent() const;
+    std::shared_ptr<Cursor> definitionCursor() const;
+    std::shared_ptr<Cursor> specializedCursorTemplate() const;
     int childCount() const { return mChildren.size(); }
     std::shared_ptr<Cursor> child(int idx) const { return mChildren.value(idx); }
     std::vector<std::shared_ptr<Cursor> > children() const;
@@ -119,6 +119,11 @@ struct Cursor : public std::enable_shared_from_this<Cursor>
     bool isDefinition() const;
     bool isDynamicCall() const;
 
+    CXCursor cxCursor() const { return mCursor; }
+    AST *ast() const { return mAst; }
+
+private:
+    friend class AST;
     Cursor(AST *a, const std::shared_ptr<Cursor> &p, const CXCursor &c, const std::shared_ptr<SourceLocation> &loc, const std::string &u = std::string())
         : mAst(a), mParent(p), mCursor(c), mLocation(loc), mUsr(u)
     {
