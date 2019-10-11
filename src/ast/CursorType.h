@@ -6,7 +6,8 @@
 #include <string>
 
 class AST;
-struct CursorType {
+class CursorType {
+public:
     CursorType(const AST *a, const CXType &t) : ast(a), type(t) {}
     CursorType(const AST *a = nullptr) : ast(a) { memset(&type, 0, sizeof(type)); }
 

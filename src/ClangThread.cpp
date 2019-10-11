@@ -150,12 +150,10 @@ void ClangThread::run()
                                                                                              mSource.toCommandLine(Source::Default),
                                                                                              &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord,
                                                                                              false);
-
     const unsigned long long parseTime = sw.restart();
-    warning() << "parseTime" << parseTime;
+    error() << "parseTime" << parseTime;
 #ifdef RTAGS_HAS_SCRIPT
     if (mQueryMessage->type() == QueryMessage::VisitAST) {
-        error() << "Balls" << mQueryMessage->visitASTScripts();
         if (!translationUnit->unit) {
             writeToConnection(String::format<128>("Failed to index: %s", translationUnit->clangLine.constData()));
         } else {

@@ -183,7 +183,7 @@ public:
 
 #ifdef RTAGS_HAS_SCRIPT
     void setVisitASTScripts(const List<std::pair<Path, String> > &scripts) { mVisitASTScripts = scripts; }
-    List<std::pair<Path, String> > visitASTScripts() const { return mVisitASTScripts; }
+    const List<std::pair<Path, String> > &visitASTScripts() const { return mVisitASTScripts; }
 #endif
 
     void setKindFilters(const KindFilters &kindFilters) { mKindFilters = kindFilters; }

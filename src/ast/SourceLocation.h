@@ -4,29 +4,37 @@
 #include <Location.h>
 #include <string>
 #include <rct/String.h>
+#include <RTags.h>
 
-struct SourceLocation {
-    SourceLocation()
+class SourceLocation {
+public:
+    SourceLocation(const CXSourceLocation &location)
+        : mCXLocation(location)
     {}
 
-    bool operator<(const SourceLocation &other) const { return mLocation < other.mLocation; }
+    bool operator<(const SourceLocation &other) const { materialize(); other.materialize(); return mLocation < other.mLocation; }
 
-    bool isNull() const { return mLocation.isNull(); }
-    int offset() { return mOffset; }
+    bool isNull() const { materialize(); return mLocation.isNull(); }
+    int offset() { materialize(); return mOffset; }
 
-    int line() const { return mLocation.line(); }
-    int column() const { return mLocation.column(); }
-    std::string file() const { return mLocation.path(); }
+    int line() const { materialize(); return mLocation.line(); }
+    int column() const { materialize(); return mLocation.column(); }
+    std::string file() const { materialize(); return mLocation.path(); }
     std::string toString() const
     {
-        return String::format<256>("%s,%d",
-                                   mLocation.toString(Location::AbsolutePath|Location::NoColor).constData(),
-                                   mOffset);
+        materialize();
+        return mLocation.toString(Location::AbsolutePath|Location::NoColor);
     }
-
-
-    Location mLocation;
-    int mOffset { -1 };
+private:
+    void materialize() const
+    {
+        if (mOffset == -2) {
+            mLocation = RTags::createLocation(mCXLocation, &mOffset);
+        }
+    }
+    const CXSourceLocation mCXLocation;
+    mutable Location mLocation;
+    mutable int mOffset { -2 };
 };
 
 #endif /* SOURCELOCATION_H */

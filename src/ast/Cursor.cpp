@@ -183,18 +183,22 @@ bool Cursor::isBitField() const
 {
     return intProperty<unsigned, bool>(this, &clang_Cursor_isBitField);
 }
+
 bool Cursor::isVirtualBase() const
 {
     return intProperty<unsigned, bool>(this, &clang_isVirtualBase);
 }
+
 bool Cursor::isStatic() const
 {
     return intProperty<unsigned, bool>(this, &clang_CXXMethod_isStatic);
 }
+
 bool Cursor::isVirtual() const
 {
     return intProperty<unsigned, bool>(this, &clang_CXXMethod_isVirtual);
 }
+
 bool Cursor::isPureVirtual() const
 {
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 20)
@@ -203,6 +207,7 @@ bool Cursor::isPureVirtual() const
     return false;
 #endif
 }
+
 bool Cursor::isConst() const
 {
 #if CINDEX_VERSION > CINDEX_VERSION_ENCODE(0, 20)
@@ -211,11 +216,21 @@ bool Cursor::isConst() const
     return false;
 #endif
 }
+
 bool Cursor::isDefinition() const
 {
     return intProperty<unsigned, bool>(this, &clang_isCursorDefinition);
 }
+
 bool Cursor::isDynamicCall() const
 {
     return intProperty<int, bool>(this, &clang_Cursor_isDynamicCall);
+}
+
+std::shared_ptr<SourceLocation> Cursor::location() const
+{
+    if (!mLocation) {
+        mLocation = mAst->createLocation(clang_getCursorLocation(mCursor));
+    }
+    return mLocation;
 }

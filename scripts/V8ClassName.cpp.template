@@ -101,8 +101,8 @@ v8::Local<v8::FunctionTemplate> V8${config.className}::constructorTemplate(v8::I
         return cacheValue.Get(isolate);
     v8::Local<v8::FunctionTemplate> cstorTemplate = v8::FunctionTemplate::New(isolate, cstorCallback);
     cstorTemplate->SetClassName(V8PerIsolateData::String(isolate, "${config.className}"));
-    v8::Local<v8::ObjectTemplate> templ = cstorTemplate->InstanceTemplate();${config.functions.length  || config.properties.length ? `
-                                                                                v8::Local<v8::ObjectTemplate> prototypeTempl = cstorTemplate->PrototypeTemplate();` : ''}
+    v8::Local<v8::ObjectTemplate> templ = cstorTemplate->InstanceTemplate();
+    ${config.functions.length  || config.properties.length ? ` v8::Local<v8::ObjectTemplate> prototypeTempl = cstorTemplate->PrototypeTemplate();` : ''}
     templ->SetInternalFieldCount(2);
     ${config.constants.map(c => `    templ->SetLazyDataProperty(V8PerIsolateData::String(isolate, "${c.name}"), ${c.name}ConstCallback);`).join('\n')}
     ${config.functions.map(f => `    prototypeTempl->Set(V8PerIsolateData::String(isolate, "${f.name}"), v8::FunctionTemplate::New(isolate, ${f.name}Callback));`).join('\n')}
@@ -243,5 +243,5 @@ ${debugInvocations ? `
   v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, sourceStr.c_str())).ToLocalChecked();
   v8::Local<v8::Function> f = script->Run(context).ToLocalChecked().As<v8::Function>();
   v8::Local<v8::Value> values[] = {v8::Boolean::New(isolate, true)};
-  f->Call(context, context->Global(), 1, values).ToLocalChecked();` : ''}
+  f->Call(context, context->Global(), 1, values).ToLocalChecked();` : 'static_cast<void>(isolate); static_cast<void>(source); static_cast<void>(name); '}
 }

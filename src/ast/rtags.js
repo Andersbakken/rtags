@@ -18,7 +18,7 @@ function findChildren(cursor, kind, depth, max)
     return undefined;
 }
 
-let foo = log("testing the log here", 12, 13);
-log("got foo", foo.toString(), foo.line, foo.column);
+// let foo = log("testing the log here", 12, 13);
+// log("got foo", foo.toString(), foo.line, foo.column);
 // typeof console;
 // typeof console.log;

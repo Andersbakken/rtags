@@ -41,12 +41,12 @@ public:
     {
         return RTags::eatString(str).ref();
     }
-    struct Diagnostic {
+    class Diagnostic {
 
 
     };
 
-    struct SkippedRange {
+    class SkippedRange {
 
 
     };
@@ -59,12 +59,9 @@ public:
     // Cursor *root() const { return mRoot; }
     // List<Diagnostic> diagnostics() const;
     // List<SkippedRange> skippedRanges() const;
-    static std::shared_ptr<SourceLocation> createLocation(const CXCursor &cursor) { return createLocation(clang_getCursorLocation(cursor)); }
     static std::shared_ptr<SourceLocation> createLocation(const CXSourceLocation &location)
     {
-        std::shared_ptr<SourceLocation> loc = std::make_shared<SourceLocation>();
-        loc->mLocation = RTags::createLocation(location, &loc->mOffset);
-        return loc;
+        return std::make_shared<SourceLocation>(location);
     }
 
     std::shared_ptr<Cursor> create(const CXCursor &cursor) const
@@ -91,28 +88,27 @@ public:
             }
         }
 
-        const std::shared_ptr<SourceLocation> loc = createLocation(cursor);
-        if (!loc->isNull()) {
-            auto it = mByLocation.find(*loc);
-            if (it != mByLocation.end()) {
-                const std::shared_ptr<Cursor> ret = match(it->second);
-                if (ret)
-                    return ret;
-            }
-        }
-        return construct(cursor, nullptr, loc, usr);
+        // const std::shared_ptr<SourceLocation> loc = createLocation(cursor);
+        // if (!loc->isNull()) {
+        //     auto it = mByLocation.find(*loc);
+        //     if (it != mByLocation.end()) {
+        //         const std::shared_ptr<Cursor> ret = match(it->second);
+        //         if (ret)
+        //             return ret;
+        //     }
+        // }
+        return construct(cursor, nullptr, usr);
     }
     String &currentOutput() { return mCurrentOutput; }
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData u);
-    std::shared_ptr<Cursor>  construct(const CXCursor &cursor,
-                                       const std::shared_ptr<Cursor> &parent = nullptr,
-                                       std::shared_ptr<SourceLocation> loc = nullptr,
-                                       std::string usr = std::string()) const;
+    std::shared_ptr<Cursor> construct(const CXCursor &cursor,
+                                      const std::shared_ptr<Cursor> &parent = nullptr,
+                                      std::string usr = std::string()) const;
     AST()
     {}
     mutable Hash<std::string, std::vector<std::shared_ptr<Cursor> > > mByUsr;
-    mutable Map<SourceLocation, std::vector<std::shared_ptr<Cursor> > > mByLocation;
+    // mutable Map<SourceLocation, std::vector<std::shared_ptr<Cursor> > > mByLocation;
     String mCurrentOutput;
 };
 

@@ -48,9 +48,9 @@ static void log(const v8::FunctionCallbackInfo<v8::Value> &info)
     Log l(&ast->currentOutput());
     for (int i = 0; i < info.Length(); ++i) {
         v8::String::Utf8Value str(info.GetIsolate(), info[i]);
-        printf("SHIT %s\n", (*str));
         l << *str;
     }
+    l << '\n';
 }
 
 #warning expose dependencies
@@ -61,6 +61,8 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
                                  const std::vector<std::pair<Path, String> > &scripts,
                                  const std::function<void(const String &)> &outputHandler)
 {
+    StopWatch sw;
+    sw.restart();
     assert(unit);
     std::shared_ptr<AST> ast(new AST);
     const Path exec = Rct::executablePath();
@@ -101,13 +103,21 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
     const Path rtagsDotJS(TO_STR(RTAGS_SOURCE_DIR) "/rtags.js");
     String src = rtagsDotJS.readAll();
     {
+        v8::TryCatch tryCatch(isolate);
         v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, src.constData())).ToLocalChecked();
         globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, rtagsDotJS)).IsJust();
         script->Run(context).ToLocalChecked();
+        if (tryCatch.HasCaught()) {
+            v8::String::Utf8Value errorString(isolate, tryCatch.Exception());
+            error("script error: %s:%d [%s]", rtagsDotJS.constData(), tryCatch.Message()->GetLineNumber(context).FromMaybe(-1), *errorString);
+        }
+
     }
     UserData userData;
     userData.ast = ast.get();
+    auto bikkje0 = sw.restart();
     visitor(clang_getTranslationUnitCursor(unit), clang_getNullCursor(), &userData);
+    auto bikkje = sw.restart();
 
     std::shared_ptr<Cursor> root = userData.parents.front();
     if (!ast->mCurrentOutput.isEmpty()) {
@@ -115,16 +125,28 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
         ast->mCurrentOutput.clear();
     }
     globalObject->Set(context, createV8String(isolate, "root"), V8Cursor::wrap(isolate, context, root.get()).ToLocalChecked()).ToChecked();
+    auto bikkje2 = sw.restart();
     for (const std::pair<Path, String> &s : scripts) {
+        v8::TryCatch tryCatch(isolate);
         globalObject->Set(context, createV8String(isolate, "__filename"), createV8String(isolate, s.first)).ToChecked();
         v8::Local<v8::Script> script = v8::Script::Compile(context, createV8String(isolate, s.second)).ToLocalChecked();
-        script->Run(context).ToLocalChecked();
-        printf("RAN SOME SHIT %s -> %s\n", s.first.constData(), s.second.constData());
+        auto ret = script->Run(context);
+        if (ret.IsEmpty()) {
+
+        }
+        if (tryCatch.HasCaught()) {
+            v8::String::Utf8Value errorString(isolate, tryCatch.Exception());
+            error("script error: %s:%d [%s]", s.first.constData(), tryCatch.Message()->GetLineNumber(context).FromMaybe(-1), *errorString);
+        }
+
         if (!ast->mCurrentOutput.isEmpty()) {
             outputHandler(ast->mCurrentOutput);
             ast->mCurrentOutput.clear();
         }
     }
+    auto bikkje3 = sw.restart();
+    error() << "tid" <<  bikkje0 << bikkje << bikkje2 << bikkje3;
+
     // state["root"] = [root]() { return root; };
     // state["findByUsr"] = [ast](const std::string &usr) {
     //     return ast->mByUsr.value(usr);
@@ -155,17 +177,14 @@ std::shared_ptr<AST> AST::create(const Source &source, const String &sourceCode,
 
 std::shared_ptr<Cursor> AST::construct(const CXCursor &cursor,
                                        const std::shared_ptr<Cursor> &parent,
-                                       std::shared_ptr<SourceLocation> loc,
                                        std::string usr) const
 {
     std::shared_ptr<Cursor> ret;
-    if (!loc)
-        loc = createLocation(cursor);
     if (usr.empty())
         usr = toString(clang_getCursorUSR(cursor));
-    ret.reset(new Cursor(const_cast<AST*>(this), parent, cursor, loc, usr));
-    if (!loc->isNull())
-        mByLocation[*loc].push_back(ret);
+    ret.reset(new Cursor(const_cast<AST*>(this), parent, cursor, usr));
+    // if (!loc->isNull())
+    //     mByLocation[*loc].push_back(ret);
     if (!usr.empty())
         mByUsr[usr].push_back(ret);
     if (parent)

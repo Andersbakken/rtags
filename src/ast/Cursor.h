@@ -9,10 +9,13 @@
 #include "SourceRange.h"
 
 class AST;
-struct CursorType;
-struct Cursor : public std::enable_shared_from_this<Cursor>
+class CursorType;
+class Cursor : public std::enable_shared_from_this<Cursor>
 {
-    std::shared_ptr<SourceLocation> location() const { return mLocation; }
+public:
+    Cursor() {}
+    std::shared_ptr<SourceLocation> location() const;
+
     std::string usr() const { return mUsr; }
     std::string kind() const;
     std::string linkage() const;
@@ -124,8 +127,8 @@ struct Cursor : public std::enable_shared_from_this<Cursor>
 
 private:
     friend class AST;
-    Cursor(AST *a, const std::shared_ptr<Cursor> &p, const CXCursor &c, const std::shared_ptr<SourceLocation> &loc, const std::string &u = std::string())
-        : mAst(a), mParent(p), mCursor(c), mLocation(loc), mUsr(u)
+    Cursor(AST *a, const std::shared_ptr<Cursor> &p, const CXCursor &c, const std::string &u = std::string())
+        : mAst(a), mParent(p), mCursor(c), mUsr(u)
     {
     }
 
@@ -133,7 +136,7 @@ private:
     std::weak_ptr<Cursor> mParent;
     List<std::shared_ptr<Cursor> > mChildren;
     CXCursor mCursor;
-    std::shared_ptr<SourceLocation> mLocation;
+    mutable std::shared_ptr<SourceLocation> mLocation;
     std::string mUsr;
 };
 

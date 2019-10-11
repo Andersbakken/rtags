@@ -20,7 +20,7 @@ const gen = {
     str: value => `V8PerIsolateData::String(isolate, "${value}")`
 };
 
-const debugInvocations = true;
+const debugInvocations = false;
 
 const v8ClassNameCppTemplate = fs.readFileSync(path.join(__dirname, 'V8ClassName.cpp.template'), 'utf8');
 const v8ClassNameHTemplate = fs.readFileSync(path.join(__dirname, 'V8ClassName.h.template'), 'utf8');
