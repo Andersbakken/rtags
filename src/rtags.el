@@ -3162,8 +3162,12 @@ of diagnostics count"
                                     (let (deactivate-mark)
                                       (rtags-goto-offset (+ (rtags-offset) length))
                                       (point)))))
-                        ((let ((sym (thing-at-point 'symbol)))
-                           (and sym (+ start (length sym)))))
+                        ((save-match-data
+                           (save-excursion
+                             (save-restriction
+                               (widen)
+                               (when (looking-at "[a-zA-Z_~][a-zA-Z_0-9]*")
+                                 (match-end 0))))))
                         (t (1+ start))))
         (when (looking-back "#" (point-at-bol))
           (decf start))
