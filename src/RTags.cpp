@@ -1157,7 +1157,7 @@ String typeString(const CXType &type)
 class ElispFormatter : public Value::Formatter
 {
 public:
-    virtual void format(const Value &value, std::function<void(const char *, size_t)> output) const
+    virtual void format(const Value &value, std::function<void(const char *, size_t)> output) const override
     {
         switch (value.type()) {
         case Value::Type_Invalid:

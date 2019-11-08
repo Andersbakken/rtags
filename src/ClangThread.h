@@ -41,7 +41,7 @@ private:
     CXChildVisitResult visit(const CXCursor &cursor);
     void checkIncludes(Location location, const CXCursor &cursor);
 
-    void writeToConnetion(const String &message);
+    void writeToConnection(const String &message);
     void handleInclude(Location loc, const CXCursor &cursor);
     void handleReference(Location loc, const CXCursor &ref);
     void checkIncludes();

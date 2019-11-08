@@ -31,8 +31,8 @@ public:
     Path project() const { return mProject; }
     Path file() const { return mFile; }
     uint32_t sourceFileId() const { return mSourceFileId; }
-    void encode(Serializer &serializer) const { serializer << mProject << mFile << mSourceFileId; }
-    void decode(Deserializer &deserializer) { deserializer >> mProject >> mFile >> mSourceFileId; }
+    void encode(Serializer &serializer) const override { serializer << mProject << mFile << mSourceFileId; }
+    void decode(Deserializer &deserializer) override { deserializer >> mProject >> mFile >> mSourceFileId; }
 private:
     Path mFile, mProject;
     uint32_t mSourceFileId;

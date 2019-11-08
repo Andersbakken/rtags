@@ -36,8 +36,8 @@ public:
         : RTagsMessage(MessageId), mParseTime(0), mId(0), mBytesWritten(0)
     {}
 
-    void encode(Serializer &serializer) const;
-    void decode(Deserializer &deserializer);
+    void encode(Serializer &serializer) const override;
+    void decode(Deserializer &deserializer) override;
 
     enum Flag {
         None = 0x0,
