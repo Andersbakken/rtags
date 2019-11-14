@@ -154,6 +154,7 @@ def setup_rdm(test_dir, test_files):
     for _ in range(10):
         try:
             run_rc(["-w"])
+            time.sleep(0.1)
             break
         except sp.CalledProcessError:
             time.sleep(0.01)
