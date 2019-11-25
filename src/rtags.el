@@ -121,6 +121,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Customizations
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun rtags-string-list-p (obj)
+  "Determine if OBJ is a list of strings."
+  (and (listp obj) (seq-every-p 'stringp obj)))
+
 (defcustom rtags-enabled t
   "Whether RTags is enabled.  We try to do nothing when it's not."
   :type 'boolean
@@ -617,8 +621,8 @@ Note: It is recommended to run each sandbox is separate Emacs process."
 
 (defcustom rtags-rdm-includes ""
   "Additional include paths."
-  :type 'string
-  :safe 'stringp)
+  :type '(repeat string)
+  :safe 'rtags-string-list-p)
 
 (defcustom rtags-process-flags ""
   "Flags for rdm."
