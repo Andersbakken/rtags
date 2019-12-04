@@ -1338,8 +1338,6 @@ void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, const std::
 
 void Server::status(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
-    conn->client()->setWriteMode(SocketClient::Synchronous);
-
     StatusJob job(query, currentProject());
     const int ret = job.run(conn);
     conn->finish(ret);

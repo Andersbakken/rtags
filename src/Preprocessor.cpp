@@ -60,7 +60,6 @@ void Preprocessor::preprocess()
 
 void Preprocessor::onProcessFinished()
 {
-    mConnection->client()->setWriteMode(SocketClient::Synchronous);
     mConnection->write<256>("/* %s %s */", mSource.compiler().constData(), String::join(mArgs, ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();
