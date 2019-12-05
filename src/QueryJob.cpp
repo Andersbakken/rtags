@@ -117,9 +117,9 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
 }
 
 bool QueryJob::locationToString(Location location,
-    const std::function<void(LocationPiece, const String &)> &cb,
-    Flags<WriteFlag>
-        writeFlags)
+                                const std::function<void(LocationPiece, const String &)> &cb,
+                                Flags<WriteFlag>
+                                writeFlags)
 {
     if (location.isNull())
         return false;
@@ -164,7 +164,7 @@ bool QueryJob::locationToString(Location location,
                                 cb(Piece_ContainingFunctionName, symbol.symbolName);
                             if (containingFunctionLocation)
                                 cb(Piece_ContainingFunctionLocation,
-                                    symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
+                                   symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
                             break;
                         }
                     }
@@ -187,23 +187,23 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
 
     String out;
     if (!locationToString(location,
-            [&out](LocationPiece piece, const String &string) {
-                switch (piece) {
-                case Piece_Location:
-                    break;
-                case Piece_SymbolName:
-                case Piece_Kind:
-                case Piece_Context:
-                    out << '\t';
-                    break;
-                case Piece_ContainingFunctionName:
-                case Piece_ContainingFunctionLocation:
-                    out << "\tfunction: ";
-                    break;
-                }
-                out << string;
-            },
-            flags))
+                          [&out](LocationPiece piece, const String &string) {
+                              switch (piece) {
+                              case Piece_Location:
+                                  break;
+                              case Piece_SymbolName:
+                              case Piece_Kind:
+                              case Piece_Context:
+                                  out << '\t';
+                                  break;
+                              case Piece_ContainingFunctionName:
+                              case Piece_ContainingFunctionLocation:
+                                  out << "\tfunction: ";
+                                  break;
+                              }
+                              out << string;
+                          },
+                          flags))
         return false;
     return write(out, flags);
 }
