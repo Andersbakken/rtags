@@ -1112,41 +1112,7 @@ String typeName(const CXCursor &cursor)
 
 String typeString(const CXType &type)
 {
-    String ret;
-    if (clang_isConstQualifiedType(type))
-        ret = "const ";
-
-    const char *builtIn = builtinTypeName(type.kind);
-    if (builtIn) {
-        ret += builtIn;
-        return ret;
-    }
-
-    if (char pointer = (type.kind == CXType_Pointer ? '*' : (type.kind == CXType_LValueReference ? '&' : 0))) {
-        const CXType pointee = clang_getPointeeType(type);
-        ret += typeString(pointee);
-        if (ret.endsWith('*') || ret.endsWith('&')) {
-            ret += pointer;
-        } else {
-            ret += ' ';
-            ret += pointer;
-        }
-        return ret;
-    }
-
-    if (type.kind == CXType_ConstantArray) {
-        ret += typeString(clang_getArrayElementType(type));
-        const int64_t count = clang_getNumElements(type);
-        ret += '[';
-        if (count >= 0)
-            ret += String::number(count);
-        ret += ']';
-        return ret;
-    }
-    ret += typeName(clang_getTypeDeclaration(type));
-    if (ret.endsWith(' '))
-        ret.chop(1);
-    return ret;
+    return eatString(clang_getTypeSpelling(type));
 }
 
 #define OUTPUT_LITERAL(string)                  \
