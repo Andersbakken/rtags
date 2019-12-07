@@ -2036,7 +2036,9 @@ instead of file from `current-buffer'.
         (ret t)
         (loc (local-variable-p enable-multibyte-characters)))
     (when multibyte
-      (set-buffer-multibyte nil))
+      (save-restriction
+        (widen)
+        (set-buffer-multibyte nil)))
     (goto-char (point-min))
     (condition-case nil
         (progn
@@ -2046,7 +2048,9 @@ instead of file from `current-buffer'.
        (setq ret nil)
        (goto-char old)))
     (when multibyte
-      (set-buffer-multibyte prev))
+      (save-restriction
+        (widen)
+        (set-buffer-multibyte prev)))
     (unless loc
       (kill-local-variable enable-multibyte-characters))
     ret))
@@ -2338,9 +2342,13 @@ instead of file from `current-buffer'.
   (if (rtags-buffer-is-multibyte)
       (let ((prev (buffer-local-value enable-multibyte-characters (current-buffer)))
             (loc (local-variable-p enable-multibyte-characters)))
-        (set-buffer-multibyte nil)
+        (save-restriction
+          (widen)
+          (set-buffer-multibyte nil))
         (goto-char (1+ pos))
-        (set-buffer-multibyte prev)
+        (save-restriction
+          (widen)
+          (set-buffer-multibyte prev))
         (unless loc
           (kill-local-variable enable-multibyte-characters)))
     (goto-char (1+ pos))))
