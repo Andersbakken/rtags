@@ -8,6 +8,11 @@ MINOR=$(echo $1 | awk -F. '{print $2}')
 PROTOCOL=$(echo $1 | awk -F. '{print $3}')
 TAG="v${MAJOR}.${MINOR}"
 
+if git rev-parse $TAG >/dev/null 2>&1; then
+  echo "$TAG exists"
+  exit 1
+fi
+
 JOBS=$(getconf _NPROCESSORS_ONLN)
 
 if [ "$(uname)" == "Darwin" ]; then
