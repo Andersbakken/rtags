@@ -1,12 +1,13 @@
 ;;; rtags.el --- A front-end for rtags -*- lexical-binding: t -*-
 
-;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
+;; Copyright (C) 2011-2019  Jan Erik Hanssen and Anders Bakken
 
 ;; Author: Jan Erik Hanssen <jhanssen@gmail.com>
 ;;         Anders Bakken <agbakken@gmail.com>
-;; URL: http://rtags.net
+;; Package-Requires: ((emacs "24.3"))
 ;; Version: 2.36.130
 
+;; URL: http://rtags.net
 ;; This file is not part of GNU Emacs.
 
 ;; This file is part of RTags (http://rtags.net).
@@ -42,7 +43,6 @@
   (require 'cl-seq)
   (require 'cl-extra)
   (defalias 'defun* 'cl-defun))
-(require 'seq)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'asm-mode)
@@ -124,7 +124,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun rtags-string-list-p (obj)
   "Determine if OBJ is a list of strings."
-  (and (listp obj) (seq-every-p 'stringp obj)))
+  (and (listp obj)
+       (catch 'rtags--break
+         (dolist (elt obj)
+           (or (funcall 'stringp elt)
+               (throw 'rtags--break nil)))
+         t)))
 
 (defcustom rtags-enabled t
   "Whether RTags is enabled.  We try to do nothing when it's not."
@@ -620,7 +625,7 @@ Note: It is recommended to run each sandbox is separate Emacs process."
   "Function to return flags and include flags for rdm."
   :type 'function)
 
-(defcustom rtags-rdm-includes ""
+(defcustom rtags-rdm-includes ()
   "Additional include paths."
   :type '(repeat string)
   :safe 'rtags-string-list-p)
