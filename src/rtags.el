@@ -74,7 +74,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 130)
+(defconst rtags-protocol-version 129)
 (defconst rtags-package-version "2.36")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
