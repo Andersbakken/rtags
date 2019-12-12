@@ -42,6 +42,7 @@
   (require 'cl-seq)
   (require 'cl-extra)
   (defalias 'defun* 'cl-defun))
+(require 'seq)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'asm-mode)
