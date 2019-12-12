@@ -62,16 +62,4 @@ git commit -m "Bump version to ${MAJOR}.${MINOR}"       \
     man
 git tag -a $TAG -m "RTags release ${MAJOR}.${MINOR}"
 
-# Only push the tag in case the travis build fails.
-# Procedure:
-# - while :
-#     git tag -a $TAG -m "RTags release ${MAJOR}.${MINOR}"
-#     git push https://github.com/Andersbakken/rtags.git refs/tags/$TAG
-#     if build succeeds
-#       git push (push refs to master)
-#       break
-#     else
-#       git tag --delete $TAG
-#       git push --prune https://github.com/Andersbakken/rtags.git refs/tags/$TAG
-#
-git push https://github.com/Andersbakken/rtags.git refs/tags/$TAG
+echo "You can now push the release to github"
