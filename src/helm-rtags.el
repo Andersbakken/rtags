@@ -1,4 +1,4 @@
-;;; helm-rtags.el --- A front-end for rtags
+;;; helm-rtags.el --- A front-end for rtags -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2015  Jan Erik Hanssen and Anders Bakken
 

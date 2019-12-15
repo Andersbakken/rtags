@@ -1,4 +1,4 @@
-;;; ac-rtags.el --- auto-complete back-end for RTags
+;;; ac-rtags.el --- auto-complete back-end for RTags -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2011-2017  Jan Erik Hanssen and Anders Bakken
 

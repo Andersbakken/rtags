@@ -1,4 +1,4 @@
-;;; rtags-xref.el --- RTags backend for xref.el
+;;; rtags-xref.el --- RTags backend for xref.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2019 Jörg Walter
 
@@ -105,7 +105,7 @@
   (setq pattern (replace-regexp-in-string "\\." "?" pattern t t))
   (rtags-xref-backend-find
    pattern
-   (lambda (symbol loc &rest args)
+   (lambda (symbol _loc &rest args)
      (apply #'rtags-call-rc "-a" "-F" symbol args))))
 
 
