@@ -35,7 +35,7 @@
 (require 'company-template)
 
 (eval-when-compile
-  (require 'cl))
+  (require 'cl-lib))
 
 (declare-function company-doc-buffer "ext:company")
 (declare-function company-manual-begin "ext:company")

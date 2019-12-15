@@ -36,13 +36,8 @@
   :group 'tools
   :link '(url-link :tag "Website" "http://rtags.net"))
 
-(if (version< emacs-version "25")
-    (eval-when-compile
-      (require 'cl))
-  (require 'cl-lib)
-  (require 'cl-seq)
-  (require 'cl-extra)
-  (defalias 'defun* 'cl-defun))
+
+(require 'cl-lib)
 (require 'bookmark)
 (require 'cc-mode)
 (require 'asm-mode)
@@ -52,10 +47,7 @@
 (require 'thingatpt)
 (require 'repeat)
 
-;; Hack for `kbd'. `kbd' is a macro in Emacs 23, and probably below.
-(eval-and-compile
-  (if (< emacs-major-version 24)
-      (defalias 'kbd 'read-kbd-macro)))
+(defalias 'defun* 'cl-defun)
 
 ;; Make the byte-compiler happy.
 (declare-function flycheck-buffer "ext:flycheck")
@@ -1061,8 +1053,8 @@ to case differences."
                         (t nil))
               (beginning-of-line)))
           (if next
-              (decf by)
-            (incf by)))
+              (cl-decf by)
+            (cl-incf by)))
         (when rtags-highlight-current-line
           (rtags-update-current-line))
         (if win
@@ -1808,7 +1800,7 @@ instead of file from `current-buffer'.
                                      "\\)?$"))
           ;; (message "EXPANDING %d %s at %d %S" idx (car chain) (point) (rtags-dependency-tree-current-is-expanded))
           (rtags-dependency-tree-expand-current)
-          (incf idx)
+          (cl-incf idx)
           (setq chain (cdr chain)))
         (re-search-forward (concat "^" (rtags-tree-indent idx) (regexp-quote (car chain)) "\\( ([0-9]*)\\)?$"))
         (unless (and first (< first (point-at-bol)))
@@ -1843,7 +1835,7 @@ instead of file from `current-buffer'.
             (while (> count 0)
               (rtags-dependency-tree-collapse-current)
               (forward-line 1)
-              (decf count))
+              (cl-decf count))
             (delete-region start (point)))))
       (setq buffer-read-only was))))
 
@@ -1942,7 +1934,7 @@ instead of file from `current-buffer'.
           (cond ((= (cdr loc) 0)
                  (message "Expand all: %g%% %d/%d" (* (/ done roots) 100.0) done roots)
                  (rtags-references-tree-expand-current)
-                 (incf done))
+                 (cl-incf done))
                 ((not (gethash (car loc) seen))
                  (when (or (not maxdepth) (< (cdr loc) maxdepth))
                    (puthash (car loc) t seen)
@@ -2078,7 +2070,7 @@ instead of file from `current-buffer'.
                   (widen)
                   (when (rtags-goto-line-col (nth 1 components) (nth 2 components))
                     (when (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks))
-                      (incf rtags-buffer-bookmarks)
+                      (cl-incf rtags-buffer-bookmarks)
                       (1- rtags-buffer-bookmarks)))))))))
     (insert (rtags-tree-indent level) (file-name-nondirectory location) " " (rtags-end-quote (rtags-format-context (cdr (assoc 'ctx ref)) .4)))
     (let ((cf (cdr (assoc 'cf ref)))
@@ -2466,7 +2458,7 @@ If loc-arg is non-nil, then push it instead.
 See `rtags-current-location' for loc-arg format."
   (let ((bm (or loc-arg (rtags-current-location))))
     (while (> rtags-location-stack-index 0)
-      (decf rtags-location-stack-index)
+      (cl-decf rtags-location-stack-index)
       (pop rtags-location-stack))
     (unless (string= bm (car rtags-location-stack))
       (push bm rtags-location-stack)
@@ -2544,7 +2536,7 @@ The argument can either be:
               (lines))
           (erase-buffer)
           (mapc (lambda (entry)
-                  (incf idx)
+                  (cl-incf idx)
                   (push (if (= idx rtags-location-stack-index)
                             (concat entry " <--")
                           entry) lines))
@@ -2967,7 +2959,7 @@ of the form (filename line column)."
                (col (nth 2 loc))
                (buf (or (find-buffer-visiting filename)
                         (let ((b (find-file-noselect filename)))
-                          (and b (incf filesopened) b)))))
+                          (and b (cl-incf filesopened) b)))))
           (unless (bufferp buf)
             (rtags--error 'rtags-cannot-open-file filename))
           (with-current-buffer buf
@@ -2997,7 +2989,7 @@ of the form (filename line column)."
       (dolist (value replacements)
         (with-current-buffer (car value)
           (when (run-hook-with-args-until-failure 'rtags-edit-hook)
-            (incf modifications)
+            (cl-incf modifications)
             (goto-char (cdr value))
             ;; (message "about to insert at %s" (rtags-current-location))
             (delete-char (or len (length (rtags-current-token t))))
@@ -3149,7 +3141,7 @@ display in the mode-line. See
   "Increment `rtags--diagnostics-count' used in mode-line display
 of diagnostics count"
   (if rtags--diagnostics-count
-      (incf rtags--diagnostics-count)
+      (cl-incf rtags--diagnostics-count)
     (setq rtags--diagnostics-count 1)))
 
 
@@ -3180,7 +3172,7 @@ of diagnostics count"
                                  (match-end 0))))))
                         (t (1+ start))))
         (when (looking-back "#" (point-at-bol))
-          (decf start))
+          (cl-decf start))
         (let ((overlay (make-overlay start (if (= start end)
                                                (min (1+ start) (point-max))
                                              end)
@@ -3359,7 +3351,7 @@ of diagnostics count"
       (when rtags-display-current-error-as-tooltip
         ;;        (message "point %d bol %d (%d) used %d maxwidth %d" point bol (- point bol) used maxwidth)
         (while (>= (+ (- point bol) used) maxwidth)
-          (decf point))
+          (cl-decf point))
         (popup-tip msg :point point :max-width maxwidth :around t)) ;; :face 'rtags-warnline)) ;;(overlay-get overlay 'face)))
       (when rtags-display-current-error-as-message
         (message "%s" msg)))))
@@ -3414,7 +3406,7 @@ of diagnostics count"
                                                      (overlay overlays))
                                                  (while (and overlay (not (eq (car overlay) rtags-highlighted-overlay)))
                                                    (setq overlay (cdr overlay))
-                                                   (incf i))
+                                                   (cl-incf i))
                                                  (and overlay i))))
            (overlay (if (and idx (< (1+ idx) (length overlays)))
                         (nth (1+ idx) overlays)
@@ -3720,7 +3712,7 @@ of diagnostics count"
       (when (rtags-is-rtags-buffer (window-buffer (car windows)))
         (if (= count 1)
             (bury-buffer (window-buffer (car windows)))
-          (decf count)
+          (cl-decf count)
           (delete-window (car windows))))
       (setq windows (cdr windows)))))
 
@@ -3752,13 +3744,13 @@ of diagnostics count"
                     (when (and (rtags-goto-line-col line column)
                                (rtags-bookmark-set (format "RTags_%d" rtags-buffer-bookmarks)))
                       (setq bookmark-idx rtags-buffer-bookmarks)
-                      (incf rtags-buffer-bookmarks)))))))
+                      (cl-incf rtags-buffer-bookmarks)))))))
           (when rtags-verbose-results
             (goto-char (match-end 4))
             (insert "\n" rtags-verbose-results-delimiter)
             (goto-char (match-beginning 4))
             (insert "\n    ")
-            (incf end 5))
+            (cl-incf end 5))
           (set-text-properties start end (list 'rtags-bookmark-index (cons bookmark-idx start)))))
       (forward-line 1))
     (rtags-mode)
@@ -4327,7 +4319,7 @@ which can be overridden by specifying DEFAULT-FILE"
         (while (and (> (point) (point-min))
                     (> max 0)
                     (not done))
-          (decf max)
+          (cl-decf max)
           (let ((token (rtags-current-token)))
             (when (cond ((null token))
                         ((member token rtags-c++-keywords))
@@ -4656,30 +4648,30 @@ definition."
   (interactive)
   (let ((rtags-server-executable (rtags-executable-find rtags-rdm-binary-name)))
     (cond
-     ;; Already started, nothing need to be done
-     ((or (and (processp rtags-rdm-process)
-               (not (eq (process-status rtags-rdm-process) 'exit))
-               (not (eq (process-status rtags-rdm-process) 'signal)))
-          (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
-            (let* ((attrs (process-attributes pid))
-                   (pname (cdr (assoc 'comm attrs)))
-                   (uid (cdr (assoc 'euid attrs))))
-              (when (and (eq uid (user-uid))
-                         (or (string-equal pname rtags-rdm-binary-name)
-                             (string-equal pname "rdm.exe")))
-                (return t))))))
+      ;; Already started, nothing need to be done
+      ((or (and (processp rtags-rdm-process)
+                (not (eq (process-status rtags-rdm-process) 'exit))
+                (not (eq (process-status rtags-rdm-process) 'signal)))
+           (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
+             (let* ((attrs (process-attributes pid))
+                    (pname (cdr (assoc 'comm attrs)))
+                    (uid (cdr (assoc 'euid attrs))))
+               (when (and (eq uid (user-uid))
+                          (or (string-equal pname rtags-rdm-binary-name)
+                              (string-equal pname "rdm.exe")))
+                 (cl-return t))))))
 
-     ;; Executable not found or invalid
-     ((or (null rtags-server-executable)
-          (null (file-executable-p rtags-server-executable))
-          (file-directory-p rtags-server-executable))
-      (rtags--error 'rtags-cannot-start-process rtags-server-executable))
-     (t
-      (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
-        (setq rtags-rdm-process (start-file-process-shell-command "RTags" "*rdm*" (rtags-command))))
-      (and rtags-autostart-diagnostics (rtags-diagnostics))
-      (set-process-query-on-exit-flag rtags-rdm-process nil)
-      (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
+      ;; Executable not found or invalid
+      ((or (null rtags-server-executable)
+           (null (file-executable-p rtags-server-executable))
+           (file-directory-p rtags-server-executable))
+       (rtags--error 'rtags-cannot-start-process rtags-server-executable))
+      (t
+       (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
+         (setq rtags-rdm-process (start-file-process-shell-command "RTags" "*rdm*" (rtags-command))))
+       (and rtags-autostart-diagnostics (rtags-diagnostics))
+       (set-process-query-on-exit-flag rtags-rdm-process nil)
+       (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
 (define-obsolete-function-alias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
 
 (defun rtags-sentinel (process _event)
@@ -5300,7 +5292,7 @@ the user enter missing field manually."
                                                     (symbol-name (substring complete-name (- 0 (cdr (assoc 'symbolLength arg)))))
                                                     (ret (format " * @param %s <b>{%s}</b> ${%d:Parameter description}"
                                                                  symbol-name symbol-type index)))
-                                               (incf index)
+                                               (cl-incf index)
                                                ret))
                                          (cdr (assoc 'arguments symbol))
                                          "\n")

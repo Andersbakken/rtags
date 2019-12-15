@@ -31,7 +31,7 @@
 (require 'rtags)
 
 (require 'auto-complete)
-(eval-when-compile (require 'cl))
+(eval-when-compile (require 'cl-lib))
 
 (defgroup ac-rtags nil
   "Auto completion back-end for RTags."
@@ -119,7 +119,7 @@
            (setq inserttxt (mapconcat 'identity arglist ", "))))
     (apply insertfunc (list (concat "(" inserttxt ")")))))
 
-(defun ac-rtags-action-namespace (origtag)
+(defun ac-rtags-action-namespace (_origtag)
   (insert "::"))
 
 (defun ac-rtags-prefix ()
