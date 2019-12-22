@@ -30,6 +30,7 @@
 #include "rct/OnDestruction.h"
 #include "RTags.h"
 #include "RTagsLogOutput.h"
+#include "RTagsVersion.h"
 
 #define DEFAULT_CONNECT_TIMEOUT 1000
 #define XSTR(s) #s
@@ -371,7 +372,7 @@ void RClient::exec()
     loop->init(EventLoop::MainEventLoop);
 
     const int commandCount = mCommands.size();
-    std::shared_ptr<Connection> connection = Connection::create(NumOptions);
+    std::shared_ptr<Connection> connection = Connection::create(RTags::DatabaseVersion);
     connection->newMessage().connect(std::bind(&RClient::onNewMessage, this,
                                                std::placeholders::_1, std::placeholders::_2));
     connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -641,8 +642,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             return { String(), CommandLineParser::Parse_Ok }; }
         case VerifyVersion: {
             const int version = strtoul(value.constData(), nullptr, 10);
-            if (version != NumOptions) {
-                fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, NumOptions);
+            if (version != RTags::DatabaseVersion) {
+                fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, RTags::DatabaseVersion);
                 mExitCode = RTags::ProtocolFailure;
                 return { String(), CommandLineParser::Parse_Error };
             }

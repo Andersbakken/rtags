@@ -248,7 +248,7 @@ bool Server::initServers()
             mTcpServer.reset();
             if (!i) {
                 enum { Timeout = 1000 };
-                std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+                std::shared_ptr<Connection> connection = Connection::create(RTags::DatabaseVersion);
                 if (connection->connectTcp("127.0.0.1", mOptions.tcpPort, Timeout)) {
                     connection->send(QuitMessage());
                     connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -312,7 +312,7 @@ bool Server::initServers()
 
     if (Path::exists(mOptions.socketFile)) {
         enum { Timeout = 1000 };
-        std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
+        std::shared_ptr<Connection> connection = Connection::create(RTags::DatabaseVersion);
         if (connection->connectUnix(mOptions.socketFile, Timeout)) {
             connection->send(QuitMessage());
             connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
@@ -356,7 +356,7 @@ void Server::onNewConnection(SocketServer *server)
         if (!client) {
             break;
         }
-        std::shared_ptr<Connection> conn = Connection::create(client, RClient::NumOptions);
+        std::shared_ptr<Connection> conn = Connection::create(client, RTags::DatabaseVersion);
         if (mOptions.maxSocketWriteBufferSize) {
             client->setMaxWriteBufferSize(mOptions.maxSocketWriteBufferSize);
         }
@@ -2404,7 +2404,7 @@ class TestConnection
 {
 public:
     TestConnection(const Path &workingDirectory)
-        : mConnection(Connection::create(RClient::NumOptions)),
+        : mConnection(Connection::create(RTags::DatabaseVersion)),
           mIsFinished(false), mWorkingDirectory(workingDirectory)
     {
         mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message *message) {

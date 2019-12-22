@@ -84,7 +84,7 @@ ClangIndexer::ClangIndexer(Mode mode)
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
       mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(nullptr),
-      mConnection(Connection::create(RClient::NumOptions)), mUnionRecursion(false),
+      mConnection(Connection::create(RTags::DatabaseVersion)), mUnionRecursion(false),
       mFromCache(false), mInTemplateFunction(0)
 {
     mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
