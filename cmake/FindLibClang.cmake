@@ -23,7 +23,7 @@
 # Copyright (C) 2011, 2012, 2013 Jan Erik Hanssen and Anders Bakken
 # Copyright (C) 2015 Christian Schwarzgruber <c.schwarzgruber.cs@gmail.com>
 #
-# This file is part of RTags (http://rtags.net).
+# This file is part of RTags (https://github.com/Andersbakken/rtags).
 #
 # RTags is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with RTags.  If not, see <http://www.gnu.org/licenses/>.
+# along with RTags.  If not, see <https://www.gnu.org/licenses/>.
 
 if (NOT LIBCLANG_ROOT_DIR)
     set(LIBCLANG_ROOT_DIR $ENV{LIBCLANG_ROOT_DIR})

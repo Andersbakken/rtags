@@ -7,10 +7,10 @@
 ;; Package-Requires: ((emacs "24.3"))
 ;; Version: 2.37.130
 
-;; URL: http://rtags.net
+;; URL: https://github.com/Andersbakken/rtags
 ;; This file is not part of GNU Emacs.
 
-;; This file is part of RTags (http://rtags.net).
+;; This file is part of RTags (https://github.com/Andersbakken/rtags).
 ;;
 ;; RTags is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 ;; GNU General Public License for more details.
 ;;
 ;; You should have received a copy of the GNU General Public License
-;; along with RTags.  If not, see <http://www.gnu.org/licenses/>.
+;; along with RTags.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
@@ -34,7 +34,7 @@
   "Minor mode for RTags."
   :prefix "rtags-"
   :group 'tools
-  :link '(url-link :tag "Website" "http://rtags.net"))
+  :link '(url-link :tag "Website" "https://github.com/Andersbakken/rtags"))
 
 
 (require 'cl-lib)
@@ -132,7 +132,7 @@
 (defun rtags-set-suspend-during-compilation-enabled ()
   (if rtags-suspend-during-compilation
       (progn
-        (add-hook 'compilation-start-hook 'rtags-suspend-all-files)
+        (add-hook 'compilation-start-hook #'rtags-suspend-all-files)
         (add-to-list 'compilation-finish-functions 'rtags-clear-suspended-files))
     (remove-hook 'compilation-start-hook 'rtags-suspend-all-files)
     (setq compilation-finish-functions (cl-remove-if (lambda (item)
@@ -1471,11 +1471,11 @@ It uses the stored compile command from the RTags database for assembling."
   (when (> (length rtags-completing-read-default-value) 0)
     (set-mark (- (point) (length rtags-completing-read-default-value)))))
 
-(add-hook 'minibuffer-setup-hook 'rtags-setup-minibuffer-hook)
+(add-hook 'minibuffer-setup-hook #'rtags-setup-minibuffer-hook)
 (defun rtags-exit-minibuffer-hook ()
   (setq rtags-completing-read-default-value nil))
 
-(add-hook 'minibuffer-exit-hook 'rtags-exit-minibuffer-hook)
+(add-hook 'minibuffer-exit-hook #'rtags-exit-minibuffer-hook)
 
 
 (defun rtags-completing-read (prompt collection &optional predicate require-match default-value hist)
@@ -2660,9 +2660,9 @@ of PREFIX or not, if doesn't contain one, one will be added."
     ["Show *RTags* buffer" rtags-show-rtags-buffer]
     ["Show *RTags* buffer in other window" rtags-list-results])))
 
-(add-hook 'c++-mode-hook '(lambda () (easy-menu-add-item nil '("C++") (rtags-submenu-list))))
-(add-hook 'c-mode-hook '(lambda () (easy-menu-add-item nil '("C") (rtags-submenu-list))))
-(add-hook 'objc-mode-hook '(lambda () (easy-menu-add-item nil '("ObjC") (rtags-submenu-list))))
+(add-hook 'c++-mode-hook #'(lambda () (easy-menu-add-item nil '("C++") (rtags-submenu-list))))
+(add-hook 'c-mode-hook #'(lambda () (easy-menu-add-item nil '("C") (rtags-submenu-list))))
+(add-hook 'objc-mode-hook #'(lambda () (easy-menu-add-item nil '("ObjC") (rtags-submenu-list))))
 
 ;;;###autoload
 (defun rtags-print-current-location ()
@@ -3533,9 +3533,9 @@ of diagnostics count"
                    "-V" (rtags-buffer-file-name))))
 
 
-(add-hook 'after-save-hook 'rtags-after-save-hook)
-(add-hook 'post-command-hook 'rtags-post-command-hook)
-;; (remove-hook 'post-command-hook 'rtags-post-command-hook)
+(add-hook 'after-save-hook #'rtags-after-save-hook)
+(add-hook 'post-command-hook #'rtags-post-command-hook)
+;; (remove-hook 'post-command-hook #'rtags-post-command-hook)
 
 (defun rtags-set-diagnostics-suspended-impl (suspended quiet)
   (setq rtags-diagnostics-suspended suspended)
@@ -3579,7 +3579,7 @@ of diagnostics count"
   (when (get-buffer rtags-diagnostics-buffer-name)
     (kill-buffer rtags-diagnostics-buffer-name)))
 
-(add-hook 'kill-emacs-hook 'rtags-stop-diagnostics) ;; remote diagnostics are not killed by default.
+(add-hook 'kill-emacs-hook #'rtags-stop-diagnostics) ;; remote diagnostics are not killed by default.
 
 ;;;###autoload
 (defun rtags-clear-diagnostics ()
@@ -4921,7 +4921,7 @@ See `rtags-get-summary-text' for details."
         t))))
 
 (when rtags-tooltips-enabled
-  (add-hook 'tooltip-functions 'rtags-display-tooltip-function))
+  (add-hook 'tooltip-functions #'rtags-display-tooltip-function))
 
 (defun rtags-visible-buffers ()
   (let ((buffers))
@@ -4960,7 +4960,7 @@ so it knows what files may be queried which helps with responsiveness.
         (setq rtags-previous-buffer-list arg)
         (rtags-call-rc :noerror t :silent-query t :output nil :silent t :path t arg)))))
 
-(add-hook 'window-configuration-change-hook 'rtags-update-buffer-list)
+(add-hook 'window-configuration-change-hook #'rtags-update-buffer-list)
 
 (defun rtags-insert-include (include)
   (save-excursion
