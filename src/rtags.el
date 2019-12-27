@@ -47,8 +47,6 @@
 (require 'thingatpt)
 (require 'repeat)
 
-(defalias 'defun* 'cl-defun)
-
 ;; Make the byte-compiler happy.
 (declare-function flycheck-buffer "ext:flycheck")
 (declare-function yas-expand-snippet "ext:yasnippet" t)
@@ -1266,7 +1264,7 @@ to only call this when `rtags-socket-address' is defined.
                            (rtags--convert-output-buffer (cdr arg))))
         (t arg)))
 
-(defun* rtags-call-rc (&rest arguments
+(cl-defun rtags-call-rc (&rest arguments
                              &key (path (rtags-buffer-file-name))
                              unsaved
                              async ;; nil or a cons (process-filter . sentinel)
@@ -1549,7 +1547,7 @@ Uses `completing-read' to ask for the project."
       (and (not no-symbol-name) (rtags-current-symbol-name))
       (thing-at-point 'symbol)))
 
-(defun* rtags-symbol-info-internal (&rest foo
+(cl-defun rtags-symbol-info-internal (&rest foo
                                           &key
                                           (parents nil)
                                           (source-code nil)
@@ -1579,7 +1577,7 @@ Uses `completing-read' to ask for the project."
       (or (and (not piece) object)
           (cdr (assoc piece object))))))
 
-(defun* rtags-symbol-info (&rest args
+(cl-defun rtags-symbol-info (&rest args
                                  &key
                                  (location nil)
                                  (include-targets nil)
@@ -4772,7 +4770,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
              (end (and start (+ start (cdr (assoc 'length argument))))))
         (and start (>= startpos start) (< startpos end))))))
 
-(defun* rtags-get-file-contents (&rest args
+(cl-defun rtags-get-file-contents (&rest args
                                        &key
                                        (file nil)
                                        (startLine nil)
