@@ -185,6 +185,7 @@ static const char *valueArgs[] = {
 };
 
 static const char *blacklist[] = {
+    "--driver-mode=",
     "--param",
     "-M",
     "-MD",
