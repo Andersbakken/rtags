@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #
-# Description: rc, rdm and help2man need to be in the PATH environment variable.
+# Description: rc, rdm, help2man and sed need to be in the PATH environment variable.
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 if [ $# -lt 1 ]; then

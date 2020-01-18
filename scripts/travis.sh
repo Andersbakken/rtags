@@ -24,7 +24,7 @@
 #  - ASAN        (default value is "1")
 declare -a CMAKE_PARAMS=("-DCMAKE_CXX_COMPILER=$CXX$COMPILER_VERSION"
                          "-DCMAKE_C_COMPILER=$CC$COMPILER_VERSION"
-                         "-DBUILD_TESTING=1")
+                         "-DWITH_TESTS=1")
 
 if [ "$ASAN" ]; then
     CMAKE_PARAMS+=("-DASAN=address,undefined")

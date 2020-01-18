@@ -1,0 +1,33 @@
+[
+  {
+    "name": "references_name",
+    "rc-command": [
+      "--references-name",
+      "TWO"
+    ],
+    "expectation": [
+      "sub1/sub1.cpp:20:20:\t        return arg*TWO*THREE;",
+      "sub1/sub1.cpp:25:19:\t        return p1*TWO;"
+    ]
+  },
+  {
+    "name": "references",
+    "rc-command": [
+      "--references",
+      "{0}/sub1/sub1.cpp:12:16"
+    ],
+    "expectation": [
+      "main/main.cpp:6:27:\t    int v=SUB1MOD::Csub1::sub1(1);"
+    ]
+  },
+  {
+    "name": "follow_location",
+    "rc-command": [
+      "--follow-location",
+      "{0}/sub1/sub1.cpp:20:16"
+    ],
+    "expectation": [
+      "sub1/sub1.cpp:12:25:\t    int Csub1::sub1(int arg)"
+    ]
+  }
+]

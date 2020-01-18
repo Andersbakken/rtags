@@ -1,6 +1,16 @@
 [
-    { "name": "multiple_template_parameters",
-      "rc-command": [ "--references", "{0}/a.hpp:4:8"],
-      "expectation": ["{0}/main.cpp:3:17","{0}/main.cpp:4:17","{0}/main.cpp:5:17",
-                      "{0}/a.cpp:3:17", "{0}/a.cpp:4:17"] }
+  {
+    "name": "multiple_template_parameters",
+    "rc-command": [
+      "--references",
+      "{0}/a.hpp:4:8"
+    ],
+    "expectation": [
+      "{0}/main.cpp:3:17",
+      "{0}/main.cpp:4:17",
+      "{0}/main.cpp:5:17",
+      "{0}/a.cpp:3:17",
+      "{0}/a.cpp:4:17"
+    ]
+  }
 ]

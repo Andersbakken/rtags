@@ -37,9 +37,9 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
 
     include(CPack)
 else ()
-    set(BUILD_TESTING 0 CACHE BOOL "Build testing files; requires cppunit.")
+    set(WITH_TESTS 0 CACHE BOOL "Build testing files; requires cppunit.")
 
-    set(RCT_WITH_TESTS ${BUILD_TESTING})
+    set(RCT_WITH_TESTS ${WITH_TESTS})
 
     set(CMAKE_LEGACY_CYGWIN_WIN32 0)
     if (CMAKE_COMPILER_IS_GNUCXX)
@@ -94,15 +94,7 @@ else ()
 
     include(CTest)
 
-    if (BUILD_TESTING)
-        find_package(Perl QUIET)
-        if(PERL_FOUND)
-            add_test(NAME SBRootTest COMMAND perl "${CMAKE_SOURCE_DIR}/tests/sbroot/sbroot_test.pl")
-            set_property(TEST SBRootTest PROPERTY ENVIRONMENT "RTAGS_BINARY_DIR=${CMAKE_BINARY_DIR}/bin")
-        else()
-            message(WARNING "Perl not found! Excluding sbroot test from tests.")
-        endif()
-
+    if (WITH_TESTS)
         find_program(PYTEST NAMES pytest py.test)
         if (PYTEST)
             add_test(NAME automated_tests COMMAND ${PYTEST} -svvv ${CMAKE_SOURCE_DIR}/tests/automated WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/tests/automated)

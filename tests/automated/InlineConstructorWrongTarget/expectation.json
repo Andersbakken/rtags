@@ -1,5 +1,10 @@
 [
-    { "name": "inline constructor should not point to struct/class definition",
-      "rc-command": [ "--follow-location", "{0}/main.cpp:7:5" ],
-      "expectation": [] }
+  {
+    "name": "inline constructor should not point to struct/class definition",
+    "rc-command": [
+      "--follow-location",
+      "{0}/main.cpp:7:5"
+    ],
+    "expectation": []
+  }
 ]

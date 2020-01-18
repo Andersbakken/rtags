@@ -9,7 +9,7 @@ static const std::size_t THREE = 3;
 
 namespace SUB1MOD {
 
-    int Csub1::sub1(int arg) // rc --references sub1( => ../main/main.cpp:    int v=SUB1MOD::Csub1::@sub1(1);
+    int Csub1::sub1(int arg)
     {
         try {
             std::unique_ptr<char> heapData(new char[HSIZE]);
@@ -17,7 +17,7 @@ namespace SUB1MOD {
             return 0;
         }
 
-        return arg*TWO*THREE; // rc --follow-location arg => sub1.cpp:    int Csub1::sub1(int @arg)
+        return arg*TWO*THREE;
     }
 
     SUB1_EXPORT_FCN int fcn1(int p1)
@@ -27,6 +27,3 @@ namespace SUB1MOD {
 
 
 }
-
-
-// [eof] sub1.cpp
