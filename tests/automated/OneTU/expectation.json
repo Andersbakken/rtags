@@ -6,7 +6,7 @@
       "{0}/main.cpp:4:5"
     ],
     "expectation": [
-      "{0}/main.cpp:1:6"
+      "main.cpp:1:6:\tvoid free_function() {}"
     ]
   },
   {
@@ -16,8 +16,8 @@
       "{0}/main.cpp:1:6"
     ],
     "expectation": [
-      "{0}/main.cpp:4:5",
-      "{0}/main.cpp:5:5"
+      "main.cpp:4:5:\t    free_function();",
+      "main.cpp:5:5:\t    free_function();"
     ]
   }
 ]

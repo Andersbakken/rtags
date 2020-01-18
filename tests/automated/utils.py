@@ -181,25 +181,16 @@ class RTags():
             self._rc_call_wait('--is-indexing', src_files[i])
 
 
-class Location():
-    '''Class representing location in file.'''
+def navigate(rtags, directory, expectations):
+    for exp in expectations:
+        commands = exp['rc-command']
+        for i, command in enumerate(commands):
+            if '{0}' in command:
+                commands[i] = command.format(directory)
 
-    def __init__(self, file, line, col):
-        self.file, self.line, self.col = str(file), int(line), int(col)
+        output = [line for line in rtags.rc(commands).split('\n') if len(line) > 0]
+        # Compare that we have the same results in length and content
+        assert len(output) == len(exp['expectation'])
 
-    @classmethod
-    def from_str(cls, string):
-        '''From string.'''
-        return cls(*string.split(':')[0:3])
-
-    def __eq__(self, other):
-        if isinstance(other, self.__class__):
-            return self.__dict__ == other.__dict__
-
-        raise ValueError('Type error')
-
-    def __ne__(self, other):
-        return not self.__eq__(other)
-
-    def __repr__(self):
-        return '%s:%d:%d' % (self.file, self.line, self.col)
+        for line in output:
+            assert line in exp['expectation']

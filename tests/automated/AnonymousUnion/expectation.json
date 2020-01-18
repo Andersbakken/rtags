@@ -6,7 +6,7 @@
       "{0}/main.cpp:9:7:"
     ],
     "expectation": [
-      "{0}/main.cpp:5:17:"
+      "main.cpp:5:17:\t            int a;"
     ]
   }
 ]

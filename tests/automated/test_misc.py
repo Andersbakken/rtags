@@ -85,21 +85,7 @@ collect_tests()
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.LOCATION], ids=TESTS_NAME[TType.LOCATION])
 def test_location(directory, files, expectations, rtags):
     rtags.parse(directory, files)
-    for exp in expectations:
-        expected_locations = exp['expectation']
-        actual_locations = [
-            utils.Location(
-                os.path.join(directory,
-                             line.split(':')[0]),
-                line.split(':')[1],
-                line.split(':')[2],
-            ) for line in rtags.rc([c.format(directory) for c in exp['rc-command']]).split('\n') if len(line) > 0
-        ]
-        # Compare that we have the same results in length and content
-        assert len(actual_locations) == len(expected_locations)
-        for expected_location_string in expected_locations:
-            expected_location = utils.Location.from_str(expected_location_string.format(directory))
-            assert expected_location in actual_locations
+    utils.navigate(rtags, directory, expectations)
 
 
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.PARSE], ids=TESTS_NAME[TType.PARSE])

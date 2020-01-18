@@ -6,9 +6,9 @@
       "{0}/main.cpp:9:8"
     ],
     "expectation": [
-      "{0}/main.cpp:16:17",
-      "{0}/main.cpp:17:17",
-      "{0}/main.cpp:20:5"
+      "main.cpp:16:17:\ttemplate struct X<A>;",
+      "main.cpp:17:17:\ttemplate struct X<B>;",
+      "main.cpp:20:5:\t    X<A> x;"
     ]
   },
   {
@@ -18,11 +18,11 @@
       "{0}/main.cpp:25:8"
     ],
     "expectation": [
-      "{0}/main.cpp:27:17",
-      "{0}/main.cpp:28:17",
-      "{0}/main.cpp:29:17",
-      "{0}/main.cpp:30:17",
-      "{0}/main.cpp:31:17"
+      "main.cpp:27:17:\ttemplate struct Y<int, int>;",
+      "main.cpp:28:17:\ttemplate struct Y<int, char>;",
+      "main.cpp:29:17:\ttemplate struct Y<char, int>;",
+      "main.cpp:30:17:\ttemplate struct Y<char, char>;",
+      "main.cpp:31:17:\ttemplate struct Y<char, char, char>;"
     ]
   }
 ]

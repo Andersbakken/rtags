@@ -38,16 +38,8 @@ def index_navigate(rtags, sbroot):
 
 
 def navigate(rtags, sbroot):
-    for expectation_file in glob.glob(os.path.join(sbroot, '*', 'expectation.json')):
-        for exp in json.load(open(expectation_file, 'r')):
-            commands = exp['rc-command']
-            for i, command in enumerate(commands):
-                if '{0}' in command:
-                    commands[i] = command.format(sbroot)
-            output = [line for line in rtags.rc(commands).split('\n') if len(line) > 0]
-            assert len(output) == len(exp['expectation'])
-            for line in output:
-                assert line in exp['expectation']
+    expectations = json.load(open(os.path.join(sbroot, 'expectation.json'), 'r'))
+    utils.navigate(rtags, sbroot, expectations)
 
 
 # pylint: disable=unused-variable,redefined-outer-name

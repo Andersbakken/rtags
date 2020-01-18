@@ -6,7 +6,7 @@
       "{0}/contains_forward_declaration.hpp:3:16"
     ],
     "expectation": [
-      "{0}/include.hpp:2:8"
+      "include.hpp:2:8:\tstruct ForwardDecl {};"
     ]
   },
   {
@@ -17,8 +17,8 @@
       "--all-targets"
     ],
     "expectation": [
-      "{0}/include.hpp:2:8",
-      "{0}/main.cpp:5:1"
+      "main.cpp:5:1:\tFORWARD_DECLARE_STRUCT(Decl);",
+      "include.hpp:2:8:\tstruct ForwardDecl {};"
     ]
   },
   {
@@ -28,7 +28,7 @@
       "{0}/main.cpp:13:8"
     ],
     "expectation": [
-      "{0}/main.cpp:17:5"
+      "main.cpp:17:5:\t    Opaque *op = 0;"
     ]
   }
 ]

@@ -6,7 +6,7 @@
       "{0}/a.hpp:3:6"
     ],
     "expectation": [
-      "{0}/a.cpp:3:6"
+      "a.cpp:3:6:\tvoid free_function() {}"
     ]
   },
   {
@@ -16,9 +16,9 @@
       "{0}/a.hpp:3:6"
     ],
     "expectation": [
-      "{0}/a.cpp:6:5",
-      "{0}/main.cpp:4:5",
-      "{0}/main.cpp:5:5"
+      "main.cpp:4:5:\t    free_function();",
+      "main.cpp:5:5:\t    free_function();",
+      "a.cpp:6:5:\t    free_function();"
     ]
   }
 ]

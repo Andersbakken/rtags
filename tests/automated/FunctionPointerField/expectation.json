@@ -6,7 +6,7 @@
       "{0}/main.cpp:3:12"
     ],
     "expectation": [
-      "{0}/main.cpp:10:7"
+      "main.cpp:10:7:\t    f.foo();"
     ]
   }
 ]

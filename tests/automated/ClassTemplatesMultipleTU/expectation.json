@@ -6,11 +6,11 @@
       "{0}/a.hpp:4:8"
     ],
     "expectation": [
-      "{0}/main.cpp:3:17",
-      "{0}/main.cpp:4:17",
-      "{0}/main.cpp:5:17",
-      "{0}/a.cpp:3:17",
-      "{0}/a.cpp:4:17"
+      "main.cpp:3:17:\ttemplate struct Y<int, int>;",
+      "main.cpp:4:17:\ttemplate struct Y<int, char>;",
+      "main.cpp:5:17:\ttemplate struct Y<char, int>;",
+      "a.cpp:3:17:\ttemplate struct Y<char, char>;",
+      "a.cpp:4:17:\ttemplate struct Y<char, char, char>;"
     ]
   }
 ]

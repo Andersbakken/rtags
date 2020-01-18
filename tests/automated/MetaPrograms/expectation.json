@@ -6,9 +6,9 @@
       "{0}/main.cpp:2:8"
     ],
     "expectation": [
-      "{0}/main.cpp:3:24",
-      "{0}/main.cpp:7:8",
-      "{0}/main.cpp:11:9"
+      "main.cpp:3:24:\t    enum { value = n * factorial<n - 1>::value };",
+      "main.cpp:7:8:\tstruct factorial<0> {",
+      "main.cpp:11:9:\tint x = factorial<4>::value"
     ]
   }
 ]
