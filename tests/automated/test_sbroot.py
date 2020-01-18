@@ -2,65 +2,85 @@ import glob
 import json
 import os
 import os.path
+import re
 import shutil
 import subprocess as ps
 
 import pytest
+from _pytest.fixtures import FixtureRequest
+from _pytest.tmpdir import TempPathFactory
 
 from . import utils
 
+LOGFILE_COUNT = 1
+
 
 @pytest.fixture
-def setup(tmp_path_factory):
-    base_tmp_dir = str(tmp_path_factory.getbasetemp())
+def setup(tmp_path_factory: TempPathFactory):
+    tmp_directory = str(tmp_path_factory.getbasetemp())
     src_dir = os.path.join(os.path.dirname(__file__), 'sbroot_test')
-    sbroot = os.path.join(base_tmp_dir, 'sbroot_test')
-    rtags = utils.RTags(os.path.join(base_tmp_dir, '.socket'))
-
+    sbroot = os.path.join(tmp_directory, 'sbroot_test')
     shutil.copytree(src_dir, sbroot)
-    yield (rtags, sbroot)
+    yield sbroot
 
 
-def index_navigate(rtags, sbroot):
-    for makefile in glob.glob(os.path.join(sbroot, '*', 'Makefile')):
-        rtags.parse(
-            os.path.dirname(makefile),
-            os.listdir(os.path.dirname(makefile)),
-            sbroot,
-            [
-                compile_command for compile_command in
-                ps.check_output(['make', '-nk', '-C', os.path.dirname(makefile)]).decode().split('\n')
-                if compile_command.startswith('g++ -c')
-            ],
-        )
+def construct_compile_re(makefile_dir):
+    make_output = ps.check_output(['make', '-pnC', makefile_dir]).decode().split('\n')
+    compilers = []
 
-    navigate(rtags, sbroot)
+    for line in make_output:
+        match = re.match(r'(?:CC|CXX) = (.+)', line)
+        if match:
+            compilers.append(match.group(1))
+
+    compilers = [re.escape(c) for c in compilers]  # g++, clang++, ... need to be escaped
+    return r'({}) -c'.format('|'.join(compilers))
 
 
-def navigate(rtags, sbroot):
-    expectations = json.load(open(os.path.join(sbroot, 'expectation.json'), 'r'))
-    utils.navigate(rtags, sbroot, expectations)
+def index_navigate(rtags: utils.RTags, sbroot: str):
+    makefiles = glob.glob(os.path.join(sbroot, '*', 'Makefile'))
+    compiler_re = construct_compile_re(os.path.dirname(makefiles[0]))
+
+    for makefile in makefiles:
+        makefile_dir = os.path.dirname(makefile)
+        make_output = ps.check_output(['make', '-nkC', makefile_dir]).decode().split('\n')
+        compile_commands = [
+            compile_command for compile_command in make_output if re.match(compiler_re, compile_command)
+        ]
+        rtags.parse(makefile_dir, os.listdir(makefile_dir), sbroot, compile_commands)
+
+    utils.navigate(rtags, sbroot, json.load(open(os.path.join(sbroot, 'expectation.json'), 'r')))
+
+
+def rename_log(sbroot: str):
+    # pylint: disable=global-statement
+    global LOGFILE_COUNT
+    log_file = os.path.join(sbroot, '.rtags', 'rdm.log')
+    os.rename(log_file, log_file + str(LOGFILE_COUNT))
+    LOGFILE_COUNT += 1
 
 
 # pylint: disable=unused-variable,redefined-outer-name
-def test_sbroot(request, setup):
+def test_sbroot(request: FixtureRequest, setup: str):
     no_sandbox_root_check = request.config.getoption('--no-sandbox-root-check')
-    rtags, sbroot = setup
+    sbroot = setup
+    rtags = utils.RTags(sbroot)
 
     # Navigate code *WITHOUT* the --sandbox-root switch
-    rtags.rdm(sbroot)
+    rtags.rdm()
     index_navigate(rtags, sbroot)
-    rtags.rdm_stop()
+    rtags.rc('--clear')  # Clear projects
+    rename_log(sbroot)
 
     # Navigate code with the --sandbox-root switch
-    shutil.rmtree(os.path.join(sbroot, '.rtags'))
-    rtags.rdm(sbroot, True)
+    rtags.rdm(True)
     index_navigate(rtags, sbroot)
     rtags.rdm_stop()
+    rename_log(sbroot)
 
     # Navigate code with the sandbox moved to a new location
-    new_dest_dir = sbroot + '_move'
-    shutil.move(sbroot, new_dest_dir)
-    sbroot = new_dest_dir
-    rtags.rdm(sbroot, True)
-    index_navigate(rtags, sbroot)
+    new_sbroot = sbroot + '_move'
+    shutil.move(sbroot, new_sbroot)
+    rtags.test_directory = new_sbroot
+    rtags.rdm(True)
+    index_navigate(rtags, new_sbroot)

@@ -4,7 +4,10 @@ import json
 import os
 import os.path
 
+from typing import List
+
 import pytest
+from _pytest.tmpdir import TempPathFactory
 
 from . import utils
 
@@ -13,14 +16,15 @@ TESTS_NAME = None
 
 
 @pytest.yield_fixture(scope='module', autouse=True)
-def rtags(tmp_path_factory):
+def rtags(tmp_path_factory: TempPathFactory):
     '''RTags session yield fixture.
 
     Start rdm at module scope, and return the RTags object. After all tests from this module have
     been run, the rdm process will be terminated.
     '''
-    _rtags = utils.RTags('/var/tmp/rdm_dev')
-    _rtags.rdm(str(tmp_path_factory.getbasetemp()))
+    tmp_directory = str(tmp_path_factory.mktemp('misc_test'))
+    _rtags = utils.RTags(tmp_directory)
+    _rtags.rdm()
     yield _rtags
 
 
@@ -83,13 +87,13 @@ collect_tests()
 ###
 # pylint: disable=redefined-outer-name
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.LOCATION], ids=TESTS_NAME[TType.LOCATION])
-def test_location(directory, files, expectations, rtags):
+def test_location(directory: str, files: list, expectations: List[dict], rtags: utils.RTags):
     rtags.parse(directory, files)
     utils.navigate(rtags, directory, expectations)
 
 
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.PARSE], ids=TESTS_NAME[TType.PARSE])
-def test_parse(directory, files, expectations, rtags):
+def test_parse(directory: str, files: list, expectations: List[dict], rtags: utils.RTags):
     rtags.parse(directory, files)
     for exp in expectations:
         output = rtags.rc(exp['rc-command'])
@@ -98,7 +102,7 @@ def test_parse(directory, files, expectations, rtags):
 
 
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.COMPLETION], ids=TESTS_NAME[TType.COMPLETION])
-def test_completion(directory, files, expectations, rtags):
+def test_completion(directory: str, files: list, expectations: List[dict], rtags: utils.RTags):
     rtags.parse(directory, files)
     for exp in expectations:
         expected = exp['expectation']
@@ -109,7 +113,7 @@ def test_completion(directory, files, expectations, rtags):
 
 
 @pytest.mark.parametrize('directory,files,expectations', TESTS[TType.OUTPUT], ids=TESTS_NAME[TType.OUTPUT])
-def test_output(directory, files, expectations, rtags):
+def test_output(directory: str, files: list, expectations: List[dict], rtags: utils.RTags):
     rtags.parse(directory, files)
     for exp in expectations:
         expected = exp['expectation']

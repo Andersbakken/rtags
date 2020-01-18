@@ -1,3 +1,4 @@
+import glob
 import os.path
 import re
 import subprocess as sp
@@ -28,14 +29,25 @@ class RTags():
     __sleep_time = 0.1  # Sleep time after command failed
     __max_retries = 100  # Maximal retries when command failed
 
-    def __init__(self, socket_file=None):
-        '''Init object.
-
-        :param socket_file: The socket file, if not specified the default socket file will be used.
-        '''
-        self._socket_file = socket_file
+    def __init__(self, test_directory: str):
+        self._socket_file = None
         self._rdm_p = None
-        self._sbroot = None
+        self.test_directory = test_directory
+
+    @property
+    def test_directory(self):
+        '''The test directory under which all generated data will be stored.'''
+        return self._test_directory
+
+    @test_directory.setter
+    def test_directory(self, test_directory: str):
+        self._test_directory = test_directory
+
+        rtags_base_data_dir = os.path.join(self.test_directory, '.rtags')
+        if not os.path.exists(rtags_base_data_dir):
+            os.mkdir(rtags_base_data_dir)
+
+        self._socket_file = os.path.join(self.test_directory, '.socket')
 
     def __del__(self):
         self.rdm_stop()
@@ -54,99 +66,80 @@ class RTags():
             else:
                 sp_args.append(arg)
 
-        if not ('--socket-file' in sp_args or '-n' in sp_args) and self._socket_file:
+        if not ('--socket-file' in sp_args or '-n' in sp_args):
             sp_args.insert(1, '--socket-file')
             sp_args.insert(2, self._socket_file)
 
+    def _dump_log_files(self):
+        for log_file in glob.glob(os.path.join(self.test_directory, '.rtags', 'rdm.log*')):
+            print('-' * 120)
+            print('-- {} '.format(log_file))
+            print('-' * 120)
+            with open(log_file) as f:
+                while True:
+                    substring = f.read(65536)
+                    if not substring:
+                        break
+                    sys.stderr.write(substring)
+
+    def _rc_error(self, tries, err):
+        if tries >= self.__max_retries:
+            sys.stderr.write(err.output.decode())
+            sys.stderr.write(
+                'To many retries({}): returncode({}) cmd({})'.format(tries, err.returncode, ' '.join(err.cmd))
+            )
+            self.rdm_stop()
+            self._dump_log_files()
+            sys.exit(err.returncode)
+
+        time.sleep(self.__sleep_time)
+
+    # pylint: disable=invalid-name
     def rc(self, *args):
         '''Call rc with args.
 
         :params *args: Variable arguments
         '''
+        tries = 0
         rc_args = [self.__rc_exe]
+        output = ''
 
         self._add_args(rc_args, args)
-        try:
-            output = sp.check_output(rc_args, stderr=sp.STDOUT).decode()
-        except sp.CalledProcessError as err:
-            sys.stderr.write(
-                '{}: returncode({}) cmd({})'.format(err.output.decode(), err.returncode, ' '.join(err.cmd))
-            )
-            sys.exit(err.returncode)
-
-        return output
-
-    def _rc_call_wait(self, *args):
-        tries = 0
 
         while True:
             try:
-                output = self.rc(args)
-                if '--is-indexing' in args and int(output) == 1:
-                    raise sp.CalledProcessError(1, args, b'')
+                output = sp.check_output(rc_args, stderr=sp.STDOUT).decode()
                 break
             except sp.CalledProcessError as err:
-                sys.stderr.write(err.output.decode())
-
-                if tries >= self.__max_retries:
-                    sys.stderr.write(
-                        'To many retries({}): returncode({}) cmd({})\n'.format(
-                            tries, err.returncode, ' '.join(err.cmd)
-                        )
-                    )
-                    sys.exit(err.returncode)
-
-                time.sleep(self.__sleep_time)
+                self._rc_error(tries, err)
                 tries += 1
 
-    def rdm(self, sbroot, relative_sbroot=False):
-        '''Start rdm.
+        return output
 
-        :params tmp_data_dir: The temporary directory under which the '.rtags/{db,rdm.log}'
-        directories/files will be created.
-        '''
-        if self._rdm_p:
-            return
-
-        self._sbroot = sbroot
-
+    def rdm(self, relative_sbroot=False):
+        '''Start rdm.'''
         rdm_args = [
             self.__rdm_exe,
             '--no-rc',
             '--enable-compiler-manager',
+            '--log-file={}/.rtags/rdm.log'.format(self.test_directory),
             '--log-file-log-level=debug',
             '--exclude-filter=/none',  # we want to index /tmp so add `--exclude-filter /none`
             '--watch-sources-only',
-            '--data-dir={}/.rtags/db'.format(sbroot),
-            '--log-file={}/.rtags/rdm.log'.format(sbroot),
+            '--data-dir={}/.rtags/db'.format(self.test_directory),
         ]
 
-        rtags_base_data_dir = os.path.join(sbroot, '.rtags')
-        if not os.path.exists(rtags_base_data_dir):
-            os.mkdir(rtags_base_data_dir)
-
-        self._add_args(rdm_args, ['--sandbox-root', sbroot ] if relative_sbroot else [])
+        self._add_args(rdm_args, ['--sandbox-root', self.test_directory] if relative_sbroot else [])
+        self.rdm_stop()  # Quit rdm if rdm is running
         self._rdm_p = sp.Popen(rdm_args)
-
-        try:
-            # Check if rdm printed an error message
-            sys.stderr.write(self._rdm_p.communicate(timeout=0.2)[0].decode())
-        except sp.TimeoutExpired:
-            pass
-
-        # Has rdm terminated
-        returncode = self._rdm_p.poll()
-        if returncode:
-            sys.exit(returncode)
-
-        self._rc_call_wait('-w')  # Wait until rdm is ready
+        self.rc('-w')  # Wait until rdm is ready
 
     def rdm_stop(self):
         '''Quit rdm.'''
         if self._rdm_p:
             self._rdm_p.terminate()
             self._rdm_p.wait()
-            self._rdm_p = self._sbroot = None
+            self._rdm_p = None
 
     def parse(self, directory, files, project_root=None, compile_commands=None):
         '''Parse files from directory.
@@ -157,11 +150,7 @@ class RTags():
         :param compile_commands: The compile_commands, if none where specified, they will be \
         generated for all src files (.cpp, .c).
         '''
-        src_files = [
-            os.path.join(directory, src_file)
-            for src_file in files
-            if src_file.endswith(('.cpp', '.c'))
-        ]
+        src_files = [os.path.join(directory, src_file) for src_file in files if src_file.endswith(('.cpp', '.c'))]
 
         if not compile_commands:
             compile_commands = ('clang++ -std=c++11 -I. -c ' + src_file for src_file in src_files)
@@ -178,10 +167,10 @@ class RTags():
 
         for i, compile_command in enumerate(compile_commands):
             self.rc('--project-root', project_root, '-c', compile_command)
-            self._rc_call_wait('--is-indexing', src_files[i])
+            self.rc('--is-indexing', src_files[i])
 
 
-def navigate(rtags, directory, expectations):
+def navigate(rtags: RTags, directory: str, expectations: dict):
     for exp in expectations:
         commands = exp['rc-command']
         for i, command in enumerate(commands):
