@@ -275,53 +275,6 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T> > opt
     }
 }
 
-template <typename T>
-static void man(std::initializer_list<Option<T> > optsList)
-{
-    const Option<T> *opts = optsList.begin();
-    String out = ("<!DOCTYPE manpage SYSTEM \"http://masqmail.cx/xmltoman/xmltoman.dtd\">\n"
-                  "<?xml-stylesheet type=\"text/xsl\" href=\"http://masqmail.cx/xmltoman/xmltoman.xsl\"?>\n"
-                  "\n"
-                  "<manpage name=\"rc\" section=\"1\" desc=\"command line client for RTags\">\n"
-                  "\n"
-                  "<synopsis>\n"
-                  "  <cmd>rc <arg>file.1.xml</arg> > file.1</cmd>\n"
-                  "</synopsis>\n"
-                  "\n"
-                  "<description>\n"
-                  "\n"
-                  "<p>rc is a command line client used to control RTags.</p>\n"
-                  "\n"
-                  "</description>\n");
-    for (size_t i=0; i<optsList.size(); ++i) {
-        if (!opts[i].description.isEmpty()) {
-            if (opts[i].longOpt.isEmpty() && !opts[i].shortOpt) {
-                if (i)
-                    out.append("</section>\n");
-                out.append(String::format<128>("<section name=\"%s\">\n", opts[i].description.constData()));
-            } else {
-                out.append(String::format<64>("  <option>%s%s%s%s<optdesc>%s</optdesc></option>\n",
-                                              (opts[i].longOpt.isEmpty() ? String() : ("--" + opts[i].longOpt)).constData(),
-                                              !opts[i].longOpt.isEmpty() && opts[i].shortOpt ? "|" : "",
-                                              opts[i].shortOpt ? String::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                              opts[i].valueType == Required ? " [arg] " : opts[i].valueType == Optional ? " [optional] " : "",
-                                              opts[i].description.constData()));
-            }
-        }
-    }
-    out.append("</section>\n"
-               "<section name=\"Authors\">\n"
-               "  <p>RTags was written by Jan Erik Hanssen &lt;jhanssen@gmail.com&gt; and Anders Bakken &lt;abakken@gmail.com&gt;</p>\n"
-               "</section>\n"
-               "<section name=\"See also\">\n"
-               "  <p><manref name=\"rdm\" section=\"1\"/></p>\n"
-               "</section>\n"
-               "<section name=\"Comments\">\n"
-               "  <p>This man page was written using <manref name=\"xmltoman\" section=\"1\" href=\"http://masqmail.cx/xmltoman/\"/>.</p>\n"
-               "</section>\n"
-               "</manpage>\n");
-    printf("%s", out.constData());
-}
-}
+} // namespace CommandLineParser
 
 #endif

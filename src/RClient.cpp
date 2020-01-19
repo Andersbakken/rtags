@@ -99,7 +99,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::Dependencies, "dependencies", 0, CommandLineParser::Required, "Dump dependencies for source file [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
     { RClient::AllDependencies, "all-dependencies", 0, CommandLineParser::NoValue, "Dump dependencies for all source files [(includes, included-by, depends-on, depended-on, tree-depends-on, raw)]." },
     { RClient::ReloadFileManager, "reload-file-manager", 'B', CommandLineParser::NoValue, "Reload file manager." },
-    { RClient::Man, "man", 0, CommandLineParser::NoValue, "Output XML for xmltoman to generate man page for rc :-)" },
     { RClient::CodeCompleteAt, "code-complete-at", 'l', CommandLineParser::Required, "Code complete at location: arg is file:line:col." },
     { RClient::SendDiagnostics, "send-diagnostics", 0, CommandLineParser::Required, "Only for debugging. Send data to all -G connections." },
     { RClient::DumpCompletions, "dump-completions", 0, CommandLineParser::NoValue, "Dump cached completions." },
@@ -459,10 +458,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             CommandLineParser::help(stdout, "rc", opts);
             mExitCode = RTags::Success;
             return { String(), CommandLineParser::Parse_Ok } ; }
-        case Man: {
-            CommandLineParser::man(opts);
-            mExitCode = RTags::Success;
-            return { String(), CommandLineParser::Parse_Ok }; }
         case SocketFile: {
             mSocketFile = std::move(value);
             break; }

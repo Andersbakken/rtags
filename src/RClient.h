@@ -104,7 +104,6 @@ public:
         ListSymbols,
         LoadCompileCommands,
         LogFile,
-        Man,
         MatchCaseInsensitive,
         MatchRegex,
         Max,
