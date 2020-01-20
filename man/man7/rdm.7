@@ -70,13 +70,13 @@ Use \fB\-Weverything\fR.
 Change verbosity, multiple \fB\-v\fR's are allowed.
 .TP
 \fB\-\-job\-count\fR|\-j [arg]
-Spawn this many concurrent processes for indexing.
+Spawn this many concurrent processes for indexing (default to the number of available processing units or 2 otherwise).
 .TP
 \fB\-\-test\fR|\-t [arg]
 Run this test.
 .TP
 \fB\-\-tempdir\fR [arg]
-Use this directory for temporary files. Clang generates a lot of these and rtags will periodically clean out this directory. Default is $TMPDIR/rtags/
+Use this directory for temporary files. Clang generates a lot of these and rtags will periodically clean out this directory (default is $TMPDIR/rtags/)
 .TP
 \fB\-\-test\-timeout\fR|\-z [arg]
 Timeout for test to complete.
@@ -91,10 +91,10 @@ Disable signal handler to dump stack for crashes.
 No logging to stdout/stderr.
 .TP
 \fB\-\-exclude\-filter\fR|\-X [arg]
-Files to exclude from rdm, default "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*".
+Files to exclude from rdm (default "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*".)
 .TP
 \fB\-\-socket\-file\fR|\-n [arg]
-Use this file for the server socket (default ~/.rdm).
+Use this file for the server socket (default is XDG_RUNTIME_DIR/rdm.socket else ~/.rdm).
 .TP
 \fB\-\-data\-dir\fR|\-d [arg]
 Use this directory to store persistent data (default \fI\,$XDG_CACHE_HOME/rtags\/\fP otherwise ~/.cache/rtags).

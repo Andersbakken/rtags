@@ -137,7 +137,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::MatchRegex, "match-regexp", 'Z', CommandLineParser::NoValue, "Treat various text patterns as regexps (-P, -i, -V, -F)." },
     { RClient::MatchCaseInsensitive, "match-icase", 'I', CommandLineParser::NoValue, "Match case insensitively" },
     { RClient::AbsolutePath, "absolute-path", 'K', CommandLineParser::NoValue, "Print files with absolute path." },
-    { RClient::SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this socket file (default ~/.rdm)." },
+    { RClient::SocketFile, "socket-file", 'n', CommandLineParser::Required, "Use this socket file (default is XDG_RUNTIME_DIR/rdm.socket else ~/.rdm)" },
     { RClient::SocketAddress, "socket-address", 0, CommandLineParser::Required, "Use this host:port combination (instead of --socket-file)." },
     { RClient::Timeout, "timeout", 'y', CommandLineParser::Required, "Max time in ms to wait for job to finish (default no timeout)." },
     { RClient::FindVirtuals, "find-virtuals", 'k', CommandLineParser::NoValue, "Use in combinations with -R or -r to show other implementations of this function." },
