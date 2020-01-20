@@ -105,7 +105,7 @@ else ()
 
         if (EMACS_EXECUTABLE AND NOT RTAGS_NO_ELISP_FILES)
             add_test(NAME elisptests COMMAND ${EMACS_EXECUTABLE} -batch -L ${CMAKE_BINARY_DIR}/src -l ${CMAKE_SOURCE_DIR}/tests/lisp/rtags-test.el -f ert-run-tests-batch-and-exit)
-            set_property(TEST elisptests PROPERTY ENVIRONMENT "PATH=$ENV{PATH}:${CMAKE_BINARY_DIR}/bin")
+            set_property(TEST elisptests PROPERTY ENVIRONMENT "RTAGS_BINARY_DIR=${CMAKE_BINARY_DIR}/bin")
         else()
             message(WARNING "No suitable Emacs version found! Skipping elisp tests.")
         endif ()

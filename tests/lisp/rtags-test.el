@@ -31,9 +31,16 @@
 
 (ert-deftest rtags-protocol-version-test ()
   "Test if the protocol version matches."
-  (rtags-start-process-unless-running)
-  (sit-for .5) ;; Uuh, that's nasty :)
-  (rtags-call-rc "-w"))
+  (let* ((rtags-path (getenv "RTAGS_BINARY_DIR"))
+         (tmp-path (make-temp-file "rtags-" t))
+         (rtags-socket-file (expand-file-name "rdm.socket" tmp-path)))
+    (rtags-start-process-unless-running)
+    (message "message")
+    (sit-for .5) ;; Uuh, that's nasty :)
+    (message "message")
+    (rtags-call-rc "-w")
+    (rtags-quit-rdm)
+    (delete-directory tmp-path t)))
 
 
 ;;; rtags-test.el ends here

@@ -67,8 +67,10 @@ def collect_tests():
         # Ignore any test for which a unique test file exists even though it contains a
         # expectation.json file.
         test = os.path.basename(test_dir).split('_')
-        if len(test) == 2 and any((test_file == '{1}_{0}.py'.format(*test) for test_file in pytest_files)):
-            continue
+        if len(test) == 2:
+            test_file = '{1}_{0}.py'.format(*test)
+            if any((f == test_file for f in pytest_files)):
+                continue
 
         ttype = TType.from_directory(os.path.basename(test_dir))
         expectations = json.load(open(os.path.join(test_dir, 'expectation.json'), 'r'))

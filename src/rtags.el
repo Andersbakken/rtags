@@ -4619,12 +4619,14 @@ definition."
               (lambda (item) (concat "-I" item))
               (funcall rtags-includes-func)) " "))
 
-(defun rtags-command ()
-  "Shell command used to start the `rtags-server' process."
+(defun rtags-rdm-command ()
+  "Shell command used to start the rtags-server process."
   (format "%s %s %s"
           (rtags-executable-find rtags-rdm-binary-name)
           (rtags-rdm-includes)
-          rtags-process-flags))
+          (concat (unless (string= rtags-socket-file "")
+                    (concat "--socket-file " rtags-socket-file ))
+                  rtags-process-flags)))
 
 (defun rtags-cancel-process ()
   "Stop the RTags process."
@@ -4653,8 +4655,10 @@ definition."
            (dolist (pid (reverse (list-system-processes))) ;; Check in the sys-processes for rdm
              (let* ((attrs (process-attributes pid))
                     (pname (cdr (assoc 'comm attrs)))
-                    (uid (cdr (assoc 'euid attrs))))
+                    (uid (cdr (assoc 'euid attrs)))
+                    (args (cdr (assoc 'args attrs))))
                (when (and (eq uid (user-uid))
+                          (string-equal (rtags-rdm-command) args)
                           (or (string-equal pname rtags-rdm-binary-name)
                               (string-equal pname "rdm.exe")))
                  (cl-return t))))))
@@ -4666,7 +4670,7 @@ definition."
        (rtags--error 'rtags-cannot-start-process rtags-server-executable))
       (t
        (let ((process-connection-type (not rtags-rdm-process-use-pipe)))
-         (setq rtags-rdm-process (start-file-process-shell-command "RTags" "*rdm*" (rtags-command))))
+         (setq rtags-rdm-process (start-file-process-shell-command "RTags" "*rdm*" (rtags-rdm-command))))
        (and rtags-autostart-diagnostics (rtags-diagnostics))
        (set-process-query-on-exit-flag rtags-rdm-process nil)
        (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))

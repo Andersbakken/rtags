@@ -180,6 +180,7 @@ def navigate(rtags: RTags, directory: str, expectations: dict):
         output = [line for line in rtags.rc(commands).split('\n') if len(line) > 0]
         # Compare that we have the same results in length and content
         assert len(output) == len(exp['expectation'])
-
         for line in output:
+            if line not in exp['expectation']:
+                sys.stderr.write('{} not in {}'.format(line, exp['expectation']))
             assert line in exp['expectation']
