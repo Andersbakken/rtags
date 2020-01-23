@@ -109,6 +109,8 @@ class RTags():
         while True:
             try:
                 output = sp.check_output(rc_args, stderr=sp.STDOUT).decode()
+                if output == '1\n':
+                    raise sp.CalledProcessError(int(output.strip()), rc_args)
                 break
             except sp.CalledProcessError as err:
                 self._rc_error(tries, err)
