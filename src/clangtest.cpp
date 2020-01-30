@@ -26,8 +26,8 @@ static void printCursor(CXCursor cursor)
     if (fileNameCStr) {
         CXSourceRange range = clang_getCursorExtent(cursor);
         unsigned int start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        clang_getSpellingLocation(clang_getRangeStart(range), nullptr, nullptr, nullptr, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), nullptr, nullptr, nullptr, &end);
         printf("%s:%d:%d (%d, %d-%d) ", fileNameCStr, line, col, off, start, end);
     }
     clang_disposeString(fileName);
@@ -66,19 +66,19 @@ int main(int argc, char **argv)
     if (argc < 2)
         return 1;
     CXIndex index = clang_createIndex(1, 1);
-    CXTranslationUnit unit = 0;
-    const char * const *args = 0;
+    CXTranslationUnit unit = nullptr;
+    const char * const *args = nullptr;
     const char *saved = "/tmp/unit";
     if (argc > 2) {
         if (!strcmp("--load", argv[2])) {
             int error = clang_createTranslationUnit2(index, saved, &unit);
             printf("GOT ERROR %d -> %p\n", error, unit);
             if (unit) {
-                error = clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit));
+                error = clang_reparseTranslationUnit(unit, 0, nullptr, clang_defaultReparseOptions(unit));
                 printf("GOT REPARSE RROR %d -> %p\n", error, unit);
                 if (error) {
                     clang_disposeTranslationUnit(unit);
-                    unit = 0;
+                    unit = nullptr;
                 }
             }
             --argc;
@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 
     if (!unit) {
         unit = clang_parseTranslationUnit(index, argv[1], args, argc - 2,
-                                          0, 0, clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord  |  CXTranslationUnit_ForSerialization );
+                                          nullptr, 0, clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord  |  CXTranslationUnit_ForSerialization );
         // FILE *f = fopen(argv[1], "a");
         // fprintf(f, " "); //namespace { int shitty() { return 0; } }\n");
         // fclose(f);
