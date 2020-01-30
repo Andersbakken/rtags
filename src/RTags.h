@@ -334,6 +334,8 @@ bool resolveAuto(const CXCursor &cursor, Auto *a = nullptr);
 
 int cursorArguments(const CXCursor &cursor, List<CXCursor> *args = nullptr);
 
+String usr(const CXCursor &cursor);
+
 struct Filter
 {
     enum Mode {

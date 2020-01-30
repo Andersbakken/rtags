@@ -35,11 +35,6 @@
 #include "VisitFileResponseMessage.h"
 #include "Location.h"
 
-static inline String usr(const CXCursor &cursor)
-{
-    return RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(cursor)));
-}
-
 static inline void setType(Symbol &symbol, const CXType &type)
 {
     symbol.type = type.kind;
@@ -1085,7 +1080,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         break;
     }
 
-    const String refUsr = usr(ref);
+    const String refUsr = RTags::usr(ref);
     if (refUsr.isEmpty()) {
         return false;
     }
@@ -1300,7 +1295,7 @@ std::unordered_set<CXCursor> ClangIndexer::addOverriddenCursors(const CXCursor &
 
                 const CXCursor resolved = resolveTemplate(overridden[i]);
                 ret.insert(resolved);
-                const String usr = ::usr(resolved);
+                const String usr = RTags::usr(resolved);
                 assert(!usr.isEmpty());
                 // assert(!locCursor.usr.isEmpty());
 
@@ -1529,7 +1524,7 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
             ref = std::move(tmp);
         }
     }
-    const String usr = ::usr(ref);
+    const String usr = RTags::usr(ref);
     if (usr.isEmpty()) {
         warning() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
         return;
@@ -1561,7 +1556,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                                               Location location, Symbol **cursorPtr)
 {
     auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
-    const String usr = ::usr(cursor);
+    const String usr = RTags::usr(cursor);
     // error() << "Got a cursor" << cursor;
     Symbol &c = unit(location)->symbols[location];
     if (cursorPtr)
@@ -1659,7 +1654,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             case CXCursor_ClassTemplate: {
                 const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
                 if (RTags::isValid(destructor)) {
-                    const String destructorUsr = ::usr(destructor);
+                    const String destructorUsr = RTags::usr(destructor);
                     assert(!destructorUsr.isEmpty());
                     const Location scopeEndLocation = mScopeStack.back().end;
                     auto u = unit(scopeEndLocation);
@@ -1877,15 +1872,15 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
 
         // these are for joining constructors/destructor with their classes (for renaming symbols)
-        assert(!::usr(parent).isEmpty());
-        unit(location)->targets[location][::usr(parent)] = 0;
+        assert(!RTags::usr(parent).isEmpty());
+        unit(location)->targets[location][RTags::usr(parent)] = 0;
         break; }
     case CXCursor_ClassTemplate:
     case CXCursor_StructDecl:
     case CXCursor_ClassDecl: {
         const CXCursor specialization = clang_getSpecializedCursorTemplate(cursor);
         if (RTags::isValid(specialization)) {
-            unit(location)->targets[location][::usr(specialization)] = 0;
+            unit(location)->targets[location][RTags::usr(specialization)] = 0;
             c.flags |= Symbol::TemplateSpecialization;
         }
         break; }
@@ -2330,7 +2325,7 @@ bool ClangIndexer::visit()
             bool ignored;
             const Location loc = createLocation(cursor, kind, &ignored);
             if (!loc.isNull()) {
-                const String refUsr = usr(resolveTemplateUsr(resolveTemplate(ref)));
+                const String refUsr = RTags::usr(resolveTemplateUsr(resolveTemplate(ref)));
                 if (!refUsr.isEmpty()) {
                     assert(!refUsr.isEmpty());
                     const uint32_t fileId = mSources.front().fileId;
