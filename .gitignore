@@ -53,3 +53,8 @@ gr
 /testfile.txt
 /empty.txt
 /src/CTestTestfile.cmake
+/bin/rc
+/bin/rdm
+/src/cmake_install.cmake
+/src/librct.a
+/src/librtags.a
