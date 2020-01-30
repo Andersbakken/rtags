@@ -84,11 +84,11 @@
    symbol
    (lambda (symbol loc &rest args)
      (if loc
-         (rtags-call-rc "-f" loc "--all-targets" args))
+         (apply 'rtags-call-rc "-f" loc "--all-targets" args))
      (if (= (rtags-buffer-lines) 0)
-         (rtags-call-rc "-F" symbol "--definition-only" args))
+         (apply 'rtags-call-rc "-F" symbol "--definition-only" args))
      (if (= (rtags-buffer-lines) 0)
-         (rtags-call-rc "-F" symbol args)))))
+         (apply 'rtags-call-rc "-F" symbol args)))))
 
 (cl-defmethod xref-backend-apropos ((_backend (eql rtags)) pattern)
   "Return symbols that match PATTERN, which only supports `.', `.*', `^', and `$'."
@@ -106,7 +106,7 @@
   (rtags-xref-backend-find
    pattern
    (lambda (symbol _loc &rest args)
-     (rtags-call-rc "-a" "-F" symbol args))))
+     (apply 'rtags-call-rc "-a" "-F" symbol args))))
 
 
 (cl-defmethod xref-backend-references ((_backend (eql rtags)) symbol)
@@ -115,9 +115,9 @@
    symbol
    (lambda (symbol loc &rest args)
      (if loc
-         (rtags-call-rc "-r" loc args))
+         (apply 'rtags-call-rc "-r" loc args))
      (if (= (rtags-buffer-lines) 0)
-         (rtags-call-rc "-R" symbol args)))))
+         (apply 'rtags-call-rc "-R" symbol args)))))
 
 (cl-defmethod xref-backend-identifier-completion-table ((_backend (eql rtags)))
   "Return completion function."
