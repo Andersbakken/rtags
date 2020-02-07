@@ -1019,7 +1019,6 @@ void Project::onFileRemoved(const Path &file)
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
-    removeSource(fileId);
 
     if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";
