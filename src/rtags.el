@@ -2838,7 +2838,7 @@ This includes both declarations and definitions."
   (cond ((looking-at "[0-9A-Za-z_~#]") t)
         (no-scope nil)
         ((looking-at "::") t)
-        ((and (looking-at ":") (looking-back ":")) t)
+        ((and (looking-at ":") (looking-back ":" nil)) t)
         (t nil)))
 
 (defun rtags-current-token (&optional no-scope)
