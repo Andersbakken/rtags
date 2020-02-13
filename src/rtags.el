@@ -2834,21 +2834,27 @@ This includes both declarations and definitions."
           (rtags-call-rc :path fn "-G" "-F" token)
           (rtags-handle-results-buffer token t nil fn 'guess-function-at-point))))))
 
+(defun rtags-looking-at-symbol-char (no-scope)
+  (cond ((looking-at "[0-9A-Za-z_~#]") t)
+        (no-scope nil)
+        ((looking-at "::") t)
+        ((and (looking-at ":") (looking-back ":")) t)
+        (t nil)))
+
 (defun rtags-current-token (&optional no-scope)
   "Return current program identifier under point.
 
 If NO-SCOPE is true do not include scopes \"::\""
   (save-excursion
-    (let ((symbol-chars (concat "[0-9A-Za-z_~#" (if (not no-scope) ":") "]")))
-      (when (looking-at symbol-chars)
-        (while (and (> (point) (point-min)) (looking-at symbol-chars))
-          (backward-char))
-        (when (not (looking-at symbol-chars))
+    (when (rtags-looking-at-symbol-char no-scope)
+      (while (and (> (point) (point-min)) (rtags-looking-at-symbol-char no-scope))
+        (backward-char))
+      (when (not (rtags-looking-at-symbol-char no-scope))
+        (forward-char))
+      (let ((start (point)))
+        (while (rtags-looking-at-symbol-char no-scope)
           (forward-char))
-        (let ((start (point)))
-          (while (looking-at symbol-chars)
-            (forward-char))
-          (buffer-substring-no-properties start (point)))))))
+        (buffer-substring-no-properties start (point))))))
 
 (defun rtags-rename-confirm-text (confirms prevlen)
   (with-temp-buffer
