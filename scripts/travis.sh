@@ -65,6 +65,7 @@ function gnu_linux()
     build_and_test -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
 }
 
+pip3 install --user --upgrade wheel setuptools
 pip3 install --user --upgrade pytest
 
 if [ $TRAVIS_OS_NAME = osx ]; then
