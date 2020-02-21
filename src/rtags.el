@@ -1899,7 +1899,7 @@ instead of file from `current-buffer'.
     (skip-chars-forward " ")
     (let ((prop (get-text-property (point) 'rtags-ref-location)))
       (and prop
-           (cons (format "%s:%d:%d:" (car prop) (cadr prop) (caddr prop))
+           (cons (format "%s:%d:%d:" (car prop) (cadr prop) (cl-caddr prop))
                  (/ (- (point) (point-at-bol)) rtags-tree-indent))))))
 
 (defun rtags-references-tree-collapse-all ()
@@ -4114,9 +4114,9 @@ other window instead of the current one."
                                                (split-string (car x) ":" t)))
                              rdblists))
            (sorted (sort sortable (lambda (x y)
-                                    (cond ((= (string-to-number (caddr x)) (string-to-number (caddr y)))
-                                           (< (string-to-number (cadddr x)) (string-to-number (cadddr y))))
-                                          (t (< (string-to-number (caddr x)) (string-to-number (caddr y))))))))
+                                    (cond ((= (string-to-number (cl-caddr x)) (string-to-number (cl-caddr y)))
+                                           (< (string-to-number (cl-cadddr x)) (string-to-number (cl-cadddr y))))
+                                          (t (< (string-to-number (cl-caddr x)) (string-to-number (cl-caddr y))))))))
            ;; Combine location pieces back into a string
            (alists (mapcar (lambda (x) (cons (car x) (mapconcat 'identity (cdr x) ":"))) sorted)))
       ;; Return the sorted pairs of name and location.
