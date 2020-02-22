@@ -24,6 +24,7 @@
 const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::IncludeExtraCompiler
                                                     | Source::ExcludeDefaultArguments
+                                                    | Source::FilterBlacklist
                                                     | Source::ExcludeDefaultIncludePaths
                                                     | Source::ExcludeDefaultDefines
                                                     | Source::IncludeIncludePaths
