@@ -122,11 +122,14 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             }
         }
     }
-    ++mIndentLevel;
-    clang_visitChildren(cursor, ClangThread::visitor, this);
-    if (isAborted())
-        return CXChildVisit_Break;
-    --mIndentLevel;
+    const String usr = RTags::usr(cursor);
+    if (usr.isEmpty() || mSeen.insert(usr)) {
+        ++mIndentLevel;
+        clang_visitChildren(cursor, ClangThread::visitor, this);
+        if (isAborted())
+            return CXChildVisit_Break;
+        --mIndentLevel;
+    }
     return CXChildVisit_Continue;
 }
 

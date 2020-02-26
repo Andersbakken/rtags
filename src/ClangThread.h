@@ -53,6 +53,7 @@ private:
     mutable std::mutex mMutex;
     Hash<uint32_t, Dep*> mDependencies;
     Hash<Path, String> mContextCache;
+    Set<String> mSeen;
     bool mAborted;
 };
 
