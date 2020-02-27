@@ -2228,7 +2228,7 @@ bool Server::load()
                     fclose(f);
                 }
                 if (remove) {
-                    Path::rm(file);
+                    Path::rmdir(file);
                 }
             }
         }
