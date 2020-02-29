@@ -47,6 +47,7 @@ jobs:
             - llvm
             - yarn
             - cppunit
+          update: true
     - os: osx
       osx_image: xcode11
       script: ./scripts/travis.sh
@@ -58,6 +59,7 @@ jobs:
             - llvm
             - yarn
             - cppunit
+          update: true
     - stage: Release
       before_deploy: ./scripts/rtags-release.sh
       script: true
