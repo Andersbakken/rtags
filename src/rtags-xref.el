@@ -6,7 +6,7 @@
 ;; Maintainer: RTags Team
 ;; URL: https://github.com/Andersbakken/rtags
 ;; Version: 0.2
-;; Package-Requires: ((emacs "25.1") (rtags "3.37"))
+;; Package-Requires: ((emacs "25.1") (rtags "2.37"))
 
 ;; This file is not part of GNU Emacs.
 
