@@ -217,7 +217,7 @@ bool Server::init(const Options &options)
             current.chop(1);
             const auto project = mProjects.value(current);
             if (!project) {
-                error() << "Can't restore project" << current;
+                error() << "Can't restore current project" << current;
                 unlink((mOptions.dataDir + ".currentProject").constData());
             } else {
                 setCurrentProject(project);
