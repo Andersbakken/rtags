@@ -48,7 +48,7 @@
 (require 'xref)
 (require 'rtags)
 
-(cl-defgeneric rtags-xref-backend-identifier-at-point ((_backend (eql rtags)))
+(cl-defmethod xref-backend-identifier-at-point ((_backend (eql rtags)))
   "Return the relevant identifier at point."
   (let ((thing (thing-at-point 'symbol)))
     (and thing (propertize (substring-no-properties thing)
