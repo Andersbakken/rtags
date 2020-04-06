@@ -62,29 +62,43 @@
 
 ;; Shamelessly stolen from flycheck-irony
 (defcustom flycheck-rtags-error-filter 'identity
-   "A function to filter the errors returned by this checker.
+  "A function to filter the errors returned by this checker.
 
 See ':error-filter' description in `flycheck-define-generic-checker'.
 For an example, take a look at `flycheck-dequalify-error-ids'."
-   :type 'function
-   :group 'flycheck-rtags)
+  :type 'function
+  :group 'flycheck-rtags)
 
-(defun flycheck-rtags--build-error (checker buffer)
+(defcustom flycheck-rtags-show-errors-project-wide nil
+  "Whether to show all errors, or just for the current buffer."
+  :type 'boolean
+  :group 'flycheck-rtags)
+
+(defun flycheck-rtags--build-error (checker)
   "Flycheck RTags build error function.
 CHECKER is the syntax checker used to parse BUFFER."
+  (rtags-diagnostics)
   (let* ((diagnostics-buffer (get-buffer rtags-diagnostics-buffer-name))
-         (file-name (file-truename (buffer-file-name buffer)))
-         (rx (concat "^\\(" file-name "\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
-         flycheck-errors)
+         (rx (concat "^\\(%FILE_NAME%\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
+         flycheck-errors file-name)
+
+    (if flycheck-rtags-show-errors-project-wide
+        (setq rx (replace-regexp-in-string "%FILE_NAME%" "[^:]+" rx t t))
+      (setq file-name (file-truename (buffer-file-name (current-buffer)))
+            rx (replace-regexp-in-string "%FILE_NAME%" file-name rx t t)))
+
     (with-current-buffer diagnostics-buffer
       (save-excursion
         (goto-char (point-min))
         (while (search-forward-regexp rx nil t)
-          (let ((line (string-to-number (match-string-no-properties 2)))
+          (let ((file-name (match-string-no-properties 1))
+                (line (string-to-number (match-string-no-properties 2)))
                 (column (1- (string-to-number (match-string-no-properties 3))))
                 (severity (match-string-no-properties 4))
-                (text (match-string-no-properties 5)))
-            (when (member severity '("warning" "error" "fixit"))
+                (text (match-string-no-properties 5))
+                (buffer))
+            (setq buffer (get-file-buffer (file-truename file-name)))
+            (when (and buffer (member severity '("warning" "error" "fixit")))
               (push (flycheck-error-new-at line
                                            column
                                            (pcase severity
@@ -102,9 +116,7 @@ CHECKER is the syntax checker used to parse BUFFER."
   "Flycheck RTags start function.
 CHECKER is the syntax checker (RTags).
 CALLBACK is the callback function to call."
-  (let ((buffer (current-buffer)))
-    (rtags-diagnostics)
-    (funcall callback 'finished (flycheck-rtags--build-error checker buffer))))
+  (funcall callback 'finished (flycheck-rtags--build-error checker)))
 
 (defun flycheck-rtags--verify (_checker)
   "Verify the Flycheck RTags syntax CHECKER."
