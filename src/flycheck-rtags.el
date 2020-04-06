@@ -69,8 +69,8 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
   :type 'function
   :group 'flycheck-rtags)
 
-(defcustom flycheck-rtags-show-errors-project-wide nil
-  "Whether to show all errors, or just for the current buffer."
+(defcustom flycheck-rtags-show-errors-for-all-open-buffers nil
+  "Whether to show all open buffers, or just for the current buffer."
   :type 'boolean
   :group 'flycheck-rtags)
 
@@ -82,7 +82,7 @@ CHECKER is the syntax checker used to parse BUFFER."
          (rx (concat "^\\(%FILE_NAME%\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
          flycheck-errors file-name)
 
-    (if flycheck-rtags-show-errors-project-wide
+    (if flycheck-rtags-show-errors-for-all-open-buffers
         (setq rx (replace-regexp-in-string "%FILE_NAME%" "[^:]+" rx t t))
       (setq file-name (file-truename (buffer-file-name (current-buffer)))
             rx (replace-regexp-in-string "%FILE_NAME%" file-name rx t t)))
