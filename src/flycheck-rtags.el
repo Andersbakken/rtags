@@ -69,8 +69,8 @@ For an example, take a look at `flycheck-dequalify-error-ids'."
   :type 'function
   :group 'flycheck-rtags)
 
-(defcustom flycheck-rtags-show-errors-for-all-open-buffers nil
-  "Whether to show all open buffers, or just for the current buffer."
+(defcustom flycheck-rtags-show-all-errors nil
+  "Whether to show all errors, or just for the current buffer."
   :type 'boolean
   :group 'flycheck-rtags)
 
@@ -82,7 +82,7 @@ CHECKER is the syntax checker used to parse BUFFER."
          (rx (concat "^\\(%FILE_NAME%\\):\\([0-9]+\\):\\([0-9]+\\): \\(\\w+\\): \\(.*\\)$"))
          flycheck-errors file-name)
 
-    (if flycheck-rtags-show-errors-for-all-open-buffers
+    (if flycheck-rtags-show-all-errors
         (setq rx (replace-regexp-in-string "%FILE_NAME%" "[^:]+" rx t t))
       (setq file-name (file-truename (buffer-file-name (current-buffer)))
             rx (replace-regexp-in-string "%FILE_NAME%" file-name rx t t)))
@@ -96,19 +96,25 @@ CHECKER is the syntax checker used to parse BUFFER."
                 (column (1- (string-to-number (match-string-no-properties 3))))
                 (severity (match-string-no-properties 4))
                 (text (match-string-no-properties 5))
-                (buffer))
+                buffer project)
+            (with-temp-buffer
+              (rtags-call-rc :path file-name "--current-project")
+              (when (> (point-max) (point-min))
+                (setq project (buffer-substring-no-properties (point-min) (1- (point-max))))))
             (setq buffer (get-file-buffer (file-truename file-name)))
-            (when (and buffer (member severity '("warning" "error" "fixit")))
-              (push (flycheck-error-new-at line
-                                           column
-                                           (pcase severity
-                                             (`"fixit" 'info)
-                                             (`"warning" 'warning)
-                                             ((or `"error" `"fatal") 'error))
-                                           text
-                                           :checker checker
-                                           :buffer buffer
-                                           :filename file-name)
+            (when (member severity '("warning" "error" "fixit"))
+              (push (flycheck-error-new :line line
+                                        :column column
+                                        :level (pcase severity
+                                                 (`"fixit" 'info)
+                                                 (`"warning" 'warning)
+                                                 ((or `"error" `"fatal") 'error))
+                                        :message (concat text
+                                                         " -> "
+                                                         (string-remove-prefix project file-name))
+                                        :checker checker
+                                        :buffer buffer
+                                        :filename file-name)
                     flycheck-errors))))))
     flycheck-errors))
 
