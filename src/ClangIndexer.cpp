@@ -1910,8 +1910,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
         mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : nullptr,
-                Location(location.fileId(), c.startLine, c.startColumn),
-                Location(location.fileId(), c.endLine, c.endColumn - 1)});
+                            Location(location.fileId(), c.startLine, c.startColumn),
+                            Location(location.fileId(), c.endLine, c.endColumn - 1)});
         bool isTemplateFunction = c.kind == CXCursor_FunctionTemplate;
         if (!isTemplateFunction  && (c.kind == CXCursor_CXXMethod
                                      || c.kind == CXCursor_Constructor
