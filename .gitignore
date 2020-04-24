@@ -58,6 +58,6 @@ gr
 /src/cmake_install.cmake
 /src/librct.a
 /src/librtags.a
-/src/completions/rdm
-/src/completions/rp
+/src/completions/*
+/src/completions/*
 
