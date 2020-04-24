@@ -1766,17 +1766,20 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         && c.type != CXType_RValueReference
         && c.type != CXType_Auto
         && c.type != CXType_Unexposed) {
-        c.size = std::max<uint16_t>(0, clang_Type_getSizeOf(type));
-        c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
-        if (c.size > 0 && (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl)) {
-            for (int i=mScopeStack.size() - 1; i>=0; --i) {
-                auto &scope = mScopeStack.at(i);
-                if (scope.type == Scope::FunctionDefinition) {
-                    assert(scope.symbol);
-                    scope.symbol->stackCost += c.size;
-                    break;
-                } else if (scope.type == Scope::FunctionDeclaration) {
-                    break;
+        const long long ret = clang_Type_getSizeOf(type);
+        if (ret > 0) {
+            c.size = static_cast<uint16_t>(ret);
+            c.alignment = std::max<int16_t>(-1, clang_Type_getAlignOf(type));
+            if (c.size > 0 && (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl)) {
+                for (int i=mScopeStack.size() - 1; i>=0; --i) {
+                    auto &scope = mScopeStack.at(i);
+                    if (scope.type == Scope::FunctionDefinition) {
+                        assert(scope.symbol);
+                        scope.symbol->stackCost += c.size;
+                        break;
+                    } else if (scope.type == Scope::FunctionDeclaration) {
+                        break;
+                    }
                 }
             }
         }
