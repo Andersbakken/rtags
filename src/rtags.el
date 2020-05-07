@@ -4008,7 +4008,7 @@ other window instead of the current one."
            (when bookmark
              (bookmark-set bookmark))))
     (if remove
-        (delete-window window)
+        (rtags-delete-rtags-windows)
       (when show
         (select-window window)))))
 
