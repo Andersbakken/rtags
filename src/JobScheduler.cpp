@@ -458,6 +458,6 @@ void JobScheduler::connectProcess(Process *process)
 {
     assert(process);
     process->readyReadStdOut().connect(std::bind(&JobScheduler::onProcessReadyReadStdOut, this, std::placeholders::_1));
-    process->readyReadStdOut().connect(std::bind(&JobScheduler::onProcessReadyReadStdErr, this, std::placeholders::_1));
+    process->readyReadStdErr().connect(std::bind(&JobScheduler::onProcessReadyReadStdErr, this, std::placeholders::_1));
     process->finished().connect(std::bind(&JobScheduler::onProcessFinished, this, std::placeholders::_1, std::placeholders::_2));
 }
