@@ -987,6 +987,7 @@ CXCursor findFirstChild(CXCursor parent)
 
 struct FindChildVisitor
 {
+    CXChildVisitResult result;
     CXCursorKind kind;
     String name;
     CXCursor cursor;
@@ -1007,20 +1008,20 @@ static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientDa
             return CXChildVisit_Break;
         }
     }
-    return CXChildVisit_Continue;
+    return u->result;
 }
 
-CXCursor findChild(CXCursor parent, CXCursorKind kind)
+CXCursor findChild(CXCursor parent, CXCursorKind kind, CXChildVisitResult mode)
 {
-    FindChildVisitor u = { kind, String(), clang_getNullCursor() };
+    FindChildVisitor u = { mode, kind, String(), clang_getNullCursor() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;
 }
 
-CXCursor findChild(CXCursor parent, const String &name)
+CXCursor findChild(CXCursor parent, const String &name, CXChildVisitResult mode)
 {
-    FindChildVisitor u = { CXCursor_FirstInvalid, name, clang_getNullCursor() };
+    FindChildVisitor u = { mode, CXCursor_FirstInvalid, name, clang_getNullCursor() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;

@@ -396,8 +396,8 @@ struct Filter
 };
 
 CXCursor findFirstChild(CXCursor parent);
-CXCursor findChild(CXCursor parent, CXCursorKind kind);
-CXCursor findChild(CXCursor parent, const String &name);
+CXCursor findChild(CXCursor parent, CXCursorKind kind, CXChildVisitResult mode = CXChildVisit_Recurse);
+CXCursor findChild(CXCursor parent, const String &name, CXChildVisitResult mode = CXChildVisit_Recurse);
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
 List<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
 
