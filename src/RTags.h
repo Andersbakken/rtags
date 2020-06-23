@@ -137,13 +137,14 @@ void initMessages();
 
 String eatString(CXString str);
 enum CursorToStringFlags {
-    NoCursorToStringFlags = 0x0,
-    IncludeUSR = 0x1,
-    IncludeRange = 0x2,
+    NoCursorToStringFlags = 0x00,
+    IncludeUSR = 0x01,
+    IncludeRange = 0x02,
     DefaultCursorToStringFlags = IncludeRange,
-    IncludeSpecializedUsr = 0x4,
-    IncludeStructSizeof = 0x8,
-    AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr|IncludeStructSizeof
+    IncludeSpecializedUsr = 0x04,
+    IncludeStructSizeof = 0x08,
+    RealPathCursorPath = 0x10,
+    AllCursorToStringFlags = IncludeUSR|IncludeRange|IncludeSpecializedUsr|IncludeStructSizeof|RealPathCursorPath
 };
 RCT_FLAGS(CursorToStringFlags);
 String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCursorToStringFlags);

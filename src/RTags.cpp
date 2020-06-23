@@ -564,7 +564,16 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
         const char *data = clang_getCString(file);
         if (data && *data) {
             ret += ' ';
-            ret += data;
+            if (flags & RealPathCursorPath) {
+                char buf[PATH_MAX];
+                if (realpath(data, buf)) {
+                    ret += buf;
+                } else {
+                    ret += data;
+                }
+            } else {
+                ret += data;
+            }
             ret += ':';
             ret += String::number(line);
             ret += ':';
