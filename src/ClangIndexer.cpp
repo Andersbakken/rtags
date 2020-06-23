@@ -1004,6 +1004,34 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     return false;
 }
 
+static CXChildVisitResult visito(CXCursor cursor, CXCursor, CXClientData u)
+{
+    FILE *f = reinterpret_cast<FILE *>(u);
+    fprintf(f, "GOT DUDE %s\n", RTags::cursorToString(cursor, RTags::AllCursorToStringFlags).c_str());
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    if (clang_isReference(kind)) {
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        if (!clang_equalCursors(cursor, ref)) {
+            const CXCursorKind refKind = clang_getCursorKind(ref);
+            fprintf(f, "GOT REF %s %s\n",
+                    RTags::eatString(clang_getCursorKindSpelling(refKind)).c_str(),
+                    RTags::cursorToString(ref, RTags::AllCursorToStringFlags).c_str());
+
+            // error() << "got ref" << refKind << ref;
+            switch (refKind) {
+            default:
+                break;
+
+            }
+            // if (clang_isReference(refKind)) {
+            //     fprintf(f, "YEAH\n");
+            //     clang_visitChildren(ref, visito, u);
+            // }
+        }
+    }
+    return CXChildVisit_Recurse;
+}
+
 bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Location location, CXCursor ref, Symbol **cursorPtr)
 {
     if (cursorPtr)
@@ -1275,6 +1303,23 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
 
             clang_disposeTokens(tu, tokens, numTokens);
         }
+    }
+
+    if (refKind == CXCursor_FunctionDecl && c->symbolName == "make_shared") {
+        FILE *f = fopen("/tmp/foo", "a");
+        fprintf(f, "SHIT %s %d\n", c->symbolName.c_str(), result);
+        CXCursor p1 = clang_getCursorSemanticParent(ref);
+        CXCursor p2 = clang_getCursorSemanticParent(p1);
+        if (clang_getCursorKind(p1) == CXCursor_Namespace
+            && RTags::eatString(clang_getCursorSpelling(p1)) == "std"
+            && clang_getCursorKind(p2) == CXCursor_TranslationUnit) {
+            size_t i = 0;
+            for (CXCursor dude : { /* cursor, clang_getSpecializedCursorTemplate(cursor),  */ref/* , clang_getSpecializedCursorTemplate(ref) */}) {
+                fprintf(f, "VISIT %zu\n", i++);
+                clang_visitChildren(dude, visito, f);
+            }
+        }
+        fclose(f);
     }
 
     return true;
