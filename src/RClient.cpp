@@ -884,11 +884,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case JobCount:
         case Status: {
             QueryMessage::Type queryType = QueryMessage::Invalid;
-            enum {
-                NoResolve,
-                Resolve,
-                HasLocation
-            } resolve = HasLocation;
+            bool resolve = true;
 
             switch (type) {
             case CheckReindex:
@@ -896,25 +892,23 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 break;
             case Reindex:
                 queryType = QueryMessage::Reindex;
-                resolve = Resolve;
                 break;
             case Project:
                 queryType = QueryMessage::Project;
-                resolve = Resolve;
                 break;
             case IsIndexing:
                 queryType = QueryMessage::IsIndexing;
                 break;
             case FindFile:
                 queryType = QueryMessage::FindFile;
-                resolve = NoResolve;
+                resolve = false;
                 break;
             case Sources:
                 queryType = QueryMessage::Sources;
                 break;
             case IncludeFile:
                 queryType = QueryMessage::IncludeFile;
-                resolve = NoResolve;
+                resolve = false;
                 break;
             case Status:
                 queryType = QueryMessage::Status;
@@ -941,19 +935,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             if (!arg.isEmpty()) {
                 Path p(arg);
-                if (resolve != NoResolve && p.exists()) {
+                if (resolve && p.exists()) {
                     p.resolve();
                 }
-                switch (resolve) {
-                case HasLocation:
-                    addQuery(queryType, std::move(p), QueryMessage::HasLocation);
-                    break;
-                case Resolve:
+                if (resolve) {
                     addQuery(queryType, std::move(p));
-                    break;
-                case NoResolve:
+                } else {
                     addQuery(queryType, std::move(arg));
-                    break;
                 }
             } else {
                 addQuery(queryType, String());
