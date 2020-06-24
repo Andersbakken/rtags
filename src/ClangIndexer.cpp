@@ -1273,7 +1273,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     if (refKind == CXCursor_FunctionDecl && c->symbolName == "make_shared") {
-        handleMakeShared(cursor, ref, targets);
+        handleMakeShared(cursor, targets);
     }
 
     return true;
@@ -1377,8 +1377,9 @@ static MatchTypeResult matchTypes(CXCursor argument, const CXCursor &candidate)
     return Mismatch;
 }
 
-void ClangIndexer::handleMakeShared(const CXCursor &cursor, const CXCursor &ref, Map<String, uint16_t> &targets)
+void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t> &targets)
 {
+    CXCursor ref = clang_getCursorReferenced(cursor);
     CXCursor p1 = clang_getCursorSemanticParent(ref);
     CXCursor p2 = clang_getCursorSemanticParent(p1);
     if (clang_getCursorKind(p1) != CXCursor_Namespace
@@ -1398,13 +1399,17 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, const CXCursor &ref,
         }
     }
 
-    // ### this doesn't work for nested classes
-    CXCursor typeRef = RTags::findChild(cursor, CXCursor_TypeRef);
-    CXCursor clazz = clang_getCursorReferenced(typeRef);
+    CXType clazzType = clang_Cursor_getTemplateArgumentType(ref, 0);
+    CXCursor clazz = clang_getTypeDeclaration(clazzType);
     const int refCount = clang_Cursor_getNumArguments(call);
 
-    RTags::Filter filter;
-    filter.kinds.insert(CXCursor_Constructor);
+    static RTags::Filter filter;
+    static bool first = true;
+    if (first) {
+        filter.kinds.insert(CXCursor_Constructor);
+        first = false;
+    }
+
     List<CXCursor> constructors = RTags::children(clazz, filter);
     List<String> usrs;
     usrs.reserve(constructors.size());
