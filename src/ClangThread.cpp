@@ -104,6 +104,11 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                 }
             };
 
+            const int argCount = clang_Cursor_getNumArguments(cursor);
+            if (argCount != -1) {
+                message.append(String::format("arg count: %d ", argCount));
+            }
+
             CXCursor ref = clang_getCursorReferenced(cursor);
             bool refSpecialized = false;
             if (RTags::isValid(ref) && ref != cursor) {

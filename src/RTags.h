@@ -571,6 +571,37 @@ inline bool needsQualifiers(CXCursorKind kind)
     return false;
 }
 
+inline bool isNumber(CXTypeKind kind)
+{
+    switch (kind) {
+    case CXType_Bool:
+    case CXType_Char_U:
+    case CXType_UChar:
+    case CXType_Char16:
+    case CXType_Char32:
+    case CXType_UShort:
+    case CXType_UInt:
+    case CXType_ULong:
+    case CXType_ULongLong:
+    case CXType_UInt128:
+    case CXType_Char_S:
+    case CXType_SChar:
+    case CXType_WChar:
+    case CXType_Short:
+    case CXType_Int:
+    case CXType_Long:
+    case CXType_LongLong:
+    case CXType_Int128:
+    case CXType_Float:
+    case CXType_Double:
+    case CXType_LongDouble:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 String typeName(const CXCursor &cursor);
 inline const char *builtinTypeName(CXTypeKind kind)
 {
@@ -1096,7 +1127,7 @@ inline Log operator<<(Log dbg, CXCursorKind kind)
 
 inline Log operator<<(Log dbg, CXTypeKind kind)
 {
-    dbg << RTags::eatString(clang_getTypeKindSpelling(kind));
+    dbg << static_cast<int>(kind) << RTags::eatString(clang_getTypeKindSpelling(kind));
     return dbg;
 }
 

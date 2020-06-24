@@ -115,6 +115,7 @@ private:
     bool superclassTemplateMemberFunctionUgleHack(const CXCursor &cursor, CXCursorKind kind,
                                                   Location location, const CXCursor &ref,
                                                   Symbol **cursorPtr = nullptr);
+    void handleMakeShared(const CXCursor &cursor, const CXCursor &ref, Map<String, uint16_t> &targets);
     void visit(CXCursor cursor)
     {
         mParents.append(cursor);

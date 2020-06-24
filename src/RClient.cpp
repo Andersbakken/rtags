@@ -896,6 +896,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 break;
             case Reindex:
                 queryType = QueryMessage::Reindex;
+                resolve = Resolve;
                 break;
             case Project:
                 queryType = QueryMessage::Project;
