@@ -1382,9 +1382,18 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
     CXCursor ref = clang_getCursorReferenced(cursor);
     CXCursor p1 = clang_getCursorSemanticParent(ref);
     CXCursor p2 = clang_getCursorSemanticParent(p1);
-    if (clang_getCursorKind(p1) != CXCursor_Namespace
-        || RTags::eatString(clang_getCursorSpelling(p1)) != "std"
-        || clang_getCursorKind(p2) != CXCursor_TranslationUnit) {
+    if (clang_getCursorKind(p1) != CXCursor_Namespace)
+        return;
+    switch (clang_getCursorKind(p2)) {
+    case CXCursor_TranslationUnit:
+        if (RTags::eatString(clang_getCursorSpelling(p1)) != "std")
+            return;
+        break;
+    case CXCursor_Namespace:
+        if (RTags::eatString(clang_getCursorSpelling(p2)) != "std")
+            return;
+        break;
+    default:
         return;
     }
 
