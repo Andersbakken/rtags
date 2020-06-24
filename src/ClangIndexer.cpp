@@ -1273,10 +1273,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     if (refKind == CXCursor_FunctionDecl && c->symbolName == "make_shared") {
-        FILE *f = fopen("/tmp/gotit", "w");
-        auto fisk = Rct::backtrace();
-        fwrite(fisk.constData(), fisk.size(), 1, f);
-        fclose(f);
         handleMakeShared(cursor, ref, targets);
     }
 
