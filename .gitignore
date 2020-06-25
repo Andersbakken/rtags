@@ -61,3 +61,6 @@ gr
 /src/completions/*
 /src/completions/*
 
+/bin/vast
+/src/vast/*.cmake
+/src/vast/vast_autogen/

@@ -349,3 +349,7 @@ if (CLANGTEST_ENABLED)
     add_executable(clangtest clangtest.cpp)
     target_link_libraries(clangtest ${LIBCLANG_LIBRARIES})
 endif ()
+
+if (VAST_ENABLED)
+    add_subdirectory(vast)
+endif ()
