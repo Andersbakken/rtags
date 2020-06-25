@@ -88,8 +88,9 @@ int main(int argc, char **argv)
     }
 
     if (!unit) {
-        unit = clang_parseTranslationUnit(index, argv[1], args, argc - 2,
-                                          nullptr, 0, clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord  |  CXTranslationUnit_ForSerialization );
+        unit = clang_parseTranslationUnit(index, nullptr, args, argc - 2,
+                                          nullptr, 0,
+                                          clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord | CXTranslationUnit_ForSerialization );
         // FILE *f = fopen(argv[1], "a");
         // fprintf(f, " "); //namespace { int shitty() { return 0; } }\n");
         // fclose(f);
