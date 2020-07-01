@@ -64,6 +64,8 @@ public:
         Unfiltered = 0x04,
         NoContext = 0x08
     };
+    String symbolToString(const Symbol &symbol) const;
+
     bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
     bool write(const Symbol &symbol, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     bool write(Location location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());

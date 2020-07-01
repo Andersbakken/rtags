@@ -208,7 +208,7 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
     return write(out, flags);
 }
 
-bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
+String QueryJob::symbolToString(const Symbol &symbol) const
 {
     Flags<Symbol::ToStringFlag> toStringFlags;
     if (queryFlags() & QueryMessage::SymbolInfoIncludeTargets)
@@ -226,14 +226,17 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
     if (queryFlags() & (QueryMessage::ContainingFunctionLocation | QueryMessage::JSON | QueryMessage::Elisp))
         toStringFlags |= Symbol::IncludeContainingFunctionLocation;
 
-    if (symbol.isNull())
-        return false;
+    if (symbol.isNull()) {
+        return String();
+    }
 
-    if (!filterLocation(symbol.location))
-        return false;
+    if (!filterLocation(symbol.location)) {
+        return String();
+    }
 
-    if (!mKindFilters.filter(symbol))
-        return false;
+    if (!mKindFilters.filter(symbol)) {
+        return String();
+    }
 
     String out;
     if (queryFlags() & (QueryMessage::Elisp | QueryMessage::JSON)) {
@@ -246,7 +249,15 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
     } else {
         out = symbol.toString(project(), toStringFlags, locationToStringFlags(), mPieceFilters);
     }
-    return write(out, writeFlags | Unfiltered);
+    return out;
+}
+
+bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
+{
+    String out = symbolToString(symbol);
+    if (!out.isEmpty())
+        return write(out, writeFlags | Unfiltered);
+    return true;
 }
 
 bool QueryJob::filter(const String &value) const

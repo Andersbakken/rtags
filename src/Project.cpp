@@ -2920,9 +2920,9 @@ void Project::validateAll()
         startDirtyJobs(&dirty, IndexerJob::Dirty);
 }
 
-Set<Symbol> Project::findDeadFunctions(uint32_t fileId)
+Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
 {
-    Set<Symbol> ret;
+    Map<Symbol, size_t> ret;
     auto processFile = [this, &ret](uint32_t file, Set<String> *seen = nullptr) {
         auto symbols = openSymbols(file);
         if (!symbols)
@@ -2935,9 +2935,12 @@ Set<Symbol> Project::findDeadFunctions(uint32_t fileId)
                 && s.kind != CXCursor_Destructor
                 && s.kind != CXCursor_LambdaExpr
                 && !s.symbolName.startsWith("int main(")
-                && (!seen || seen->insert(s.usr))
-                && findCallers(s, 1).isEmpty()) {
-                ret.insert(std::move(s));
+                && !s.symbolName.startsWith("void main(")
+                && (!seen || seen->insert(s.usr))) {
+                const size_t callers = findCallers(s, 2).size();
+                if (callers < 2) {
+                    ret[std::move(s)] = callers;
+                }
             }
         }
     };

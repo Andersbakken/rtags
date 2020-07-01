@@ -1734,9 +1734,16 @@ void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std
                 bool failed = false;
                 const std::shared_ptr<Project> proj = project();
                 auto process = [this, proj, &failed](uint32_t file) {
-                    for (const Symbol &symbol : proj->findDeadFunctions(file)) {
-                        if (!failed && !write(symbol))
-                            failed = true;
+                    for (const auto &pair : proj->findDeadFunctions(file)) {
+                        String out = symbolToString(pair.first);
+                        if (!out.isEmpty()) {
+                            out.chop(1);
+                            out += String::format<32>(" - %zu callers\n", pair.second);
+                            if (!write(out, Unfiltered)) {
+                                failed = true;
+                                break;
+                            }
+                        }
                     }
                 };
                 if (!fileId) {

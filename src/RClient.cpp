@@ -112,7 +112,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::DebugLocations, "debug-locations", 0, CommandLineParser::Optional, "Manipulate debug locations." },
     { RClient::Validate, "validate", 0, CommandLineParser::NoValue, "Validate database files for current project." },
     { RClient::Tokens, "tokens", 0, CommandLineParser::Required, "Dump tokens for file. --tokens file.cpp:123-321 for range." },
-    { RClient::DeadFunctions, "find-dead-functions", 0, CommandLineParser::Optional, "Find functions declared/defined in the current file that are never in the project." },
+    { RClient::DeadFunctions, "find-dead-functions", 0, CommandLineParser::Optional, "Find functions declared/defined in the current file that are never used in the project." },
 
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Command flags:" },

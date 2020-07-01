@@ -123,7 +123,7 @@ public:
         All
     };
 
-    Set<Symbol> findDeadFunctions(uint32_t fileId);
+    Map<Symbol, size_t> findDeadFunctions(uint32_t fileId);
     Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool dependsOn(uint32_t source, uint32_t header) const;
     String dumpDependencies(uint32_t fileId,
