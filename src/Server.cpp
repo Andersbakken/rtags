@@ -1744,7 +1744,7 @@ void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std
                     all.remove([](uint32_t file) { return Location::path(file).isSystem(); });
                     size_t idx = 0;
                     const Path projectPath = proj->path();
-                    for (uint32_t file : proj->dependencies(0, Project::All)) {
+                    for (uint32_t file : all) {
                         if (raw) {
                             Path p = Location::path(file);
                             const char *ch = p.constData();
