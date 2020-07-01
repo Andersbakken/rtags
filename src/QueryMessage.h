@@ -127,7 +127,7 @@ public:
         CodeCompleteNoWait = (1ull << 46),
         SymbolInfoIncludeSourceCode = (1ull << 47),
         AllTargets = (1ull << 48),
-        HasMatch = (1ull << 29)
+        HasMatch = (1ull << 49)
     };
 
     QueryMessage(Type type = Invalid);
