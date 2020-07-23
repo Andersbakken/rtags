@@ -31,6 +31,10 @@ Tarball releases are available here:
 https://github.com/Andersbakken/rtags/releases/
 
 * TLDR Quickstart
+We assume you have something to generate a JSON Compilation Database
+for your project. Your build system probably has a way to generate it,
+or you can look at something like [[https://github.com/rizsotto/Bear][Bear]].
+
 Build RTags
 
 #+BEGIN_SRC sh
