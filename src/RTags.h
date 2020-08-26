@@ -32,7 +32,6 @@
 #include <ctype.h>
 #include <unistd.h>
 #include <clang-c/Index.h>
-#include <ext/alloc_traits.h>
 #include <stdint.h>
 #include <string.h>
 #include <typeinfo>
