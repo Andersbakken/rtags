@@ -16,10 +16,14 @@
 #ifndef FindSymbolsJob_h
 #define FindSymbolsJob_h
 
+#include <memory>
+
 #include "QueryJob.h"
 #include "rct/String.h"
 
 class QueryMessage;
+class Project;
+
 class FindSymbolsJob : public QueryJob
 {
 public:

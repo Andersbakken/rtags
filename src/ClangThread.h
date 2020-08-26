@@ -17,15 +17,25 @@
 #define ClangThread_h
 
 #include <clang-c/Index.h>
+#include <stdint.h>
+#include <memory>
+#include <mutex>
 
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/Thread.h"
 #include "rct/Value.h"
 #include "Source.h"
+#include "rct/Hash.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 class Connection;
 struct Dep;
+class Location;
+class Path;
+class QueryMessage;
+
 class ClangThread : public Thread
 {
 public:

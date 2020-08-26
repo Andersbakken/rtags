@@ -15,9 +15,18 @@
 
 #include "CompilerManager.h"
 
+#include <assert.h>
+#include <ctype.h>
+#include <string.h>
+#include <mutex>
+
 #include "rct/Log.h"
 #include "rct/Process.h"
 #include "Source.h"
+#include "rct/Hash.h"
+#include "rct/Path.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 static std::mutex sMutex;
 struct Compiler {

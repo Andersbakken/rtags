@@ -17,6 +17,8 @@
 #define Sandbox_h
 
 #include <Source.h>
+#include <type_traits>
+
 #include "rct/String.h"
 #include "rct/Path.h"
 #include "rct/Map.h"

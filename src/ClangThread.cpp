@@ -14,9 +14,26 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include "ClangThread.h"
+
+#include <assert.h>
+#include <functional>
+#include <utility>
+
 #include "rct/Connection.h"
 #include "RTags.h"
-#include "Server.h"
+#include "Location.h"
+#include "Project.h"
+#include "QueryMessage.h"
+#include "clang-c/CXString.h"
+#include "clang-c/Index.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Log.h"
+#include "rct/Map.h"
+#include "rct/Path.h"
+#include "rct/SignalSlot.h"
+#include "rct/StopWatch.h"
 
 struct Dep : public DependencyNode
 {

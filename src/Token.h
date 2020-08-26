@@ -16,10 +16,13 @@
 #ifndef Token_h
 #define Token_h
 
+#include <clang-c/Index.h>
+#include <stdint.h>
+
 #include "rct/Serializer.h"
 #include "rct/Log.h"
 #include "Location.h"
-#include <clang-c/Index.h>
+#include "rct/String.h"
 
 struct Token
 {

@@ -15,12 +15,22 @@
 
 #include "ListSymbolsJob.h"
 
+#include <stddef.h>
+#include <stdint.h>
+#include <algorithm>
+#include <functional>
+#include <set>
+#include <vector>
+
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/List.h"
-#include "rct/Log.h"
 #include "RTags.h"
-#include "Server.h"
+#include "FileMap.h"
+#include "Location.h"
+#include "Symbol.h"
+#include "rct/Flags.h"
+#include "rct/Path.h"
 
 const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | QueryJob::QuietJob);
 const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);

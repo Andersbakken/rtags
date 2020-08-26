@@ -16,8 +16,13 @@
 #ifndef ClassHierarchyJob_h
 #define ClassHierarchyJob_h
 
+#include <memory>
+
 #include "Location.h"
 #include "QueryJob.h"
+
+class Project;
+class QueryMessage;
 
 class ClassHierarchyJob : public QueryJob
 {

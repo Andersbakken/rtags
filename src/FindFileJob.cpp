@@ -15,11 +15,23 @@
 
 #include "FindFileJob.h"
 
+#include <assert.h>
+#include <limits.h>
+#include <map>
+#include <set>
+#include <sstream>
+#include <utility>
+#include <vector>
+
 #include "FileManager.h"
 #include "Project.h"
-#include "rct/SignalSlot.h"
 #include "RTags.h"
-#include "Server.h"
+#include "QueryMessage.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
+#include "rct/Set.h"
 
 static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
 {

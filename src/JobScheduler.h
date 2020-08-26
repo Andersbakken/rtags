@@ -16,7 +16,10 @@
 #ifndef JobScheduler_h
 #define JobScheduler_h
 
+#include <assert.h>
+#include <stdint.h>
 #include <memory>
+#include <ctime>
 
 #include "rct/EmbeddedLinkedList.h"
 #include "rct/Set.h"
@@ -31,6 +34,7 @@ class IndexerJob;
 class Process;
 class Project;
 struct DependencyNode;
+
 class JobScheduler : public std::enable_shared_from_this<JobScheduler>
 {
 public:

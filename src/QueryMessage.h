@@ -16,7 +16,13 @@
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
+#include <stdint.h>
 #include <algorithm>
+#include <functional>
+#include <map>
+#include <utility>
+#include <vector>
+
 #include "Location.h"
 #include "Match.h"
 #include "rct/Flags.h"
@@ -25,6 +31,12 @@
 #include "rct/Serializer.h"
 #include "RTags.h"
 #include "RTagsMessage.h"
+#include "rct/List.h"
+#include "rct/Map.h"
+#include "rct/Set.h"
+#include "rct/String.h"
+
+struct Symbol;
 
 class QueryMessage : public RTagsMessage
 {

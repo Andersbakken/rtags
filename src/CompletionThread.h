@@ -17,9 +17,12 @@
 #define CompletionThread_h
 
 #include <clang-c/Index.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
+#include <utility>
 
 #include "Location.h"
 #include "rct/Connection.h"
@@ -30,8 +33,15 @@
 #include "rct/Thread.h"
 #include "Source.h"
 #include "RTags.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Set.h"
+#include "rct/String.h"
+#include "rct/Value.h"
 
 struct MatchResult;
+class Project;
+
 class CompletionThread : public Thread
 {
 public:
@@ -60,6 +70,7 @@ public:
     String dump();
 private:
     struct Request;
+
     void processDiagnostics(const Request *request, CXCodeCompleteResults *results, CXTranslationUnit unit);
     void process(Request *request);
 

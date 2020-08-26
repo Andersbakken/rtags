@@ -14,19 +14,31 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include "CompletionThread.h"
+
+#include <assert.h>
+#include <string.h>
+#include <functional>
+#include <list>
+#include <unordered_map>
+
 #include "IndexDataMessage.h"
 #include "Project.h"
-
 #include "rct/StopWatch.h"
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 #include "Server.h"
-
-#include <sstream>
-#include <fstream>
 #include "rct/StringTokenizer.h"
+#include "Diagnostic.h"
+#include "QueryMessage.h"
+#include "clang-c/CXString.h"
+#include "clang-c/Index.h"
+#include "rct/EventLoop.h"
+#include "rct/Log.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
 #ifdef HAS_JSON_H
 #include "rct/json/json.hpp"
+
 using namespace nlohmann;
 #endif
 

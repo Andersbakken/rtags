@@ -16,10 +16,15 @@
 #ifndef TokenssJob_h
 #define TokenssJob_h
 
+#include <stdint.h>
+#include <memory>
+
 #include "QueryJob.h"
 #include "rct/String.h"
 
 class QueryMessage;
+class Project;
+
 class TokensJob : public QueryJob
 {
 public:

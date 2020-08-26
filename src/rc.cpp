@@ -13,7 +13,11 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
+#include <stdio.h>
+
 #include "RClient.h"
+#include "CommandLineParser.h"
+#include "rct/String.h"
 
 int main(int argc, char** argv)
 {

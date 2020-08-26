@@ -16,8 +16,14 @@
 #ifndef IncludeFileJob_h
 #define IncludeFileJob_h
 
+#include <memory>
+
 #include "QueryJob.h"
 #include "rct/String.h"
+#include "Source.h"
+
+class Project;
+class QueryMessage;
 
 class IncludeFileJob : public QueryJob
 {

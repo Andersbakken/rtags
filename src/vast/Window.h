@@ -1,13 +1,32 @@
 #ifndef WINDOW_H
 #define WINDOW_H
 
+#include <qabstractitemmodel.h>
+#include <qmainwindow.h>
+#include <qobjectdefs.h>
+#include <qstring.h>
+#include <stddef.h>
 #include <QtWidgets>
+#include <memory>
+#include <vector>
+
 #include "TranslationUnit.h"
 #include "Model.h"
 #include "TreeView.h"
 #include "SearchEdit.h"
-#include <memory>
-#include <vector>
+
+class Model;
+class QAction;
+class QLabel;
+class QMoveEvent;
+class QObject;
+class QPlainTextEdit;
+class QResizeEvent;
+class QShowEvent;
+class QSplitter;
+class SearchEdit;
+class TranslationUnit;
+class TreeView;
 
 class Window : public QMainWindow
 {

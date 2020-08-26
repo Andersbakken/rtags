@@ -15,9 +15,23 @@
 
 #include "ReferencesJob.h"
 
+#include <stddef.h>
+#include <algorithm>
+#include <functional>
+#include <map>
+#include <utility>
+#include <vector>
+
 #include "Project.h"
 #include "RTags.h"
-#include "Server.h"
+#include "QueryMessage.h"
+#include "Symbol.h"
+#include "clang-c/Index.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Map.h"
+#include "rct/Path.h"
+#include "rct/Value.h"
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {

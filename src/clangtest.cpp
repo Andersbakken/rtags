@@ -1,10 +1,9 @@
 // cc clangtest.c `llvm-config-3.8 --cflags` -lclang `llvm-config-3.8 --ldflags` -o clangtest
 #include <clang-c/Index.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <sys/stat.h>
+
+#include "clang-c/CXString.h"
 
 static void printString(const char *name, CXString string)
 {

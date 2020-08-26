@@ -1,12 +1,17 @@
 #include "TranslationUnit.h"
-#include "Node.h"
+
 #include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
 #include <unistd.h>
 #include <assert.h>
 #include <string.h>
 #include <clang-c/CXCompilationDatabase.h>
+#include <stdlib.h>
+#include <string>
+#include <unordered_set>
+
+#include "Node.h"
+#include "clang-c/CXString.h"
+#include "clang-c/Index.h"
 
 std::unique_ptr<TranslationUnit> TranslationUnit::create(char **argv, int argc, unsigned int flags)
 {

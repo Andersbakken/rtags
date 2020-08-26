@@ -15,11 +15,13 @@
 
 #include "Location.h"
 
-#include "rct/Rct.h"
+#include <ctype.h>
+#include <memory>
+
 #include "RTags.h"
 #include "Server.h"
 #include "Project.h"
-#include "ClangIndexer.h"
+#include "Sandbox.h"
 
 Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;

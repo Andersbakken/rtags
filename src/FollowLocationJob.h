@@ -16,8 +16,13 @@
 #ifndef FollowLocationJob_h
 #define FollowLocationJob_h
 
+#include <memory>
+
 #include "Location.h"
 #include "QueryJob.h"
+
+class Project;
+class QueryMessage;
 
 class FollowLocationJob : public QueryJob
 {

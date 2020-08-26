@@ -16,12 +16,18 @@
 #ifndef ListSymbolsJob_h
 #define ListSymbolsJob_h
 
+#include <memory>
+
 #include "QueryJob.h"
 #include "rct/String.h"
+#include "rct/Set.h"
 
 template <typename T>
 class List;
 class QueryMessage;
+class Path;
+class Project;
+
 class ListSymbolsJob : public QueryJob
 {
 public:

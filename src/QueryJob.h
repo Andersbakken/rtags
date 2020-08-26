@@ -16,8 +16,16 @@
 #ifndef QueryJob_h
 #define QueryJob_h
 
+#include <stdarg.h>
+#include <stdint.h>
 #include <regex>
 #include <mutex>
+#include <functional>
+#include <map>
+#include <memory>
+#include <sstream>
+#include <utility>
+#include <vector>
 
 #include "Project.h"
 #include "QueryMessage.h"
@@ -25,11 +33,16 @@
 #include "rct/List.h"
 #include "rct/SignalSlot.h"
 #include "rct/String.h"
+#include "Location.h"
+#include "rct/Hash.h"
+#include "rct/Path.h"
+#include "rct/Set.h"
 
 class Location;
 class QueryMessage;
 class Connection;
 struct Symbol;
+
 class QueryJob : public Project::FileMapScopeScope
 {
 public:

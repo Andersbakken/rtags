@@ -17,8 +17,22 @@
 
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <ext/alloc_traits.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <functional>
+#include <initializer_list>
+#include <regex>
+#include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-#include "FileMap.h"
 #include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "rct/Connection.h"
@@ -26,10 +40,17 @@
 #include "rct/Log.h"
 #include "rct/QuitMessage.h"
 #include "rct/Rct.h"
-#include "rct/StopWatch.h"
 #include "rct/OnDestruction.h"
 #include "RTags.h"
-#include "RTagsLogOutput.h"
+#include "Location.h"
+#include "clang-c/Index.h"
+#include "rct/Hash.h"
+#include "rct/Map.h"
+#include "rct/Message.h"
+#include "rct/ResponseMessage.h"
+#include "rct/Serializer.h"
+#include "rct/SignalSlot.h"
+#include "rct/SocketClient.h"
 
 #define DEFAULT_CONNECT_TIMEOUT 1000
 #define XSTR(s) #s

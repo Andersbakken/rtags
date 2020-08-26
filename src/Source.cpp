@@ -15,11 +15,27 @@
 
 #include "Source.h"
 
+#include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <functional>
+#include <initializer_list>
+#include <set>
+#include <utility>
+#include <vector>
+
 #include "Location.h"
-#include "rct/EventLoop.h"
 #include "rct/Process.h"
 #include "RTags.h"
 #include "Server.h"
+#include "Sandbox.h"
+#include "rct/Hash.h"
+#include "rct/Map.h"
 
 void Source::clear()
 {

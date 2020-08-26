@@ -1,7 +1,12 @@
 #include "Node.h"
-#include "TranslationUnit.h"
+
 #include <string.h>
 #include <assert.h>
+#include <stdio.h>
+#include <utility>
+
+#include "TranslationUnit.h"
+#include "clang-c/Index.h"
 
 static inline CXType clang_getNullType()
 {
@@ -145,7 +150,6 @@ Node *Node::elementType()
     });
 }
 
-#include "Model.h"
 Node *Node::reference()
 {
     return impl(Reference, [this]() {

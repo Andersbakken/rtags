@@ -15,11 +15,17 @@
 
 #include "TokensJob.h"
 
+#include <functional>
+
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/Log.h"
 #include "RTags.h"
-#include "Server.h"
+#include "FileMap.h"
+#include "Symbol.h"
+#include "Token.h"
+#include "rct/Flags.h"
+#include "rct/String.h"
 
 TokensJob::TokensJob(const std::shared_ptr<QueryMessage> &query,
                      uint32_t fileId,

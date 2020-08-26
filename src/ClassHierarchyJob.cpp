@@ -15,9 +15,15 @@
 
 #include "ClassHierarchyJob.h"
 
+#include <functional>
+
 #include "Project.h"
-#include "RTags.h"
-#include "Server.h"
+#include "Symbol.h"
+#include "rct/List.h"
+#include "rct/Set.h"
+#include "rct/String.h"
+
+class QueryMessage;
 
 ClassHierarchyJob::ClassHierarchyJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,

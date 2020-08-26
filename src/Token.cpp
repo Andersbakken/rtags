@@ -15,6 +15,8 @@
 
 #include "Token.h"
 
+#include "rct/List.h"
+
 String Token::toString() const
 {
     String ret;

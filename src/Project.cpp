@@ -15,29 +15,46 @@
 
 #include "Project.h"
 
-#include <fnmatch.h>
+#include <Source.h>
+#include <ext/alloc_traits.h>
+#include <limits.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
 #include <memory>
 #include <regex>
 #include <utility>
+#include <algorithm>
+#include <initializer_list>
+#include <limits>
+#include <map>
+#include <sstream>
+#include <vector>
 
 #include "Diagnostic.h"
 #include "FileManager.h"
 #include "CompilerManager.h"
 #include "IndexDataMessage.h"
 #include "JobScheduler.h"
-#include "LogOutputMessage.h"
 #include "rct/DataFile.h"
 #include "rct/Log.h"
 #include "rct/MemoryMonitor.h"
 #include "rct/Path.h"
 #include "rct/Rct.h"
-#include "rct/ReadLocker.h"
-#include "rct/Thread.h"
 #include "rct/Value.h"
 #include "RTags.h"
 #include "RTagsLogOutput.h"
 #include "Server.h"
 #include "RTagsVersion.h"
+#include "FileMap.h"
+#include "FixIt.h"
+#include "Match.h"
+#include "Sandbox.h"
+#include "Token.h"
+#include "clang-c/Index.h"
+#include "rct/Connection.h"
+#include "rct/SignalSlot.h"
 
 enum
 {

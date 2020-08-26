@@ -15,11 +15,14 @@
 
 #include "DependenciesJob.h"
 
-#include "FileManager.h"
+#include <algorithm>
+
 #include "Project.h"
 #include "QueryMessage.h"
-#include "RTags.h"
-#include "Server.h"
+#include "Location.h"
+#include "rct/Flags.h"
+#include "rct/Path.h"
+#include "rct/Serializer.h"
 
 DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : QueryJob(query, project, QuietJob)

@@ -16,10 +16,21 @@
 #ifndef IndexerJob_h
 #define IndexerJob_h
 
+#include <assert.h>
+#include <stdint.h>
+#include <functional>
+#include <memory>
+#include <vector>
+
 #include "rct/Flags.h"
 #include "rct/SignalSlot.h"
 #include "RTags.h"
 #include "Source.h"
+#include "rct/Path.h"
+#include "rct/Set.h"
+#include "rct/String.h"
+
+class Project;
 
 class IndexerJob
 {

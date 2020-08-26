@@ -14,8 +14,6 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include "Sandbox.h"
-#include "Server.h"
-#include "ClangIndexer.h"
 
 static Path sRoot;
 namespace Sandbox {

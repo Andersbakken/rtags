@@ -16,15 +16,24 @@
 #ifndef IndexParseData_h
 #define IndexParseData_h
 
+#include <cstdint>
+#include <functional>
+#include <algorithm>
+#include <unordered_map>
+#include <utility>
+
 #include "rct/Path.h"
 #include "rct/List.h"
 #include "rct/Serializer.h"
 #include "rct/Log.h"
-#include <cstdint>
 #include "RTags.h"
 #include "rct/Connection.h"
 #include "Match.h"
-#include <functional>
+#include "Location.h"
+#include "Sandbox.h"
+#include "Source.h"
+#include "rct/Hash.h"
+#include "rct/String.h"
 
 class IndexParseData
 {

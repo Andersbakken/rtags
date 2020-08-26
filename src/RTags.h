@@ -30,12 +30,21 @@
 
 #include <assert.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <clang-c/Index.h>
+#include <ext/alloc_traits.h>
+#include <stdint.h>
+#include <string.h>
 #include <typeinfo>
 #include <utility>
-#include <unistd.h>
 #include <initializer_list>
-
-#include <clang-c/Index.h>
+#include <algorithm>
+#include <functional>
+#include <iosfwd>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
 #include "rct/rct-config.h"
 #include "FixIt.h"
@@ -50,12 +59,17 @@
 #include "rct/String.h"
 #include "IndexMessage.h"
 #include "Sandbox.h"
+#include "clang-c/CXString.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Map.h"
 
 class Database;
 class Project;
 struct Diagnostic;
 struct DependencyNode;
 class IndexDataMessage;
+
 typedef List<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<uint32_t, SourceList> Sources;
@@ -64,6 +78,7 @@ typedef Hash<uint32_t, Set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 struct SourceCache;
+
 inline bool operator==(const CXCursor &l, CXCursorKind r)
 {
     return clang_getCursorKind(l) == r;

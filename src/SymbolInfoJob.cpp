@@ -15,10 +15,18 @@
 
 #include "SymbolInfoJob.h"
 
+#include <assert.h>
+#include <stdint.h>
+#include <limits>
+#include <utility>
+
 #include "Project.h"
 #include "QueryMessage.h"
-#include "RTags.h"
-#include "Server.h"
+#include "FileMap.h"
+#include "Symbol.h"
+#include "rct/Flags.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 SymbolInfoJob::SymbolInfoJob(Location s, Location e,
                              Set<String> &&pieceFilters,

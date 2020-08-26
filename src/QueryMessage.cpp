@@ -15,8 +15,13 @@
 
 #include "QueryMessage.h"
 
+#include <assert.h>
+#include <unordered_map>
+
 #include "rct/Serializer.h"
-#include "RTags.h"
+#include "Symbol.h"
+#include "clang-c/Index.h"
+#include "rct/Rct.h"
 
 QueryMessage::QueryMessage(Type type)
     : RTagsMessage(MessageId), mType(type), mMax(-1), mMaxDepth(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0), mTerminalWidth(-1)

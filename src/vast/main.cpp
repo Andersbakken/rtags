@@ -1,6 +1,15 @@
+#include <qapplication.h>
+#include <qobjectdefs.h>
+#include <qprogressdialog.h>
+#include <qsettings.h>
+#include <qvariant.h>
+#include <stdio.h>
+#include <memory>
+#include <thread>
+#include <utility>
+
 #include "TranslationUnit.h"
 #include "Window.h"
-#include <QtGui>
 
 int main(int argc, char **argv)
 {

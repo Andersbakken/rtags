@@ -1,10 +1,18 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <qabstractitemmodel.h>
+#include <qnamespace.h>
+#include <qstring.h>
+#include <qvariant.h>
 #include <QtCore>
+#include <memory>
+
 #include "TranslationUnit.h"
 #include "Node.h"
-#include <memory>
+#include "clang-c/CXString.h"
+
+class QObject;
 
 inline QString eatString(CXString str)
 {

@@ -15,11 +15,17 @@
 
 #include "FindSymbolsJob.h"
 
+#include <stddef.h>
+
 #include "Project.h"
 #include "QueryMessage.h"
-#include "rct/Log.h"
 #include "RTags.h"
-#include "Server.h"
+#include "Symbol.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Set.h"
+
+class Location;
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {

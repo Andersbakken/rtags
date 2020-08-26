@@ -16,10 +16,14 @@
 #ifndef IncludePathJob_h
 #define IncludePathJob_h
 
+#include <memory>
+
 #include "QueryJob.h"
+#include "Location.h"
 
 class Project;
 class QueryMessage;
+
 class IncludePathJob : public QueryJob
 {
     public:

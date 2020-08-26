@@ -16,6 +16,13 @@
 #ifndef Server_h
 #define Server_h
 
+#include <assert.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <functional>
+#include <memory>
+#include <utility>
+
 #include "IndexMessage.h"
 #include "rct/Flags.h"
 #include "rct/Hash.h"
@@ -25,10 +32,18 @@
 #include "rct/Thread.h"
 #include "Source.h"
 #include "RTags.h"
+#include "rct/Path.h"
+#include "rct/Set.h"
+#include "rct/SignalSlot.h"
+
+class IndexMessage;
+class SocketServer;
+struct SourceCache;
 #ifdef OS_Darwin
 #include <Availability.h>
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101000
 #include <launch.h>
+
 #define RTAGS_HAS_LAUNCHD
 #endif
 #endif
@@ -46,6 +61,7 @@ class QueryMessage;
 class VisitFileMessage;
 class JobScheduler;
 class IndexParseData;
+
 class Server
 {
 public:

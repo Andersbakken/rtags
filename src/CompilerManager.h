@@ -22,6 +22,7 @@
 #include "rct/Flags.h"
 
 struct Source;
+class Path;
 
 namespace CompilerManager
 {

@@ -15,8 +15,9 @@
 
 #include "ScanThread.h"
 
+#include <map>
+
 #include "Filter.h"
-#include "Project.h"
 #include "Server.h"
 
 ScanThread::ScanThread(const Path &path)

@@ -14,16 +14,22 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include "Server.h"
-#include <rct/ThreadPool.h>
-#include "TokensJob.h"
 
-#include <arpa/inet.h>
 #include <clang-c/Index.h>
 #include <clang-c/CXCompilationDatabase.h>
 #include <stdio.h>
-#include <limits>
-#include <regex>
+#include <errno.h>
+#include <ext/alloc_traits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <cstdint>
+#include <iterator>
+#include <map>
+#include <unordered_map>
+#include <vector>
 
+#include "TokensJob.h"
 #include "ClassHierarchyJob.h"
 #include "CompletionThread.h"
 #include "IncludePathJob.h"
@@ -36,7 +42,6 @@
 #include "FollowLocationJob.h"
 #include "IncludeFileJob.h"
 #include "IndexDataMessage.h"
-#include "IndexerJob.h"
 #include "IndexMessage.h"
 #include "JobScheduler.h"
 #include "ListSymbolsJob.h"
@@ -67,6 +72,18 @@
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
 #include "RTagsVersion.h"
+#include "FileMap.h"
+#include "Location.h"
+#include "QueryJob.h"
+#include "Sandbox.h"
+#include "Symbol.h"
+#include "clang-c/CXString.h"
+#include "rct/FinishMessage.h"
+#include "rct/Map.h"
+#include "rct/ResponseMessage.h"
+#include "rct/Serializer.h"
+#include "rct/SocketServer.h"
+#include "rct/Thread.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)

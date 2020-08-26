@@ -16,12 +16,16 @@
 #ifndef FileManager_h
 #define FileManager_h
 
+#include <stdint.h>
 #include <mutex>
+#include <memory>
 
 #include "rct/Path.h"
 #include "rct/Timer.h"
 
 class Project;
+template <typename T> class Set;
+
 class FileManager : public std::enable_shared_from_this<FileManager>
 {
 public:

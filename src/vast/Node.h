@@ -2,6 +2,7 @@
 #define NODE_H
 
 #include <clang-c/Index.h>
+#include <stdint.h>
 #include <vector>
 #include <unordered_set>
 #include <functional>

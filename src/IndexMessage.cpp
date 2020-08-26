@@ -15,6 +15,8 @@
 
 #include "IndexMessage.h"
 
+#include <algorithm>
+
 #include "rct/Serializer.h"
 
 IndexMessage::IndexMessage()

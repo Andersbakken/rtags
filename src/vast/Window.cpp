@@ -1,5 +1,38 @@
 #include "Window.h"
 
+#include <qaction.h>
+#include <qboxlayout.h>
+#include <qbytearray.h>
+#include <qcheckbox.h>
+#include <qdialog.h>
+#include <qdialogbuttonbox.h>
+#include <qfontdatabase.h>
+#include <qheaderview.h>
+#include <qitemselectionmodel.h>
+#include <qkeysequence.h>
+#include <qlabel.h>
+#include <qmenu.h>
+#include <qmenubar.h>
+#include <qnamespace.h>
+#include <qobject.h>
+#include <qplaintextedit.h>
+#include <qsettings.h>
+#include <qsizepolicy.h>
+#include <qsplitter.h>
+#include <qvariant.h>
+#include <qwidget.h>
+#include <algorithm>
+#include <utility>
+
+#include "Model.h"
+#include "SearchEdit.h"
+#include "TranslationUnit.h"
+#include "TreeView.h"
+
+class QMoveEvent;
+class QResizeEvent;
+class QShowEvent;
+
 Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
     : QMainWindow()
 {

@@ -15,9 +15,23 @@
 
 #include "IncludeFileJob.h"
 
+#include <stdint.h>
+#include <string.h>
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 #include "Project.h"
 #include "RTags.h"
-#include "Server.h"
+#include "Location.h"
+#include "QueryMessage.h"
+#include "Symbol.h"
+#include "clang-c/Index.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
+#include "rct/Set.h"
 
 IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : QueryJob(query, project)

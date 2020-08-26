@@ -14,12 +14,18 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include "Preprocessor.h"
-#include "Server.h"
 
+#include <assert.h>
+#include <sys/types.h>
+#include <functional>
+
+#include "Server.h"
 #include "rct/Connection.h"
-#include "rct/Log.h"
 #include "rct/Process.h"
-#include "RTags.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/Path.h"
+#include "rct/SignalSlot.h"
 
 const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
                                                     | Source::IncludeExtraCompiler

@@ -16,11 +16,16 @@
 #ifndef DependenciesJob_h
 #define DependenciesJob_h
 
-#include "QueryJob.h"
+#include <stdint.h>
+#include <memory>
 
+#include "QueryJob.h"
+#include "rct/List.h"
+#include "rct/String.h"
 
 class Project;
 class QueryMessage;
+
 class DependenciesJob : public QueryJob
 {
 public:

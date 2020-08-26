@@ -16,11 +16,17 @@
 #ifndef ScanThread_h
 #define ScanThread_h
 
+#include <functional>
+
 #include "rct/Path.h"
 #include "rct/SignalSlot.h"
 #include "rct/Thread.h"
+#include "rct/List.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 class Project;
+
 class ScanThread : public Thread
 {
 public:

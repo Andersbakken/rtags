@@ -15,14 +15,18 @@
 
 #include "QueryJob.h"
 
-#include <regex>
+#include <assert.h>
+#include <ctype.h>
+#include <string.h>
 
 #include "Project.h"
 #include "QueryMessage.h"
 #include "RTags.h"
-#include "Server.h"
 #include "rct/Connection.h"
-#include "rct/EventLoop.h"
+#include "FileMap.h"
+#include "Symbol.h"
+#include "rct/Log.h"
+#include "rct/Value.h"
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    const std::shared_ptr<Project> &proj,

@@ -15,10 +15,23 @@
 
 #include "FileManager.h"
 
+#include <assert.h>
+#include <functional>
+#include <set>
+
 #include "Filter.h"
 #include "Project.h"
 #include "ScanThread.h"
 #include "Server.h"
+#include "RTags.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Log.h"
+#include "rct/Rct.h"
+#include "rct/Set.h"
+#include "rct/SignalSlot.h"
+#include "rct/String.h"
 
 FileManager::FileManager(const std::shared_ptr<Project> &project)
     : mProject(project), mLastReloadTime(0)

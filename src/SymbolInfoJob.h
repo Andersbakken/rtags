@@ -16,10 +16,16 @@
 #ifndef SymbolInfoJob_h
 #define SymbolInfoJob_h
 
+#include <memory>
+
 #include "Location.h"
 #include "QueryJob.h"
 
 class QueryMessage;
+class Project;
+class String;
+template <typename T> class Set;
+
 class SymbolInfoJob : public QueryJob
 {
 public:

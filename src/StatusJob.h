@@ -16,10 +16,14 @@
 #ifndef StatusJob_h
 #define StatusJob_h
 
+#include <memory>
+
 #include "QueryJob.h"
 #include "rct/String.h"
 
 class QueryMessage;
+class Project;
+
 class StatusJob : public QueryJob
 {
 public:

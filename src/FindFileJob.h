@@ -17,9 +17,13 @@
 #define FindFileJob_h
 
 #include <regex>
+#include <memory>
 
 #include "QueryJob.h"
 #include "rct/String.h"
+
+class Project;
+class QueryMessage;
 
 class FindFileJob : public QueryJob
 {

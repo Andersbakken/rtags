@@ -15,12 +15,30 @@
 
 #include "JobScheduler.h"
 
+#include <ext/alloc_traits.h>
+#include <signal.h>
+#include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <regex>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
 #include "IndexDataMessage.h"
 #include "IndexerJob.h"
 #include "Project.h"
 #include "rct/Connection.h"
 #include "rct/Process.h"
 #include "Server.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Log.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
+#include "rct/SignalSlot.h"
+#include "rct/Timer.h"
 
 enum { MaxPriority = 10 };
 // we set the priority to be this when a job has been requested and we couldn't load it

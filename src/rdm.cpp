@@ -16,22 +16,36 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <string.h>
+#include <strings.h>
+#include <unistd.h>
+#include <algorithm>
+#include <functional>
+#include <initializer_list>
+#include <memory>
+#include <utility>
 #ifdef OS_Darwin
 #include <sys/resource.h>
 #endif
 
 #include "rct/EventLoop.h"
-#include "rct/FileSystemWatcher.h"
 #include "rct/Log.h"
 #include "rct/Process.h"
 #include "rct/rct-config.h"
 #include "rct/Rct.h"
-#include "rct/StackBuffer.h"
-#include "rct/Thread.h"
 #include "rct/ThreadPool.h"
 #include "RTags.h"
 #include "CommandLineParser.h"
 #include "Server.h"
+#include "Source.h"
+#include "rct/Flags.h"
+#include "rct/List.h"
+#include "rct/Path.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #endif

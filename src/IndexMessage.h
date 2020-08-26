@@ -16,10 +16,16 @@
 #ifndef IndexMessage_h
 #define IndexMessage_h
 
+#include <utility>
+
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/String.h"
 #include "RTagsMessage.h"
+#include "rct/Path.h"
+
+class Deserializer;
+class Serializer;
 
 class IndexMessage : public RTagsMessage
 {

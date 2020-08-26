@@ -17,15 +17,21 @@
 #define Source_h
 
 #include <cstdint>
+#include <algorithm>
+#include <memory>
 
 #include "Location.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"
+#include "rct/Log.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 struct SourceCache;
 class SourceList;
+
 struct Source
 {
     inline Source();
@@ -105,6 +111,7 @@ struct Source
             Type_None
 #define DECLARE_INCLUDE_TYPE(type, arg, space) , type
 #include "IncludeTypesInternal.h"
+
 #undef DECLARE_INCLUDE_TYPE
         };
         Include(Type t = Type_None, const Path &p = Path())
@@ -120,6 +127,7 @@ struct Source
             switch (type) {
 #define DECLARE_INCLUDE_TYPE(type, arg, space) case type: return String::format<128>("%s%s%s", #arg, space, path.constData());
 #include "IncludeTypesInternal.h"
+
 #undef DECLARE_INCLUDE_TYPE
             case Type_None: break;
             }

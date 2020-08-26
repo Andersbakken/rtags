@@ -16,11 +16,17 @@
 #ifndef ReferencesJob_h
 #define ReferencesJob_h
 
+#include <memory>
+
 #include "Location.h"
 #include "QueryJob.h"
 #include "rct/String.h"
+#include "rct/Set.h"
 
 class SymbolInfo;
+class Project;
+class QueryMessage;
+
 class ReferencesJob : public QueryJob
 {
 public:

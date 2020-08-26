@@ -16,6 +16,10 @@
 #ifndef RClient_h
 #define RClient_h
 
+#include <stddef.h>
+#include <stdint.h>
+#include <memory>
+
 #include "QueryMessage.h"
 #include "rct/List.h"
 #include "rct/Message.h"
@@ -24,10 +28,15 @@
 #include "rct/String.h"
 #include "CommandLineParser.h"
 #include "rct/rct-config.h"
+#include "RTags.h"
+#include "rct/Flags.h"
+#include "rct/Log.h"
 
 class RCCommand;
 class QueryCommand;
 class Connection;
+class Message;
+
 class RClient
 {
 public:

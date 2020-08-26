@@ -19,9 +19,12 @@
 #include <memory>
 
 #include "Source.h"
+#include "rct/List.h"
+#include "rct/String.h"
 
 class Connection;
 class Process;
+
 class Preprocessor
 {
 public:

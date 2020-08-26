@@ -1,6 +1,19 @@
 #include "Model.h"
-#include "Node.h"
+
 #include <assert.h>
+#include <qbytearray.h>
+#include <qdebug.h>
+#include <qfile.h>
+#include <qiodevice.h>
+#include <stddef.h>
+#include <utility>
+#include <vector>
+
+#include "Node.h"
+#include "clang-c/Index.h"
+#include "qglobal.h"
+
+class QObject;
 
 enum Columns {
     DisplayName,

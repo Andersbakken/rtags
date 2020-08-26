@@ -16,8 +16,13 @@
 #ifndef Project_h
 #define Project_h
 
+#include <assert.h>
 #include <cstdint>
 #include <mutex>
+#include <ctime>
+#include <functional>
+#include <memory>
+#include <unordered_map>
 
 #include "Diagnostic.h"
 #include "FileMap.h"
@@ -34,6 +39,16 @@
 #include "rct/Serializer.h"
 #include "RTags.h"
 #include "Token.h"
+#include "Location.h"
+#include "Source.h"
+#include "Symbol.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Log.h"
+#include "rct/Map.h"
+#include "rct/Rct.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 class Connection;
 class Dirty;
@@ -41,6 +56,9 @@ class FileManager;
 class IndexDataMessage;
 class Match;
 class RestoreThread;
+struct Token;
+template <typename Key, typename Value> class FileMap;
+
 struct DependencyNode
 {
     DependencyNode(uint32_t f)

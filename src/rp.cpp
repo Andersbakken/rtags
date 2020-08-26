@@ -16,15 +16,22 @@
 #define RTAGS_SINGLE_THREAD
 #include <signal.h>
 #include <syslog.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <memory>
 
 #include "ClangIndexer.h"
-#include "Project.h"
 #include "rct/Log.h"
-#include "rct/StopWatch.h"
 #include "rct/String.h"
 #include "RTags.h"
 #include "Server.h"
-#include "Source.h"
+#include "rct/EventLoop.h"
+#include "rct/Flags.h"
+#include "rct/Path.h"
+#include "rct/Rct.h"
 
 static void sigHandler(int signal)
 {
