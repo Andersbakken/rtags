@@ -416,7 +416,7 @@ appropriate format string for `error'. For example,
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-display-current-error-as-tooltip nil
+(defcustom rtags-display-current-error-as-tooltip rtags-popup-available
   "Display error under cursor using `popup-tip' (requires 'popup)."
   :type 'boolean
   :safe 'booleanp)
@@ -426,7 +426,7 @@ appropriate format string for `error'. For example,
   :type 'boolean
   :safe 'booleanp)
 
-(defcustom rtags-tooltips-enabled (and rtags-popup-available t)
+(defcustom rtags-tooltips-enabled rtags-popup-available
   "Display help / summary text when hovering over symbols."
   :type 'boolean
   :safe 'booleanp)
