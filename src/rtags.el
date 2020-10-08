@@ -1006,11 +1006,12 @@ to case differences."
      nil)))
 
 (defun rtags-reset-bookmarks ()
+  (interactive)
   (setq rtags-buffer-bookmarks 0)
   (let ((bookmark-save-flag t))
-    (mapcar (lambda (bookmark)
-              (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark)))
-            (rtags-bookmark-all-names))))
+    (mapc (lambda (bookmark)
+            (when (string-match "^RTags_" bookmark) (bookmark-delete bookmark)))
+          (rtags-bookmark-all-names))))
 
 ;;;###autoload
 (defun rtags-next-match () (interactive) (rtags-next-prev-match 1 nil))
