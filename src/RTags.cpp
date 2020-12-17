@@ -723,6 +723,26 @@ static inline Diagnostic::Flag convertDiagnosticType(CXDiagnosticSeverity sev)
     return type;
 }
 
+static inline int fixitFileId(const Location &loc)
+{
+    if (!loc.fileId())
+        return 0;
+
+    const Path path = loc.path();
+    if (path.isSystem())
+        return 0;
+
+    // we keep getting fixits for xmmintrin.h, this solves the issue
+    // when it isn't a "system header" ideally we would identify
+    // system headers in a different way I guess
+    const char *fn = path.fileName();
+    assert(fn);
+    if (!strcmp(fn, "xmmintrin.h") || !strcmp(fn, "emmintrin.h")) {
+        return 0;
+    }
+    return loc.fileId();
+}
+
 void DiagnosticsProvider::diagnose()
 {
     const uint32_t sourceFile = sourceFileId();
@@ -807,7 +827,7 @@ void DiagnosticsProvider::diagnose()
         for (size_t j=0; j<diagCount; ++j) {
             CXDiagnostic diag = diagnostic(u, j);
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diag);
-            const uint32_t fileId = createLocation(diagLoc, nullptr).fileId();
+            const uint32_t fileId = fixitFileId(createLocation(diagLoc, nullptr));
             if (!fileId) {
                 clang_disposeDiagnostic(diag);
                 // error() << "Couldn't get location for diagnostics" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
