@@ -195,6 +195,7 @@ set(RTAGS_SOURCES
     Sandbox.cpp
     ScanThread.cpp
     Server.cpp
+    ServerMessageHandlers.cpp
     Source.cpp
     StatusJob.cpp
     Symbol.cpp
