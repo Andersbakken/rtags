@@ -198,6 +198,7 @@ enum OptionType {
     AllowWpedantic,
     AllowWErrorAndWFatalErrors,
     EnableCompilerManager,
+    DisableCompilerManager,
     EnableNDEBUG,
     Progress,
     MaxFileMapCacheSize,
@@ -272,7 +273,7 @@ int main(int argc, char** argv)
     serverOpts.maxFileMapScopeCacheSize = DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE;
     serverOpts.errorLimit = DEFAULT_ERROR_LIMIT;
     serverOpts.rpNiceValue = INT_MIN;
-    serverOpts.options = Server::Wall|Server::SpellChecking|Server::CompletionDiagnostics;
+    serverOpts.options = Server::Wall|Server::SpellChecking|Server::CompletionDiagnostics|Server::EnableCompilerManager;
     serverOpts.maxCrashCount = DEFAULT_MAX_CRASH_COUNT;
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
@@ -357,7 +358,8 @@ int main(int argc, char** argv)
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, String::format("Max recursion depth for header completion (default %d).", DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
-        { EnableCompilerManager, "enable-compiler-manager", 'R', CommandLineParser::NoValue, "Query compilers for their actual include paths instead of letting clang use its own." },
+        { EnableCompilerManager, "enable-compiler-manager", 'R', CommandLineParser::NoValue, "Query compilers for their actual include paths instead of letting clang use its own. This is now the default. Kept for backwards compatibility." },
+        { DisableCompilerManager, "disable-compiler-manager", 0, CommandLineParser::NoValue, "Do not query compilers for their actual include paths instead of letting clang use its own." },
         { EnableNDEBUG, "enable-NDEBUG", 'g', CommandLineParser::NoValue, "Don't remove -DNDEBUG from compile lines." },
         { Progress, "progress", 'p', CommandLineParser::NoValue, "Report compilation progress in diagnostics output." },
         { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', CommandLineParser::Required, String::format("Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default %d).", DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) },
@@ -639,6 +641,9 @@ int main(int argc, char** argv)
             break; }
         case EnableCompilerManager: {
             serverOpts.options |= Server::EnableCompilerManager;
+            break; }
+        case DisableCompilerManager: {
+            serverOpts.options &= ~Server::EnableCompilerManager;
             break; }
         case EnableNDEBUG: {
             serverOpts.options |= Server::EnableNDEBUG;
