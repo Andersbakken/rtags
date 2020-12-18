@@ -189,11 +189,11 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         source.defines << compiler.defines;
     if (flags & IncludeIncludePaths) {
         if (!source.arguments.contains("-nostdinc")) {
-            source.includePaths << compiler.includePaths;
             if (!source.arguments.contains("-nostdinc++"))
                 source.includePaths << compiler.stdincxxPaths;
             if (!source.arguments.contains("-nobuiltininc"))
                 source.includePaths << compiler.builtinPaths;
+            source.includePaths << compiler.includePaths;
         } else if (!strncmp("clang", cpath.fileName(), 5)) {
             // Module.map causes errors when -nostdinc is used, as it
             // can't find some mappings to compiler provided headers
