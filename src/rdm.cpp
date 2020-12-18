@@ -287,10 +287,10 @@ int main(int argc, char** argv)
     // #endif
     serverOpts.dataDir = String::format<128>("%s.rtags", Path::home().constData());
     if (!serverOpts.dataDir.exists()) {
-         const char * dataDir = getenv("XDG_CACHE_HOME");
-         serverOpts.dataDir = dataDir ? dataDir : Path::home() + ".cache";
-         serverOpts.dataDir += "/rtags/";
-         serverOpts.dataDir.mkdir(Path::Recursive);
+        const char * dataDir = getenv("XDG_CACHE_HOME");
+        serverOpts.dataDir = dataDir ? dataDir : Path::home() + ".cache";
+        serverOpts.dataDir += "/rtags/";
+        serverOpts.dataDir.mkdir(Path::Recursive);
     }
     Path logFile;
     Flags<LogFlag> logFlags = DontRotate|LogStderr;
@@ -397,7 +397,7 @@ int main(int argc, char** argv)
         switch (type) {
         case None:
         case Noop:
-        break;
+            break;
         case Help: {
             CommandLineParser::help(stdout, Rct::executablePath().fileName(), opts);
             return { String(), CommandLineParser::Parse_Ok }; }
