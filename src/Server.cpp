@@ -138,25 +138,24 @@ bool Server::init(const Options &options)
 #ifndef OS_Darwin   // this causes problems on MacOS+clang
         // http://clang.llvm.org/compatibility.html#vector_builtins
         const char *gccBuiltIntVectorFunctionDefines[] = {
-            "__builtin_ia32_rolhi",
-            "__builtin_ia32_pause",
-            "__builtin_ia32_addcarryx_u32",
-            "__builtin_ia32_bsrsi",
-            "__builtin_ia32_rdpmc",
-            "__builtin_ia32_rdtsc",
-            "__builtin_ia32_rdtscp",
-            "__builtin_ia32_rolqi",
-            "__builtin_ia32_rorqi",
-            "__builtin_ia32_rorhi",
-            "__builtin_ia32_rolhi",
-            "__builtin_ia32_rdseed_di_step",
-            "__builtin_ia32_xsaveopt",
-            "__builtin_ia32_xsaveopt64",
-            "__builtin_ia32_sbb_u32",
-            nullptr
+            "__builtin_ia32_rolhi(...)",
+            "__builtin_ia32_pause(...)",
+            "__builtin_ia32_addcarryx_u32(...)",
+            "__builtin_ia32_bsrsi(...)",
+            "__builtin_ia32_rdpmc(...)",
+            "__builtin_ia32_rdtsc(...)",
+            "__builtin_ia32_rdtscp(...)",
+            "__builtin_ia32_rolqi(...)",
+            "__builtin_ia32_rorqi(...)",
+            "__builtin_ia32_rorhi(...)",
+            "__builtin_ia32_rolhi(...)",
+            "__builtin_ia32_rdseed_di_step(...)",
+            "__builtin_ia32_xsaveopt(...)",
+            "__builtin_ia32_xsaveopt64(...)",
+            "__builtin_ia32_sbb_u32(...)"
         };
-        for (int i=0; gccBuiltIntVectorFunctionDefines[i]; ++i) {
-            mOptions.defines << Source::Define(String::format<128>("%s(...)", gccBuiltIntVectorFunctionDefines[i]));
+        for (const char *def : gccBuiltIntVectorFunctionDefines) {
+            mOptions.defines << Source::Define(def);
         }
 #endif
     }
