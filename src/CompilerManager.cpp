@@ -72,7 +72,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         List<String> environ({"RTAGS_DISABLED=1"});
         args << "-x" << "c++" << "-v" << "-E" << "-dM" << "-";
 
-        for (int i=0; i<4; /* see below */) {
+        for (size_t i=0; i<4; /* see below */) {
             Process proc;
             proc.exec(cpath, args, environ);
             assert(proc.isFinished());
@@ -127,8 +127,8 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             // error() << c << line;
             if (line.startsWith("#define ")) {
                 Source::Define def;
-                const int space = line.indexOf(' ', 8);
-                if (space == -1) {
+                const size_t space = line.indexOf(' ', 8);
+                if (space == std::numeric_limits<size_t>::max()) {
                     def.define = line.mid(8);
                 } else {
                     def.define = line.mid(8, space - 8);
@@ -164,9 +164,9 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             size_t j = 0;
             while (j < line.size() && isspace(line.at(j)))
                 ++j;
-            int end = line.lastIndexOf(" (framework directory)");
+            size_t end = line.lastIndexOf(" (framework directory)");
             Source::Include::Type type = Source::Include::Type::Type_System;
-            if (end != -1) {
+            if (end != std::numeric_limits<size_t>::max()) {
                 end = end - j;
                 type = Source::Include::Type_SystemFramework;
             }
