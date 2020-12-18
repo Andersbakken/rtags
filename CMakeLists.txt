@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.6)
+cmake_minimum_required(VERSION 3.4)
 project(rtags)
 set(RTAGS_VERSION_MAJOR 2)
 set(RTAGS_VERSION_MINOR 40)
@@ -6,6 +6,12 @@ set(RTAGS_VERSION_DATABASE 133)
 set(RTAGS_VERSION_SOURCES_FILE 15)
 set(RTAGS_VERSION ${RTAGS_VERSION_MAJOR}.${RTAGS_VERSION_MINOR}.${RTAGS_VERSION_DATABASE})
 set(RTAGS_BINARY_ROOT_DIR ${PROJECT_BINARY_DIR})
+
+find_program(CCACHE_FOUND ccache)
+if (CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache) # Less useful to do it for linking, see edit2
+endif ()
 
 if (RTAGS_ENABLE_DEV_OPTIONS)
     set(CPACK_PACKAGE_INSTALL_DIRECTORY "RTAGS")
