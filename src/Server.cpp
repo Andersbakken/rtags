@@ -223,10 +223,10 @@ bool Server::init(const Options &options)
     assert(mOptions.pollTimer >= 0);
     if (mOptions.pollTimer) {
         mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
-                for (auto proj : mProjects) {
-                    proj.second->validateAll();
-                }
-            }, mOptions.pollTimer * 1000);
+            for (auto proj : mProjects) {
+                proj.second->validateAll();
+            }
+        }, mOptions.pollTimer * 1000);
     }
     return true;
 }
