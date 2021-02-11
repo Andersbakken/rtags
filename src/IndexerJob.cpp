@@ -151,10 +151,7 @@ String IndexerJob::encode() const
             }
 
             Server::instance()->filterBlockedArguments(copy);
-
-            for (const auto &inc : options.includePaths) {
-                copy.includePaths << inc;
-            }
+            copy.includePaths.insert(copy.includePaths.begin(), options.includePaths.begin(), options.includePaths.end());
             if (Server::instance()->options().options & Server::PCHEnabled)
                 proj->fixPCH(copy);
 
