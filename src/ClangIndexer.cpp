@@ -1797,9 +1797,9 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     const char *cstr = name.data();
     c.symbolLength = cstr ? strlen(cstr) : 0;
     const CXType type = clang_getCursorType(cursor);
-    setType(c, type);
     c.location = location;
     c.usr = usr;
+    setType(c, type);
     if (!c.symbolLength) {
         // this is for these constructs:
         // typedef struct {
