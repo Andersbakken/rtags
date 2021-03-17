@@ -4689,7 +4689,7 @@ definition."
        (and rtags-autostart-diagnostics (rtags-diagnostics))
        (set-process-query-on-exit-flag rtags-rdm-process nil)
        (set-process-sentinel rtags-rdm-process 'rtags-sentinel)))))
-(define-obsolete-function-alias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
+;; (define-obsolete-function-alias 'rtags-start-process-maybe 'rtags-start-process-unless-running)
 
 (defun rtags-sentinel (process _event)
   "Watch the activity of RTags process (rdm)."
