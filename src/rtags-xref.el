@@ -72,8 +72,10 @@
                     (line (string-to-number (match-string-no-properties 2)))
                     (column (1- (string-to-number (match-string-no-properties 3))))
                     (summary (match-string-no-properties 4)))
-                (push (xref-make summary
-                                 (xref-make-file-location file line column))
+                (push (xref-make-match
+                       summary
+                       (xref-make-file-location file line column)
+                       (- (or (string-match "[^0-9A-Za-z_~#]" summary column) (length summary)) column))
                       result)))
           (forward-line 1))
         (nreverse result)))))
