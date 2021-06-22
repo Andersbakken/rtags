@@ -511,7 +511,7 @@ void Project::check(CheckMode checkMode)
         save();
     startDirtyJobs(dirty.get(), IndexerJob::Dirty|IndexerJob::NoAbort);
     // don't want to abort the jobs we just started from reloadCompileCommands
-    if (!missingFileMaps.isEmpty()) {
+    if (!missingFileMaps.empty()) {
         SimpleDirty simple;
         simple.init(shared_from_this(), missingFileMaps);
         startDirtyJobs(&simple, IndexerJob::Dirty);
@@ -567,12 +567,12 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     {
         if (Server::instance()->activeBuffersSet()) {
             Set<uint32_t> active = Server::instance()->activeBuffers(Server::Active);
-            if (filter.isEmpty()) {
+            if (filter.empty()) {
                 filter = std::move(active);
             } else {
                 filter = filter.intersected(active);
             }
-            if (filter.isEmpty())
+            if (filter.empty())
                 return String();
         }
     }
@@ -639,7 +639,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                 continue;
             }
             if (f != lastFileId) {
-                if (filterSize && !filter.remove(f)) {
+                if (filterSize && !filter.erase(f)) {
                     ignoredFileId = f;
                     continue;
                 }
@@ -744,7 +744,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         if (f == ignoredFileId)
             continue;
         if (f != lastFileId) {
-            if (filterSize && !filter.remove(f)) {
+            if (filterSize && !filter.erase(f)) {
                 ignoredFileId = f;
                 continue;
             }
@@ -1197,7 +1197,7 @@ int Project::reindex(const Match &match,
                 dirtyFiles.insert(it->first);
             }
         }
-        if (dirtyFiles.isEmpty())
+        if (dirtyFiles.empty())
             return 0;
         SimpleDirty dirty;
         dirty.init(shared_from_this(), dirtyFiles);
@@ -1264,7 +1264,7 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
     {
         std::lock_guard<std::mutex> lock(mMutex);
         for (const auto &fileId : dirtyFiles) {
-            mVisitedFiles.remove(fileId);
+            mVisitedFiles.erase(fileId);
         }
     }
 
@@ -1318,7 +1318,7 @@ void Project::clearSuspendedFiles()
 bool Project::toggleSuspendFile(uint32_t file)
 {
     if (!mSuspendedFiles.insert(file)) {
-        mSuspendedFiles.remove(file);
+        mSuspendedFiles.erase(file);
         return false;
     }
     return true;
@@ -1329,7 +1329,7 @@ void Project::setSuspended(uint32_t file, bool suspended)
     if (suspended) {
         mSuspendedFiles.insert(file);
     } else {
-        mSuspendedFiles.remove(file);
+        mSuspendedFiles.erase(file);
     }
 }
 
@@ -1394,7 +1394,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
         }
     }
 
-    if (!files.isEmpty() || !diagnostics.isEmpty()) {
+    if (!files.empty() || !diagnostics.isEmpty()) {
         // if (debug) {
         //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
         // }
@@ -1415,7 +1415,7 @@ String Project::fixIts(uint32_t fileId) const
     String out;
     if (it != mFixIts.end()) {
         const Set<FixIt> &fixIts = it->second;
-        if (!fixIts.isEmpty()) {
+        if (!fixIts.empty()) {
             auto f = fixIts.end();
             do {
                 --f;
@@ -1677,7 +1677,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         return false;
     };
 
-    for (int i=0; i<2 && ret.isEmpty(); ++i) {
+    for (int i=0; i<2 && ret.empty(); ++i) {
         switch (symbol.kind) {
         case CXCursor_ClassDecl:
         case CXCursor_ClassTemplate:
@@ -1699,7 +1699,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
                 }
             }
 
-            if (!ret.isEmpty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
+            if (!ret.empty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
                 break; }
             RCT_FALL_THROUGH;
         default:
@@ -1741,7 +1741,7 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
         }
     }
 
-    if (ret.isEmpty() && usr.startsWith("/")) { // for break statements and includes
+    if (ret.empty() && usr.startsWith("/")) { // for break statements and includes
         Symbol sym;
         sym.location = Location::fromPathLineAndColumn(usr);
         ret.insert(sym);
@@ -1778,7 +1778,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
         for (auto dep : deps)
             process(dep);
 
-        if (ret.isEmpty()) {
+        if (ret.empty()) {
             for (auto dep : project->dependencies()) {
                 if (!deps.contains(dep.first))
                     process(dep.first);
@@ -1804,7 +1804,7 @@ static Set<Symbol> findReferences(const Symbol &in,
             } else {
                 s = in;
                 auto usrs = project->findTargetUsrs(s.location);
-                if (!usrs.isEmpty())
+                if (!usrs.empty())
                     s.usr = *usrs.begin();
                 // error() << "GOT USRS" << usrs;
                 s.location = location = target.location;
@@ -1901,7 +1901,7 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         for (const String &usr : findTargetUsrs(sym.location)) {
             const Set<Symbol> syms = findByUsr(usr, sym.location.fileId(), ArgDependsOn);
             for (const Symbol &s : syms) {
-                if (findTargetUsrs(s.location).isEmpty()) {
+                if (findTargetUsrs(s.location).empty()) {
                     return s;
                 }
             }
@@ -2038,14 +2038,14 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
         if (!node)
             return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
 
-        if (!node->includes.isEmpty() && (args.isEmpty() || args.contains("includes"))) {
+        if (!node->includes.isEmpty() && (args.empty() || args.contains("includes"))) {
             if (args.size() != 1)
                 ret += String::format<1024>("  %s includes:\n", Location::path(fileId).constData());
             for (const auto &include : node->includes) {
                 ret += String::format<1024>("    %s\n", Location::path(include.first).constData());
             }
         }
-        if (!node->dependents.isEmpty() && (args.isEmpty() || args.contains("included-by"))) {
+        if (!node->dependents.isEmpty() && (args.empty() || args.contains("included-by"))) {
             if (args.size() != 1)
                 ret += String::format<1024>("  %s is included by:\n", Location::path(fileId).constData());
             for (const auto &include : node->dependents) {
@@ -2053,7 +2053,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.isEmpty() || args.contains("depends-on")) {
+        if (args.empty() || args.contains("depends-on")) {
             bool first = args.size() != 1;
             for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
                 if (dep == fileId)
@@ -2066,7 +2066,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.isEmpty() || args.contains("depended-on")) {
+        if (args.empty() || args.contains("depended-on")) {
             bool first = args.size() != 1;
             for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
                 if (dep == fileId)
@@ -2079,7 +2079,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.isEmpty() || args.contains("tree-depends-on")) {
+        if (args.empty() || args.contains("tree-depends-on")) {
             Set<DependencyNode*> seen;
 
             DependencyNode *depNode = mDependencies.value(fileId);
@@ -2226,7 +2226,7 @@ static List<String> split(const String &value, size_t max)
         const String &word = words.at(i);
         if (ret.last().size() && ret.last().size() + word.size() > max) {
             fixString(ret.last(), max);
-            ret.append(String());
+            ret.push_back(String());
             continue;
         }
 
@@ -2234,7 +2234,7 @@ static List<String> split(const String &value, size_t max)
             assert(ret.last().isEmpty());
             for (size_t j=0; j<word.size(); j += max) {
                 if (j)
-                    ret.append(String());
+                    ret.push_back(String());
                 ret.last() = word.mid(j, max);
                 fixString(ret.last(), max);
             }
@@ -2663,13 +2663,13 @@ void Project::processParseData(IndexParseData &&data)
             auto &ref = mIndexParseData.sources[source.fileId];
             if (Server::instance()->options().options & Server::AllowMultipleSources) {
                 if (!ref.contains(source)) {
-                    ref.append(source);
+                    ref.push_back(source);
                     ref.parsed = 0; // dirty
                     if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                         index.insert(source.fileId);
                 }
             } else {
-                if (ref.isEmpty()) {
+                if (ref.empty()) {
                     index.insert(source.fileId);
                     ref.push_back(source);
                 } else if (ref[0] != source) {
@@ -2824,7 +2824,7 @@ void Project::forEachSource(Sources &sources, const std::function<VisitResult(So
                 ++it;
             }
         }
-        if (list.isEmpty()) {
+        if (list.empty()) {
             sources.erase(sit++);
         } else {
             ++sit;

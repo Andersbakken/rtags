@@ -1064,7 +1064,7 @@ static CXChildVisitResult childrenVisitor(CXCursor cursor, CXCursor, CXClientDat
 {
     ChildrenVisitor *u = reinterpret_cast<ChildrenVisitor*>(data);
     if ((u->out.isNull() || !u->out.match(cursor)) && (u->in.isNull() || u->in.match(cursor))) {
-        u->children.append(cursor);
+        u->children.push_back(cursor);
     }
     return CXChildVisit_Continue;
 }
@@ -1087,7 +1087,7 @@ static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientDa
 {
     FindChainVisitor *u = reinterpret_cast<FindChainVisitor*>(data);
     if (clang_getCursorKind(cursor) == u->kinds.at(u->ret.size())) {
-        u->ret.append(cursor);
+        u->ret.push_back(cursor);
         if (u->ret.size() < u->kinds.size())
             return CXChildVisit_Recurse;
 
@@ -1098,7 +1098,7 @@ static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientDa
 
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds)
 {
-    assert(!kinds.isEmpty());
+    assert(!kinds.empty());
     FindChainVisitor userData = { kinds, List<CXCursor>() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChainVisitor, &userData);

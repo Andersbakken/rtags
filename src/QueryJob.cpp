@@ -37,7 +37,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
     const List<QueryMessage::PathFilter> &pathFilters = query->pathFilters();
-    if (!pathFilters.isEmpty()) {
+    if (!pathFilters.empty()) {
         if (pathFilters.size() == 1 && pathFilters.first().mode == QueryMessage::PathFilter::Self) {
             mFileFilter = Location::fileId(pathFilters.first().pattern);
         }
@@ -46,11 +46,11 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                 if (filter.mode == QueryMessage::PathFilter::Dependency) {
                     uint32_t f = Location::fileId(filter.pattern);
                     if (f && mProject)
-                        mFilters.append(std::make_shared<DependencyFilter>(f, mProject));
+                        mFilters.push_back(std::make_shared<DependencyFilter>(f, mProject));
                 } else if (query->flags() & QueryMessage::MatchRegex) {
-                    mFilters.append(std::make_shared<RegexFilter>(filter.pattern, query->flags() & QueryMessage::MatchCaseInsensitive));
+                    mFilters.push_back(std::make_shared<RegexFilter>(filter.pattern, query->flags() & QueryMessage::MatchCaseInsensitive));
                 } else {
-                    mFilters.append(std::make_shared<PathFilter>(filter.pattern));
+                    mFilters.push_back(std::make_shared<PathFilter>(filter.pattern));
                 }
             }
         }
@@ -266,7 +266,7 @@ bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
 
 bool QueryJob::filter(const String &value) const
 {
-    if (mFilters.isEmpty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
+    if (mFilters.empty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
@@ -288,7 +288,7 @@ bool QueryJob::filter(const String &value) const
         return false;
     fileId = Location::fileId(path);
 
-    if (mFilters.isEmpty())
+    if (mFilters.empty())
         return true;
 
     for (const std::shared_ptr<Filter> &filter : mFilters) {
@@ -322,7 +322,7 @@ bool QueryJob::filterLocation(Location loc) const
             return false;
         }
     }
-    if (!mFilters.isEmpty()) {
+    if (!mFilters.empty()) {
         for (const std::shared_ptr<Filter> &filter : mFilters) {
             if (filter->match(loc.fileId(), loc.path()))
                 return true;

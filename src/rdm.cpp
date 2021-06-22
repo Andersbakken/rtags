@@ -407,10 +407,10 @@ int main(int argc, char** argv)
             fprintf(stdout, "%s\n", RTags::versionString().constData());
             return { String(), CommandLineParser::Parse_Ok }; }
         case IncludePath: {
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_Include, Path::resolved(value)));
+            serverOpts.includePaths.push_back(Source::Include(Source::Include::Type_Include, Path::resolved(value)));
             break; }
         case Isystem: {
-            serverOpts.includePaths.append(Source::Include(Source::Include::Type_System, Path::resolved(value)));
+            serverOpts.includePaths.push_back(Source::Include(Source::Include::Type_System, Path::resolved(value)));
             break; }
         case Define: {
             const size_t eq = value.indexOf('=');
@@ -424,7 +424,7 @@ int main(int argc, char** argv)
             serverOpts.defines.insert(def);
             break; }
         case DefaultArgument: {
-            serverOpts.defaultArguments.append(std::move(value));
+            serverOpts.defaultArguments.push_back(std::move(value));
             break; }
         case LogFile: {
             logFile = std::move(value);
@@ -515,7 +515,7 @@ int main(int argc, char** argv)
             if (large <= 0) {
                 return { String::format<1024>("Can't parse argument to -r %s", value.constData()), CommandLineParser::Parse_Error };
             }
-            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + String(value)); // ### not quite working
+            serverOpts.defaultArguments.push_back("-Wlarge-by-value-copy=" + String(value)); // ### not quite working
             break; }
         case AllowMultipleSources: {
             serverOpts.options |= Server::AllowMultipleSources;
@@ -805,9 +805,9 @@ int main(int argc, char** argv)
         }
     }
 
-    if (serverOpts.excludeFilters.isEmpty())
+    if (serverOpts.excludeFilters.empty())
         serverOpts.excludeFilters = String(DEFAULT_EXCLUDEFILTER).split(';');
-    if (serverOpts.compilerWrappers.isEmpty())
+    if (serverOpts.compilerWrappers.empty())
         serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
 
     serverOpts.tempDir = serverOpts.tempDir.ensureTrailingSlash() + "rdm/";
@@ -846,7 +846,7 @@ int main(int argc, char** argv)
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
     auto server = std::make_shared<Server>();
-    if (!serverOpts.tests.isEmpty()) {
+    if (!serverOpts.tests.empty()) {
         char buf[1024];
         Path path;
         while (true) {
@@ -891,7 +891,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (!serverOpts.tests.isEmpty()) {
+    if (!serverOpts.tests.empty()) {
         return server->runTests() ? 0 : 1;
     }
 

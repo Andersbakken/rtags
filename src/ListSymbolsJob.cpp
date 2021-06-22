@@ -54,7 +54,7 @@ int ListSymbolsJob::execute()
         List<Path> paths;
         for (const auto &filter : filters) {
             if (filter.mode == QueryMessage::PathFilter::Self) {
-                paths.append(filter.pattern);
+                paths.push_back(filter.pattern);
                 if (!paths.last().isFile()) {
                     paths.clear();
                     break;
@@ -64,7 +64,7 @@ int ListSymbolsJob::execute()
                 break;
             }
         }
-        if (!paths.isEmpty()) {
+        if (!paths.empty()) {
             out = listSymbolsWithPathFilter(proj, paths);
         } else {
             out = listSymbols(proj);
@@ -89,7 +89,7 @@ int ListSymbolsJob::execute()
             write(sorted.at(i));
         }
     }
-    return out.isEmpty() ? 1 : 0;
+    return out.empty() ? 1 : 0;
 }
 
 Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const

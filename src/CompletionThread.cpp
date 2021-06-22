@@ -414,7 +414,7 @@ void CompletionThread::process(Request *request)
             matches.resize(request->max);
         }
 
-        if (!matches.isEmpty()) {
+        if (!matches.empty()) {
             printCompletions(matches, request);
             processTime = sw.elapsed();
             LOG() << "Sent" << matches.size() << "completions for" << request->location;
@@ -453,7 +453,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
     String str;
     str << cursorKind;
     ret["kind"] = str;
-    if (f & Flag_IncludeChunks && !chunks.isEmpty()) {
+    if (f & Flag_IncludeChunks && !chunks.empty()) {
         Value cc;
         cc.arrayReserve(chunks.size());
         for (const auto &chunk : chunks) {
@@ -501,7 +501,7 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
         auto output = std::make_shared<Output>();
         output->connection = request->conn;
         output->flags = request->flags;
-        outputs.append(output);
+        outputs.push_back(output);
         if (request->flags & Elisp) {
             elisp = true;
         } else if (request->flags & XML) {
@@ -537,12 +537,12 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                     } else {
                         raw = true;
                     }
-                    outputs.append(out);
+                    outputs.push_back(out);
                 }
             });
     }
 
-    if (!outputs.isEmpty()) {
+    if (!outputs.empty()) {
         String rawOut, xmlOut, elispOut;
 #ifdef HAS_JSON_H
         String jsonOut;

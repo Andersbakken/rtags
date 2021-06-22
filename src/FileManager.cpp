@@ -40,7 +40,7 @@ FileManager::FileManager(const std::shared_ptr<Project> &project)
 
 void FileManager::load(Mode mode)
 {
-    if (!Server::instance()->options().tests.isEmpty())
+    if (!Server::instance()->options().tests.empty())
         mode = Synchronous;
 
     mLastReloadTime = Rct::monoMs();
@@ -72,7 +72,7 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
         }
         assert(!parent.isEmpty());
         Set<String> &dir = map[parent];
-        if (dir.isEmpty()) {
+        if (dir.empty()) {
             watch(parent);
             // error() << "Watching parent" << parent;
         }
@@ -129,8 +129,8 @@ void FileManager::onFileRemoved(const Path &path)
         const Path parent = path.parentDir();
         if (map.contains(parent)) {
             Set<String> &dir = map[parent];
-            dir.remove(String(path.fileName()));
-            if (dir.isEmpty()) {
+            dir.erase(String(path.fileName()));
+            if (dir.empty()) {
                 project->unwatch(parent, Project::Watch_FileManager);
                 map.remove(parent);
             }

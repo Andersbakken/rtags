@@ -61,7 +61,7 @@ public:
     void acquireId();
     String encode() const;
 
-    uint32_t sourceFileId() const { assert(!sources.isEmpty()); return sources.begin()->fileId; }
+    uint32_t sourceFileId() const { assert(!sources.empty()); return sources.begin()->fileId; }
 
     int priority() const;
     void recalculatePriority();

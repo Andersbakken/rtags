@@ -38,7 +38,7 @@ IndexerJob::IndexerJob(const SourceList &s,
     : id(0), flags(f),
       project(p->path()), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
 {
-    sources.append(s.front());
+    sources.push_back(s.front());
     for (size_t i=1; i<s.size(); ++i) {
         const Source &src = s.at(i);
         bool found = false;
@@ -49,10 +49,10 @@ IndexerJob::IndexerJob(const SourceList &s,
             }
         }
         if (!found)
-            sources.append(src);
+            sources.push_back(src);
     }
 
-    assert(!sources.isEmpty());
+    assert(!sources.empty());
     sourceFile = s.begin()->sourceFile();
     acquireId();
     visited.insert(sources.begin()->fileId);
@@ -157,7 +157,7 @@ String IndexerJob::encode() const
 
             copy.defines << options.defines;
             if (!(options.options & Server::EnableNDEBUG)) {
-                copy.defines.remove(Source::Define("NDEBUG"));
+                copy.defines.erase(Source::Define("NDEBUG"));
             }
             assert(!sourceFile.isEmpty());
             copy.encode(serializer, Source::IgnoreSandbox);

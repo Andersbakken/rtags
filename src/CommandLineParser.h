@@ -146,10 +146,10 @@ ParseStatus parse(int argc, char **argv,
                 }
             }
             for (int i=1; i<argc; ++i)
-                args.append(argv[i]);
+                args.push_back(argv[i]);
         }
     }
-    if (args.isEmpty()) {
+    if (args.empty()) {
         args.resize(argc);
         for (int i=0; i<argc; ++i) {
             args[i] = argv[i];
@@ -181,7 +181,7 @@ ParseStatus parse(int argc, char **argv,
         String value;
         auto addArg = [&arg, &opts, &status, flags](const Option<T> *opt) -> bool {
             if (opt) {
-                opts.append(opt);
+                opts.push_back(opt);
                 return true;
             }
             if (flags & IgnoreUnknown)
@@ -204,7 +204,7 @@ ParseStatus parse(int argc, char **argv,
             addArg(longOpts.value(a));
         } else if (arg.startsWith("-")) {
             for (size_t j=1; j<arg.size(); ++j) {
-                if (j > 1 && !opts.isEmpty() && opts.back()->valueType != NoValue) {
+                if (j > 1 && !opts.empty() && opts.back()->valueType != NoValue) {
                     if (arg.at(j) == '=')
                         ++j;
                     value = arg.mid(j);
@@ -249,9 +249,9 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T> > opt
     size_t longest = 0;
     for (const auto &opt : optsList) {
         if (opt.longOpt.isEmpty() && !opt.shortOpt) {
-            out.append(String());
+            out.push_back(String());
         } else {
-            out.append(String::format<64>("  %s%s%s%s",
+            out.push_back(String::format<64>("  %s%s%s%s",
                                           (opt.longOpt.isEmpty() ? String() : ("--" + opt.longOpt)).constData(),
                                           !opt.longOpt.isEmpty() && opt.shortOpt ? "|" : "",
                                           opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",

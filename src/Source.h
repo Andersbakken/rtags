@@ -379,7 +379,7 @@ class SourceList : public List<Source>
 public:
     uint64_t parsed = 0;
 
-    uint32_t fileId() const { return isEmpty() ? 0 : front().fileId; }
+    uint32_t fileId() const { return empty() ? 0 : front().fileId; }
 };
 
 template <>

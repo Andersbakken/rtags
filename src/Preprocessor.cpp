@@ -42,12 +42,12 @@ Preprocessor::Preprocessor(Mode mode, const Source &source, const std::shared_pt
     Server::instance()->filterBlockedArguments(mSource);
     mArgs = mSource.toCommandLine(SourceFlags);
     if (mode == Preprocess) {
-        mArgs.append("-E");
+        mArgs.push_back("-E");
     } else {
         assert(mode == Asm);
-        mArgs.append("-S");
-        mArgs.append("-o");
-        mArgs.append("-");
+        mArgs.push_back("-S");
+        mArgs.push_back("-o");
+        mArgs.push_back("-");
     }
     mProcess.reset(new Process);
     mProcess->finished().connect(std::bind(&Preprocessor::onProcessFinished, this));

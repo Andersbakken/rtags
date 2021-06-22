@@ -130,7 +130,7 @@ bool Server::init(const Options &options)
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.options & NoNoUnknownWarningsOption))
-        mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+        mOptions.defaultArguments.push_back("-Wno-unknown-warning-option");
 
     mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
 
@@ -169,7 +169,7 @@ bool Server::init(const Options &options)
             systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
             if (systemInclude.isDir()) {
-                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
+                mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, systemInclude));
                 break;
             }
         }
@@ -185,7 +185,7 @@ bool Server::init(const Options &options)
         Log l(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine);
         l << "Running with" << mOptions.jobCount << "jobs, using args:"
           << String::join(mOptions.defaultArguments, ' ');
-        if (!mOptions.includePaths.isEmpty()) {
+        if (!mOptions.includePaths.empty()) {
             l << "\nIncludepaths:";
             for (const auto &inc : mOptions.includePaths)
                 l << inc.toString();
@@ -367,7 +367,7 @@ void Server::onNewConnection(SocketServer *server)
         conn->disconnected().connect(std::bind([this, weak]() {
                     if (std::shared_ptr<Connection> c = weak.lock()) {
                         c->disconnected().disconnect();
-                        mConnections.remove(c);
+                        mConnections.erase(c);
                     }
                 }));
     }
@@ -531,7 +531,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
     SourceList sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
-    bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
+    bool ret = (sources.empty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     debug() << "Got" << sources.size() << "sources, and" << unresolvedPaths << "from" << arguments;
     size_t idx = 0;
     for (Source &source : sources) {
@@ -565,7 +565,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             source.compileCommandsFileId = compileCommandsFileId;
             auto &list = s[source.fileId];
             if (!list.contains(source))
-                list.append(source);
+                list.push_back(source);
             ret = true;
         } else {
             debug() << "Shouldn't index" << source;
@@ -902,7 +902,7 @@ public:
                 if (response.startsWith(mWorkingDirectory)) {
                     response.remove(0, mWorkingDirectory.size());
                 }
-                mOutput.append(response);
+                mOutput.push_back(response);
             }
         });
     }
@@ -918,7 +918,7 @@ private:
 
 bool Server::runTests()
 {
-    assert(!mOptions.tests.isEmpty());
+    assert(!mOptions.tests.empty());
     bool ret = true;
     int sourceCount = 0;
     mIndexDataMessageReceived.connect([&sourceCount]() {
@@ -944,13 +944,13 @@ bool Server::runTests()
             continue;
         }
         const List<Value> tests = value.operator[]<List<Value> >("tests");
-        if (tests.isEmpty()) {
+        if (tests.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
         }
         const List<Value> sources = value.operator[]<List<Value> >("sources");
-        if (sources.isEmpty()) {
+        if (sources.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
@@ -1075,7 +1075,7 @@ bool Server::runTests()
                     ret = false;
                     continue;
                 }
-                output.append(it->convert<String>());
+                output.push_back(it->convert<String>());
             }
             if (output != conn.output()) {
                 error() << "Test" << idx << "failed. Expected:";

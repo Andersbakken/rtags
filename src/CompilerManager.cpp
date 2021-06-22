@@ -175,7 +175,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             if (path.isDir()) {
                 path.resolve();
                 if (mode == eNormal) {
-                    compiler.includePaths.append(Source::Include(type, path));
+                    compiler.includePaths.push_back(Source::Include(type, path));
                 } else {
                     copy.remove(Source::Include(type, path));
                 }
@@ -197,7 +197,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         } else if (!strncmp("clang", cpath.fileName(), 5)) {
             // Module.map causes errors when -nostdinc is used, as it
             // can't find some mappings to compiler provided headers
-            source.arguments.append("-fno-modules");
+            source.arguments.push_back("-fno-modules");
         }
     }
 }

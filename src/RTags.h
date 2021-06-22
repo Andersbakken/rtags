@@ -363,18 +363,18 @@ struct Filter
 
     inline bool isNull() const
     {
-        return kinds.isEmpty() && names.isEmpty() && argumentCount == -1;
+        return kinds.empty() && names.empty() && argumentCount == -1;
     }
 
     inline bool isValid() const
     {
-        return !kinds.isEmpty() || !names.isEmpty() || argumentCount != -1;
+        return !kinds.empty() || !names.empty() || argumentCount != -1;
     }
 
     inline bool match(const CXCursor &cursor) const
     {
         bool matched = false;
-        if (!kinds.isEmpty()) {
+        if (!kinds.empty()) {
             if (kinds.contains(clang_getCursorKind(cursor))) {
                 if (mode == Or)
                     return true;
@@ -383,7 +383,7 @@ struct Filter
                 return false;
             }
         }
-        if (!names.isEmpty()) {
+        if (!names.empty()) {
             const String name = RTags::eatString(clang_getCursorSpelling(cursor));
             if (names.contains(name)) {
                 if (mode == Or)

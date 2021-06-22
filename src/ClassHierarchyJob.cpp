@@ -50,7 +50,7 @@ int ClassHierarchyJob::execute()
     {
         auto classes = find(sym);
         if (!indent) {
-            if (classes.isEmpty()) {
+            if (classes.empty()) {
                 return;
             }
             write(title);

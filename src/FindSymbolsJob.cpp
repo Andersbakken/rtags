@@ -66,7 +66,7 @@ int FindSymbolsJob::execute()
             }
         };
         proj->findSymbols(string, inserter, queryFlags(), fileFilter());
-        if (!symbols.isEmpty()) {
+        if (!symbols.empty()) {
             const List<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
             const Flags<WriteFlag> writeFlags = fileFilter() ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();

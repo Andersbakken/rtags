@@ -543,7 +543,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
             if (idx != -1)
                 ref.remove(idx, root.size());
         }
-        compile.append(source.sourceFile().fileName());
+        compile.push_back(source.sourceFile().fileName());
 
         Value tests;
 
@@ -1004,7 +1004,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
             ok = true;
             jobCount = mDefaultJobCount;
         } else if (q == "pop") {
-            if (mJobCountStack.isEmpty()) {
+            if (mJobCountStack.empty()) {
                 conn->write<128>("Job count stack is empty");
             } else {
                 jobCount = mJobCountStack.back();
@@ -1014,7 +1014,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         } else if (q.startsWith("push:")) {
             jobCount = q.mid(5).toLongLong(&ok);
             if (ok && jobCount > 0 && jobCount < MaxJobCount) {
-                mJobCountStack.append(mOptions.jobCount);
+                mJobCountStack.push_back(mOptions.jobCount);
             };
         } else {
             jobCount = q.toLongLong(&ok);
@@ -1144,7 +1144,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
             if (fileId) {
                 prepareCompletion(query, fileId, project);
                 SourceList sources = project->sources(fileId);
-                if (sources.isEmpty() && path.isHeader()) {
+                if (sources.empty() && path.isHeader()) {
                     Set<uint32_t> seen;
                     std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {
                         DependencyNode *node = project->dependencyNode(file);
@@ -1264,7 +1264,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     if (mode == FileOn || mode == FileOff || mode == FileToggle)
         matches.push_back(p);
     std::shared_ptr<Project> project;
-    if (matches.isEmpty()) {
+    if (matches.empty()) {
         project = currentProject();
     } else {
         project = projectForMatches(matches);
@@ -1287,7 +1287,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             conn->write("All files are suspended.");
         if (project) {
             const Set<uint32_t> suspendedFiles = project->suspendedFiles();
-            if (suspendedFiles.isEmpty()) {
+            if (suspendedFiles.empty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
                 for (const auto &it : suspendedFiles)
@@ -1410,7 +1410,7 @@ void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const st
     } else if (!str.isEmpty()) {
         mOptions.debugLocations << str;
     }
-    if (mOptions.debugLocations.isEmpty()) {
+    if (mOptions.debugLocations.empty()) {
         conn->write("No debug locations");
     } else {
         conn->write<1024>("Debug locations:\n%s", String::join(mOptions.debugLocations, '\n').constData());

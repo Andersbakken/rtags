@@ -313,7 +313,7 @@ void JobScheduler::dumpDaemons(const std::shared_ptr<Connection> &conn)
     if (mDaemons.size()) {
         conn->write<1024>("Daemons: %zu", mDaemons.size());
         for (const auto &daemon : mDaemons) {
-            if (!daemon.second.cache.isEmpty()) {
+            if (!daemon.second.cache.empty()) {
                 conn->write<1024>("pid: %d %s%s",
                                   static_cast<int>(daemon.first->pid()),
                                   daemon.second.cache.front().sourceFile().constData(),

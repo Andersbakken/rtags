@@ -84,7 +84,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
                         Flags<Location::ToStringFlag> locationToStringFlags,
                         const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
     auto properties = [this, &filterPiece]() -> String {
         List<String> ret;
         if (isDefinition() && filterPiece("definition"))
@@ -115,7 +115,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         if (flags & TemplateReference && filterPiece("templatereference"))
             ret << "TemplateReference";
 
-        if (ret.isEmpty())
+        if (ret.empty())
             return String();
         return String::join(ret, ' ') + '\n';
     };
@@ -194,9 +194,9 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
                    String::format<32>("%d/%d", fieldOffset, fieldOffset / 8));
     if (alignment >= 0)
         writePiece("Alignment", "alignment", std::to_string(alignment));
-    if (!args.isEmpty())
+    if (!args.empty())
         writePiece("Arguments", "arguments", String::join(args, ", "));
-    if (!bases.isEmpty())
+    if (!bases.empty())
         writePiece("Base classes", "baseclasses", String::join(bases, ", "));
     writePiece("Brief comment", "briefcomment", briefComment);
     writePiece("XML comment", "xmlcomment", xmlComment);
@@ -308,7 +308,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                       Flags<Location::ToStringFlag> locationToStringFlags,
                       const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
@@ -354,9 +354,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (!symbol.baseClasses.isEmpty() && filterPiece("baseclasses"))
+            if (!symbol.baseClasses.empty() && filterPiece("baseclasses"))
                 ret["baseClasses"] = symbol.baseClasses;
-            if (!symbol.arguments.isEmpty() && filterPiece("arguments")) {
+            if (!symbol.arguments.empty() && filterPiece("arguments")) {
                 Value args;
                 for (const auto &arg : symbol.arguments) {
                     Value a;
@@ -428,7 +428,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["templatereference"] = true;
             if (f & IncludeTargets) {
                 const auto targets = project->findTargets(symbol);
-                if (!targets.isEmpty() && filterPiece("targets")) {
+                if (!targets.empty() && filterPiece("targets")) {
                     Value t;
                     for (const auto &target : targets) {
                         t.push_back(toValue(target, NullFlags));
@@ -438,7 +438,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             }
             if (f & IncludeReferences) {
                 const auto references = project->findCallers(symbol);
-                if (!references.isEmpty() && filterPiece("references")) {
+                if (!references.empty() && filterPiece("references")) {
                     Value r;
                     for (const auto &ref : references) {
                         r.push_back(toValue(ref, NullFlags));
@@ -450,11 +450,11 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn)) {
-                        b.append(toValue(s, NullFlags));
+                        b.push_back(toValue(s, NullFlags));
                         break;
                     }
                 }
-                if (!baseClasses.isEmpty()) {
+                if (!baseClasses.empty()) {
                     ret["baseClasses"] = b;
                 }
             }

@@ -358,28 +358,28 @@ void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessa
 {
     auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;
-    mCommands.append(cmd);
+    mCommands.push_back(cmd);
 }
 
 void RClient::addQuitCommand(int exitCode)
 {
     auto cmd = std::make_shared<QuitCommand>(exitCode);
-    mCommands.append(cmd);
+    mCommands.push_back(cmd);
 }
 
 void RClient::addLog(LogLevel level)
 {
-    mCommands.append(std::make_shared<RdmLogCommand>(level));
+    mCommands.push_back(std::make_shared<RdmLogCommand>(level));
 }
 
 void RClient::addCompile(String &&args, const Path &cwd)
 {
-    mCommands.append(std::make_shared<CompileCommand>(std::move(args), cwd));
+    mCommands.push_back(std::make_shared<CompileCommand>(std::move(args), cwd));
 }
 
 void RClient::addCompile(Path &&path)
 {
-    mCommands.append(std::make_shared<CompileCommand>(std::move(path)));
+    mCommands.push_back(std::make_shared<CompileCommand>(std::move(path)));
 }
 
 void RClient::exec()
@@ -966,9 +966,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             } else {
                 addQuery(queryType, String());
             }
-            assert(!mCommands.isEmpty());
+            assert(!mCommands.empty());
             if (queryType == QueryMessage::Project)
-                projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
+                projectCommands.push_back(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case ListBuffers: {
             addQuery(QueryMessage::SetBuffers);
@@ -1242,7 +1242,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String encoded;
             List<String> args;
             while (idx < arguments.size() && arguments[idx][0] != '-') {
-                args.append(arguments[idx++]);
+                args.push_back(arguments[idx++]);
             }
             Serializer s(encoded);
             s << Path() << args;
@@ -1257,7 +1257,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             p.resolve();
             List<String> args;
             while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
-                args.append(arguments[++idx]);
+                args.push_back(arguments[++idx]);
             }
 
             String encoded;
@@ -1359,7 +1359,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         return { String::format<1024>("Can't initialize logging with %d %s %s", mLogLevel.toInt(), logFile.constData(), logFlags.toString().constData()), CommandLineParser::Parse_Error };
     }
 
-    if (mCommands.isEmpty()) {
+    if (mCommands.empty()) {
         help(stderr, argv[0], opts);
         return { "No commands", CommandLineParser::Parse_Error };
     }
@@ -1402,7 +1402,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
 
 List<String> RClient::environment() const
 {
-    if (mEnvironment.isEmpty()) {
+    if (mEnvironment.empty()) {
         mEnvironment = Rct::environment();
     }
 

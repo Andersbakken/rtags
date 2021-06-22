@@ -164,7 +164,7 @@ int FindFileJob::execute()
                 if (absolutePath)
                     matched.resolve();
                 if (preferExact && !foundExact) {
-                    matches.append(matched);
+                    matches.push_back(matched);
                 } else {
                     if (!writeFile(matched))
                         return 1;
