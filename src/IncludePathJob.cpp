@@ -27,7 +27,7 @@
 #include "Symbol.h"
 #include "clang-c/Index.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/String.h"
 
@@ -73,10 +73,10 @@ int IncludePathJob::execute()
     for (const auto &target : targets) {
         DependencyNode *depNode = project()->dependencyNode(location.fileId());
         if (depNode) {
-            List<uint32_t> paths;
+            std::vector<uint32_t> paths;
             bool done = false;
             std::function<void(DependencyNode *)> process = [&](DependencyNode *n) {
-                if (done || !paths.contains(n->fileId)) {
+                if (done || std::find(paths.begin(), paths.end(), n->fileId) == paths.end()) {
                     paths.push_back(n->fileId);
                     if (n->fileId == target.location.fileId()) {
                         String path;
@@ -97,7 +97,7 @@ int IncludePathJob::execute()
                             process(includeNode.second);
                         }
                     }
-                    paths.removeLast();
+                    paths.erase(paths.end());
                 }
             };
             process(depNode);

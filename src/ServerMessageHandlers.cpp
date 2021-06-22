@@ -537,7 +537,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
                                                       | Source::ExcludeDefaultArguments);
 
         const Path root = source.sourceFile().parentDir().ensureTrailingSlash();
-        List<String> compile = source.toCommandLine(flags);
+        std::vector<String> compile = source.toCommandLine(flags);
         for (auto &ref : compile) {
             const int idx = ref.indexOf(root);
             if (idx != -1)
@@ -558,11 +558,12 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
                 if (!target.isNull()) {
                     Map<String, Value> test;
                     test["name"] = "follow_symbol";
-                    List<String> rcCommand;
-                    rcCommand << "--follow-location" << formatLocation(loc);
+                    std::vector<String> rcCommand;
+                    rcCommand.push_back("--follow-location");
+                    rcCommand.push_back(formatLocation(loc));
                     test["rc-command"] = rcCommand;
-                    List<String> expectation;
-                    expectation << formatLocation(target.location);
+                    std::vector<String> expectation;
+                    expectation.push_back(formatLocation(target.location));
                     test["expectation"] = expectation;
                     tests.push_back(test);
                 }
@@ -585,7 +586,7 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     Deserializer deserializer(data);
     Path path;
     uint32_t line, column, line2, column2;
-    Set<String> kinds; // This is serialized as a of List<String>
+    std::set<String> kinds; // This is serialized as a of std::vector<String>
     deserializer >> path >> line >> column >> line2 >> column2 >> kinds;
     uint32_t fileId = Location::fileId(path);
     if (!fileId) {
@@ -600,8 +601,8 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
 
     std::shared_ptr<Project> project = projectForQuery(query);
     if (!project) {
-        List<Match> matches;
-        matches << path;
+        std::vector<Match> matches;
+        matches.push_back(path);
         project = projectForMatches(matches);
     }
     if (!project || !project->dependencies().contains(fileId)) {
@@ -1050,7 +1051,9 @@ void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std
                 bool raw = false;
                 if (!(queryFlags() & (QueryMessage::JSON|QueryMessage::Elisp))) {
                     raw = true;
-                    setPieceFilters(std::move(Set<String>() << "location"));
+                    std::set<String> f;
+                    f.insert("location");
+                    setPieceFilters(std::move(f));
                 }
                 bool failed = false;
                 const std::shared_ptr<Project> proj = project();
@@ -1068,8 +1071,15 @@ void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std
                     }
                 };
                 if (!fileId) {
-                    Set<uint32_t> all = proj->dependencies(0, Project::All);
-                    all.remove([](uint32_t file) { return Location::path(file).isSystem(); });
+                    std::set<uint32_t> all = proj->dependencies(0, Project::All);
+                    auto it = all.begin();
+                    while (it != all.end()) {
+                        if (Location::path(*it).isSystem()) {
+                            it = all.erase(it);
+                        } else {
+                            ++it;
+                        }
+                    }
                     size_t idx = 0;
                     const Path projectPath = proj->path();
                     for (uint32_t file : all) {
@@ -1145,13 +1155,13 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
                 prepareCompletion(query, fileId, project);
                 SourceList sources = project->sources(fileId);
                 if (sources.empty() && path.isHeader()) {
-                    Set<uint32_t> seen;
+                    std::set<uint32_t> seen;
                     std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {
                         DependencyNode *node = project->dependencyNode(file);
                         uint32_t ret = 0;
                         if (node) {
                             for (const auto &dep : node->dependents) {
-                                if (!seen.insert(dep.first))
+                                if (!seen.insert(dep.first).second)
                                     continue;
 
                                 if (Location::path(dep.first).isSource()) {
@@ -1258,7 +1268,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         }
     }
 
-    List<Match> matches;
+    std::vector<Match> matches;
     if (!query->currentFile().isEmpty())
         matches.push_back(query->currentFile());
     if (mode == FileOn || mode == FileOff || mode == FileToggle)
@@ -1286,7 +1296,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         if (mSuspended)
             conn->write("All files are suspended.");
         if (project) {
-            const Set<uint32_t> suspendedFiles = project->suspendedFiles();
+            const std::set<uint32_t> suspendedFiles = project->suspendedFiles();
             if (suspendedFiles.empty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
@@ -1406,9 +1416,9 @@ void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const st
         mOptions.debugLocations.clear();
     } else if (str == "all" || str == "*") {
         mOptions.debugLocations.clear();
-        mOptions.debugLocations << "all";
+        mOptions.debugLocations.push_back("all");
     } else if (!str.isEmpty()) {
-        mOptions.debugLocations << str;
+        mOptions.debugLocations.push_back(str);
     }
     if (mOptions.debugLocations.empty()) {
         conn->write("No debug locations");
@@ -1498,7 +1508,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
     const uint32_t fileId = loc.fileId();
     Source source = project->source(fileId, query->buildIndex());
     if (source.isNull()) {
-        const Set<uint32_t> deps = project->dependencies(fileId, Project::DependsOnArg);
+        const std::set<uint32_t> deps = project->dependencies(fileId, Project::DependsOnArg);
         if (mCompletionThread) {
             source = mCompletionThread->findSource(deps);
         }

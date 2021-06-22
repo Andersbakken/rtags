@@ -23,7 +23,7 @@
 #include "rct/Path.h"
 #include "rct/Map.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 
 namespace Sandbox {
 enum ReplaceMode {

@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "Source.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/String.h"
 
 class Connection;
@@ -37,7 +37,7 @@ public:
 private:
     void onProcessFinished();
     Source mSource;
-    List<String> mArgs;
+    std::vector<String> mArgs;
     std::shared_ptr<Connection> mConnection;
     std::unique_ptr<Process> mProcess;
 };

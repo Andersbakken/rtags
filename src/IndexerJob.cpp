@@ -27,7 +27,7 @@
 #include "Server.h"
 #include "RTagsVersion.h"
 #include "Location.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Serializer.h"
 
 uint64_t IndexerJob::sNextId = 1;
@@ -90,11 +90,11 @@ int IndexerJob::priority() const
             break;
         case Server::Inactive:
             if (DependencyNode *node = p->dependencyNode(fileId)) {
-                Set<DependencyNode*> seen;
+                std::set<DependencyNode*> seen;
                 seen.insert(node);
                 std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
                     for (const auto &inc : n->includes) {
-                        if (seen.insert(inc.second)
+                        if (seen.insert(inc.second).second
                             && !Location::path(n->fileId).isSystem()
                             && (server->activeBufferType(n->fileId) != Server::Inactive || func(inc.second))) {
                             return true;
@@ -130,19 +130,19 @@ String IndexerJob::encode() const
                    << static_cast<uint32_t>(sources.size());
         for (Source copy : sources) {
             if (!(options.options & Server::AllowWErrorAndWFatalErrors)) {
-                int idx = copy.arguments.indexOf("-Werror");
-                if (idx != -1)
-                    copy.arguments.removeAt(idx);
-                idx = copy.arguments.indexOf("-Wfatal-errors");
-                if (idx != -1)
-                    copy.arguments.removeAt(idx);
+                auto it = std::find(copy.arguments.begin(), copy.arguments.end(), "-Werror");
+                if (it != copy.arguments.end())
+                    copy.arguments.erase(it);
+                it = std::find(copy.arguments.begin(), copy.arguments.end(), "-Wfatal-errors");
+                if (it != copy.arguments.end())
+                    copy.arguments.erase(it);
             }
-            copy.arguments << options.defaultArguments;
+            copy.arguments.insert(copy.arguments.end(), options.defaultArguments.begin(), options.defaultArguments.end());
 
             if (!(options.options & Server::AllowPedantic)) {
-                const int idx = copy.arguments.indexOf("-Wpedantic");
-                if (idx != -1) {
-                    copy.arguments.removeAt(idx);
+                const auto it = std::find(copy.arguments.begin(), copy.arguments.end(), "-Wpedantic");
+                if (it != copy.arguments.end()) {
+                    copy.arguments.erase(it);
                 }
             }
 
@@ -155,7 +155,9 @@ String IndexerJob::encode() const
             if (Server::instance()->options().options & Server::PCHEnabled)
                 proj->fixPCH(copy);
 
-            copy.defines << options.defines;
+            for (const auto &ref : options.defines) {
+                copy.defines.insert(ref);
+            }
             if (!(options.options & Server::EnableNDEBUG)) {
                 copy.defines.erase(Source::Define("NDEBUG"));
             }
@@ -184,27 +186,27 @@ String IndexerJob::encode() const
 
 String IndexerJob::dumpFlags(Flags<Flag> flags)
 {
-    List<String> ret;
+    std::vector<String> ret;
     if (flags & Dirty) {
-        ret += "Dirty";
+        ret.push_back("Dirty");
     }
     if (flags & Reindex) {
-        ret += "Reindex";
+        ret.push_back("Reindex");
     }
     if (flags & Compile) {
-        ret += "Compile";
+        ret.push_back("Compile");
     }
     if (flags & Running) {
-        ret += "Running";
+        ret.push_back("Running");
     }
     if (flags & Crashed) {
-        ret += "Crashed";
+        ret.push_back("Crashed");
     }
     if (flags & Aborted) {
-        ret += "Aborted";
+        ret.push_back("Aborted");
     }
     if (flags & Complete) {
-        ret += "Complete";
+        ret.push_back("Complete");
     }
 
     return String::join(ret, ", ");

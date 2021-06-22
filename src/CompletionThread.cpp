@@ -234,11 +234,13 @@ void CompletionThread::process(Request *request)
     assert(!cache->translationUnit || cache->source == request->source);
     if (!cache->translationUnit) {
         cache->source = std::move(request->source);
-        assert(!cache->source.defines.contains(Source::Define("RTAGS", String(), Source::Define::NoValue)));
+        assert(std::find(cache->source.defines.begin(),
+                         cache->source.defines.end(),
+                         Source::Define("RTAGS", String(), Source::Define::NoValue)) == cache->source.defines.end());
     }
 
     const Path sourceFile = cache->source.sourceFile();
-    List<CXUnsavedFile> unsavedFiles;
+    std::vector<CXUnsavedFile> unsavedFiles;
     unsavedFiles.reserve(request->unsavedFiles.size());
     for (const auto &it : request->unsavedFiles) {
         unsavedFiles.push_back({ it.first.constData(), it.second.constData(), static_cast<unsigned long>(it.second.size()) });
@@ -333,7 +335,7 @@ void CompletionThread::process(Request *request)
 
     ++cache->completions;
     if (results) {
-        List<CompletionCandidate *> candidates;
+        std::vector<CompletionCandidate *> candidates;
         candidates.reserve(results->NumResults);
 
         const auto it = cache->unsavedFiles.find(cache->source.sourceFile());
@@ -408,7 +410,7 @@ void CompletionThread::process(Request *request)
             }
         }
 
-        List<std::unique_ptr<MatchResult> > matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
+        std::vector<std::unique_ptr<MatchResult> > matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
 
         if ((request->max != -1) && (static_cast<size_t>(request->max) < matches.size())) {
             matches.resize(request->max);
@@ -424,7 +426,7 @@ void CompletionThread::process(Request *request)
 
         } else {
             LOG() << "No completions available for" << request->location;
-            printCompletions(List<std::unique_ptr<MatchResult> >(), request);
+            printCompletions(std::vector<std::unique_ptr<MatchResult> >(), request);
         }
 
         if (options.options & Server::CompletionDiagnostics)
@@ -485,11 +487,11 @@ struct Output
     Flags<CompletionThread::Flag> flags;
 };
 
-void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request)
+void CompletionThread::printCompletions(const std::vector<std::unique_ptr<MatchResult> > &results, Request *request)
 {
-    static List<String> cursorKindNames;
+    static std::vector<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;
-    List<std::shared_ptr<Output> > outputs;
+    std::vector<std::shared_ptr<Output> > outputs;
     bool xml = false;
     bool elisp = false;
     bool raw = false;
@@ -723,11 +725,11 @@ String CompletionThread::Request::toString() const
     return ret;
 }
 
-Source CompletionThread::findSource(const Set<uint32_t> &deps) const
+Source CompletionThread::findSource(const std::set<uint32_t> &deps) const
 {
     std::unique_lock<std::mutex> lock(mMutex);
     for (SourceFile *sourceFile = mCacheList.first(); sourceFile; sourceFile = sourceFile->next) {
-        if (deps.contains(sourceFile->source.fileId)) {
+        if (deps.find(sourceFile->source.fileId) != deps.end()) {
             return sourceFile->source;
         }
     }

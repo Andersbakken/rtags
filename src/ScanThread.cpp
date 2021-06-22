@@ -25,9 +25,9 @@ ScanThread::ScanThread(const Path &path)
 {
 }
 
-Set<Path> ScanThread::paths(const Path &path, const List<String> &filters)
+std::set<Path> ScanThread::paths(const Path &path, const std::vector<String> &filters)
 {
-    Set<Path> paths;
+    std::set<Path> paths;
     path.visit([&paths, filters](const Path &p) {
             const Filter::Result result = Filter::filter(p, filters);
             switch (result) {

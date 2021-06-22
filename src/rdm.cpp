@@ -42,9 +42,9 @@
 #include "Server.h"
 #include "Source.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
@@ -251,7 +251,7 @@ int main(int argc, char** argv)
     Server::Options serverOpts;
     const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
     if (runtimeDir == nullptr) {
-        serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+        serverOpts.socketFile = String::format<128>("%s.rdm.new", Path::home().constData());
     } else {
         serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
     }
@@ -278,7 +278,9 @@ int main(int argc, char** argv)
     serverOpts.completionCacheSize = DEFAULT_COMPLETION_CACHE_SIZE;
     serverOpts.maxIncludeCompletionDepth = DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH;
     serverOpts.rp = defaultRP();
-    serverOpts.blockedArguments = String::split(DEFAULT_BLOCKED_ARGUMENTS, ';').toSet();
+    for (String &ref : String::split(DEFAULT_BLOCKED_ARGUMENTS, ';')) {
+        serverOpts.blockedArguments.insert(std::move(ref));
+    }
     strcpy(crashDumpFilePath, "crash.dump");
 #ifdef FILEMANAGER_OPT_IN
     serverOpts.options |= Server::NoFileManagerWatch;
@@ -290,7 +292,7 @@ int main(int argc, char** argv)
     if (!serverOpts.dataDir.exists()) {
         const char * dataDir = getenv("XDG_CACHE_HOME");
         serverOpts.dataDir = dataDir ? dataDir : Path::home() + ".cache";
-        serverOpts.dataDir += "/rtags/";
+        serverOpts.dataDir += "/rtags.new/";
         serverOpts.dataDir.mkdir(Path::Recursive);
     }
     Path logFile;
@@ -394,8 +396,8 @@ int main(int argc, char** argv)
         { Noop, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
     };
 
-    std::function<CommandLineParser::ParseStatus(OptionType type, String &&value, size_t &idx, const List<String> &args)> cb;
-    cb = [&](OptionType type, String &&value, size_t &, const List<String> &) -> CommandLineParser::ParseStatus {
+    std::function<CommandLineParser::ParseStatus(OptionType type, String &&value, size_t &idx, const std::vector<String> &args)> cb;
+    cb = [&](OptionType type, String &&value, size_t &, const std::vector<String> &) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
         case Noop:
@@ -459,7 +461,7 @@ int main(int argc, char** argv)
             if (!test.resolve() || !test.isFile()) {
                 return { String::format<1024>("%s doesn't seem to be a file", value.constData()), CommandLineParser::Parse_Error };
             }
-            serverOpts.tests += test;
+            serverOpts.tests.push_back(test);
             break; }
         case TempDir: {
             serverOpts.tempDir = value;
@@ -486,7 +488,8 @@ int main(int argc, char** argv)
             logLevel = LogLevel::None;
             break; }
         case ExcludeFilter: {
-            serverOpts.excludeFilters += String(value).split(';');
+            for (String &ref : String(value).split(';'))
+                serverOpts.excludeFilters.push_back(std::move(ref));
             break; }
         case SocketFile: {
             serverOpts.socketFile = std::move(value);
@@ -505,7 +508,7 @@ int main(int argc, char** argv)
             }
             break; }
         case BlockArgument: {
-            serverOpts.blockedArguments << value;
+            serverOpts.blockedArguments.insert(value);
             break; }
         case NoSpellChecking: {
             serverOpts.options &= ~Server::SpellChecking;
@@ -533,7 +536,8 @@ int main(int argc, char** argv)
             serverOpts.ignoredCompilers.insert(Path::resolved(value));
             break; }
         case CompilerWrappers: {
-            serverOpts.compilerWrappers = String::split(value, ";", String::SkipEmpty).toSet();
+            for (String &ref : String::split(value, ";", String::SkipEmpty))
+                serverOpts.compilerWrappers.insert(std::move(ref));
             break; }
         case WatchSystemPaths: {
             serverOpts.options |= Server::WatchSystemPaths;
@@ -720,7 +724,7 @@ int main(int argc, char** argv)
             serverOpts.options |= Server::WatchSourcesOnly;
             break; }
         case DebugLocations: {
-            serverOpts.debugLocations << value;
+            serverOpts.debugLocations.push_back(value);
             break; }
         case ValidateFileMaps: {
             serverOpts.options |= Server::ValidateFileMaps;
@@ -807,8 +811,11 @@ int main(int argc, char** argv)
 
     if (serverOpts.excludeFilters.empty())
         serverOpts.excludeFilters = String(DEFAULT_EXCLUDEFILTER).split(';');
-    if (serverOpts.compilerWrappers.empty())
-        serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
+    if (serverOpts.compilerWrappers.empty()) {
+        for (String &ref : String(DEFAULT_COMPILER_WRAPPERS).split(';')) {
+            serverOpts.compilerWrappers.insert(std::move(ref));
+        }
+    }
 
     serverOpts.tempDir = serverOpts.tempDir.ensureTrailingSlash() + "rdm/";
     Path::rmdir(serverOpts.tempDir);

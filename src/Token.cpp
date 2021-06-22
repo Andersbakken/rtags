@@ -15,7 +15,7 @@
 
 #include "Token.h"
 
-#include "rct/List.h"
+#include <vector>
 
 String Token::toString() const
 {

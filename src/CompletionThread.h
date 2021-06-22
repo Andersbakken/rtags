@@ -34,8 +34,8 @@
 #include "Source.h"
 #include "RTags.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
-#include "rct/Set.h"
+#include <vector>
+#include <set>
 #include "rct/String.h"
 #include "rct/Value.h"
 
@@ -64,7 +64,7 @@ public:
                     const UnsavedFiles &unsavedFiles, const String &prefix,
                     const std::shared_ptr<Connection> &conn);
     void prepare(Source &&source, const UnsavedFiles &unsavedFiles);
-    Source findSource(const Set<uint32_t> &deps) const;
+    Source findSource(const std::set<uint32_t> &deps) const;
     void reparse(const std::shared_ptr<Project> &project, uint32_t fileId);
     void stop();
     String dump();
@@ -74,7 +74,7 @@ private:
     void processDiagnostics(const Request *request, CXCodeCompleteResults *results, CXTranslationUnit unit);
     void process(Request *request);
 
-    Set<uint32_t> mWatched;
+    std::set<uint32_t> mWatched;
     bool mShutdown;
     const size_t mCacheSize;
     struct Request {
@@ -119,7 +119,7 @@ private:
                 String text;
                 CXCompletionChunkKind kind;
             };
-            List<Chunk> chunks;
+            std::vector<Chunk> chunks;
 
             enum Flag {
                 Flag_None = 0x0,
@@ -128,13 +128,13 @@ private:
             Value toValue(unsigned int flags) const;
         };
 
-        List<Candidate> candidates;
+        std::vector<Candidate> candidates;
         const Location location;
         Flags<Flag> flags;
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request);
+    void printCompletions(const std::vector<std::unique_ptr<MatchResult> > &results, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 

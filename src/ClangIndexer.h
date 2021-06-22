@@ -68,7 +68,7 @@ private:
 
     void addFileSymbol(uint32_t file);
     int symbolLength(CXCursorKind kind, const CXCursor &cursor);
-    void extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor);
+    void extractArguments(std::vector<Symbol::Argument> *arguments, const CXCursor &cursor);
     CXCursor resolveTemplate(CXCursor cursor, Location location = Location(), bool *specialized = nullptr);
     CXCursor resolveTemplateUsr(CXCursor cursor) const;
     static CXCursor resolveTypedef(CXCursor cursor);
@@ -120,7 +120,7 @@ private:
     {
         mParents.push_back(cursor);
         clang_visitChildren(cursor, visitorHelper, this);
-        mParents.removeLast();
+        mParents.erase(mParents.end());
     }
     CXChildVisitResult indexVisitor(CXCursor cursor);
     static CXChildVisitResult visitorHelper(CXCursor cursor, CXCursor, CXClientData userData);
@@ -132,8 +132,8 @@ private:
     struct Unit {
         Map<Location, Symbol> symbols;
         Map<Location, Map<String, uint16_t> > targets;
-        Map<String, Set<Location> > usrs;
-        Map<String, Set<Location> > symbolNames;
+        Map<String, std::set<Location> > usrs;
+        Map<String, std::set<Location> > symbolNames;
         Map<uint32_t, Token> tokens;
     };
 
@@ -155,11 +155,11 @@ private:
     Symbol findSymbol(Location location, FindResult *result) const;
 
     struct MacroLocationData {
-        Set<size_t> arguments;
-        List<Location> locations;
+        std::set<size_t> arguments;
+        std::vector<Location> locations;
     };
     struct MacroData {
-        List<String> arguments;
+        std::vector<String> arguments;
         Map<String, MacroLocationData> data;
     };
     Map<Location, MacroData> mMacroTokens;
@@ -171,7 +171,7 @@ private:
     SourceList mSources, mCachedSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
-    List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits, mCachedTranslationUnits;
+    std::vector<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits, mCachedTranslationUnits;
     size_t mCurrentTranslationUnit;
     CXCursor mLastCursor;
     Symbol *mLastCallExprSymbol;
@@ -184,7 +184,7 @@ private:
         mIndexed, mVisitFileTimeout, mIndexDataMessageTimeout,
         mFileIdsQueried, mFileIdsQueriedTime, mCursorsVisited;
     UnsavedFiles mUnsavedFiles;
-    List<String> mDebugLocations;
+    std::vector<String> mDebugLocations;
     FILE *mLogFile;
     std::shared_ptr<Connection> mConnection;
     Path mDataDir;
@@ -201,15 +201,15 @@ private:
         Symbol *symbol;
         Location start, end;
     };
-    List<Scope> mScopeStack;
+    std::vector<Scope> mScopeStack;
 
     struct Loop { // or switch
         CXCursorKind kind;
         Location start, end;
     };
-    List<Loop> mLoopStack;
+    std::vector<Loop> mLoopStack;
 
-    List<CXCursor> mParents;
+    std::vector<CXCursor> mParents;
     std::unordered_set<CXCursor> mTemplateSpecializations;
     size_t mInTemplateFunction;
 

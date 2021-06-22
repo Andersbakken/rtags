@@ -29,7 +29,7 @@ template <typename T> class Set;
 class SymbolInfoJob : public QueryJob
 {
 public:
-    SymbolInfoJob(Location s, Location e, Set<String> &&pieceFilters,
+    SymbolInfoJob(Location s, Location e, std::set<String> &&pieceFilters,
                   const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute() override;

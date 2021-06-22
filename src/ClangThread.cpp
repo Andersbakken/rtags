@@ -28,7 +28,7 @@
 #include "clang-c/Index.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Map.h"
 #include "rct/Path.h"
@@ -145,7 +145,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
         }
     }
     const String usr = RTags::usr(cursor);
-    if (usr.isEmpty() || mSeen.insert(usr)) {
+    if (usr.isEmpty() || mSeen.insert(usr).second) {
         ++mIndentLevel;
         clang_visitChildren(cursor, ClangThread::visitor, this);
         if (isAborted())
@@ -256,13 +256,13 @@ void ClangThread::checkIncludes(Location location, const CXCursor &cursor)
     }
 }
 
-static bool validateHasInclude(uint32_t ref, const Dep *cur, Set<uint32_t> &seen)
+static bool validateHasInclude(uint32_t ref, const Dep *cur, std::set<uint32_t> &seen)
 {
     assert(ref);
     assert(cur);
     if (cur->includes.contains(ref))
         return true;
-    if (!seen.insert(ref))
+    if (!seen.insert(ref).second)
         return false;
     for (const auto &pair : cur->includes) {
         if (validateHasInclude(ref, static_cast<const Dep*>(pair.second), seen))
@@ -271,9 +271,9 @@ static bool validateHasInclude(uint32_t ref, const Dep *cur, Set<uint32_t> &seen
     return false;
 }
 
-static bool validateNeedsInclude(const Dep *source, const Dep *header, Set<uint32_t> &seen)
+static bool validateNeedsInclude(const Dep *source, const Dep *header, std::set<uint32_t> &seen)
 {
-    if (!seen.insert(header->fileId)) {
+    if (!seen.insert(header->fileId).second) {
         // error() << "already seen" << Location::path(source->fileId);
         return false;
     }
@@ -300,7 +300,7 @@ void ClangThread::checkIncludes()
             continue;
 
         for (const auto &dep  : it.second->includes) {
-            Set<uint32_t> seen;
+            std::set<uint32_t> seen;
             if (!validateNeedsInclude(it.second, static_cast<Dep*>(dep.second), seen)) {
                 writeToConnection(String::format<128>("%s includes %s for no reason",
                                                       path.constData(),
@@ -314,14 +314,14 @@ void ClangThread::checkIncludes()
             const Path refPath = Location::path(ref.first);
             if (refPath.startsWith("/usr/include/sys/_types/_") || refPath.startsWith("/usr/include/_types/_"))
                 continue;
-            Set<uint32_t> seen;
+            std::set<uint32_t> seen;
             if (!validateHasInclude(ref.first, it.second, seen)) {
-                List<String> reasons;
+                std::vector<String> reasons;
                 for (const auto &r : ref.second) {
                     String reason;
                     Log log(&reason);
                     log << r.first << "=>" << r.second;
-                    reasons << reason;
+                    reasons.push_back(reason);
                 }
                 writeToConnection(String::format<128>("%s should include %s (%s)",
                                                       Location::path(it.first).constData(),

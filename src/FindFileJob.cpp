@@ -28,10 +28,10 @@
 #include "RTags.h"
 #include "QueryMessage.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/Rct.h"
-#include "rct/Set.h"
+#include <set>
 
 static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
 {
@@ -97,7 +97,7 @@ int FindFileJob::execute()
     Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;
     const int patternSize = mPattern.size();
-    List<String> matches;
+    std::vector<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     int ret = 1;
     bool firstElisp = queryFlags() & QueryMessage::Elisp;
@@ -118,8 +118,8 @@ int FindFileJob::execute()
             out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
         }
 
-        const Set<String> &files = dirit->second;
-        for (Set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
+        const std::set<String> &files = dirit->second;
+        for (std::set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
             const String &key = *it;
             out.append(key);
             bool ok = false;
@@ -175,7 +175,7 @@ int FindFileJob::execute()
         out.chop(dir.size() - srcRoot.size());
         ++dirit;
     }
-    for (List<String>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
+    for (std::vector<String>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
         if (!writeFile(*it)) {
             return 1;
         }

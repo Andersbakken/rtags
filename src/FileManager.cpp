@@ -26,10 +26,10 @@
 #include "RTags.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Rct.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/SignalSlot.h"
 #include "rct/String.h"
 
@@ -49,12 +49,12 @@ void FileManager::load(Mode mode)
     if (mode == Asynchronous) {
         startScanThread();
     } else {
-        const Set<Path> paths = ScanThread::paths(project->path());
+        const std::set<Path> paths = ScanThread::paths(project->path());
         onRecurseJobFinished(paths);
     }
 }
 
-void FileManager::onRecurseJobFinished(const Set<Path> &paths)
+void FileManager::onRecurseJobFinished(const std::set<Path> &paths)
 {
     std::lock_guard<std::mutex> lock(mMutex); // ### is this needed now?
 
@@ -64,14 +64,14 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
     Files &map = project->files();
     map.clear();
     clearFileSystemWatcher();
-    for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+    for (std::set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         const Path parent = it->parentDir();
         if (parent.isEmpty()) {
             error() << "Got empty parent here" << *it;
             continue;
         }
         assert(!parent.isEmpty());
-        Set<String> &dir = map[parent];
+        std::set<String> &dir = map[parent];
         if (dir.empty()) {
             watch(parent);
             // error() << "Watching parent" << parent;
@@ -105,7 +105,7 @@ void FileManager::onFileAdded(const Path &path)
     Files &map = project->files();
     const Path parent = path.parentDir();
     if (!parent.isEmpty()) {
-        Set<String> &dir = map[parent];
+        std::set<String> &dir = map[parent];
         watch(parent);
         dir.insert(path.fileName());
     } else {
@@ -128,7 +128,7 @@ void FileManager::onFileRemoved(const Path &path)
     if (!map.remove(path)) {
         const Path parent = path.parentDir();
         if (map.contains(parent)) {
-            Set<String> &dir = map[parent];
+            std::set<String> &dir = map[parent];
             dir.erase(String(path.fileName()));
             if (dir.empty()) {
                 project->unwatch(parent, Project::Watch_FileManager);
@@ -177,7 +177,7 @@ void FileManager::startScanThread()
     ScanThread *thread = new ScanThread(project->path());
     thread->setAutoDelete(true);
     std::weak_ptr<FileManager> that = shared_from_this();
-    thread->finished().connect<EventLoop::Move>([that](const Set<Path> &paths) {
+    thread->finished().connect<EventLoop::Move>([that](const std::set<Path> &paths) {
             if (auto strong = that.lock())
                 strong->onRecurseJobFinished(paths);
         });

@@ -23,7 +23,7 @@
 #include "Location.h"
 #include "Sandbox.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Serializer.h"
 #include "rct/String.h"
 #include "rct/Value.h"
@@ -39,7 +39,7 @@ struct Symbol
 
     Location location;
     String symbolName, usr, typeName;
-    List<String> baseClasses;
+    std::vector<String> baseClasses;
     struct Argument {
         Argument()
             : length(0)
@@ -54,7 +54,7 @@ struct Symbol
             length = 0;
         }
     };
-    List<Argument> arguments;
+    std::vector<Argument> arguments;
     struct ArgumentUsage {
         ArgumentUsage()
             : index(String::npos)
@@ -167,11 +167,11 @@ struct Symbol
     Value toValue(const std::shared_ptr<Project> &project,
                   Flags<ToStringFlag> toStringFlags,
                   Flags<Location::ToStringFlag> locationToStringFlags,
-                  const Set<String> &pieceFilters) const;
+                  const std::set<String> &pieceFilters) const;
     String toString(const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
                     Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
-                    const Set<String> &pieceFilters = Set<String>()) const;
+                    const std::set<String> &pieceFilters = std::set<String>()) const;
     String kindSpelling() const { return kindSpelling(kind); }
     String displayName() const;
     static String kindSpelling(uint16_t kind);

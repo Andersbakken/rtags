@@ -43,11 +43,11 @@
 #include "Source.h"
 #include "Symbol.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Map.h"
 #include "rct/Rct.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 class Connection;
@@ -107,25 +107,25 @@ public:
         }
         return nullptr;
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, std::set<Location> > > openSymbolNames(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames, err);
+        return mFileMapScope->openFileMap<String, std::set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames, err);
     }
     std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, std::set<Location> > > openTargets(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets, err);
+        return mFileMapScope->openFileMap<String, std::set<Location> >(Targets, fileId, mFileMapScope->targets, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, std::set<Location> > > openUsrs(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
+        return mFileMapScope->openFileMap<String, std::set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
     }
 
     std::shared_ptr<FileMap<uint32_t, Token> > openTokens(uint32_t fileId, String *err = nullptr)
@@ -142,10 +142,10 @@ public:
     };
 
     Map<Symbol, size_t> findDeadFunctions(uint32_t fileId);
-    Set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
+    std::set<uint32_t> dependencies(uint32_t fileId, DependencyMode mode) const;
     bool dependsOn(uint32_t source, uint32_t header) const;
     String dumpDependencies(uint32_t fileId,
-                            const List<String> &args = List<String>(),
+                            const std::vector<String> &args = std::vector<String>(),
                             Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>()) const;
     const Hash<uint32_t, DependencyNode*> &dependencies() const { return mDependencies; }
     DependencyNode *dependencyNode(uint32_t fileId) const { return mDependencies.value(fileId); }
@@ -158,7 +158,7 @@ public:
         StartsWith
     };
     void findSymbols(const String &symbolName,
-                     const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &func,
+                     const std::function<void(SymbolMatchType, const String &, const std::set<Location> &)> &func,
                      Flags<QueryMessage::Flag> queryFlags,
                      uint32_t fileFilter = 0);
 
@@ -168,31 +168,31 @@ public:
     }
 
     Symbol findSymbol(Location location, int *index = nullptr);
-    Set<Symbol> findTargets(Location location) { return findTargets(findSymbol(location)); }
-    Set<Symbol> findTargets(const Symbol &symbol);
+    std::set<Symbol> findTargets(Location location) { return findTargets(findSymbol(location)); }
+    std::set<Symbol> findTargets(const Symbol &symbol);
     Symbol findTarget(Location location) { return RTags::bestTarget(findTargets(location)); }
     Symbol findTarget(const Symbol &symbol) { return RTags::bestTarget(findTargets(symbol)); }
-    Set<Symbol> findAllReferences(Location location) { return findAllReferences(findSymbol(location)); }
-    Set<Symbol> findAllReferences(const Symbol &symbol);
-    Set<Symbol> findCallers(Location location, int max = -1) { return findCallers(findSymbol(location), max); }
-    Set<Symbol> findCallers(const Symbol &symbol, int max = -1);
-    Set<Symbol> findVirtuals(Location location) { return findVirtuals(findSymbol(location)); }
-    Set<Symbol> findVirtuals(const Symbol &symbol);
-    Set<String> findTargetUsrs(const Symbol &symbol);
-    Set<String> findTargetUsrs(Location loc);
-    Set<Symbol> findSubclasses(const Symbol &symbol);
+    std::set<Symbol> findAllReferences(Location location) { return findAllReferences(findSymbol(location)); }
+    std::set<Symbol> findAllReferences(const Symbol &symbol);
+    std::set<Symbol> findCallers(Location location, int max = -1) { return findCallers(findSymbol(location), max); }
+    std::set<Symbol> findCallers(const Symbol &symbol, int max = -1);
+    std::set<Symbol> findVirtuals(Location location) { return findVirtuals(findSymbol(location)); }
+    std::set<Symbol> findVirtuals(const Symbol &symbol);
+    std::set<String> findTargetUsrs(const Symbol &symbol);
+    std::set<String> findTargetUsrs(Location loc);
+    std::set<Symbol> findSubclasses(const Symbol &symbol);
 
-    Set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
+    std::set<Symbol> findByUsr(const String &usr, uint32_t fileId, DependencyMode mode);
 
     Path sourceFilePath(uint32_t fileId, const char *path = "") const;
 
-    List<RTags::SortedSymbol> sort(const Set<Symbol> &symbols,
+    std::vector<RTags::SortedSymbol> sort(const std::set<Symbol> &symbols,
                                    Flags<QueryMessage::Flag> flags = Flags<QueryMessage::Flag>());
 
     const Files &files() const { return mFiles; }
     Files &files() { return mFiles; }
 
-    const Set<uint32_t> &suspendedFiles() const;
+    const std::set<uint32_t> &suspendedFiles() const;
     bool toggleSuspendFile(uint32_t file);
     void setSuspended(uint32_t file, bool suspended);
     bool isSuspended(uint32_t file) const;
@@ -209,7 +209,7 @@ public:
     bool hasSource(uint32_t fileId) const;
     bool isActiveJob(uint32_t sourceFileId) { return !sourceFileId || mActiveJobs.contains(sourceFileId); }
     inline bool visitFile(uint32_t fileId, uint32_t sourceFileId);
-    inline void releaseFileIds(const Set<uint32_t> &fileIds);
+    inline void releaseFileIds(const std::set<uint32_t> &fileIds);
     String fixIts(uint32_t fileId) const;
     int reindex(const Match &match,
                 const std::shared_ptr<QueryMessage> &query,
@@ -237,7 +237,7 @@ public:
     void dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn);
     void removeSources(const Hash<uint32_t, uint32_t> &sources); // key fileid, value fileid for compile_commands.json
     void removeSource(uint32_t fileId);
-    Set<uint32_t> visitedFiles() const
+    std::set<uint32_t> visitedFiles() const
     {
         std::lock_guard<std::mutex> lock(mMutex);
         return mVisitedFiles;
@@ -333,7 +333,7 @@ private:
     void removeDependencies(uint32_t fileId);
     void updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDataMessage> &msg);
     void loadFailed(uint32_t fileId);
-    void updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts);
+    void updateFixIts(const std::set<uint32_t> &visited, FixIts &fixIts);
     int startDirtyJobs(Dirty *dirty,
                        Flags<IndexerJob::Flag> type,
                        const UnsavedFiles &unsavedFiles = UnsavedFiles(),
@@ -439,9 +439,9 @@ private:
             return fileMap;
         }
 
-        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, std::set<Location> > > > symbolNames;
         Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
-        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > targets, usrs;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, std::set<Location> > > > targets, usrs;
         Hash<uint32_t, std::shared_ptr<FileMap<uint32_t, Token> > > tokens;
         std::shared_ptr<Project> project;
         int openedFiles, totalOpened;
@@ -460,7 +460,7 @@ private:
 
     Files mFiles;
 
-    Set<uint32_t> mVisitedFiles;
+    std::set<uint32_t> mVisitedFiles;
     int mJobCounter, mJobsStarted;
 
     time_t mLastIdleTime;
@@ -470,7 +470,7 @@ private:
     Hash<uint32_t, std::shared_ptr<IndexerJob> > mActiveJobs;
 
     Timer mDirtyTimer, mCheckTimer;
-    Set<uint32_t> mPendingDirtyFiles;
+    std::set<uint32_t> mPendingDirtyFiles;
 
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
@@ -480,7 +480,7 @@ private:
     FixIts mFixIts;
 
     Hash<uint32_t, DependencyNode*> mDependencies;
-    Set<uint32_t> mSuspendedFiles;
+    std::set<uint32_t> mSuspendedFiles;
 
     size_t mBytesWritten;
     bool mSaveDirty;
@@ -500,14 +500,14 @@ inline bool Project::visitFile(uint32_t visitFileId, uint32_t id)
     assert(mActiveJobs.contains(id));
     std::shared_ptr<IndexerJob> &job = mActiveJobs[id];
     assert(job);
-    if (mVisitedFiles.insert(visitFileId)) {
+    if (mVisitedFiles.insert(visitFileId).second) {
         job->visited.insert(visitFileId);
         return true;
     }
-    return job->visited.contains(visitFileId);
+    return job->visited.find(visitFileId) != job->visited.end();
 }
 
-inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
+inline void Project::releaseFileIds(const std::set<uint32_t> &fileIds)
 {
     if (!fileIds.empty()) {
         std::lock_guard<std::mutex> lock(mMutex);

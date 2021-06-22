@@ -20,7 +20,7 @@
 #include <memory>
 
 #include "QueryJob.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/String.h"
 
 class Project;
@@ -34,7 +34,7 @@ protected:
     virtual int execute() override;
 private:
     uint32_t mFileId;
-    List<String> mArgs;
+    std::vector<String> mArgs;
 };
 
 #endif

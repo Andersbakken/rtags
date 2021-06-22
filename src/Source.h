@@ -22,11 +22,11 @@
 
 #include "Location.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 #include "rct/Log.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 struct SourceCache;
@@ -105,7 +105,7 @@ struct Source
         }
     };
 
-    Set<Define> defines;
+    std::set<Define> defines;
     struct Include {
         enum Type {
             Type_None
@@ -147,8 +147,8 @@ struct Source
         inline bool operator<(const Include &other) const { return compare(other) < 0; }
         inline bool operator>(const Include &other) const { return compare(other) > 0; }
     };
-    List<Include> includePaths;
-    List<String> arguments;
+    std::vector<Include> includePaths;
+    std::vector<String> arguments;
     // int32_t sysRootIndex;
     Path directory;
     Path outputFilename;
@@ -163,7 +163,7 @@ struct Source
     bool operator<(const Source &other) const;
     bool operator>(const Source &other) const;
 
-    List<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>(), bool *usedPch = nullptr) const;
+    std::vector<String> toCommandLine(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>(), bool *usedPch = nullptr) const;
     inline bool isIndexable() const;
     static inline bool isIndexable(Language lang);
 
@@ -176,8 +176,8 @@ struct Source
 
     static SourceList parse(const String &cmdLine,
                             const Path &pwd,
-                            const List<String> &environment,
-                            List<Path> *unresolvedInputLocation = nullptr,
+                            const std::vector<String> &environment,
+                            std::vector<Path> *unresolvedInputLocation = nullptr,
                             SourceCache *cache = nullptr);
     enum EncodeMode {
         IgnoreSandbox,
@@ -250,16 +250,22 @@ inline int Source::compare(const Source &other) const
         return 1;
     }
 
-    if (int cmp = arguments.compare(other.arguments)) {
-        return cmp;
+    if (arguments < other.arguments) {
+        return -1;
+    } else if (arguments > other.arguments) {
+        return 1;
     }
 
-    if (int cmp = defines.compare(other.defines)) {
-        return cmp;
+    if (defines < other.defines) {
+        return -1;
+    } else if (defines > other.defines) {
+        return 1;
     }
 
-    if (int cmp = includePaths.compare(other.includePaths)) {
-        return cmp;
+    if (includePaths < other.includePaths) {
+        return -1;
+    } else if (includePaths > other.includePaths) {
+        return 1;
     }
 
     if (language < other.language) {
@@ -374,7 +380,7 @@ inline String Source::Define::toString(Flags<CommandLineFlag> f) const
     return ret;
 }
 
-class SourceList : public List<Source>
+class SourceList : public std::vector<Source>
 {
 public:
     uint64_t parsed = 0;
@@ -385,14 +391,14 @@ public:
 template <>
 inline Serializer &operator<<(Serializer &s, const SourceList &sources)
 {
-    s << static_cast<const List<Source> &>(sources) << sources.parsed;
+    s << static_cast<const std::vector<Source> &>(sources) << sources.parsed;
     return s;
 }
 
 template <>
 inline Deserializer &operator>>(Deserializer &d, SourceList &sources)
 {
-    d >> static_cast<List<Source> &>(sources) >> sources.parsed;
+    d >> static_cast<std::vector<Source> &>(sources) >> sources.parsed;
     return d;
 }
 

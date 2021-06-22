@@ -24,7 +24,7 @@
 
 #include "Project.h"
 #include "QueryMessage.h"
-#include "rct/List.h"
+#include <vector>
 #include "RTags.h"
 #include "FileMap.h"
 #include "Location.h"
@@ -43,19 +43,19 @@ ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const
 
 int ListSymbolsJob::execute()
 {
-    Set<String> out;
+    std::set<String> out;
     std::shared_ptr<Project> proj = project();
     if (proj) {
         if (queryFlags() & QueryMessage::WildcardSymbolNames
             && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
             string += '*';
         }
-        List<QueryMessage::PathFilter> filters = pathFilters();
-        List<Path> paths;
+        std::vector<QueryMessage::PathFilter> filters = pathFilters();
+        std::vector<Path> paths;
         for (const auto &filter : filters) {
             if (filter.mode == QueryMessage::PathFilter::Self) {
                 paths.push_back(filter.pattern);
-                if (!paths.last().isFile()) {
+                if (!paths.back().isFile()) {
                     paths.clear();
                     break;
                 }
@@ -73,12 +73,16 @@ int ListSymbolsJob::execute()
 
     if (queryFlags() & QueryMessage::Elisp) {
         write("(list", IgnoreMax | DontQuote);
-        for (Set<String>::const_iterator it = out.begin(); it != out.end(); ++it) {
+        for (std::set<String>::const_iterator it = out.begin(); it != out.end(); ++it) {
             write(*it);
         }
         write(")", IgnoreMax | DontQuote);
     } else {
-        List<String> sorted = out.toList();
+        std::vector<String> sorted;
+        sorted.reserve(out.size());
+        for (const auto &ref : out) {
+            sorted.push_back(ref);
+        }
         if (queryFlags() & QueryMessage::ReverseSort) {
             std::sort(sorted.begin(), sorted.end(), std::greater<String>());
         } else {
@@ -92,9 +96,9 @@ int ListSymbolsJob::execute()
     return out.empty() ? 1 : 0;
 }
 
-Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const
+std::set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const std::vector<Path> &paths) const
 {
-    Set<String> out;
+    std::set<String> out;
     const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
@@ -142,16 +146,16 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
     return out;
 }
 
-Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
+std::set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
 {
     const bool hasFilter = QueryJob::hasFilter();
     const bool hasKindFilter = QueryJob::hasKindFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
 
-    Set<String> out;
+    std::set<String> out;
     auto inserter = [this, &project, hasFilter, hasKindFilter, stripParentheses, &out](Project::SymbolMatchType,
                                                                                        const String &str,
-                                                                                       const Set<Location> &locations) {
+                                                                                       const std::set<Location> &locations) {
         if (hasFilter) {
             bool ok = false;
             for (const auto &l : locations) {

@@ -78,9 +78,9 @@
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
 // As of clang 4.0.0 we don't need (and can't have) these includes on Mac.
 #if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin)
-static const List<Path> sSystemIncludePaths;
+static const std::vector<Path> sSystemIncludePaths;
 #else
-static const List<Path> sSystemIncludePaths = {
+static const std::vector<Path> sSystemIncludePaths = {
     CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
     "/usr/lib"        // fedora, arch
 };
@@ -122,17 +122,17 @@ bool Server::init(const Options &options)
 
     mOptions = options;
     mSuspended = (options.options & StartSuspended);
-    mOptions.defaultArguments << String::format<32>("-ferror-limit=%d", mOptions.errorLimit);
+    mOptions.defaultArguments.push_back(String::format<32>("-ferror-limit=%d", mOptions.errorLimit));
     if (options.options & Wall)
-        mOptions.defaultArguments << "-Wall";
+        mOptions.defaultArguments.push_back("-Wall");
     if (options.options & Weverything)
-        mOptions.defaultArguments << "-Weverything";
+        mOptions.defaultArguments.push_back("-Weverything");
     if (options.options & SpellChecking)
-        mOptions.defaultArguments << "-fspell-checking";
+        mOptions.defaultArguments.push_back("-fspell-checking");
     if (!(options.options & NoNoUnknownWarningsOption))
         mOptions.defaultArguments.push_back("-Wno-unknown-warning-option");
 
-    mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
+    mOptions.defines.insert(Source::Define("RTAGS", String(), Source::Define::NoValue));
 
     if (mOptions.options & EnableCompilerManager) {
 #ifndef OS_Darwin   // this causes problems on MacOS+clang
@@ -155,7 +155,7 @@ bool Server::init(const Options &options)
             "__builtin_ia32_sbb_u32(...)"
         };
         for (const char *def : gccBuiltIntVectorFunctionDefines) {
-            mOptions.defines << Source::Define(def);
+            mOptions.defines.insert(Source::Define(def));
         }
 #endif
     }
@@ -375,18 +375,19 @@ void Server::onNewConnection(SocketServer *server)
 
 String Server::guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const
 {
-    Set<Path> includePaths;
-    List<String> ret;
+    std::set<Path> includePaths;
+    std::vector<String> ret;
     bool hasInput = false;
-    Set<Path> roots;
+    std::set<Path> roots;
     if (!projectRootOverride.isEmpty())
         roots.insert(projectRootOverride.ensureTrailingSlash());
-    ret << "/usr/bin/g++"; // this should be clang on mac
-    const List<String> split = args.split(" ");
+    ret.push_back("/usr/bin/g++"); // this should be clang on mac
+    const std::vector<String> split = args.split(" ");
     for (size_t i=0; i<split.size(); ++i) {
         const String &s = split.at(i);
         if (s == "--build-root") {
-            const Path root = split.value(++i);
+            ++i;
+            const Path root = split.size() > i ? split[i] : Path();
             if (!root.isEmpty())
                 roots.insert(root.ensureTrailingSlash());
             continue;
@@ -397,7 +398,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         if (file.isFile()) {
             if (!hasInput) {
                 hasInput = true;
-                ret << file;
+                ret.push_back(file);
                 includePaths.insert(file.parentDir());
                 const Path projectRoot = RTags::findProjectRoot(file, RTags::SourceRoot);
                 if (!projectRoot.isEmpty())
@@ -406,7 +407,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
                 return String();
             }
         } else {
-            ret << s;
+            ret.push_back(s);
         }
 
     }
@@ -420,7 +421,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
                 Path p = path;
                 do {
                     assert(!p.isEmpty());
-                    if (!includePaths.insert(p) || p == root)
+                    if (!includePaths.insert(p).second || p == root)
                         break;
                     p = p.parentDir();
                 } while (!p.isEmpty());
@@ -436,13 +437,13 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         process(root, root);
     for (const Path &p : includePaths) {
         assert(!p.isEmpty());
-        ret << ("-I" + p);
+        ret.push_back("-I" + p);
     }
 
     return String::join(ret, ' ');
 }
 
-bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const
+bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const std::vector<String> &environment, SourceCache *cache) const
 {
     if (Sandbox::hasRoot() && !data.project.isEmpty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
@@ -512,10 +513,12 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     }
 
     assert(pwd.endsWith('/'));
-    List<Path> unresolvedPaths;
+    std::vector<Path> unresolvedPaths;
     if (!mOptions.argTransform.isEmpty()) {
         Process process;
-        if (process.exec(mOptions.argTransform, List<String>() << arguments) == Process::Done) {
+        std::vector<String> args;
+        args.push_back(arguments);
+        if (process.exec(mOptions.argTransform, args) == Process::Done) {
             if (process.returnCode() != 0) {
                 warning() << "--arg-transform returned" << process.returnCode() << "for" << arguments;
                 return false;
@@ -564,7 +567,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
             source.compileCommandsFileId = compileCommandsFileId;
             auto &list = s[source.fileId];
-            if (!list.contains(source))
+            if (std::find(list.begin(), list.end(), source) == list.end())
                 list.push_back(source);
             ret = true;
         } else {
@@ -593,7 +596,7 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
         return false;
     }
     assert(source.isIndexable());
-    if (mOptions.ignoredCompilers.contains(source.compiler())) {
+    if (std::find(mOptions.ignoredCompilers.begin(), mOptions.ignoredCompilers.end(), source.compiler()) != mOptions.ignoredCompilers.end()) {
         warning() << "Shouldn't index" << source.sourceFile() << "because of ignored compiler";
         return false;
     }
@@ -650,19 +653,19 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
 
 std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMessage> &query)
 {
-    List<Match> matches;
+    std::vector<Match> matches;
     if (query->flags() & QueryMessage::HasLocation) {
-        matches << query->location().path();
+        matches.push_back(query->location().path());
     } else if (query->flags() & QueryMessage::HasMatch) {
-        matches << query->match();
+        matches.push_back(query->match());
     }
     if (!query->currentFile().isEmpty())
-        matches << query->currentFile();
+        matches.push_back(query->currentFile());
 
     return projectForMatches(matches);
 }
 
-std::shared_ptr<Project> Server::projectForMatches(const List<Match> &matches)
+std::shared_ptr<Project> Server::projectForMatches(const std::vector<Match> &matches)
 {
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
@@ -745,7 +748,7 @@ bool Server::load()
             clearProjects(Clear_All);
             return true;
         }
-        List<Path> projects = mOptions.dataDir.files(Path::Directory);
+        std::vector<Path> projects = mOptions.dataDir.files(Path::Directory);
         for (size_t i=0; i<projects.size(); ++i) {
             const Path &file = projects.at(i);
             Path filePath = file.mid(mOptions.dataDir.size());
@@ -906,13 +909,13 @@ public:
             }
         });
     }
-    List<String> output() const { return mOutput; }
+    std::vector<String> output() const { return mOutput; }
     bool isFinished() const { return mIsFinished; }
     std::shared_ptr<Connection> connection() const { return mConnection; }
 private:
     std::shared_ptr<Connection> mConnection;
     bool mIsFinished;
-    List<String> mOutput;
+    std::vector<String> mOutput;
     const Path mWorkingDirectory;
 };
 
@@ -943,13 +946,13 @@ bool Server::runTests()
             ret = false;
             continue;
         }
-        const List<Value> tests = value.operator[]<List<Value> >("tests");
+        const std::vector<Value> tests = value.operator[]<std::vector<Value> >("tests");
         if (tests.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
         }
-        const List<Value> sources = value.operator[]<List<Value> >("sources");
+        const std::vector<Value> sources = value.operator[]<std::vector<Value> >("sources");
         if (sources.empty()) {
             error() << "Invalid test" << file;
             ret = false;
@@ -1037,7 +1040,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            const List<Value> flags = test.operator[]<List<Value> >("flags");
+            const std::vector<Value> flags = test.operator[]<std::vector<Value> >("flags");
             for (const auto &flag : flags) {
                 if (!flag.isString()) {
                     error() << "Invalid flag";
@@ -1063,13 +1066,13 @@ bool Server::runTests()
             }
 
             const Value out = test["output"];
-            if (!out.isList()) {
+            if (!out.isVector()) {
                 error() << "Invalid output";
                 ret = false;
                 continue;
             }
-            List<String> output;
-            for (auto it=out.listBegin(); it != out.listEnd(); ++it) {
+            std::vector<String> output;
+            for (auto it=out.vectorBegin(); it != out.vectorEnd(); ++it) {
                 if (!it->isString()) {
                     error() << "Invalid output";
                     ret = false;
@@ -1135,17 +1138,19 @@ void Server::filterBlockedArguments(Source &source)
             while (i<source.arguments.size()) {
                 if (source.arguments.at(i).startsWith(blocked)) {
                     // error() << "Removing" << source.arguments.at(i);
-                    source.arguments.remove(i, 1);
+                    source.arguments.erase(source.arguments.begin() + i);
                 } else if (!strncmp(blocked.constData(), source.arguments.at(i).constData(), blocked.size() - 1)) {
                     const size_t count = (i + 1 < source.arguments.size()) ? 2 : 1;
                     // error() << "Removing" << source.arguments.mid(i, count);
-                    source.arguments.remove(i, count);
+                    source.arguments.erase(source.arguments.begin() + i, source.arguments.begin() + i + count);
                 } else {
                     ++i;
                 }
             }
         } else {
-            source.arguments.remove(blocked);
+            auto it = std::find(source.arguments.begin(), source.arguments.end(), blocked);
+            if (it != source.arguments.end())
+                source.arguments.erase(it);
         }
     }
 }

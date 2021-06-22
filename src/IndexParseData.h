@@ -23,7 +23,7 @@
 #include <utility>
 
 #include "rct/Path.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Serializer.h"
 #include "rct/Log.h"
 #include "RTags.h"
@@ -77,13 +77,13 @@ public:
 
         uint64_t lastModifiedMs;
         Sources sources;
-        List<String> environment;
+        std::vector<String> environment;
     };
     Hash<uint32_t, CompileCommands> compileCommands; // fileId for compile_commands.json -> CompileCommands
-    List<String> environment;
+    std::vector<String> environment;
     Sources sources;
 
-    bool isEmpty() const { return compileCommands.isEmpty() && environment.empty() && sources.isEmpty(); }
+    bool isEmpty() const { return compileCommands.isEmpty() && environment.empty() && sources.empty(); }
     bool write(const std::function<bool(const String &)> &write, const Match &match = Match()) const;
 };
 

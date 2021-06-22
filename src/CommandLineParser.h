@@ -20,7 +20,7 @@
 #include <initializer_list>
 #include <rct/Flags.h>
 #include <rct/Hash.h>
-#include <rct/List.h>
+#include <vector>
 #include <rct/Path.h>
 #include <rct/String.h>
 #include <stddef.h>
@@ -67,7 +67,7 @@ template <typename T>
 ParseStatus parse(int argc, char **argv,
                   std::initializer_list<Option<T> > optsList,
                   Flags<Flag> flags,
-                  const std::function<ParseStatus(T, String &&value, size_t &idx, const List<String> &args)> &handler,
+                  const std::function<ParseStatus(T, String &&value, size_t &idx, const std::vector<String> &args)> &handler,
                   const String &app = String(),
                   std::initializer_list<Option<ConfigOptionType> > configOpts = std::initializer_list<Option<ConfigOptionType> >(),
                   String *cmdLine = nullptr)
@@ -101,7 +101,7 @@ ParseStatus parse(int argc, char **argv,
         return { String(), Parse_Ok };
     }
 
-    List<String> args;
+    std::vector<String> args;
     if (configOpts.size() && !app.isEmpty()) {
         bool norc = false;
         Path rcfile = Path::home() + "." + app + "rc";
@@ -113,7 +113,7 @@ ParseStatus parse(int argc, char **argv,
             rcfile += app + "rc";
         }
         parse<ConfigOptionType>(argc, argv, configOpts,
-                                IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type, String &&value, size_t &, const List<String> &) -> ParseStatus {
+                                IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type, String &&value, size_t &, const std::vector<String> &) -> ParseStatus {
                                     switch (type) {
                                     case ConfigNone: {
                                         assert(0);
@@ -132,16 +132,20 @@ ParseStatus parse(int argc, char **argv,
             String rc = Path("/etc/rcrc").readAll();
             if (!rc.isEmpty()) {
                 for (const String &s : rc.split('\n')) {
-                    if (!s.isEmpty() && !s.startsWith('#'))
-                        args += s.split(' ');
+                    if (!s.isEmpty() && !s.startsWith('#')) {
+                        const std::vector<String> split = s.split(' ');
+                        args.insert(args.end(), split.begin(), split.end());
+                    }
                 }
             }
             if (!rcfile.isEmpty()) {
                 rc = rcfile.readAll();
                 if (!rc.isEmpty()) {
                     for (const String& s : rc.split('\n')) {
-                        if (!s.isEmpty() && !s.startsWith('#'))
-                            args += s.split(' ');
+                        if (!s.isEmpty() && !s.startsWith('#')) {
+                            const std::vector<String> split = s.split(' ');
+                            args.insert(args.end(), split.begin(), split.end());
+                        }
                     }
                 }
             }
@@ -177,7 +181,7 @@ ParseStatus parse(int argc, char **argv,
     ParseStatus status = { String(), Parse_Exec };
     for (size_t i=1; i<args.size(); ++i) {
         const String &arg = args.at(i);
-        List<const Option<T> *> opts;
+        std::vector<const Option<T> *> opts;
         String value;
         auto addArg = [&arg, &opts, &status, flags](const Option<T> *opt) -> bool {
             if (opt) {
@@ -245,18 +249,18 @@ ParseStatus parse(int argc, char **argv,
 template <typename T>
 static void help(FILE *f, const char *app, std::initializer_list<Option<T> > optsList)
 {
-    List<String> out;
+    std::vector<String> out;
     size_t longest = 0;
     for (const auto &opt : optsList) {
         if (opt.longOpt.isEmpty() && !opt.shortOpt) {
             out.push_back(String());
         } else {
             out.push_back(String::format<64>("  %s%s%s%s",
-                                          (opt.longOpt.isEmpty() ? String() : ("--" + opt.longOpt)).constData(),
-                                          !opt.longOpt.isEmpty() && opt.shortOpt ? "|" : "",
-                                          opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
-                                          opt.valueType == Required ? " [arg] "
-                                          : opt.valueType == Optional ? " [optional] " : ""));
+                                             (opt.longOpt.isEmpty() ? String() : ("--" + opt.longOpt)).constData(),
+                                             !opt.longOpt.isEmpty() && opt.shortOpt ? "|" : "",
+                                             opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
+                                             opt.valueType == Required ? " [arg] "
+                                             : opt.valueType == Optional ? " [optional] " : ""));
             longest = std::max<size_t>(out.back().size(), longest);
         }
     }

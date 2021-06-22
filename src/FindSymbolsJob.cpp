@@ -22,8 +22,8 @@
 #include "RTags.h"
 #include "Symbol.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
-#include "rct/Set.h"
+#include <vector>
+#include <set>
 
 class Location;
 
@@ -44,10 +44,10 @@ int FindSymbolsJob::execute()
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
     int ret = 2;
     if (std::shared_ptr<Project> proj = project()) {
-        Set<Symbol> symbols;
+        std::set<Symbol> symbols;
         auto inserter = [proj, this, stripParentheses, &symbols](Project::SymbolMatchType type,
                                                                  const String &symbolName,
-                                                                 const Set<Location> &locations) {
+                                                                 const std::set<Location> &locations) {
             if (type == Project::StartsWith) {
                 const size_t paren = symbolName.indexOf('(');
                 if (paren == String::npos || paren != string.size() || RTags::isFunctionVariable(symbolName))
@@ -67,7 +67,7 @@ int FindSymbolsJob::execute()
         };
         proj->findSymbols(string, inserter, queryFlags(), fileFilter());
         if (!symbols.empty()) {
-            const List<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
+            const std::vector<RTags::SortedSymbol> sorted = proj->sort(symbols, queryFlags());
             const Flags<WriteFlag> writeFlags = fileFilter() ? Unfiltered : NoWriteFlags;
             const int count = sorted.size();
             ret = count ? 0 : 1;

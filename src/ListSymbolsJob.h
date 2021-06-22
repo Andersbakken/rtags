@@ -20,7 +20,7 @@
 
 #include "QueryJob.h"
 #include "rct/String.h"
-#include "rct/Set.h"
+#include <set>
 
 template <typename T>
 class List;
@@ -34,8 +34,8 @@ public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual int execute() override;
-    Set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const;
-    Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
+    std::set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const std::vector<Path> &paths) const;
+    std::set<String> listSymbols(const std::shared_ptr<Project> &project) const;
 private:
     String string;
 };

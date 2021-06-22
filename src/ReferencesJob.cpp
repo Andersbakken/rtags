@@ -28,7 +28,7 @@
 #include "Symbol.h"
 #include "clang-c/Index.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Map.h"
 #include "rct/Path.h"
 #include "rct/Value.h"
@@ -55,11 +55,11 @@ int ReferencesJob::execute()
     std::shared_ptr<Project> proj = project();
     if (!proj)
         return 1;
-    Set<Symbol> refs;
+    std::set<Symbol> refs;
     Map<Location, std::pair<bool, CXCursorKind> > references;
     if (!mSymbolName.isEmpty()) {
         const bool hasFilter = QueryJob::hasFilter();
-        auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
+        auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const std::set<Location> &locs) {
             if (type == Project::StartsWith) {
                 const size_t paren = string.indexOf('(');
                 if (paren == String::npos || paren != mSymbolName.size() || RTags::isFunctionVariable(string))
@@ -99,7 +99,7 @@ int ReferencesJob::execute()
         if (rename && sym.isConstructorOrDestructor()) {
             const Location loc = sym.location;
             sym.clear();
-            const Set<String> usrs = proj->findTargetUsrs(loc);
+            const std::set<String> usrs = proj->findTargetUsrs(loc);
             for (const String &usr : usrs) {
                 for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::All)) {
                     if (s.isClass()) {
@@ -114,7 +114,7 @@ int ReferencesJob::execute()
                 continue;
         }
         if (queryFlags() & QueryMessage::AllReferences) {
-            const Set<Symbol> all = proj->findAllReferences(sym);
+            const std::set<Symbol> all = proj->findAllReferences(sym);
             for (const auto &symbol : all) {
                 if (rename) {
                     if (symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition) {
@@ -133,7 +133,7 @@ int ReferencesJob::execute()
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
         } else if (queryFlags() & QueryMessage::FindVirtuals) {
-            const Set<Symbol> virtuals = proj->findVirtuals(sym);
+            const std::set<Symbol> virtuals = proj->findVirtuals(sym);
             for (const auto &symbol : virtuals) {
                 const bool def = symbol.isDefinition();
                 if (def) {
@@ -145,7 +145,7 @@ int ReferencesJob::execute()
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
         } else {
-            const Set<Symbol> symbols = proj->findCallers(sym);
+            const std::set<Symbol> symbols = proj->findCallers(sym);
             for (const auto &symbol : symbols) {
                 const bool def = symbol.isDefinition();
                 if (def) {
@@ -249,7 +249,7 @@ int ReferencesJob::execute()
             }
         }
     } else {
-        List<RTags::SortedSymbol> sorted;
+        std::vector<RTags::SortedSymbol> sorted;
         sorted.reserve(references.size());
         for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
              it != references.end(); ++it) {

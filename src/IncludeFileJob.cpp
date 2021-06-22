@@ -28,19 +28,19 @@
 #include "Symbol.h"
 #include "clang-c/Index.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/Rct.h"
-#include "rct/Set.h"
+#include <set>
 
 IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
     : QueryJob(query, project)
 {
     const uint32_t fileId = Location::fileId(query->currentFile());
-    mSource = project->sources(fileId).value(query->buildIndex());
+    mSource = project->sources(fileId)[query->buildIndex()];
     if (mSource.isNull()) {
         for (const uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
-            mSource = project->sources(dep).value(query->buildIndex());
+            mSource = project->sources(dep)[query->buildIndex()];
             if (!mSource.isNull())
                 break;
         }
@@ -48,9 +48,9 @@ IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const
     mSymbol = query->query();
 }
 
-static inline List<Path> headersForSymbol(const std::shared_ptr<Project> &project, Location loc)
+static inline std::vector<Path> headersForSymbol(const std::shared_ptr<Project> &project, Location loc)
 {
-    List<Path> ret;
+    std::vector<Path> ret;
     const Path &path = loc.path();
     if (path.isHeader()) {
         ret.push_back(path);
@@ -74,10 +74,10 @@ int IncludeFileJob::execute()
         return 1;
     }
     const Path directory = mSource.sourceFile().parentDir();
-    Set<Location> last;
+    std::set<Location> last;
     int matches = 0;
-    Set<String> all;
-    auto process = [&directory, this, &all](const Set<Location> &locations) {
+    std::set<String> all;
+    auto process = [&directory, this, &all](const std::set<Location> &locations) {
         for (Location loc : locations) {
             bool first = true;
             for (const Path &path : headersForSymbol(project(), loc)) {
@@ -93,21 +93,21 @@ int IncludeFileJob::execute()
                     RCT_FALL_THROUGH;
                 case CXCursor_FunctionDecl:
                 case CXCursor_FunctionTemplate: {
-                    List<String> alternatives;
+                    std::vector<String> alternatives;
                     if (path.startsWith(directory))
-                        alternatives << String::format<256>("#include \"%s\"", path.mid(directory.size()).constData());
+                        alternatives.push_back(String::format<256>("#include \"%s\"", path.mid(directory.size()).constData()));
                     for (const Source::Include &inc : mSource.includePaths) {
                         const Path p = inc.path.ensureTrailingSlash();
                         if (path.startsWith(p)) {
                             const String str = String::format<256>("#include <%s>", path.mid(p.size()).constData());
-                            alternatives << str;
+                            alternatives.push_back(str);
                         }
                     }
                     const int tail = strlen(path.fileName()) + 1;
-                    List<String>::const_iterator it = alternatives.begin();
+                    std::vector<String>::const_iterator it = alternatives.begin();
                     while (it != alternatives.end()) {
                         bool drop = false;
-                        for (List<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
+                        for (std::vector<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
                             if (it2->size() < it->size()) {
                                 if (!strncmp(it2->constData() + 9, it->constData() + 9, it2->size() - tail - 9)) {
                                     drop = true;
@@ -134,29 +134,33 @@ int IncludeFileJob::execute()
             }
         }
     };
-    project()->findSymbols(mSymbol, [&](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations) {
-            ++matches;
-            bool fuzzy = false;
-            if (type == Project::StartsWith) {
-                fuzzy = true;
-                const size_t paren = symbolName.indexOf('(');
-                if (paren == mSymbol.size() && !RTags::isFunctionVariable(symbolName))
-                    fuzzy = false;
-            }
+    project()->findSymbols(mSymbol, [&](Project::SymbolMatchType type, const String &symbolName, const std::set<Location> &locations) {
+        ++matches;
+        bool fuzzy = false;
+        if (type == Project::StartsWith) {
+            fuzzy = true;
+            const size_t paren = symbolName.indexOf('(');
+            if (paren == mSymbol.size() && !RTags::isFunctionVariable(symbolName))
+                fuzzy = false;
+        }
 
-            if (!fuzzy) {
-                process(locations);
-            } else if (matches == 1) {
-                last = locations;
-            }
-        }, queryFlags());
+        if (!fuzzy) {
+            process(locations);
+        } else if (matches == 1) {
+            last = locations;
+        }
+    }, queryFlags());
     if (matches == 1 && !last.empty()) {
         process(last);
     }
-    List<String> alternatives = all.toList();
+    std::vector<String> alternatives;
+    alternatives.reserve(all.size());
+    for (const auto &ref : all) {
+        alternatives.push_back(ref);
+    }
     std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
-            return a.size() < b.size();
-        });
+        return a.size() < b.size();
+    });
     for (const auto &a : alternatives) {
         write(a);
     }

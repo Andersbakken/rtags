@@ -67,46 +67,51 @@ class Dirty
 {
 public:
     virtual ~Dirty() {}
-    virtual Set<uint32_t> dirtied() const = 0;
+    virtual std::set<uint32_t> dirtied() const = 0;
     virtual bool isDirty(const SourceList &) = 0;
 };
 
 class SimpleDirty : public Dirty
 {
 public:
-    void init(const std::shared_ptr<Project> &project, const Set<uint32_t> &dirty = Set<uint32_t>())
+    void init(const std::shared_ptr<Project> &project, const std::set<uint32_t> &dirty = std::set<uint32_t>())
     {
         mProject = project;
         for (auto fileId : dirty) {
             mDirty.insert(fileId);
-            mDirty += project->dependencies(fileId, Project::DependsOnArg);
+            for (uint32_t dep : project->dependencies(fileId, Project::DependsOnArg)) {
+                mDirty.insert(dep);
+            }
         }
     }
 
-    virtual Set<uint32_t> dirtied() const override
+    virtual std::set<uint32_t> dirtied() const override
     {
         return mDirty;
     }
 
     void insert(uint32_t fileId)
     {
-        if (mDirty.insert(fileId))
-            mDirty += mProject->dependencies(fileId, Project::DependsOnArg);
+        if (mDirty.insert(fileId).second) {
+            for (uint32_t dep : mProject->dependencies(fileId, Project::DependsOnArg)) {
+                mDirty.insert(dep);
+            }
+        }
     }
 
     virtual bool isDirty(const SourceList &sourceList) override
     {
-        return mDirty.contains(sourceList.fileId());
+        return mDirty.find(sourceList.fileId()) != mDirty.end();
     }
 
-    Set<uint32_t> mDirty;
+    std::set<uint32_t> mDirty;
     std::shared_ptr<Project> mProject;
 };
 
 class ComplexDirty : public Dirty
 {
 public:
-    virtual Set<uint32_t> dirtied() const override
+    virtual std::set<uint32_t> dirtied() const override
     {
         return mDirty;
     }
@@ -124,7 +129,7 @@ public:
     }
 
     Hash<uint32_t, uint64_t> mLastModified;
-    Set<uint32_t> mDirty;
+    std::set<uint32_t> mDirty;
 };
 
 class SuspendedDirty : public ComplexDirty
@@ -160,7 +165,7 @@ public:
             if (ret)
                 mDirty.insert(fileId);
 
-            assert(!ret || mDirty.contains(fileId));
+            assert(!ret || mDirty.find(fileId) != mDirty.end());
         }
         return ret;
     }
@@ -173,7 +178,7 @@ public:
 class WatcherDirty : public ComplexDirty
 {
 public:
-    WatcherDirty(const std::shared_ptr<Project> &project, const Set<uint32_t> &modified)
+    WatcherDirty(const std::shared_ptr<Project> &project, const std::set<uint32_t> &modified)
     {
         for (auto it : modified) {
             mModified[it] = project->dependencies(it, Project::DependsOnArg);
@@ -186,7 +191,7 @@ public:
 
         for (auto it : mModified) {
             const auto &deps = it.second;
-            if (deps.contains(sourceList.fileId())) {
+            if (deps.find(sourceList.fileId()) != deps.end()) {
                 const uint64_t depLastModified = lastModified(it.first);
                 if (!depLastModified || depLastModified > sourceList.parsed) {
                     // dependency is gone
@@ -201,7 +206,7 @@ public:
         return ret;
     }
 
-    Hash<uint32_t, Set<uint32_t> > mModified;
+    Hash<uint32_t, std::set<uint32_t> > mModified;
 };
 
 static Project::DependencyMode modeForSymbol(const Symbol &symbol)
@@ -300,7 +305,7 @@ Project::~Project()
     mCheckTimer.stop();
 }
 
-static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, Set<uint32_t> &seen)
+static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, std::set<uint32_t> &seen)
 {
     const Path path = Location::path(node->fileId);
     // error("%s %d %d", path.constData(), path.isFile(), path.isSource());
@@ -308,7 +313,7 @@ static bool hasSourceDependency(const DependencyNode *node, const std::shared_pt
         return true;
     }
     for (auto it : node->dependents) {
-        if (seen.insert(it.first) && hasSourceDependency(it.second, project, seen))
+        if (seen.insert(it.first).second && hasSourceDependency(it.second, project, seen))
             return true;
     }
     return false;
@@ -316,7 +321,7 @@ static bool hasSourceDependency(const DependencyNode *node, const std::shared_pt
 
 static inline bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project)
 {
-    Set<uint32_t> seen;
+    std::set<uint32_t> seen;
     return hasSourceDependency(node, project, seen);
 }
 
@@ -438,9 +443,9 @@ void Project::check(CheckMode checkMode)
         dirty.reset(new IfModifiedDirty(shared_from_this()));
     }
 
-    Set<uint32_t> missingFileMaps;
+    std::set<uint32_t> missingFileMaps;
     {
-        List<uint32_t> removed;
+        std::vector<uint32_t> removed;
         int idx = 0;
         bool outputDirty = false;
         if (checkMode == Check_Init && mDependencies.size() >= 100) {
@@ -454,11 +459,11 @@ void Project::check(CheckMode checkMode)
                 warning() << path << "seems to have disappeared";
                 dirty.get()->insertDirtyFile(it.first);
 
-                const Set<uint32_t> dependents = dependencies(it.first, DependsOnArg);
+                const std::set<uint32_t> dependents = dependencies(it.first, DependsOnArg);
                 for (auto dependent : dependents) {
                     dirty.get()->insertDirtyFile(dependent);
                 }
-                removed << it.first;
+                removed.push_back(it.first);
                 needsSave = true;
             } else {
                 String errorString;
@@ -473,7 +478,7 @@ void Project::check(CheckMode checkMode)
                     if (hasSource(it.first) || hasSourceDependency(it.second, project)) {
                         missingFileMaps.insert(it.first);
                     } else {
-                        removed << it.first;
+                        removed.push_back(it.first);
                         needsSave = true;
                     }
                 }
@@ -560,17 +565,24 @@ inline static const char *severityToString(Diagnostic::Flag type)
     return nullptr;
 }
 
-static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, Set<uint32_t> &&filter = Set<uint32_t>())
+static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessage::Flag> flags, std::set<uint32_t> &&filter = std::set<uint32_t>())
 {
     Diagnostics::const_iterator it;
     Diagnostics::const_iterator end;
     {
         if (Server::instance()->activeBuffersSet()) {
-            Set<uint32_t> active = Server::instance()->activeBuffers(Server::Active);
+            std::set<uint32_t> active = Server::instance()->activeBuffers(Server::Active);
             if (filter.empty()) {
                 filter = std::move(active);
             } else {
-                filter = filter.intersected(active);
+                auto fit = filter.begin();
+                while (fit != filter.end()) {
+                    if (active.find(*fit) == active.end()) {
+                        fit = filter.erase(fit);
+                    } else {
+                        ++fit;
+                    }
+                }
             }
             if (filter.empty())
                 return String();
@@ -650,7 +662,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             currentFile->push_back(toValue(lastFileId, ref->first, ref->second));
         }
         for (uint32_t f : filter) {
-            checkStyle[Location::path(f)] = Value(Value::Type_List);
+            checkStyle[Location::path(f)] = Value(Value::Type_Vector);
         }
         return val.toJSON();
     }
@@ -846,7 +858,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
 
 
-    Set<uint32_t> visited = msg->visitedFiles();
+    std::set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
     updateDependencies(fileId, msg);
     if (success) {
@@ -893,7 +905,7 @@ void Project::diagnose(uint32_t fileId)
 {
     log([&](const std::shared_ptr<LogOutput> &output) {
         if (output->testLog(RTags::DiagnosticsLevel)) {
-            Set<uint32_t> filter;
+            std::set<uint32_t> filter;
             if (fileId)
                 filter.insert(fileId);
             const String log = formatDiagnostics(mDiagnostics, queryFlags(output), std::move(filter));
@@ -916,7 +928,7 @@ void Project::diagnoseAll()
 
 String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
 {
-    Set<uint32_t> filter;
+    std::set<uint32_t> filter;
     if (fileId)
         filter.insert(fileId);
     return formatDiagnostics(mDiagnostics, flags, std::move(filter));
@@ -1015,11 +1027,11 @@ void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
         return;
     }
 
-    if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
+    if (Server::instance()->suspended() || mSuspendedFiles.find(fileId) != mSuspendedFiles.end()) {
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
-    if (mPendingDirtyFiles.insert(fileId)) {
+    if (mPendingDirtyFiles.insert(fileId).second) {
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
 }
@@ -1036,18 +1048,18 @@ void Project::onFileRemoved(const Path &file)
         return;
     }
 
-    if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
+    if (Server::instance()->suspended() || mSuspendedFiles.find(fileId) != mSuspendedFiles.end()) {
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
-    if (mPendingDirtyFiles.insert(fileId)) {
+    if (mPendingDirtyFiles.insert(fileId).second) {
         mDirtyTimer.restart(DirtyTimeout, Timer::SingleShot);
     }
 }
 
 void Project::onDirtyTimeout(Timer *)
 {
-    Set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
+    std::set<uint32_t> dirtyFiles = std::move(mPendingDirtyFiles);
     WatcherDirty dirty(shared_from_this(), dirtyFiles);
     const int dirtied = startDirtyJobs(&dirty, IndexerJob::Dirty);
     debug() << "onDirtyTimeout" << dirtyFiles << dirtied;
@@ -1059,7 +1071,7 @@ SourceList Project::sources(uint32_t fileId) const
     forEachSources([&ret, fileId](const Sources &srcs) {
         const auto it = srcs.find(fileId);
         if (it != srcs.end())
-            ret += it->second;
+            ret.insert(ret.end(), it->second.begin(), it->second.end());
         return Continue;
     });
     return ret;
@@ -1078,9 +1090,9 @@ bool Project::hasSource(uint32_t fileId) const
     return ret;
 }
 
-Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
+std::set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 {
-    Set<uint32_t> ret;
+    std::set<uint32_t> ret;
     if (mode == All) {
         for (const auto &node : mDependencies) {
             ret.insert(node.first);
@@ -1092,7 +1104,7 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
         if (DependencyNode *node = mDependencies.value(file)) {
             const auto &nodes = (mode == ArgDependsOn ? node->includes : node->dependents);
             for (const auto &it : nodes) {
-                if (ret.insert(it.first))
+                if (ret.insert(it.first).second)
                     fill(it.first);
             }
         }
@@ -1103,10 +1115,10 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 
 bool Project::dependsOn(uint32_t source, uint32_t header) const
 {
-    Set<uint32_t> seen;
+    std::set<uint32_t> seen;
     std::function<bool(DependencyNode *node)> dep = [&](DependencyNode *node) {
         assert(node);
-        if (!seen.insert(node->fileId))
+        if (!seen.insert(node->fileId).second)
             return false;
         if (node->dependents.contains(source))
             return true;
@@ -1189,11 +1201,11 @@ int Project::reindex(const Match &match,
                      const std::shared_ptr<Connection> &wait)
 {
     if (query->type() == QueryMessage::Reindex) {
-        Set<uint32_t> dirtyFiles;
+        std::set<uint32_t> dirtyFiles;
 
         const auto end = mDependencies.constEnd();
         for (auto it = mDependencies.constBegin(); it != end; ++it) {
-            if (!dirtyFiles.contains(it->first) && (match.isEmpty() || match.match(Location::path(it->first)))) {
+            if (dirtyFiles.find(it->first) == dirtyFiles.end() && (match.isEmpty() || match.match(Location::path(it->first)))) {
                 dirtyFiles.insert(it->first);
             }
         }
@@ -1253,13 +1265,13 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
                             const std::shared_ptr<Connection> &wait)
 {
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
-    Set<uint32_t> toIndex;
+    std::set<uint32_t> toIndex;
     forEachSourceList([dirty, &toIndex](const SourceList &sourceList) -> VisitResult {
         if (dirty->isDirty(sourceList))
             toIndex.insert(sourceList.fileId());
         return Continue;
     });
-    const Set<uint32_t> dirtyFiles = dirty->dirtied();
+    const std::set<uint32_t> dirtyFiles = dirty->dirtied();
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
@@ -1280,7 +1292,7 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
                 continue;
         }
 
-        if (mSuspendedFiles.contains(fileId)) {
+        if (mSuspendedFiles.find(fileId) != mSuspendedFiles.end()) {
             warning() << "Not starting job for" << Location::path(fileId) << "because it is suspended";
             continue;
         }
@@ -1305,7 +1317,7 @@ bool Project::isIndexed(uint32_t fileId) const
     return mDependencies.contains(fileId);
 }
 
-const Set<uint32_t> &Project::suspendedFiles() const
+const std::set<uint32_t> &Project::suspendedFiles() const
 {
     return mSuspendedFiles;
 }
@@ -1317,7 +1329,7 @@ void Project::clearSuspendedFiles()
 
 bool Project::toggleSuspendFile(uint32_t file)
 {
-    if (!mSuspendedFiles.insert(file)) {
+    if (!mSuspendedFiles.insert(file).second) {
         mSuspendedFiles.erase(file);
         return false;
     }
@@ -1335,10 +1347,10 @@ void Project::setSuspended(uint32_t file, bool suspended)
 
 bool Project::isSuspended(uint32_t file) const
 {
-    return mSuspendedFiles.contains(file);
+    return mSuspendedFiles.find(file) != mSuspendedFiles.end();
 }
 
-void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)
+void Project::updateFixIts(const std::set<uint32_t> &visited, FixIts &fixIts)
 {
     for (auto v : visited) {
         const auto fit = fixIts.find(v);
@@ -1356,7 +1368,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     // if (debug) {
     //     error() << "GOT HERE" << diagnostics;
     // }
-    Set<uint32_t> files;
+    std::set<uint32_t> files;
     {
         auto it = mDiagnostics.begin();
         const auto end = mDiagnostics.end();
@@ -1400,7 +1412,7 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
         // }
         log([&](const std::shared_ptr<LogOutput> &output) {
             if (output->testLog(RTags::DiagnosticsLevel)) {
-                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), std::set<uint32_t>(files));
                 if (!log.isEmpty()) {
                     output->log(log);
                 }
@@ -1414,7 +1426,7 @@ String Project::fixIts(uint32_t fileId) const
     const auto it = mFixIts.find(fileId);
     String out;
     if (it != mFixIts.end()) {
-        const Set<FixIt> &fixIts = it->second;
+        const std::set<FixIt> &fixIts = it->second;
         if (!fixIts.empty()) {
             auto f = fixIts.end();
             do {
@@ -1430,7 +1442,7 @@ String Project::fixIts(uint32_t fileId) const
 }
 
 void Project::findSymbols(const String &unencoded,
-                          const std::function<void(SymbolMatchType, const String &, const Set<Location> &)> &inserter,
+                          const std::function<void(SymbolMatchType, const String &, const std::set<Location> &)> &inserter,
                           Flags<QueryMessage::Flag> queryFlags,
                           uint32_t fileFilter)
 {
@@ -1515,9 +1527,9 @@ void Project::findSymbols(const String &unencoded,
     }
 }
 
-List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryMessage::Flag> flags)
+std::vector<RTags::SortedSymbol> Project::sort(const std::set<Symbol> &symbols, Flags<QueryMessage::Flag> flags)
 {
-    List<RTags::SortedSymbol> sorted;
+    std::vector<RTags::SortedSymbol> sorted;
     sorted.reserve(symbols.size());
     for (const Symbol &symbol : symbols) {
         RTags::SortedSymbol node(symbol.location);
@@ -1664,9 +1676,9 @@ Symbol Project::findSymbol(Location location, int *index)
     return ret;
 }
 
-Set<Symbol> Project::findTargets(const Symbol &symbol)
+std::set<Symbol> Project::findTargets(const Symbol &symbol)
 {
-    Set<Symbol> ret;
+    std::set<Symbol> ret;
     if (symbol.isNull() || symbol.flags & Symbol::ImplicitDestruction)
         return ret;
     auto sameKind = [&symbol](CXCursorKind kind) {
@@ -1692,7 +1704,7 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         case CXCursor_FieldDecl:
         case CXCursor_VarDecl:
         case CXCursor_FunctionTemplate: {
-            const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), i == 0 ? modeForSymbol(symbol) : Project::All);
+            const std::set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), i == 0 ? modeForSymbol(symbol) : Project::All);
             for (const auto &c : symbols) {
                 if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
                     ret.insert(c);
@@ -1705,11 +1717,15 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         default:
             if (symbol.flags & Symbol::TemplateReference) {
                 for (const String &usr : findTargetUsrs(symbol)) {
-                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::DependsOnArg : Project::All));
+                    for (const auto &ref : findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::DependsOnArg : Project::All)) {
+                        ret.insert(ref);
+                    }
                 }
             } else {
                 for (const String &usr : findTargetUsrs(symbol)) {
-                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::ArgDependsOn : Project::All));
+                    for (const auto &ref : findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::ArgDependsOn : Project::All)) {
+                        ret.insert(ref);
+                    }
                 }
             }
             break;
@@ -1719,10 +1735,10 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     return ret;
 }
 
-Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
+std::set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMode mode)
 {
     assert(fileId);
-    Set<Symbol> ret;
+    std::set<Symbol> ret;
     String tusr = Sandbox::encoded(usr);
     for (uint32_t file : dependencies(fileId, mode)) {
         auto usrs = openUsrs(file);
@@ -1751,11 +1767,11 @@ Set<Symbol> Project::findByUsr(const String &usr, uint32_t fileId, DependencyMod
     return ret;
 }
 
-static Set<Symbol> findReferences(const Set<Symbol> &inputs,
+static std::set<Symbol> findReferences(const std::set<Symbol> &inputs,
                                   const std::shared_ptr<Project> &project,
                                   std::function<bool(const Symbol &, const Symbol &)> filter)
 {
-    Set<Symbol> ret;
+    std::set<Symbol> ret;
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
         //warning() << "Calling findReferences" << input.location;
@@ -1765,7 +1781,7 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
             if (targets) {
                 // SBROOT
                 const String tusr = Sandbox::encoded(input.usr);
-                const Set<Location> locations = targets->value(tusr);
+                const std::set<Location> locations = targets->value(tusr);
                 // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
                     auto sym = project->findSymbol(loc);
@@ -1774,26 +1790,27 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
                 }
             }
         };
-        const Set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
+        const std::set<uint32_t> deps = project->dependencies(input.location.fileId(), Project::DependsOnArg);
         for (auto dep : deps)
             process(dep);
 
         if (ret.empty()) {
             for (auto dep : project->dependencies()) {
-                if (!deps.contains(dep.first))
+                if (deps.find(dep.first) == deps.end()) {
                     process(dep.first);
+                }
             }
         }
     }
     return ret;
 }
 
-static Set<Symbol> findReferences(const Symbol &in,
+static std::set<Symbol> findReferences(const Symbol &in,
                                   const std::shared_ptr<Project> &project,
                                   std::function<bool(const Symbol &, const Symbol &)> filter,
-                                  Set<Symbol> *inputsPtr = nullptr)
+                                  std::set<Symbol> *inputsPtr = nullptr)
 {
-    Set<Symbol> inputs;
+    std::set<Symbol> inputs;
     Symbol s;
     Location location;
     if (in.isReference()) {
@@ -1843,14 +1860,14 @@ static Set<Symbol> findReferences(const Symbol &in,
         inputs.insert(s);
         break;
     case CXCursor_FirstInvalid:
-        return Set<Symbol>();
+        return std::set<Symbol>();
     }
     if (inputsPtr)
         *inputsPtr = inputs;
     return findReferences(inputs, project, std::move(filter));
 }
 
-Set<Symbol> Project::findCallers(const Symbol &symbol, int max)
+std::set<Symbol> Project::findCallers(const Symbol &symbol, int max)
 {
     const bool isClazz = symbol.isClass();
     return ::findReferences(symbol, shared_from_this(), [isClazz, &max](const Symbol &input, const Symbol &ref) {
@@ -1873,33 +1890,39 @@ Set<Symbol> Project::findCallers(const Symbol &symbol, int max)
     });
 }
 
-Set<Symbol> Project::findAllReferences(const Symbol &symbol)
+std::set<Symbol> Project::findAllReferences(const Symbol &symbol)
 {
     if (symbol.isNull())
-        return Set<Symbol>();
+        return std::set<Symbol>();
 
-    Set<Symbol> inputs;
+    std::set<Symbol> inputs;
     inputs.insert(symbol);
-    inputs.unite(findByUsr(symbol.usr, symbol.location.fileId(), modeForSymbol(symbol)));
-    Set<Symbol> ret = inputs;
+    for (const auto &ref : findByUsr(symbol.usr, symbol.location.fileId(), modeForSymbol(symbol))) {
+        inputs.insert(ref);
+    }
+    std::set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
-        Set<Symbol> inputLocations;
-        ret.unite(::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &) {
+        std::set<Symbol> inputLocations;
+        for (const auto &ref : ::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &) {
             return true;
-        }, &inputLocations));
-        ret.unite(inputLocations);
+        }, &inputLocations)) {
+            ret.insert(ref);
+        }
+        for (const auto &ref : inputLocations) {
+            ret.insert(ref);
+        }
     }
     return ret;
 }
 
-Set<Symbol> Project::findVirtuals(const Symbol &symbol)
+std::set<Symbol> Project::findVirtuals(const Symbol &symbol)
 {
     if (symbol.kind != CXCursor_CXXMethod || !(symbol.flags & Symbol::VirtualMethod))
-        return Set<Symbol>();
+        return std::set<Symbol>();
 
     Symbol parent = [this](const Symbol &sym) {
         for (const String &usr : findTargetUsrs(sym.location)) {
-            const Set<Symbol> syms = findByUsr(usr, sym.location.fileId(), ArgDependsOn);
+            const std::set<Symbol> syms = findByUsr(usr, sym.location.fileId(), ArgDependsOn);
             for (const Symbol &s : syms) {
                 if (findTargetUsrs(s.location).empty()) {
                     return s;
@@ -1917,9 +1940,9 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
         }
     }
 
-    Set<Symbol> symSet;
+    std::set<Symbol> symSet;
     symSet.insert(parent);
-    Set<Symbol> ret = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
+    std::set<Symbol> ret = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
         // error() << "considering" << ref.location << ref.kindSpelling();
         if (ref.kind == CXCursor_CXXMethod) {
             return true;
@@ -1933,14 +1956,15 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     return ret;
 }
 
-Set<String> Project::findTargetUsrs(Location loc)
+std::set<String> Project::findTargetUsrs(Location loc)
 {
-    Set<String> usrs;
+    std::set<String> usrs;
     auto targets = openTargets(loc.fileId());
     if (targets) {
         const int count = targets->count();
         for (int i=0; i<count; ++i) {
-            if (targets->valueAt(i).contains(loc)) {
+            const auto &val = targets->valueAt(i);
+            if (val.find(loc) != val.end()) {
                 // SBROOT
                 usrs.insert(Sandbox::decoded(targets->keyAt(i)));
             }
@@ -1949,19 +1973,20 @@ Set<String> Project::findTargetUsrs(Location loc)
     return usrs;
 }
 
-Set<String> Project::findTargetUsrs(const Symbol &symbol)
+std::set<String> Project::findTargetUsrs(const Symbol &symbol)
 {
     if (!(symbol.flags & Symbol::TemplateReference)) {
         return findTargetUsrs(symbol.location);
     }
 
-    Set<String> usrs;
+    std::set<String> usrs;
     for (uint32_t fileId : dependencies(symbol.location.fileId(), DependsOnArg)) {
         auto targets = openTargets(fileId);
         if (targets) {
             const int count = targets->count();
             for (int i=0; i<count; ++i) {
-                if (targets->valueAt(i).contains(symbol.location)) {
+                const auto &val = targets->valueAt(i);
+                if (val.find(symbol.location) != val.end()) {
                     // SBROOT
                     usrs.insert(Sandbox::decoded(targets->keyAt(i)));
                 }
@@ -1971,17 +1996,17 @@ Set<String> Project::findTargetUsrs(const Symbol &symbol)
     return usrs;
 }
 
-Set<Symbol> Project::findSubclasses(const Symbol &symbol)
+std::set<Symbol> Project::findSubclasses(const Symbol &symbol)
 {
     assert(symbol.isClass() && symbol.isDefinition());
-    Set<Symbol> ret;
+    std::set<Symbol> ret;
     for (uint32_t dep : dependencies(symbol.location.fileId(), DependsOnArg)) {
         auto symbols = openSymbols(dep);
         if (symbols) {
             const int count = symbols->count();
             for (int i=0; i<count; ++i) {
                 const Symbol s = symbols->valueAt(i);
-                if (s.baseClasses.contains(symbol.usr))
+                if (std::find(s.baseClasses.begin(), s.baseClasses.end(), symbol.usr) != s.baseClasses.end())
                     ret.insert(s);
             }
         }
@@ -2014,7 +2039,7 @@ static String addDeps(const Dependencies &deps)
     return ret;
 }
 
-String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flags<QueryMessage::Flag> flags) const
+String Project::dumpDependencies(uint32_t fileId, const std::vector<String> &args, Flags<QueryMessage::Flag> flags) const
 {
     String ret;
 
@@ -2038,14 +2063,14 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
         if (!node)
             return String::format<128>("Can't find node for %s", Location::path(fileId).constData());
 
-        if (!node->includes.isEmpty() && (args.empty() || args.contains("includes"))) {
+        if (!node->includes.isEmpty() && (args.empty() || std::find(args.begin(), args.end(), "includes") != args.end())) {
             if (args.size() != 1)
                 ret += String::format<1024>("  %s includes:\n", Location::path(fileId).constData());
             for (const auto &include : node->includes) {
                 ret += String::format<1024>("    %s\n", Location::path(include.first).constData());
             }
         }
-        if (!node->dependents.isEmpty() && (args.empty() || args.contains("included-by"))) {
+        if (!node->dependents.isEmpty() && (args.empty() || std::find(args.begin(), args.end(), "included-by") != args.end())) {
             if (args.size() != 1)
                 ret += String::format<1024>("  %s is included by:\n", Location::path(fileId).constData());
             for (const auto &include : node->dependents) {
@@ -2053,7 +2078,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.empty() || args.contains("depends-on")) {
+        if (args.empty() || std::find(args.begin(), args.end(), "depends-on") != args.end()) {
             bool first = args.size() != 1;
             for (auto dep : dependencies(fileId, Project::ArgDependsOn)) {
                 if (dep == fileId)
@@ -2066,7 +2091,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.empty() || args.contains("depended-on")) {
+        if (args.empty() || std::find(args.begin(), args.end(), "depended-on") != args.end()) {
             bool first = args.size() != 1;
             for (auto dep : dependencies(fileId, Project::DependsOnArg)) {
                 if (dep == fileId)
@@ -2079,8 +2104,8 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
 
-        if (args.empty() || args.contains("tree-depends-on")) {
-            Set<DependencyNode*> seen;
+        if (args.empty() || std::find(args.begin(), args.end(), "tree-depends-on") != args.end()) {
+            std::set<DependencyNode*> seen;
 
             DependencyNode *depNode = mDependencies.value(fileId);
             if (depNode) {
@@ -2093,7 +2118,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                 std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
                     ret += String::format<1024>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
 
-                    if (seen.insert(n) && !n->includes.isEmpty()) {
+                    if (seen.insert(n).second && !n->includes.isEmpty()) {
                         ret += " includes:\n";
                         for (const auto &includeNode : n->includes) {
                             process(includeNode.second, depth + 1);
@@ -2105,11 +2130,11 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                 process(depNode, startDepth);
             }
         }
-        if (args.size() == 1 && args.contains("raw")) {
-            Set<DependencyNode*> all;
+        if (args.size() == 1 && std::find(args.begin(), args.end(), "raw") != args.end()) {
+            std::set<DependencyNode*> all;
             std::function<void(DependencyNode *node)> add = [&](DependencyNode *depNode) {
                 assert(depNode);
-                if (!all.insert(depNode))
+                if (!all.insert(depNode).second)
                     return;
                 for (const auto &n : depNode->includes) {
                     add(n.second);
@@ -2138,7 +2163,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
 void Project::dirty(uint32_t fileId)
 {
     SimpleDirty dirty;
-    Set<uint32_t> dirtyFiles;
+    std::set<uint32_t> dirtyFiles;
     dirtyFiles.insert(fileId);
     dirty.init(shared_from_this(), dirtyFiles);
     startDirtyJobs(&dirty, IndexerJob::Dirty);
@@ -2152,7 +2177,7 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         const uint32_t opts = fileMapOptions();
         {
             path = sourceFilePath(fileId, fileMapName(SymbolNames));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, std::set<Location> > fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
@@ -2164,13 +2189,13 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         }
         {
             path = sourceFilePath(fileId, fileMapName(Targets));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, std::set<Location> > fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
         {
             path = sourceFilePath(fileId, fileMapName(Usrs));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, std::set<Location> > fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
@@ -2217,46 +2242,46 @@ static inline void fixString(String &string, size_t size)
         string.append(String(size - string.size(), ' '));
 }
 
-static List<String> split(const String &value, size_t max)
+static std::vector<String> split(const String &value, size_t max)
 {
-    List<String> words = value.split(' ', String::KeepSeparators);
-    List<String> ret(1);
+    std::vector<String> words = value.split(' ', String::KeepSeparators);
+    std::vector<String> ret(1);
     size_t i = 0;
     while (i < words.size()) {
         const String &word = words.at(i);
-        if (ret.last().size() && ret.last().size() + word.size() > max) {
-            fixString(ret.last(), max);
+        if (ret.back().size() && ret.back().size() + word.size() > max) {
+            fixString(ret.back(), max);
             ret.push_back(String());
             continue;
         }
 
         if (word.size() > max) {
-            assert(ret.last().isEmpty());
+            assert(ret.back().isEmpty());
             for (size_t j=0; j<word.size(); j += max) {
                 if (j)
                     ret.push_back(String());
-                ret.last() = word.mid(j, max);
-                fixString(ret.last(), max);
+                ret.back() = word.mid(j, max);
+                fixString(ret.back(), max);
             }
         } else {
-            ret.last().append(word);
+            ret.back().append(word);
         }
         ++i;
     }
 
-    fixString(ret.last(), max);
+    fixString(ret.back(), max);
     return ret;
 }
 
 template <typename T> struct PreferComma { enum { value = 0 }; };
-template <typename T> struct PreferComma<Set<T> > { enum { value = 1 }; };
+template <typename T> struct PreferComma<std::set<T> > { enum { value = 1 }; };
 
 template <typename T>
-static List<String> formatField(const String &value, size_t max)
+static std::vector<String> formatField(const String &value, size_t max)
 {
-    List<String> ret;
+    std::vector<String> ret;
     if (value.size() <= max) {
-        ret << value.padded(String::End, max);
+        ret.push_back(value.padded(String::End, max));
     } else {
         if (PreferComma<T>::value)
             ret = value.split(',', String::KeepSeparators);
@@ -2265,8 +2290,8 @@ static List<String> formatField(const String &value, size_t max)
             for (size_t i=0; i<ret.size(); ++i) {
                 if (ret.at(i).size() > max) {
                     auto split = ::split(ret.at(i), max);
-                    ret.remove(i, 1);
-                    ret.insert(i, split);
+                    ret.erase(ret.begin() + i);
+                    ret.insert(ret.begin() + i, split.begin(), split.end());
                     i += split.size() - 1;
                 } else if (ret.at(i).size() != max) {
                     ret[i].append(String(max - ret.at(i).size(), ' '));
@@ -2282,13 +2307,13 @@ template <typename Key, typename Value>
 static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value> > &fileMap, size_t width)
 {
     width -= 7; // padding
-    List<String> keys, values;
+    std::vector<String> keys, values;
     const int count = fileMap->count();
     size_t maxKey = 0;
     size_t maxValue = 0;
     for (int i=0; i<count; ++i) {
-        keys << toString(fileMap->keyAt(i), maxKey);
-        values << toString(fileMap->valueAt(i), maxValue);
+        keys.push_back(toString(fileMap->keyAt(i), maxKey));
+        values.push_back(toString(fileMap->valueAt(i), maxValue));
     }
     if (maxKey + maxValue > width) {
         if (maxKey < maxValue) {
@@ -2307,12 +2332,12 @@ static String formatTable(const String &name, const std::shared_ptr<FileMap<Key,
     const String keyFill(maxKey, ' ');
     const String valueFill(maxValue, ' ');
     for (int i=0; i<count; ++i) {
-        const List<String> key = formatField<Key>(keys.at(i), maxKey);
-        const List<String> value = formatField<Value>(values.at(i), maxValue);
-        const int c = std::max(key.size(), value.size());
+        const std::vector<String> key = formatField<Key>(keys.at(i), maxKey);
+        const std::vector<String> value = formatField<Value>(values.at(i), maxValue);
+        const size_t c = std::max(key.size(), value.size());
         char ch = '|';
-        for (int j=0; j<c; ++j) {
-            ret << ch << ' ' << key.value(j, keyFill) << ' ' << ch << ' ' << value.value(j, valueFill) << ' ' << ch << '\n';
+        for (size_t j=0; j<c; ++j) {
+            ret << ch << ' ' << (key.size() > j ? key[j] : keyFill) << ' ' << ch << ' ' << (value.size() > j ? value[j] : valueFill) << ' ' << ch << '\n';
             ch = '*';
         }
     }
@@ -2325,14 +2350,14 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
     String err;
 
     Path path;
-    List<String> args;
+    std::vector<String> args;
     Deserializer deserializer(msg->query());
     deserializer >> path >> args;
     const uint32_t fileId = Location::fileId(path);
     assert(fileId);
     assert(isIndexed(fileId));
 
-    if (args.empty() || args.contains("symbols")) {
+    if (args.empty() || std::find(args.begin(), args.end(), "symbols") != args.end()) {
         if (auto tbl = openSymbols(fileId, &err)) {
             conn->write(formatTable("Symbols:", tbl, msg->terminalWidth()));
         } else {
@@ -2340,7 +2365,7 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
         }
     }
 
-    if (args.empty() || args.contains("symbolnames")) {
+    if (args.empty() || std::find(args.begin(), args.end(), "symbolnames") != args.end()) {
         if (auto tbl = openSymbolNames(fileId, &err)) {
             conn->write(formatTable("Symbol names:", tbl, msg->terminalWidth()));
         } else {
@@ -2348,7 +2373,7 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
         }
     }
 
-    if (args.empty() || args.contains("targets")) {
+    if (args.empty() || std::find(args.begin(), args.end(), "targets") != args.end()) {
         if (auto tbl = openTargets(fileId, &err)) {
             conn->write(formatTable("Targets:", tbl, msg->terminalWidth()));
         } else {
@@ -2356,7 +2381,7 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
         }
     }
 
-    if (args.empty() || args.contains("usrs")) {
+    if (args.empty() || std::find(args.begin(), args.end(), "usrs") != args.end()) {
         if (auto tbl = openUsrs(fileId, &err)) {
             conn->write(formatTable("Usrs:", tbl, msg->terminalWidth()));
         } else {
@@ -2364,7 +2389,7 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
         }
     }
 
-    if (args.empty() || args.contains("tokens")) {
+    if (args.empty() || std::find(args.begin(), args.end(), "tokens") != args.end()) {
         if (auto tbl = openTokens(fileId, &err)) {
             conn->write(formatTable("Tokens:", tbl, msg->terminalWidth()));
         } else {
@@ -2397,9 +2422,9 @@ size_t estimateMemory(const std::shared_ptr<T> &ptr);
 template <typename T>
 size_t estimateMemory(const T *t);
 template <typename T>
-size_t estimateMemory(const Set<T> &container);
+size_t estimateMemory(const std::set<T> &container);
 template <typename T>
-size_t estimateMemory(const List<T> &container);
+size_t estimateMemory(const std::vector<T> &container);
 template <typename Key, typename Value>
 size_t estimateMemory(const Map<Key, Value> &container);
 template <typename Key, typename Value>
@@ -2458,9 +2483,9 @@ size_t estimateMemory(const T *t)
 }
 
 template <typename T>
-size_t estimateMemory(const Set<T> &container)
+size_t estimateMemory(const std::set<T> &container)
 {
-    size_t ret = sizeof(Set<T>) + sizeof(void*);
+    size_t ret = sizeof(std::set<T>) + sizeof(void*);
     for (const T &value : container) {
         ret += estimateMemory(value) + (sizeof(void*) * 2); // might not be entirely fair to std::vector
     }
@@ -2468,9 +2493,9 @@ size_t estimateMemory(const Set<T> &container)
 }
 
 template <typename T>
-size_t estimateMemory(const List<T> &container)
+size_t estimateMemory(const std::vector<T> &container)
 {
-    size_t ret = sizeof(List<T>) + sizeof(void*);
+    size_t ret = sizeof(std::vector<T>) + sizeof(void*);
     for (const T &value : container) {
         ret += estimateMemory(value);
     }
@@ -2501,11 +2526,11 @@ size_t estimateMemory(const Hash<Key, Value> &container)
 
 String Project::estimateMemory() const
 {
-    List<String> ret;
+    std::vector<String> ret;
     size_t total = 0;
     auto add = [&ret, &total](const char *name, size_t size) {
         total += size;
-        ret << String::format<128>("%s: %.2fmb", name, size / (1024.0 * 1024.0));
+        ret.push_back(String::format<128>("%s: %.2fmb", name, size / (1024.0 * 1024.0)));
     };
     add("Paths", ::estimateMemory(mFiles));
     add("Visited files", ::estimateMemory(mVisitedFiles));
@@ -2577,9 +2602,10 @@ void Project::fixPCH(Source &source)
 void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
 {
     CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
-    source.includePaths.append(Server::instance()->options().includePaths);
-    source.includePaths.sort();
-    Set<Path> seen;
+    const auto &incs = Server::instance()->options().includePaths;
+    source.includePaths.insert(source.includePaths.end(), incs.begin(), incs.end());
+    std::sort(source.includePaths.begin(), source.includePaths.end());
+    std::set<Path> seen;
     if (flags & QueryMessage::Elisp) {
         conn->write("(list");
     }
@@ -2594,7 +2620,7 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
             root = inc.path.ensureTrailingSlash();
             break;
         }
-        if (!seen.insert(root))
+        if (!seen.insert(root).second)
             continue;
         int depth = 0;
         int maxDepth = Server::instance()->options().maxIncludeCompletionDepth;
@@ -2647,7 +2673,7 @@ void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 
 void Project::processParseData(IndexParseData &&data)
 {
-    Set<uint32_t> index;
+    std::set<uint32_t> index;
     Hash<uint32_t, uint32_t> removed;
     if (mIndexParseData.isEmpty()) {
         mIndexParseData = std::move(data);
@@ -2662,7 +2688,7 @@ void Project::processParseData(IndexParseData &&data)
             // only allowing one "loose" build per fileId
             auto &ref = mIndexParseData.sources[source.fileId];
             if (Server::instance()->options().options & Server::AllowMultipleSources) {
-                if (!ref.contains(source)) {
+                if (std::find(ref.begin(), ref.end(), source) == ref.end()) {
                     ref.push_back(source);
                     ref.parsed = 0; // dirty
                     if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
@@ -2911,7 +2937,7 @@ void Project::removeSource(uint32_t fileId)
         releaseFileIds(job->visited);
         Server::instance()->jobScheduler()->abort(job);
     }
-    Set<uint32_t> file;
+    std::set<uint32_t> file;
     file.insert(fileId);
     dirty(fileId);
     releaseFileIds(file);
@@ -2939,7 +2965,7 @@ void Project::validateAll()
 Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
 {
     Map<Symbol, size_t> ret;
-    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = nullptr) {
+    auto processFile = [this, &ret](uint32_t file, std::set<String> *seen = nullptr) {
         auto symbols = openSymbols(file);
         if (!symbols)
             return;
@@ -2952,7 +2978,7 @@ Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
                 && s.kind != CXCursor_LambdaExpr
                 && !s.symbolName.startsWith("int main(")
                 && !s.symbolName.startsWith("void main(")
-                && (!seen || seen->insert(s.usr))) {
+                && (!seen || seen->insert(s.usr).second)) {
                 const size_t callers = findCallers(s, 2).size();
                 if (callers < 2) {
                     ret[std::move(s)] = callers;
@@ -2961,7 +2987,7 @@ Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
         }
     };
     if (!fileId) {
-        Set<String> seenUsrs;
+        std::set<String> seenUsrs;
         for (uint32_t id : mVisitedFiles) {
             processFile(id, &seenUsrs);
         }

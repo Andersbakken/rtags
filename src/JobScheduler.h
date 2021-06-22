@@ -22,7 +22,7 @@
 #include <ctime>
 
 #include "rct/EmbeddedLinkedList.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/Hash.h"
 #include "rct/String.h"
 #include "Source.h"

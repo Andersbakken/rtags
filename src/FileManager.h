@@ -39,7 +39,7 @@ public:
     uint64_t lastReloadTime() const { return mLastReloadTime; }
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
-    void onRecurseJobFinished(const Set<Path> &mPaths);
+    void onRecurseJobFinished(const std::set<Path> &mPaths);
     bool contains(const Path &path) const;
     void clearFileSystemWatcher();
 private:

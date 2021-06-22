@@ -27,7 +27,7 @@
 #include "rct/Value.h"
 #include "Source.h"
 #include "rct/Hash.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 class Connection;
@@ -63,7 +63,7 @@ private:
     mutable std::mutex mMutex;
     Hash<uint32_t, Dep*> mDependencies;
     Hash<Path, String> mContextCache;
-    Set<String> mSeen;
+    std::set<String> mSeen;
     bool mAborted;
 };
 

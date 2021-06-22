@@ -21,10 +21,10 @@
 #include <memory>
 
 #include "QueryMessage.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Message.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 #include "CommandLineParser.h"
 #include "rct/rct-config.h"
@@ -184,7 +184,7 @@ public:
     int timeout() const { return mTimeout; }
     int buildIndex() const { return mBuildIndex; }
 
-    const Set<QueryMessage::PathFilter> &pathFilters() const { return mPathFilters; }
+    const std::set<QueryMessage::PathFilter> &pathFilters() const { return mPathFilters; }
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
 
@@ -192,7 +192,7 @@ public:
 
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
-    const List<String> &rdmArgs() const { return mRdmArgs; }
+    const std::vector<String> &rdmArgs() const { return mRdmArgs; }
     const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
@@ -204,7 +204,7 @@ public:
 
     String commandLine() const { return mCommandLine; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
-    List<String> environment() const;
+    std::vector<String> environment() const;
     String codeCompletePrefix() const { return mCodeCompletePrefix; }
 private:
     void addQuery(QueryMessage::Type t, String &&query = String(),
@@ -218,11 +218,11 @@ private:
     Flags<QueryMessage::Flag> mQueryFlags;
     int mMax, mMaxDepth, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout, mBuildIndex;
     LogLevel mLogLevel;
-    Set<QueryMessage::PathFilter> mPathFilters;
+    std::set<QueryMessage::PathFilter> mPathFilters;
     QueryMessage::KindFilters mKindFilters;
     UnsavedFiles mUnsavedFiles;
-    List<std::shared_ptr<RCCommand> > mCommands;
-    List<String> mRdmArgs;
+    std::vector<std::shared_ptr<RCCommand> > mCommands;
+    std::vector<String> mRdmArgs;
     Path mSocketFile;
     Path mCurrentFile;
     String mTcpHost;
@@ -232,7 +232,7 @@ private:
     Path mProjectRoot;
     int mTerminalWidth;
     int mExitCode;
-    mutable List<String> mEnvironment;
+    mutable std::vector<String> mEnvironment;
 
     String mCommandLine;
     friend class CompileCommand;

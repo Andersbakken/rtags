@@ -849,7 +849,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             break;
         case CXCursor_CallExpr: {
             // uglehack, see rtags/tests/nestedClassConstructorCallUgleHack/
-            List<Symbol::Argument> arguments;
+            std::vector<Symbol::Argument> arguments;
             extractArguments(&arguments, cursor);
             Symbol *old = nullptr;
             Location oldLoc;
@@ -885,7 +885,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             if (!handled) {
                 handleReference(cursor, kind, loc, ref);
             }
-            List<Symbol::Argument> destArguments;
+            std::vector<Symbol::Argument> destArguments;
             extractArguments(&destArguments, ref);
             visit(cursor);
             if (mLastCallExprSymbol && !arguments.empty()) {
@@ -893,7 +893,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                 auto u = unit(loc);
                 size_t idx = 0;
                 for (const auto &arg : arguments) {
-                    const auto destArg = destArguments.value(idx);
+                    const auto destArg = destArguments.size() > idx ? destArguments[idx] : Symbol::Argument();
                     if (destArg.location.isNull())
                         break;
                     const Location start = arg.location;
@@ -901,7 +901,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                     if (idx + 1 == arguments.size()) {
                         end = Location(start.fileId(), start.line(), start.column() + arg.length); // this falls apart with multi-line args
                     } else {
-                        end = arguments.value(idx + 1).location;
+                        end = arguments.size() > idx + 1 ? arguments[idx + 1].location : Location();
                     }
                     auto it = u->symbols.lower_bound(start);
                     while (it != u->symbols.end() && it->first < end) {
@@ -947,7 +947,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     // for details. I really should report this as a bug.
     if (cursorPtr)
         *cursorPtr = nullptr;
-    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.last()) != CXCursor_CallExpr)
+    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.back()) != CXCursor_CallExpr)
         return false;
 
     const CXCursor templateRef = RTags::findChild(cursor, CXCursor_TemplateRef);
@@ -980,17 +980,17 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     if (!name.isEmpty()) {
         RTags::Filter out;
         out.kinds.insert(CXCursor_MemberRefExpr);
-        const int argCount = RTags::children(mParents.last(), RTags::Filter(), out).size();
+        const int argCount = RTags::children(mParents.back(), RTags::Filter(), out).size();
         RTags::Filter in(RTags::Filter::And);
         in.names.insert(name);
         in.argumentCount = argCount;
-        const List<CXCursor> alternatives = RTags::children(classTemplate, in);
+        const std::vector<CXCursor> alternatives = RTags::children(classTemplate, in);
         switch (alternatives.size()) {
         case 1:
             // ### not sure this is correct with line/col
             return handleReference(cursor, kind,
                                    Location(location.fileId(), location.line(), location.column() + 1),
-                                   alternatives.first(), cursorPtr);
+                                   alternatives.front(), cursorPtr);
             break;
         case 0:
             break;
@@ -1122,7 +1122,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                             const String id = RTags::eatString(clang_getCursorSpelling(cursor));
                             auto idit = mit->second.data.find(id);
                             if (idit != mit->second.data.end()) {
-                                List<Location> &locs = idit->second.locations;
+                                std::vector<Location> &locs = idit->second.locations;
                                 assert(!locs.empty());
                                 location = locs.front();
                                 if (locs.size() == 1) {
@@ -1132,7 +1132,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                                         mit->second.data.erase(idit);
                                     }
                                 } else {
-                                    locs.remove(0, 1);
+                                    locs.erase(locs.begin());
                                 }
                                 std::shared_ptr<Unit> uu = unit(location);
                                 c = &uu->symbols[location];
@@ -1232,9 +1232,9 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     if (mInTemplateFunction && !mParents.empty()) {
-        if ((kind == CXCursor_DeclRefExpr && mParents.last() == CXCursor_MemberRefExpr)
-            || (kind == CXCursor_TypeRef && mParents.last() == CXCursor_DeclRefExpr)) {
-            CXSourceRange parentRange = clang_getCursorExtent(mParents.last());
+        if ((kind == CXCursor_DeclRefExpr && mParents.back() == CXCursor_MemberRefExpr)
+            || (kind == CXCursor_TypeRef && mParents.back() == CXCursor_DeclRefExpr)) {
+            CXSourceRange parentRange = clang_getCursorExtent(mParents.back());
             CXToken *tokens = nullptr;
             unsigned numTokens = 0;
             auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
@@ -1260,7 +1260,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                             sym.kind = CXCursor_DeclRefExpr; // yes this is weird
                         }
                         sym.flags = Symbol::TemplateReference;
-                        setType(sym, clang_getCursorType(mParents.last()));
+                        setType(sym, clang_getCursorType(mParents.back()));
                         setRange(sym, memberRange);
                         if (kind == CXCursor_DeclRefExpr) // there might be more than one level of ::
                             break;
@@ -1419,21 +1419,21 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
         first = false;
     }
 
-    List<CXCursor> constructors = RTags::children(clazz, filter);
-    List<String> usrs;
+    std::vector<CXCursor> constructors = RTags::children(clazz, filter);
+    std::vector<String> usrs;
     usrs.reserve(constructors.size());
     size_t i=0;
     while (i<constructors.size()) {
         const CXCursor &cc = constructors[i];
         String usr = RTags::usr(cc);
         if (usr.isEmpty()) {
-            constructors.removeAt(i);
+            constructors.erase(constructors.begin() + i);
             continue;
         }
 
         int count = clang_Cursor_getNumArguments(cc);
         if (count < refCount) {
-            constructors.removeAt(i);
+            constructors.erase(constructors.begin() + i);
             continue;
         }
 
@@ -1448,7 +1448,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
                 }
             }
             if (count == -1) {
-                constructors.removeAt(i);
+                constructors.erase(constructors.begin() + i);
                 continue;
             }
         }
@@ -1461,7 +1461,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
         const int16_t refTargetValue = RTags::createTargetsValue(CXCursor_Constructor, clang_isCursorDefinition(constructors[0]));
         targets[usrs[0]] = refTargetValue;
     } else if (!constructors.empty()) {
-        List<std::pair<size_t, MatchTypeResult> > matched;
+        std::vector<std::pair<size_t, MatchTypeResult> > matched;
         matched.reserve(constructors.size());
         bool hasMatch = false;
         for (size_t ci=0; ci<constructors.size(); ++ci) {
@@ -1624,7 +1624,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             // should it have a symbolLength?
             mScopeStack.push_back(scope);
             visit(cursor);
-            mScopeStack.removeLast();
+            mScopeStack.pop_back();
         } else {
             // this is the function body, no need for this CompoundStmt
             u->symbols.remove(location);
@@ -1683,7 +1683,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
 
             mLoopStack.push_back(loop);
             visit(cursor);
-            mLoopStack.removeLast();
+            mLoopStack.pop_back();
             return CXChildVisit_Continue;
         }
         break; }
@@ -1748,13 +1748,13 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
         return;
     }
     assert(!usr.isEmpty());
-    lastClass.baseClasses << usr;
+    lastClass.baseClasses.push_back(usr);
 }
 
-void ClangIndexer::extractArguments(List<Symbol::Argument> *arguments, const CXCursor &cursor)
+void ClangIndexer::extractArguments(std::vector<Symbol::Argument> *arguments, const CXCursor &cursor)
 {
     assert(arguments);
-    List<CXCursor> args;
+    std::vector<CXCursor> args;
     const int count = std::max(0, RTags::cursorArguments(cursor, &args));
     arguments->resize(count);
     for (int i=0; i<count; ++i) {
@@ -1935,13 +1935,13 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                     if (!lastWasHashHash) {
                         last = &macroData.data[spelling];
 
-                        List<Location> &locs = last->locations;
+                        std::vector<Location> &locs = last->locations;
                         locs.push_back(createLocation(clang_getTokenLocation(tu, tokens[i])));
                     }
                     if (last) {
-                        const size_t idx = macroData.arguments.indexOf(spelling);
-                        if (idx != String::npos) {
-                            last->arguments.insert(idx);
+                        const auto it = std::find(macroData.arguments.begin(), macroData.arguments.end(), spelling);
+                        if (it != macroData.arguments.end()) {
+                            last->arguments.insert(it - macroData.arguments.begin());
                         }
                     }
                 }
@@ -2145,7 +2145,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         visit(cursor);
         if (isTemplateFunction)
             --mInTemplateFunction;
-        mScopeStack.removeLast();
+        mScopeStack.pop_back();
         return CXChildVisit_Continue;
     }
 
@@ -2184,7 +2184,7 @@ bool ClangIndexer::parse()
         break;
     }
 
-    List<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
+    std::vector<CXUnsavedFile> unsavedFiles(mUnsavedFiles.size() + 1);
     int unsavedIndex = 0;
     for (const auto &it : mUnsavedFiles) {
         unsavedFiles[unsavedIndex++] = {
@@ -2205,7 +2205,7 @@ bool ClangIndexer::parse()
         //     error("[%s]", it.constData());
         // }
         bool usedPch = false;
-        const List<String> args = source.toCommandLine(commandLineFlags, &usedPch);
+        const std::vector<String> args = source.toCommandLine(commandLineFlags, &usedPch);
         if (usedPch)
             mIndexDataMessage.setFlag(IndexDataMessage::UsedPCH);
 
@@ -2264,9 +2264,9 @@ bool ClangIndexer::parse()
     return ok;
 }
 
-static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in, bool hasRoot)
+static inline Map<String, std::set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in, bool hasRoot)
 {
-    Map<String, Set<Location> > ret;
+    Map<String, std::set<Location> > ret;
     if (hasRoot) {
         for (const auto &v : in) {
             for (const auto &u : v.second) {
@@ -2359,19 +2359,19 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         }
         bytesWritten += w;
 
-        if (!(w = FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit->second->targets, hasRoot), fileMapOpts))) {
+        if (!(w = FileMap<String, std::set<Location> >::write(unitRoot + "/targets", convertTargets(unit->second->targets, hasRoot), fileMapOpts))) {
             error = "Failed to write targets";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
+        if (!(w += FileMap<String, std::set<Location> >::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
             error = "Failed to write usrs";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
+        if (!(w += FileMap<String, std::set<Location> >::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
             error = "Failed to write symbolNames";
             return false;
         }
@@ -2385,7 +2385,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         return true;
     };
 
-    List<std::shared_ptr<Unit> > templateSpecializationTargets;
+    std::vector<std::shared_ptr<Unit> > templateSpecializationTargets;
     auto self = mUnits.end();
     for (auto it = mUnits.begin(); it != mUnits.end(); ++it) {
         if (!(mIndexDataMessage.files().value(it->first) & IndexDataMessage::Visited)) {

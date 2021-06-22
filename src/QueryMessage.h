@@ -31,9 +31,9 @@
 #include "rct/Serializer.h"
 #include "RTags.h"
 #include "RTagsMessage.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Map.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 struct Symbol;
@@ -183,10 +183,14 @@ public:
             return cmp < 0;
         }
     };
-    const List<PathFilter> &pathFilters() const { return mPathFilters; }
-    void setPathFilters(const Set<PathFilter> &filters)
+    const std::vector<PathFilter> &pathFilters() const { return mPathFilters; }
+    void setPathFilters(const std::set<PathFilter> &filters)
     {
-        mPathFilters = filters.toList();
+        mPathFilters.clear();
+        mPathFilters.reserve(filters.size());
+        for (const auto &ref : filters) {
+            mPathFilters.push_back(ref);
+        }
         std::sort(mPathFilters.begin(), mPathFilters.end());
     }
 
@@ -262,7 +266,7 @@ private:
     Type mType;
     Flags<QueryMessage::Flag> mFlags;
     int mMax, mMaxDepth, mMinLine, mMaxLine, mBuildIndex;
-    List<PathFilter> mPathFilters;
+    std::vector<PathFilter> mPathFilters;
     KindFilters mKindFilters;
     Path mCurrentFile;
     UnsavedFiles mUnsavedFiles;

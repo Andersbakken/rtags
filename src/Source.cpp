@@ -146,7 +146,7 @@ static inline String trim(const char *start, int size)
     return String(start, size);
 }
 
-static inline size_t hashIncludePaths(const List<Source::Include> &includes, const Path &buildRoot, Flags<Server::Option> flags)
+static inline size_t hashIncludePaths(const std::vector<Source::Include> &includes, const Path &buildRoot, Flags<Server::Option> flags)
 {
     size_t hash = 0;
     std::hash<Path> hasher;
@@ -294,9 +294,9 @@ static inline String unquote(const String &arg)
     return arg;
 }
 
-static inline bool isCompiler(const Path &fullPath, const List<String> &environment)
+static inline bool isCompiler(const Path &fullPath, const std::vector<String> &environment)
 {
-    if (Server::instance()->options().compilerWrappers.contains(fullPath.fileName()))
+    if (Server::instance()->options().compilerWrappers.find(fullPath.fileName()) != Server::instance()->options().compilerWrappers.end())
         return true;
     if (String(fullPath.fileName()).contains("emacs", String::CaseInsensitive))
         return false;
@@ -331,8 +331,13 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
     Path out = path;
     out += ".out";
     Process proc;
-    List<String> args;
-    args << "-x" << "c" << "-c" << path << "-o" << out;
+    std::vector<String> args;
+    args.push_back("-x");
+    args.push_back("c");
+    args.push_back("-c");
+    args.push_back(path);
+    args.push_back("-o");
+    args.push_back(out);
     proc.exec(fullPath, args, environment);
     if (proc.returnCode() != 0) {
         warning() << "Failed to compile" << fullPath << args << "\nwith ENV:\n" << environment
@@ -348,8 +353,8 @@ static inline bool isCompiler(const Path &fullPath, const List<String> &environm
 
 static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
                                              const Path &cwd,
-                                             const List<String> &environment,
-                                             const List<Path> &pathEnvironment,
+                                             const std::vector<String> &environment,
+                                             const std::vector<Path> &pathEnvironment,
                                              SourceCache *cache)
 {
     std::pair<Path, bool> dummy;
@@ -401,9 +406,9 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
     return compiler;
 }
 
-static List<String> splitCommandLine(const String &cmdLine)
+static std::vector<String> splitCommandLine(const String &cmdLine)
 {
-    List<String> split;
+    std::vector<String> split;
     char quote = '\0';
     const char *cur = cmdLine.data();
     const char *prev = cur;
@@ -452,20 +457,23 @@ struct Input {
 
 SourceList Source::parse(const String &cmdLine,
                          const Path &cwd,
-                         const List<String> &environment,
-                         List<Path> *unresolvedInputLocations,
+                         const std::vector<String> &environment,
+                         std::vector<Path> *unresolvedInputLocations,
                          SourceCache *cache)
 {
-    List<Path> pathEnvironment;
+    std::vector<Path> pathEnvironment;
     for (const String &env : environment) {
         if (env.startsWith("PATH=")) {
-            pathEnvironment = env.mid(5).split(':', String::SkipEmpty);
+            pathEnvironment.clear();
+            for (String &ref : env.mid(5).split(':', String::SkipEmpty)) {
+                pathEnvironment.push_back(std::move(ref));
+            }
             break;
         }
     }
     assert(cwd.endsWith('/'));
     assert(!unresolvedInputLocations || unresolvedInputLocations->empty());
-    List<String> split = splitCommandLine(cmdLine);
+    std::vector<String> split = splitCommandLine(cmdLine);
     if (split.empty())
         return SourceList();
 
@@ -475,37 +483,39 @@ SourceList Source::parse(const String &cmdLine,
         ++idx;
     if (split.at(idx).endsWith("/fiskc") || split.at(idx) == "fiskc") {
         String compiler;
-        split.removeAt(0);
+        split.erase(split.begin());
         size_t i=idx;
         while (i < split.size()) {
             String &str = split[i];
             if (str.startsWith("--fisk-compiler")) {
                 if (str.contains("=")) {
                     compiler = str.mid(16);
-                    split.removeAt(i);
+                    split.erase(split.begin() + i);
                 } else if (i + 1 < split.size()) {
                     compiler = std::move(split[i + 1]);
-                    split.remove(i, 2);
+                    split.erase(split.begin() + i);
+                    split.erase(split.begin() + i);
                 }
             } else if (str.startsWith("--fisk-")) {
                 if (str.contains("=")) {
-                    split.removeAt(i);
+                    split.erase(split.begin() + i);
                 } else {
-                    split.remove(i, 2);
+                    split.erase(split.begin() + i);
+                    split.erase(split.begin() + i);
                 }
             } else {
                 ++i;
             }
         }
         if (!compiler.isEmpty())
-            split.insert(idx, compiler);
+            split.insert(split.begin() + idx, compiler);
         debug() << "Postfisk Source::parse (" << split;
     }
 
     for (size_t i=0; i<split.size(); ++i) {
         if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.isEmpty()) {
-            if (i) {
-                split.remove(0, i);
+            for (size_t j=0; j<i; ++j) {
+                split.erase(split.begin());
             }
             break;
         }
@@ -541,20 +551,20 @@ SourceList Source::parse(const String &cmdLine,
         if (contents.isEmpty())
             continue;
         contents.chomp("\r\n\t ");
-        List<String> subcommands = splitCommandLine(contents);
+        std::vector<String> subcommands = splitCommandLine(contents);
         if (!subcommands.empty()) {
-            split.removeAt(i);
-            split.insert(i, subcommands);
+            split.erase(split.begin() + i);
+            split.insert(split.begin() + i, subcommands.begin(), subcommands.end());
             i += subcommands.size() - 1;
         }
     }
 
-    List<Input> inputs;
+    std::vector<Input> inputs;
     Language language = NoLanguage;
     Flags<Flag> sourceFlags;
-    List<String> arguments;
-    Set<Define> defines;
-    List<Include> includePaths;
+    std::vector<String> arguments;
+    std::set<Define> defines;
+    std::vector<Include> includePaths;
     uint32_t buildRootId = 0;
     Path buildRoot;
     Path outputFilename;
@@ -562,11 +572,11 @@ SourceList Source::parse(const String &cmdLine,
     uint64_t includePathHash = 0;
     bool validCompiler = false;
 
-    const int s = split.size();
+    const size_t s = split.size();
     String arg;
     Path extraCompiler;
     bool verbose = testLog(LogLevel::Debug);
-    for (int i=0; i<s; ++i) {
+    for (size_t i=0; i<s; ++i) {
         arg = split.at(i);
         if (verbose)
             debug() << "parsing argument" << i << arg;
@@ -583,7 +593,10 @@ SourceList Source::parse(const String &cmdLine,
             } else if (arg.startsWith("-x")) {
                 String a;
                 if (arg.size() == 2) {
-                    a = split.value(++i);
+                    ++i;
+                    if (split.size() > i) {
+                        a = split[i];
+                    }
                 } else {
                     a = arg.mid(2);
                 }
@@ -615,7 +628,9 @@ SourceList Source::parse(const String &cmdLine,
                 Define define;
                 String def, a;
                 if (arg.size() == 2) {
-                    def = split.value(++i);
+                    if (split.size() > ++i) {
+                        def = split[i];
+                    }
                     a = arg + def;
                 } else {
                     a = arg;
@@ -644,9 +659,10 @@ SourceList Source::parse(const String &cmdLine,
                 // only allows one 'job', in clang parlance, per invocation. It
                 // quietly returns a null CXTranslationUnit and is very
                 // difficult to see why indexing failed (ie. debug)
-                if (!arguments.contains(arg)) {
-                    arguments.append(arg);
-                    arguments.append(split.value(++i));
+                if (std::find(arguments.begin(), arguments.end(), arg) == arguments.end()) {
+                    arguments.push_back(arg);
+                    ++i;
+                    arguments.push_back(split.size() > i : split[i] : String());
                 } else {
                     warning() << "[Source::parse] Removing additional -arch argument(s) to allow indexing.";
                 }
@@ -684,7 +700,7 @@ SourceList Source::parse(const String &cmdLine,
                 if (arg.size() > 2) {
                     p = arg.mid(2);
                 } else if (i + 1 < s) {
-                    p = split.value(++i);
+                    p = split[i];
                 }
                 if (!p.isEmpty()) {
                     bool ok;
@@ -709,21 +725,21 @@ SourceList Source::parse(const String &cmdLine,
                 const size_t argLen = strlen(argument);                 \
                 Path p;                                                 \
                 if (arg.size() == argLen) {                             \
-                    p = Path::resolved(split.value(++i), Path::MakeAbsolute, path); \
+                    p = Path::resolved(split[++i], Path::MakeAbsolute, path); \
                 } else {                                                \
                     p = Path::resolved(arg.mid(argLen), Path::MakeAbsolute, cwd); \
                 }                                                       \
                 if (testLog(LogLevel::Warning))                         \
                     warning() << "Added include path" << p <<           \
                     "type:" << #type << "for argument" << arg;          \
-                includePaths.append(Source::Include(Source::Include::type, p)); \
+                includePaths.push_back(Source::Include(Source::Include::type, p)); \
             }
 #include "IncludeTypesInternal.h"
 #undef DECLARE_INCLUDE_TYPE
             else {
                 arguments.push_back(arg);
                 if (hasValue(arg)) {
-                    arguments.push_back(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
+                    arguments.push_back(Path::resolved(split[++i], Path::MakeAbsolute, path));
                 }
             }
         } else {
@@ -777,7 +793,7 @@ SourceList Source::parse(const String &cmdLine,
     SourceList ret;
     if (!inputs.empty()) {
         if (!buildRootId) {
-            buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot, cache);
+            buildRoot = RTags::findProjectRoot(inputs.front().realPath, RTags::BuildRoot, cache);
             if (buildRoot.isDir())
                 buildRootId = Location::insertFile(buildRoot);
         }
@@ -811,7 +827,7 @@ SourceList Source::parse(const String &cmdLine,
     return ret;
 }
 // returns false if at end
-static inline bool advance(Set<Source::Define>::const_iterator &it, const Set<Source::Define>::const_iterator end)
+static inline bool advance(std::set<Source::Define>::const_iterator &it, const std::set<Source::Define>::const_iterator end)
 {
     while (it != end) {
         if (it->define != "NDEBUG")
@@ -821,7 +837,7 @@ static inline bool advance(Set<Source::Define>::const_iterator &it, const Set<So
     return false;
 }
 
-static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Set<Source::Define> &r)
+static inline bool compareDefinesNoNDEBUG(const std::set<Source::Define> &l, const std::set<Source::Define> &r)
 {
     auto lit = l.begin();
     auto rit = r.begin();
@@ -843,8 +859,8 @@ static inline bool compareDefinesNoNDEBUG(const Set<Source::Define> &l, const Se
     return true;
 }
 
-static bool nextArg(List<String>::const_iterator &it,
-                    const List<String>::const_iterator end,
+static bool nextArg(std::vector<String>::const_iterator &it,
+                    const std::vector<String>::const_iterator end,
                     const Flags<Server::Option> flags)
 {
     while (it != end) {
@@ -915,7 +931,7 @@ bool Source::compareArguments(const Source &other) const
     return false;
 }
 
-List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) const
+std::vector<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) const
 {
     if (usedPch)
         *usedPch = false;
@@ -923,7 +939,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     if (!server)
         f |= (ExcludeDefaultArguments|ExcludeDefaultDefines|ExcludeDefaultIncludePaths);
 
-    List<String> ret;
+    std::vector<String> ret;
     ret.reserve(64);
     if ((f & IncludeCompiler) == IncludeCompiler) {
         ret.push_back(compiler());
@@ -933,10 +949,12 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     }
 
     Map<String, String> config;
-    Set<String> remove;
+    std::set<String> remove;
     if (f & IncludeRTagsConfig) {
         config = RTags::rtagsConfig(sourceFile());
-        remove = config.value("remove-arguments").split(";").toSet();
+        for (String &ref : config.value("remove-arguments").split(";")) {
+            remove.insert(std::move(ref));
+        }
     }
 
     if (!(f & ExcludeDefaultArguments)) {
@@ -952,12 +970,12 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
         if (f & FilterBlacklist && isBlacklisted(arg)) {
             skip = true;
         }
-        if (!skip && remove.contains(arg))
+        if (!skip && remove.find(arg) != remove.end())
             skip = true;
         if (!skip) {
             ret.push_back(arg);
             if (hasValue)
-                ret.push_back(arguments.value(++i));
+                ret.push_back(arguments[++i]);
         } else if (hasValue) {
             ++i;
         }
@@ -965,27 +983,29 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
 
     if (f & IncludeDefines) {
         for (const auto &def : defines)
-            ret += def.toString(f);
+            ret.push_back(def.toString(f));
         if (!(f & ExcludeDefaultDefines)) {
             assert(server);
             for (const auto &def : server->options().defines)
-                if (!defines.contains(def))
-                    ret += def.toString(f);
+                if (defines.find(def) == defines.end())
+                    ret.push_back(def.toString(f));
         }
     }
-#define DECLARE_INCLUDE_TYPE(type, argument, space)     \
-    case Source::Include::type:                         \
-        if (inc.type == Include::Type_PCH) {            \
-            if (f & PCHEnabled) {                       \
-                if (usedPch)                            \
-                    *usedPch = true;                    \
-                ret << argument << (inc.path + ".gch"); \
-            }                                           \
-        } else if (*space) {                            \
-            ret << argument << inc.path;                \
-        } else {                                        \
-            ret << (argument + inc.path);               \
-        }                                               \
+#define DECLARE_INCLUDE_TYPE(type, argument, space) \
+    case Source::Include::type:                     \
+        if (inc.type == Include::Type_PCH) {        \
+            if (f & PCHEnabled) {                   \
+                if (usedPch)                        \
+                    *usedPch = true;                \
+                ret.push_back(argument);            \
+                ret.push_back(inc.path + ".gch");   \
+            }                                       \
+        } else if (*space) {                        \
+            ret.push_back(argument);                \
+            ret.push_back(inc.path);                \
+        } else {                                    \
+            ret.push_back(argument + inc.path);     \
+        }                                           \
         break;
 
     if (!(f & ExcludeDefaultIncludePaths)) {
@@ -1006,10 +1026,13 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
         }
     }
     if (f & IncludeOutputFilename && !outputFilename.isEmpty()) {
-        ret << "-o" << outputFilename;
+        ret.push_back("-o");
+        ret.push_back(outputFilename);
     }
     if (f & IncludeRTagsConfig) {
-        ret << config.value("add-arguments").split(' ');
+        for (String &ref : config.value("add-arguments").split(' ')) {
+            ret.push_back(std::move(ref));
+        }
     }
 
     if (f & IncludeSourceFile)

@@ -25,7 +25,7 @@
 #include "Source.h"
 #include "rct/Hash.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 static std::mutex sMutex;
@@ -43,16 +43,16 @@ struct Compiler {
     //   3. -nobuiltininc  -- (clang only?) disables compiler-provided includes
     //                        Example: limits.h, float.h
 
-    Set<Source::Define> defines;
-    List<Source::Include> includePaths;
-    List<Source::Include> stdincxxPaths;
-    List<Source::Include> builtinPaths;
+    std::set<Source::Define> defines;
+    std::vector<Source::Include> includePaths;
+    std::vector<Source::Include> stdincxxPaths;
+    std::vector<Source::Include> builtinPaths;
 };
 static Hash<Path, Compiler> sCompilers;
 
 namespace CompilerManager {
 
-List<Path> compilers()
+std::vector<Path> compilers()
 {
     std::lock_guard<std::mutex> lock(sMutex);
     return sCompilers.keys();
@@ -66,57 +66,63 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
     if (!compiler.inited) {
         compiler.inited = true;
 
-        List<String> overrides;
-        List<String> out, err;
-        List<String> args;
-        List<String> environ({"RTAGS_DISABLED=1"});
-        args << "-x" << "c++" << "-v" << "-E" << "-dM" << "-";
+        std::vector<String> overrides;
+        std::vector<String> out, err;
+        std::vector<String> args;
+        std::vector<String> environ({"RTAGS_DISABLED=1"});
+        args.push_back("-x");
+        args.push_back("c++");
+        args.push_back("-v");
+        args.push_back("-E");
+        args.push_back("-dM");
+        args.push_back("-");
 
         for (size_t i=0; i<4; /* see below */) {
             Process proc;
             proc.exec(cpath, args, environ);
             assert(proc.isFinished());
             if (!proc.returnCode()) {
-                out << proc.readAllStdOut().split('\n');
-                err << proc.readAllStdErr().split('\n');
+                std::vector<String> split = proc.readAllStdOut().split('\n');
+                out.insert(out.end(), split.begin(), split.end());
+                split = proc.readAllStdErr().split('\n');
+                err.insert(err.end(), split.begin(), split.end());
 
                 // proc success. What's next?
                 switch (i) {
                 case 0:
                     // C++ ok .. see which path is controlled by -nostdinc++
-                    args.prepend("-nostdinc++");
-                    err << "@@@@\n"; // magic separator
+                    args.insert(args.begin(), "-nostdinc++");
+                    err.push_back("@@@@\n"); // magic separator
                     i = 2;
                     break;
 
                 case 1:
                     // "-x c++" not ok. Goto -nobuiltininc.
-                    err << "@@@@\n";  // magic separator
-                    args.prepend("-nobuiltininc");
+                    err.push_back("@@@@\n");  // magic separator
+                    args.insert(args.begin(), "-nobuiltininc");
                     i = 3;
                     break;
 
                 case 2:
-                    args.removeFirst(); // clear -nostdinc++
-                    err << "@@@@\n";  // magic separator
-                    args.prepend("-nobuiltininc");
+                    args.erase(args.begin()); // clear -nostdinc++
+                    err.push_back("@@@@\n");  // magic separator
+                    args.insert(args.begin(), "-nobuiltininc");
                     i = 3;
                     break;
 
                 default:
-                    err << "@@@@\n";  // magic separator
+                    err.push_back("@@@@\n");  // magic separator
                     i = 4;
                     break;
                 }
             } else if (i == 0) {
                 // Strip -x c++ and try again
-                args.removeFirst();
-                args.removeFirst();
+                args.erase(args.begin(), args.begin() + 1);
                 i = 1;
             } else if (i == 3) {
                 // GCC does not support -nobuiltininc flag.
                 // Remove and retry
-                args.removeFirst();
+                args.erase(args.begin());
             } else {
                 error() << "CompilerManager: Cannot extract standard include paths.\n";
                 return;
@@ -139,7 +145,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         }
 
         enum { eNormal, eNoStdInc, eNoBuiltin } mode = eNormal;
-        List<Source::Include> copy;
+        std::vector<Source::Include> copy;
         for (size_t i=0; i<err.size(); ++i) {
             const String &line = err.at(i);
             if (line.startsWith("@@@@")) { // magic separator
@@ -151,10 +157,16 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                     // What's left in copy are the builtin paths
                     compiler.builtinPaths = copy;
                     // Set the includePaths exclusive of stdinc/builtin
-                    for (auto& inc : compiler.stdincxxPaths)
-                        compiler.includePaths.remove(inc);
-                    for (auto& inc : compiler.builtinPaths)
-                        compiler.includePaths.remove(inc);
+                    for (const auto& inc : compiler.stdincxxPaths) {
+                        auto it = std::find(compiler.includePaths.begin(), compiler.includePaths.end(), inc);
+                        if (it != compiler.includePaths.end())
+                            compiler.includePaths.erase(it);
+                    }
+                    for (const auto& inc : compiler.builtinPaths) {
+                        auto it = std::find(compiler.includePaths.begin(), compiler.includePaths.end(), inc);
+                        if (it != compiler.includePaths.end())
+                            compiler.includePaths.erase(it);
+                    }
                     break; // we're done
                 } else {
                     mode = eNoStdInc;
@@ -177,7 +189,9 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                 if (mode == eNormal) {
                     compiler.includePaths.push_back(Source::Include(type, path));
                 } else {
-                    copy.remove(Source::Include(type, path));
+                    auto it = std::find(copy.begin(), copy.end(), Source::Include(type, path));
+                    if (it != copy.end())
+                        copy.erase(it);
                 }
             }
         }
@@ -185,15 +199,20 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         debug() << "StdInc++: " << compiler.stdincxxPaths << "\nBuiltin: " << compiler.builtinPaths;
         debug() << "[CompilerManager] returning.\n";
     }
-    if (flags & IncludeDefines)
-        source.defines << compiler.defines;
+    if (flags & IncludeDefines) {
+        for (const auto &ref : compiler.defines) {
+            source.defines.insert(ref);
+        }
+    }
     if (flags & IncludeIncludePaths) {
-        if (!source.arguments.contains("-nostdinc")) {
-            if (!source.arguments.contains("-nostdinc++"))
-                source.includePaths << compiler.stdincxxPaths;
-            if (!source.arguments.contains("-nobuiltininc"))
-                source.includePaths << compiler.builtinPaths;
-            source.includePaths << compiler.includePaths;
+        if (std::find(source.arguments.begin(), source.arguments.end(), "-nostdinc") == source.arguments.end()) {
+            if (std::find(source.arguments.begin(), source.arguments.end(), "-nostdinc++") == source.arguments.end()) {
+                source.includePaths.insert(source.includePaths.end(), compiler.stdincxxPaths.begin(), compiler.stdincxxPaths.end());
+            }
+            if (std::find(source.arguments.begin(), source.arguments.end(), "-nobuiltininc") == source.arguments.end()) {
+                source.includePaths.insert(source.includePaths.end(), compiler.builtinPaths.begin(), compiler.builtinPaths.end());
+            }
+            source.includePaths.insert(source.includePaths.end(), compiler.includePaths.begin(), compiler.includePaths.end());
         } else if (!strncmp("clang", cpath.fileName(), 5)) {
             // Module.map causes errors when -nostdinc is used, as it
             // can't find some mappings to compiler provided headers

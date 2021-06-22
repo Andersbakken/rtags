@@ -25,11 +25,11 @@
 #include "FileMap.h"
 #include "Symbol.h"
 #include "rct/Flags.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 SymbolInfoJob::SymbolInfoJob(Location s, Location e,
-                             Set<String> &&pieceFilters,
+                             std::set<String> &&pieceFilters,
                              const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
     : QueryJob(query, proj), start(s), end(e)
 {

@@ -18,7 +18,7 @@
 
 #include <fnmatch.h>
 
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/String.h"
 
@@ -30,7 +30,7 @@ enum Result {
     Directory
 };
 
-static inline Result filter(const Path &path, const List<String> &filters = List<String>())
+static inline Result filter(const Path &path, const std::vector<String> &filters = std::vector<String>())
 {
     const int size = filters.size();
     for (int i=0; i<size; ++i) {

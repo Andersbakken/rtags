@@ -33,10 +33,10 @@
 #include "Symbol.h"
 #include "rct/Flags.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
@@ -119,15 +119,15 @@ int StatusJob::execute()
             return 1;
         Hash<Path, Flags<Project::WatchMode> > watched = proj->watchedPaths();
         auto watchModeToString = [](Flags<Project::WatchMode> mode) {
-            List<String> ret;
+            std::vector<String> ret;
             if (mode & Project::Watch_FileManager)
-                ret << "filemanager";
+                ret.push_back("filemanager");
             if (mode & Project::Watch_SourceFile)
-                ret << "source";
+                ret.push_back("source");
             if (mode & Project::Watch_Dependency)
-                ret << "dependency";
+                ret.push_back("dependency");
             if (mode & Project::Watch_CompileCommands)
-                ret << "compilecommands";
+                ret.push_back("compilecommands");
             return String::join(ret, '|');
         };
         for (const auto &it : watched) {

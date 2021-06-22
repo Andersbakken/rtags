@@ -30,13 +30,13 @@
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/SignalSlot.h"
 #include "rct/String.h"
 #include "Location.h"
 #include "rct/Hash.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 
 class Location;
 class QueryMessage;
@@ -61,14 +61,14 @@ public:
     bool hasFilter() const { return mFileFilter || !mFilters.empty(); }
     bool hasKindFilter() const { return !mKindFilters.isEmpty(); }
     bool hasPieceFilter() const { return !mPieceFilters.empty(); }
-    List<QueryMessage::PathFilter> pathFilters() const
+    std::vector<QueryMessage::PathFilter> pathFilters() const
     {
         if (mQueryMessage)
             return mQueryMessage->pathFilters();
-        return List<QueryMessage::PathFilter>();
+        return std::vector<QueryMessage::PathFilter>();
     }
-    Set<String> pieceFilters() const { return mPieceFilters; }
-    void setPieceFilters(Set<String> &&pieceFilters) { mPieceFilters = std::move(pieceFilters); }
+    std::set<String> pieceFilters() const { return mPieceFilters; }
+    void setPieceFilters(std::set<String> &&pieceFilters) { mPieceFilters = std::move(pieceFilters); }
     uint32_t fileFilter() const { return mFileFilter; }
     enum WriteFlag {
         NoWriteFlags = 0x00,
@@ -158,9 +158,9 @@ private:
     Signal<std::function<void(const String &)> > mOutput;
     std::shared_ptr<Project> mProject;
     uint32_t mFileFilter;
-    List<std::shared_ptr<Filter> > mFilters;
+    std::vector<std::shared_ptr<Filter> > mFilters;
     QueryMessage::KindFilters mKindFilters;
-    Set<String> mPieceFilters;
+    std::set<String> mPieceFilters;
     String mBuffer;
     std::shared_ptr<Connection> mConnection;
     Hash<Path, String> mContextCache;

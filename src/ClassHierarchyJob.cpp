@@ -19,8 +19,8 @@
 
 #include "Project.h"
 #include "Symbol.h"
-#include "rct/List.h"
-#include "rct/Set.h"
+#include <vector>
+#include <set>
 #include "rct/String.h"
 
 class QueryMessage;
@@ -42,7 +42,7 @@ int ClassHierarchyJob::execute()
     if (!symbol.isClass())
         return 1;
 
-    typedef std::function<Set<Symbol>(const Symbol &)> FindFunc;
+    typedef std::function<std::set<Symbol>(const Symbol &)> FindFunc;
     std::function<void (const Symbol &, const char *title, int, FindFunc)> recurse = [&](const Symbol &sym,
                                                                                          const char *title,
                                                                                          int indent,
@@ -70,7 +70,7 @@ int ClassHierarchyJob::execute()
     };
 
     recurse(symbol, "Superclasses:", 0, [this](const Symbol &sym) {
-            Set<Symbol> ret;
+            std::set<Symbol> ret;
             for (const String &usr : sym.baseClasses) {
                 for (const auto &s : project()->findByUsr(usr, sym.location.fileId(), Project::ArgDependsOn)) {
                     if (s.isDefinition()) {

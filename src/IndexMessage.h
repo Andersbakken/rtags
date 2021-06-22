@@ -19,7 +19,7 @@
 #include <utility>
 
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/String.h"
 #include "RTagsMessage.h"
 #include "rct/Path.h"
@@ -38,9 +38,9 @@ public:
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
     const Path &workingDirectory() const { return mWorkingDirectory; }
     void setWorkingDirectory(Path &&wd) { mWorkingDirectory = std::move(wd); }
-    void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
-    const List<String> &environment() const { return mEnvironment; }
-    List<String> &&takeEnvironment() { return std::move(mEnvironment); }
+    void setEnvironment(const std::vector<String> &environment) { mEnvironment = environment; }
+    const std::vector<String> &environment() const { return mEnvironment; }
+    std::vector<String> &&takeEnvironment() { return std::move(mEnvironment); }
     Path compileCommands() const { return mCompileCommands; }
     void setCompileCommands(Path &&path) { mCompileCommands = std::move(path); }
     const String &arguments() const { return mArgs; }
@@ -58,7 +58,7 @@ public:
 private:
     Path mWorkingDirectory;
     String mArgs;
-    List<String> mEnvironment;
+    std::vector<String> mEnvironment;
     Path mProjectRoot;
     Path mCompileCommands;
     Flags<Flag> mFlags;

@@ -610,7 +610,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
     return ret;
 }
 
-std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const List<String> &args,
+std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const std::vector<String> &args,
                                                          CXUnsavedFile *unsaved, int unsavedCount,
                                                          Flags<CXTranslationUnit_Flags> translationUnitFlags,
                                                          bool displayDiagnostics)
@@ -621,7 +621,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
     ret->index = clang_createIndex(0, displayDiagnostics);
 
     int idx = 0;
-    List<const char*> clangArgs(args.size() + 2, nullptr);
+    std::vector<const char*> clangArgs(args.size() + 2, nullptr);
 
     const int count = args.size();
     for (int j=0; j<count; ++j) {
@@ -815,13 +815,13 @@ void DiagnosticsProvider::diagnose()
 
     const size_t numUnits = unitCount();
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
-    List<Diagnostics> skipped;
+    std::vector<Diagnostics> skipped;
     if (numUnits > 1)
         skipped.resize(numUnits);
 #endif
 
     for (size_t u=0; u<numUnits; ++u) {
-        List<String> compilationErrors;
+        std::vector<String> compilationErrors;
         const size_t diagCount = diagnosticCount(u);
 
         for (size_t j=0; j<diagCount; ++j) {
@@ -1057,7 +1057,7 @@ struct ChildrenVisitor
 {
     const Filter &in;
     const Filter &out;
-    List<CXCursor> children;
+    std::vector<CXCursor> children;
 };
 
 static CXChildVisitResult childrenVisitor(CXCursor cursor, CXCursor, CXClientData data)
@@ -1069,9 +1069,9 @@ static CXChildVisitResult childrenVisitor(CXCursor cursor, CXCursor, CXClientDat
     return CXChildVisit_Continue;
 }
 
-List<CXCursor> children(CXCursor parent, const Filter &in, const Filter &out)
+std::vector<CXCursor> children(CXCursor parent, const Filter &in, const Filter &out)
 {
-    ChildrenVisitor userData = { in, out, List<CXCursor>() };
+    ChildrenVisitor userData = { in, out, std::vector<CXCursor>() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, childrenVisitor, &userData);
     return userData.children;
@@ -1079,8 +1079,8 @@ List<CXCursor> children(CXCursor parent, const Filter &in, const Filter &out)
 
 struct FindChainVisitor
 {
-    const List<CXCursorKind> &kinds;
-    List<CXCursor> ret;
+    const std::vector<CXCursorKind> &kinds;
+    std::vector<CXCursor> ret;
 };
 
 static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientData data)
@@ -1096,10 +1096,10 @@ static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientDa
     return CXChildVisit_Break;
 }
 
-List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds)
+std::vector<CXCursor> findChain(CXCursor parent, const std::vector<CXCursorKind> &kinds)
 {
     assert(!kinds.empty());
-    FindChainVisitor userData = { kinds, List<CXCursor>() };
+    FindChainVisitor userData = { kinds, std::vector<CXCursor>() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChainVisitor, &userData);
     if (userData.ret.size() != kinds.size()) {
@@ -1213,11 +1213,11 @@ public:
             }
             output(")", 1);
             break; }
-        case Value::Type_List: {
-            const auto end = value.listEnd();
+        case Value::Type_Vector: {
+            const auto end = value.vectorEnd();
             OUTPUT_LITERAL("(list ");
             bool first = true;
-            for (auto it = value.listBegin(); it != end; ++it) {
+            for (auto it = value.vectorBegin(); it != end; ++it) {
                 if (!first) {
                     OUTPUT_LITERAL(" ");
                 } else {
@@ -1243,7 +1243,7 @@ String toElisp(const Value &value)
 
 struct CursorArgumentsVisitor {
     int numArgs;
-    List<CXCursor> *args;
+    std::vector<CXCursor> *args;
 };
 static CXChildVisitResult cursorArgumentsVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
@@ -1255,7 +1255,7 @@ static CXChildVisitResult cursorArgumentsVisitor(CXCursor cursor, CXCursor, CXCl
     }
     return CXChildVisit_Continue;
 }
-int cursorArguments(const CXCursor &cursor, List<CXCursor> *args)
+int cursorArguments(const CXCursor &cursor, std::vector<CXCursor> *args)
 {
     int numArgs = 0;
     // A workaround for the following issues:

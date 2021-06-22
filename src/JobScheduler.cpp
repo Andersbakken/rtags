@@ -32,7 +32,7 @@
 #include "Server.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Path.h"
 #include "rct/Rct.h"
@@ -76,12 +76,12 @@ bool JobScheduler::initDaemons()
         Process *process = new Process;
         connectProcess(process);
         debug() << "Starting daemon" << i << process;
-        List<String> arguments;
+        std::vector<String> arguments;
         for (int l=logLevel().toInt(); l>0; --l)
-            arguments << "-v";
-        arguments << "--daemon";
+            arguments.push_back("-v");
+        arguments.push_back("--daemon");
         if (options.options & Server::RPLogToSyslog)
-            arguments << "--log-to-syslog";
+            arguments.push_back("--log-to-syslog");
         if (!process->start(options.rp, arguments)) {
             error() << "Couldn't start rp" << options.rp << process->errorString();
             delete process;
@@ -132,7 +132,7 @@ void JobScheduler::startJobs()
             << "daemonSlots" << daemonSlots;
 
     if (options.jobCount < mActiveByProcess.size()) {
-        List<std::shared_ptr<Node> > nodes;
+        std::vector<std::shared_ptr<Node> > nodes;
         nodes.reserve(mActiveByProcess.size());
         for (const auto &pair : mActiveByProcess) {
             nodes.push_back(pair.second);
@@ -189,12 +189,13 @@ void JobScheduler::startJobs()
         if (slots) {
             Process *process = new Process;
             debug() << "Starting process for" << node->job->id << node->job->sourceFile << node->job.get();
-            List<String> arguments;
-            arguments << "--priority" << String::number(node->job->priority());
+            std::vector<String> arguments;
+            arguments.push_back("--priority");
+            arguments.push_back(String::number(node->job->priority()));
             for (int i=logLevel().toInt(); i>0; --i)
-                arguments << "-v";
+                arguments.push_back("-v");
             if (options.options & Server::RPLogToSyslog)
-                arguments << "--log-to-syslog";
+                arguments.push_back("--log-to-syslog");
 
             connectProcess(process);
 

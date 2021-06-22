@@ -28,10 +28,10 @@
 #include "Location.h"
 #include "clang-c/Index.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Log.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 #include "rct/Value.h"
 
@@ -82,58 +82,58 @@ static String sourceCode(const Path &path, int startLine, int startColumn, int e
 String Symbol::toString(const std::shared_ptr<Project> &project,
                         const Flags<ToStringFlag> cursorInfoFlags,
                         Flags<Location::ToStringFlag> locationToStringFlags,
-                        const Set<String> &pieceFilters) const
+                        const std::set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.find(name) != pieceFilters.end(); };
     auto properties = [this, &filterPiece]() -> String {
-        List<String> ret;
+        std::vector<String> ret;
         if (isDefinition() && filterPiece("definition"))
-            ret << "Definition";
+            ret.push_back("Definition");
         if (isContainer() && filterPiece("container"))
-            ret << "Container";
+            ret.push_back("Container");
         if ((flags & PureVirtualMethod) == PureVirtualMethod && filterPiece("purevirtual"))
-            ret << "Pure Virtual";
+            ret.push_back("Pure Virtual");
         if (flags & VirtualMethod && filterPiece("virtual"))
-            ret << "Virtual";
+            ret.push_back("Virtual");
 
         if (flags & ConstMethod) {
             if (filterPiece("constmethod"))
-                ret << "ConstMethod";
+                ret.push_back("ConstMethod");
         } else if (flags & StaticMethod && filterPiece("static")) {
-            ret << "Static";
+            ret.push_back("Static");
         }
 
         if (flags & Variadic && filterPiece("variadic"))
-            ret << "Variadic";
+            ret.push_back("Variadic");
         if (flags & Auto && filterPiece("auto"))
-            ret << "Auto";
+            ret.push_back("Auto");
 
         if (flags & MacroExpansion && filterPiece("macroexpansion"))
-            ret << "MacroExpansion";
+            ret.push_back("MacroExpansion");
         if (flags & TemplateSpecialization && filterPiece("templatespecialization"))
-            ret << "TemplateSpecialization";
+            ret.push_back("TemplateSpecialization");
         if (flags & TemplateReference && filterPiece("templatereference"))
-            ret << "TemplateReference";
+            ret.push_back("TemplateReference");
 
         if (ret.empty())
             return String();
         return String::join(ret, ' ') + '\n';
     };
 
-    List<String> bases;
-    List<String> args;
+    std::vector<String> bases;
+    std::vector<String> args;
 
     if (project) {
         if (filterPiece("baseclasses")) {
             for (const auto &base : baseClasses) {
                 bool found = false;
                 for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn)) {
-                    bases << sym.symbolName;
+                    bases.push_back(sym.symbolName);
                     found = true;
                     break;
                 }
                 if (!found) {
-                    bases << base;
+                    bases.push_back(base);
                 }
             }
         }
@@ -141,9 +141,9 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
             for (const auto &arg : arguments) {
                 const String symName = project->findSymbol(arg.cursor).symbolName;
                 if (!symName.isEmpty()) {
-                    args << symName;
+                    args.push_back(symName);
                 } else {
-                    args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
+                    args.push_back(arg.cursor.toString(locationToStringFlags & ~Location::ShowContext));
                 }
             }
         }
@@ -306,9 +306,9 @@ bool Symbol::isContainer() const
 Value Symbol::toValue(const std::shared_ptr<Project> &project,
                       Flags<ToStringFlag> toStringFlags,
                       Flags<Location::ToStringFlag> locationToStringFlags,
-                      const Set<String> &pieceFilters) const
+                      const std::set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.find(name) != pieceFilters.end(); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
@@ -447,7 +447,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
             if (f & IncludeBaseClasses && filterPiece("baseclasses")) {
-                List<Value> b;
+                std::vector<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn)) {
                         b.push_back(toValue(s, NullFlags));

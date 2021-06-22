@@ -54,13 +54,13 @@
 #include "rct/Flags.h"
 #include "rct/Log.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 #include "IndexMessage.h"
 #include "Sandbox.h"
 #include "clang-c/CXString.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/Map.h"
 
 class Database;
@@ -69,11 +69,11 @@ struct Diagnostic;
 struct DependencyNode;
 class IndexDataMessage;
 
-typedef List<std::pair<uint32_t, uint32_t> > Includes;
+typedef std::vector<std::pair<uint32_t, uint32_t> > Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<uint32_t, SourceList> Sources;
-typedef Map<Path, Set<String> > Files;
-typedef Hash<uint32_t, Set<FixIt> > FixIts;
+typedef Map<Path, std::set<String> > Files;
+typedef Hash<uint32_t, std::set<FixIt> > FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 struct SourceCache;
@@ -200,7 +200,7 @@ struct TranslationUnit {
 
     bool reparse(CXUnsavedFile *unsaved, int unsavedCount);
     static std::shared_ptr<TranslationUnit> create(const Path &sourceFile,
-                                                   const List<String> &args,
+                                                   const std::vector<String> &args,
                                                    CXUnsavedFile *unsaved,
                                                    int unsavedCount,
                                                    Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
@@ -347,7 +347,7 @@ struct Auto {
 };
 bool resolveAuto(const CXCursor &cursor, Auto *a = nullptr);
 
-int cursorArguments(const CXCursor &cursor, List<CXCursor> *args = nullptr);
+int cursorArguments(const CXCursor &cursor, std::vector<CXCursor> *args = nullptr);
 
 String usr(const CXCursor &cursor);
 
@@ -375,7 +375,7 @@ struct Filter
     {
         bool matched = false;
         if (!kinds.empty()) {
-            if (kinds.contains(clang_getCursorKind(cursor))) {
+            if (kinds.find(clang_getCursorKind(cursor)) != kinds.end()) {
                 if (mode == Or)
                     return true;
                 matched = true;
@@ -385,7 +385,7 @@ struct Filter
         }
         if (!names.empty()) {
             const String name = RTags::eatString(clang_getCursorSpelling(cursor));
-            if (names.contains(name)) {
+            if (names.find(name) != names.end()) {
                 if (mode == Or)
                     return true;
                 matched = true;
@@ -403,8 +403,8 @@ struct Filter
         return matched;
     }
 
-    Set<CXCursorKind> kinds;
-    Set<String> names;
+    std::set<CXCursorKind> kinds;
+    std::set<String> names;
     int argumentCount;
     Mode mode;
 };
@@ -412,8 +412,8 @@ struct Filter
 CXCursor findFirstChild(CXCursor parent);
 CXCursor findChild(CXCursor parent, CXCursorKind kind, CXChildVisitResult mode = CXChildVisit_Recurse);
 CXCursor findChild(CXCursor parent, const String &name, CXChildVisitResult mode = CXChildVisit_Recurse);
-List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
-List<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
+std::vector<CXCursor> findChain(CXCursor parent, const std::vector<CXCursorKind> &kinds);
+std::vector<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
 
 inline const char *tokenKindSpelling(CXTokenKind kind)
 {
@@ -428,10 +428,10 @@ inline const char *tokenKindSpelling(CXTokenKind kind)
 }
 
 template <typename T>
-inline bool startsWith(const List<T> &list, const T &str)
+inline bool startsWith(const std::vector<T> &list, const T &str)
 {
     if (!list.isEmpty()) {
-        typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
+        typename std::vector<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
         if (it != list.end()) {
             const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
             if (cmp == 0) {
@@ -878,7 +878,7 @@ inline int targetRank(CXCursorKind kind)
     }
     return 2;
 }
-inline Symbol bestTarget(const Set<Symbol> &targets)
+inline Symbol bestTarget(const std::set<Symbol> &targets)
 {
     Symbol ret;
     int bestRank = -1;
@@ -892,22 +892,22 @@ inline Symbol bestTarget(const Set<Symbol> &targets)
     return ret;
 }
 
-inline void sortTargets(List<Symbol> &targets)
+inline void sortTargets(std::vector<Symbol> &targets)
 {
-    targets.sort([](const Symbol &l, const Symbol &r) {
-            const int lrank = RTags::targetRank(l.kind);
-            const int rrank = RTags::targetRank(r.kind);
-            if (lrank != rrank)
-                return lrank > rrank;
-            if (l.isDefinition() != r.isDefinition())
-                return l.isDefinition();
-            return l.location < r.location;
-        });
+    std::sort(targets.begin(), targets.end(), [](const Symbol &l, const Symbol &r) {
+        const int lrank = RTags::targetRank(l.kind);
+        const int rrank = RTags::targetRank(r.kind);
+        if (lrank != rrank)
+            return lrank > rrank;
+        if (l.isDefinition() != r.isDefinition())
+            return l.isDefinition();
+        return l.location < r.location;
+    });
 }
 
-inline List<Symbol> sortTargets(Set<Symbol> &&set)
+inline std::vector<Symbol> sortTargets(std::set<Symbol> &&set)
 {
-    List<Symbol> targets;
+    std::vector<Symbol> targets;
     targets.resize(set.size());
     size_t i=0;
     for (auto &sym : set) {
@@ -917,9 +917,9 @@ inline List<Symbol> sortTargets(Set<Symbol> &&set)
     return targets;
 }
 
-inline List<Symbol> sortTargets(const Set<Symbol> &set)
+inline std::vector<Symbol> sortTargets(const std::set<Symbol> &set)
 {
-    return sortTargets(Set<Symbol>(set));
+    return sortTargets(std::set<Symbol>(set));
 }
 
 inline String xmlEscape(const String& xml)

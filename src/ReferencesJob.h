@@ -21,7 +21,7 @@
 #include "Location.h"
 #include "QueryJob.h"
 #include "rct/String.h"
-#include "rct/Set.h"
+#include <set>
 
 class SymbolInfo;
 class Project;
@@ -35,7 +35,7 @@ public:
 protected:
     virtual int execute() override;
 private:
-    Set<Location> mLocations;
+    std::set<Location> mLocations;
     const String mSymbolName;
 };
 

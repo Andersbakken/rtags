@@ -48,9 +48,9 @@ public:
     void setFlags(Flags<Flag> f) { mFlags = f; }
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
 
-    Set<uint32_t> visitedFiles() const
+    std::set<uint32_t> visitedFiles() const
     {
-        Set<uint32_t> ret;
+        std::set<uint32_t> ret;
         for (const auto &it : mFiles) {
             if (it.second & Visited)
                 ret.insert(it.first);
@@ -58,9 +58,9 @@ public:
         return ret;
     }
 
-    Set<uint32_t> blockedFiles() const
+    std::set<uint32_t> blockedFiles() const
     {
-        Set<uint32_t> ret;
+        std::set<uint32_t> ret;
         for (const auto &it : mFiles) {
             if (!(it.second & Visited))
                 ret.insert(it.first);

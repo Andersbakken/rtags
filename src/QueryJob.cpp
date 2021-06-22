@@ -36,10 +36,10 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
-    const List<QueryMessage::PathFilter> &pathFilters = query->pathFilters();
+    const std::vector<QueryMessage::PathFilter> &pathFilters = query->pathFilters();
     if (!pathFilters.empty()) {
-        if (pathFilters.size() == 1 && pathFilters.first().mode == QueryMessage::PathFilter::Self) {
-            mFileFilter = Location::fileId(pathFilters.first().pattern);
+        if (pathFilters.size() == 1 && pathFilters.front().mode == QueryMessage::PathFilter::Self) {
+            mFileFilter = Location::fileId(pathFilters.front().pattern);
         }
         if (!mFileFilter) {
             for (const QueryMessage::PathFilter &filter : pathFilters) {

@@ -27,7 +27,7 @@
 #include "RTags.h"
 #include "Source.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/String.h"
 
 class Project;
@@ -72,7 +72,7 @@ public:
     Flags<Flag> flags;
     Path project;
     UnsavedFiles unsavedFiles;
-    Set<uint32_t> visited;
+    std::set<uint32_t> visited;
     int crashCount;
     Signal<std::function<void(IndexerJob *)> > destroyed;
 

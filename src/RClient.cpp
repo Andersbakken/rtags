@@ -444,13 +444,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     Rct::findExecutablePath(*argv);
     const char *runtimeDir = getenv("XDG_RUNTIME_DIR");
     if (!runtimeDir) {
-        mSocketFile = Path::home() + ".rdm";
+        mSocketFile = Path::home() + ".rdm.new";
     } else {
         mSocketFile = runtimeDir;
         mSocketFile += "/rdm.socket";
     }
 
-    List<std::shared_ptr<QueryCommand> > projectCommands;
+    std::vector<std::shared_ptr<QueryCommand> > projectCommands;
 
     Path logFile;
     Flags<LogFlag> logFlags = LogStderr;
@@ -462,8 +462,8 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     std::function<CommandLineParser::ParseStatus(RClient::OptionType type,
                                                  String &&value,
                                                  size_t &idx,
-                                                 const List<String> &args)> cb;
-    cb = [this, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
+                                                 const std::vector<String> &args)> cb;
+    cb = [this, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const std::vector<String> &arguments) -> CommandLineParser::ParseStatus {
         switch (type) {
         case None:
         case NumOptions: {
@@ -781,7 +781,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             std::cmatch match;
             std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::extended);
             Path path;
-            List<String> kinds;
+            std::vector<String> kinds;
             uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
             if (std::regex_match(value.constData(), match, rx)) {
                 path.assign(value.constData(), match.length(1));
@@ -1240,7 +1240,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case AllDependencies: {
             String encoded;
-            List<String> args;
+            std::vector<String> args;
             while (idx < arguments.size() && arguments[idx][0] != '-') {
                 args.push_back(arguments[idx++]);
             }
@@ -1255,7 +1255,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             p.resolve();
-            List<String> args;
+            std::vector<String> args;
             while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
                 args.push_back(arguments[++idx]);
             }
@@ -1400,7 +1400,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
     }
 }
 
-List<String> RClient::environment() const
+std::vector<String> RClient::environment() const
 {
     if (mEnvironment.empty()) {
         mEnvironment = Rct::environment();

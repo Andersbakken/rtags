@@ -22,8 +22,8 @@
 #include "Symbol.h"
 #include "clang-c/Index.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
-#include "rct/Set.h"
+#include <vector>
+#include <set>
 #include "rct/String.h"
 
 FollowLocationJob::FollowLocationJob(Location loc,
@@ -57,7 +57,7 @@ int FollowLocationJob::execute()
     }
 
     if (queryFlags() & QueryMessage::TargetUsrs) {
-        const Set<String> usrs = project()->findTargetUsrs(location);
+        const std::set<String> usrs = project()->findTargetUsrs(location);
         for (const String &usr : usrs) {
             write(usr);
         }
@@ -67,9 +67,9 @@ int FollowLocationJob::execute()
     auto targets = RTags::sortTargets(project()->findTargets(symbol));
 
     int rank = -1;
-    Set<Location> seen;
+    std::set<Location> seen;
     auto writeTarget = [&rank, this, &seen](const Symbol &target) {
-        if (seen.insert(target.location)) {
+        if (seen.insert(target.location).second) {
             write(target.location);
             rank = RTags::targetRank(target.kind);
         }

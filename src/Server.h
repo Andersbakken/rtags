@@ -26,14 +26,14 @@
 #include "IndexMessage.h"
 #include "rct/Flags.h"
 #include "rct/Hash.h"
-#include "rct/List.h"
+#include <vector>
 #include "rct/SocketServer.h"
 #include "rct/String.h"
 #include "rct/Thread.h"
 #include "Source.h"
 #include "RTags.h"
 #include "rct/Path.h"
-#include "rct/Set.h"
+#include <set>
 #include "rct/SignalSlot.h"
 
 class IndexMessage;
@@ -124,14 +124,14 @@ public:
             completionCacheSize, testTimeout, maxFileMapScopeCacheSize, errorLimit,
             pollTimer, maxSocketWriteBufferSize, daemonCount;
         uint16_t tcpPort;
-        List<String> defaultArguments, excludeFilters;
-        Set<String> blockedArguments;
-        List<Source::Include> includePaths;
-        Set<Source::Define> defines;
-        List<Path> tests;
-        Set<Path> ignoredCompilers;
-        Set<String> compilerWrappers;
-        List<String> debugLocations;
+        std::vector<String> defaultArguments, excludeFilters;
+        std::set<String> blockedArguments;
+        std::vector<Source::Include> includePaths;
+        std::set<Source::Define> defines;
+        std::vector<Path> tests;
+        std::set<Path> ignoredCompilers;
+        std::set<String> compilerWrappers;
+        std::vector<String> debugLocations;
     };
     bool init(const Options &options);
     bool runTests();
@@ -149,10 +149,10 @@ public:
         Open
     };
 
-    Set<uint32_t> activeBuffers(ActiveBufferType type) const
+    std::set<uint32_t> activeBuffers(ActiveBufferType type) const
     {
         assert(type != Inactive);
-        Set<uint32_t> ret;
+        std::set<uint32_t> ret;
         for (const auto &buffer : mActiveBuffers) {
             if (buffer.second == type) {
                 ret.insert(buffer.first);
@@ -167,7 +167,7 @@ public:
     Hash<Path, std::shared_ptr<Project> > projects() const { return mProjects; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const;
+    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const std::vector<String> &environment, SourceCache *cache) const;
     bool parse(IndexParseData &data,
                String &&arguments,
                const Path &pwd,
@@ -243,7 +243,7 @@ private:
     void validate(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
-    std::shared_ptr<Project> projectForMatches(const List<Match> &matches);
+    std::shared_ptr<Project> projectForMatches(const std::vector<Match> &matches);
     std::shared_ptr<Project> addProject(const Path &path);
 
     bool initServers();
@@ -258,7 +258,7 @@ private:
     Options mOptions;
     bool mSuspended;
     std::shared_ptr<SocketServer> mUnixServer, mTcpServer;
-    List<String> mEnvironment;
+    std::vector<String> mEnvironment;
 
     int mPollTimer, mExitCode;
     uint32_t mLastFileId;
@@ -266,11 +266,11 @@ private:
     CompletionThread *mCompletionThread;
     bool mActiveBuffersSet;
     Hash<uint32_t, ActiveBufferType> mActiveBuffers;
-    Set<std::shared_ptr<Connection> > mConnections;
+    std::set<std::shared_ptr<Connection> > mConnections;
 
     Signal<std::function<void()> > mIndexDataMessageReceived;
     size_t mDefaultJobCount { 0 };
-    List<size_t> mJobCountStack;
+    std::vector<size_t> mJobCountStack;
 };
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);

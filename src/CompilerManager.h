@@ -16,7 +16,7 @@
 #ifndef CompilerManager_h
 #define CompilerManager_h
 
-#include "rct/List.h"
+#include <vector>
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 #include "rct/Flags.h"
@@ -26,7 +26,7 @@ class Path;
 
 namespace CompilerManager
 {
-List<Path> compilers();
+std::vector<Path> compilers();
 enum Flag {
     None = 0x0,
     IncludeDefines = 0x1,
