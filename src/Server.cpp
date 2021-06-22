@@ -355,21 +355,21 @@ void Server::onNewConnection(SocketServer *server)
             client->setMaxWriteBufferSize(mOptions.maxSocketWriteBufferSize);
         }
         conn->setErrorHandler([](const std::shared_ptr<SocketClient> &, Message::MessageError &&error) {
-                if (error.type == Message::Message_VersionError) {
-                    ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
-                } else {
-                    logDirect(LogLevel::Error, error.text);
-                }
-            });
+            if (error.type == Message::Message_VersionError) {
+                ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
+            } else {
+                logDirect(LogLevel::Error, error.text);
+            }
+        });
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         mConnections.insert(conn);
         std::weak_ptr<Connection> weak = conn;
         conn->disconnected().connect(std::bind([this, weak]() {
-                    if (std::shared_ptr<Connection> c = weak.lock()) {
-                        c->disconnected().disconnect();
-                        mConnections.remove(c);
-                    }
-                }));
+            if (std::shared_ptr<Connection> c = weak.lock()) {
+                c->disconnected().disconnect();
+                mConnections.remove(c);
+            }
+        }));
     }
 }
 
