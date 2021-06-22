@@ -251,9 +251,9 @@ int main(int argc, char** argv)
     Server::Options serverOpts;
     const char * runtimeDir = getenv("XDG_RUNTIME_DIR");
     if (runtimeDir == nullptr) {
-        serverOpts.socketFile = String::format<128>("%s.rdm", Path::home().constData());
+        serverOpts.socketFile = String::format<128>("%s.rdm.new", Path::home().constData());
     } else {
-        serverOpts.socketFile = String::format<1024>("%s/rdm.socket", runtimeDir);
+        serverOpts.socketFile = String::format<1024>("%s/rdm.new.socket", runtimeDir);
     }
     const char *tempDir = nullptr;
     for (const char *tmp : { "TMPDIR", "TMP", "TEMP", "TEMPDIR" }) {
@@ -290,7 +290,7 @@ int main(int argc, char** argv)
     if (!serverOpts.dataDir.exists()) {
         const char * dataDir = getenv("XDG_CACHE_HOME");
         serverOpts.dataDir = dataDir ? dataDir : Path::home() + ".cache";
-        serverOpts.dataDir += "/rtags/";
+        serverOpts.dataDir += "/rtags.new/";
         serverOpts.dataDir.mkdir(Path::Recursive);
     }
     Path logFile;

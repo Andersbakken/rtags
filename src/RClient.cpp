@@ -444,10 +444,10 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     Rct::findExecutablePath(*argv);
     const char *runtimeDir = getenv("XDG_RUNTIME_DIR");
     if (!runtimeDir) {
-        mSocketFile = Path::home() + ".rdm";
+        mSocketFile = Path::home() + ".rdm.new";
     } else {
         mSocketFile = runtimeDir;
-        mSocketFile += "/rdm.socket";
+        mSocketFile += "/rdm.new.socket";
     }
 
     List<std::shared_ptr<QueryCommand> > projectCommands;
