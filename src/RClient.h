@@ -136,7 +136,6 @@ public:
         Reindex,
         ReloadFileManager,
         RemoveBuffers,
-        RemoveFile,
         Rename,
         ReverseSort,
         SendDiagnostics,

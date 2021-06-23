@@ -205,25 +205,33 @@ bool Server::init(const Options &options)
     if (!load())
         return false;
     if (!(mOptions.options & NoStartupCurrentProject)) {
-        Path current = Path(mOptions.dataDir + ".currentProject").readAll(1024);
-        RTags::decodePath(current);
-        if (current.size() > 1) {
-            current.chop(1);
-            const auto project = mProjects.value(current);
-            if (!project) {
-                error() << "Can't restore current project" << current;
-                unlink((mOptions.dataDir + ".currentProject").constData());
-            } else {
-                setCurrentProject(project);
+        List<String> current = Path(mOptions.dataDir + ".currentProject").readAll(1024).split('\n');
+        bool found = false;
+        if (current.size() == 3) {
+            Path path = current[0];
+            RTags::decodePath(path);
+            const uint32_t compileCommandsFileId = atoi(current[1].constData());
+            for (const auto &proj : mProjects.value(path)) {
+                if (compileCommandsFileId == proj->compileCommandsFileId()) {
+                    found = true;
+                    setCurrentProject(proj);
+                    break;
+                }
             }
+        }
+        if (!found && !current.empty()) {
+            error() << "Can't restore current project" << current;
+            unlink((mOptions.dataDir + ".currentProject").constData());
         }
     }
 
     assert(mOptions.pollTimer >= 0);
     if (mOptions.pollTimer) {
         mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
-            for (auto proj : mProjects) {
-                proj.second->validateAll();
+            for (const auto &projects : mProjects) {
+                for (const auto &proj : projects.second) {
+                    proj->validateAll();
+                }
             }
         }, mOptions.pollTimer * 1000);
     }
@@ -329,18 +337,24 @@ bool Server::initServers()
     return true;
 }
 
-std::shared_ptr<Project> Server::addProject(const Path &path)
+std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCommandsFileId)
 {
-    std::shared_ptr<Project> &project = mProjects[path];
-    if (!project) {
-        project.reset(new Project(path));
-        if (!project->init()) {
-            Path::rmdir(project->projectDataDir());
-            mProjects.erase(path);
-            return std::shared_ptr<Project>();
+    List<std::shared_ptr<Project>> &projects = mProjects[path];
+    for (const auto &project : projects) {
+        if (project->compileCommandsFileId() == compileCommandsFileId) {
+            return project;
         }
     }
-    return project;
+    auto proj = std::make_shared<Project>(path, compileCommandsFileId);
+    if (!proj->init()) {
+        Path::rmdir(proj->projectDataDir());
+        if (projects.empty()) {
+            mProjects.erase(path);
+            return nullptr;
+        }
+    }
+    projects.push_back(proj);
+    return proj;
 }
 
 void Server::onNewConnection(SocketServer *server)
@@ -460,9 +474,10 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
     bool ret = false;
     CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
     const unsigned int sz = clang_CompileCommands_getSize(cmds);
-    auto &ref = data.compileCommands[fileId];
-    ref.environment = environment;
-    ref.lastModifiedMs = compileCommands.lastModifiedMs();
+    assert(!data.compileCommandsFileId);
+    data.compileCommandsFileId = fileId;
+    data.environment = environment;
+    data.lastModifiedMs = compileCommands.lastModifiedMs();
     for (unsigned int i = 0; i < sz; ++i) {
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
@@ -493,17 +508,21 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
             if (j < num - 1)
                 args += ' ';
         }
-        ret = parse(data, std::move(args), compileDir.ensureTrailingSlash(), fileId, cache) || ret;
+        ret = parse(data, args, compileDir.ensureTrailingSlash(), fileId, cache) || ret;
     }
     clang_CompileCommands_dispose(cmds);
     clang_CompilationDatabase_dispose(db);
     if (!ret) {
-        data.compileCommands.remove(fileId);
+        data.clear();
     }
     return ret;
 }
 
-bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId, SourceCache *cache) const
+bool Server::parse(IndexParseData &data,
+                   String arguments,
+                   const Path &pwd,
+                   uint32_t compileCommandsFileId,
+                   SourceCache *cache) const
 {
     if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
@@ -528,42 +547,54 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
         }
     }
 
-    assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
-    const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
-    SourceList sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
+    assert(data.compileCommandsFileId == compileCommandsFileId);
+    SourceList sources = Source::parse(arguments, pwd, data.environment, &unresolvedPaths, cache);
     bool ret = (sources.empty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     debug() << "Got" << sources.size() << "sources, and" << unresolvedPaths << "from" << arguments;
     size_t idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();
 
-        std::shared_ptr<Project> current = currentProject();
         if (data.project.empty()) {
-            const Path unresolvedPath = unresolvedPaths.at(idx++);
-            if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
-                data.project = current->path();
-            } else {
-                for (const auto &proj : mProjects) {
-                    if (proj.second->match(unresolvedPath) || (path != unresolvedPath && proj.second->match(path))) {
-                        data.project = proj.first;
-                        break;
+            if (compileCommandsFileId) {
+                for (const auto &projects : mProjects) {
+                    for (const auto &p : projects.second) {
+                        if (p->compileCommandsFileId() == compileCommandsFileId) {
+                            data.project = p->path();
+                            break;
+                        }
                     }
                 }
             }
-
             if (data.project.empty()) {
-                data.project = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot, cache);
-                if (data.project.empty() && path != unresolvedPath) {
-                    data.project = RTags::findProjectRoot(path, RTags::SourceRoot, cache);
+                std::shared_ptr<Project> current = currentProject();
+                const Path unresolvedPath = unresolvedPaths.at(idx++);
+                if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
+                    data.project = current->path();
+                } else {
+                    for (const auto &projs : mProjects) {
+                        for (const auto &proj : projs.second) {
+                            if (proj->match(unresolvedPath) || (path != unresolvedPath && proj->match(path))) {
+                                data.project = proj->path();
+                                break;
+                            }
+                        }
+                    }
                 }
+
+                if (data.project.empty()) {
+                    data.project = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot, cache);
+                    if (data.project.empty() && path != unresolvedPath) {
+                        data.project = RTags::findProjectRoot(path, RTags::SourceRoot, cache);
+                    }
+                }
+                data.project.resolve(Path::RealPath, pwd);
             }
-            data.project.resolve(Path::RealPath, pwd);
         }
 
         if (shouldIndex(source, data.project)) {
-            Sources &s = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].sources : data.sources;
             source.compileCommandsFileId = compileCommandsFileId;
-            auto &list = s[source.fileId];
+            auto &list = data.sources[source.fileId];
             if (!list.contains(source))
                 list.push_back(source);
             ret = true;
@@ -578,12 +609,31 @@ void Server::clearProjects(ClearMode mode)
 {
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
-    for (auto p : mProjects) {
-        p.second->destroy();
+    for (const auto &p : mProjects) {
+        for (const auto &project : p.second) {
+            project->destroy();
+        }
     }
     mProjects.clear();
     if (mode == Clear_All)
         Location::init(Hash<Path, uint32_t>());
+}
+
+std::shared_ptr<Project> Server::findProject(uint32_t fileId)
+{
+    if (currentProject() && currentProject()->isIndexed(fileId)) {
+        return currentProject();
+    }
+
+    for (const auto &p : mProjects) {
+        for (const auto &proj : p.second) {
+            if (proj->isIndexed(fileId)) {
+                setCurrentProject(proj);
+                return proj;
+            }
+        }
+    }
+    return nullptr;
 }
 
 bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
@@ -627,13 +677,8 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
             if (f) {
                 Path p = project->path();
                 RTags::encodePath(p);
-                if (!fwrite(p.constData(), p.size(), 1, f) || !fwrite("\n", 1, 1, f)) {
-                    error() << "error writing to" << (mOptions.dataDir + ".currentProject");
-                    fclose(f);
-                    unlink((mOptions.dataDir + ".currentProject").constData());
-                } else {
-                    fclose(f);
-                }
+                fprintf(f, "%s\n%u\n", p.constData(), project->compileCommandsFileId());
+                fclose(f);
             } else {
                 error() << "error opening" << (mOptions.dataDir + ".currentProject") << "for write";
             }
@@ -664,20 +709,34 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
 
 std::shared_ptr<Project> Server::projectForMatches(const List<Match> &matches)
 {
+    std::shared_ptr<Project> best;
     std::shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
     for (const Match &match : matches) {
-        if (cur && cur->match(match))
-            return cur;
+        bool isIndexed = false;
+        if (cur && cur->match(match, &isIndexed)) {
+            if (isIndexed)
+                return cur;
+            best = cur;
+        }
 
-        for (const auto &it : mProjects) {
-            if (it.second != cur && it.second->match(match)) {
-                setCurrentProject(it.second);
-                return it.second;
+        for (const auto &p : mProjects) {
+            for (const auto &project : p.second) {
+                if (project != cur && project->match(match, &isIndexed)) {
+                    if (isIndexed) {
+                        setCurrentProject(project);
+                        error() << "Found project" << Location::path(project->compileCommandsFileId());
+                        return project;
+                    } else if (!best) {
+                        best = project;
+                    }
+                }
             }
         }
     }
-    return std::shared_ptr<Project>();
+    if (best && best != cur)
+        setCurrentProject(best);
+    return best;
 }
 
 void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -686,19 +745,29 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
     auto it = mProjects.begin();
     bool found = false;
     while (it != mProjects.end()) {
-        auto cur = it++;
-        if (cur->second->match(match)) {
-            found = true;
-            if (currentProject() == cur->second) {
-                setCurrentProject(std::shared_ptr<Project>());
+        auto pit = it->second.begin();
+        while (pit != it->second.end()) {
+            const auto &project = *pit;
+            if (project->match(match)) {
+                found = true;
+                if (currentProject() == project) {
+                    setCurrentProject(nullptr);
+                }
+                Path path = it->first;
+                conn->write<128>("Deleted project: %s", path.constData());
+                RTags::encodePath(path);
+                Path::rmdir(mOptions.dataDir + path);
+                warning() << "Deleted" << (mOptions.dataDir + path);
+                project->destroy();
+                pit = it->second.erase(pit);
+            } else {
+                ++pit;
             }
-            Path path = cur->first;
-            conn->write<128>("Deleted project: %s", path.constData());
-            RTags::encodePath(path);
-            Path::rmdir(mOptions.dataDir + path);
-            warning() << "Deleted" << (mOptions.dataDir + path);
-            cur->second->destroy();
-            mProjects.erase(cur);
+        }
+        if (it->second.empty()) {
+            it = mProjects.erase(it);
+        } else {
+            ++pit;
         }
     }
     if (!found) {
@@ -753,75 +822,86 @@ bool Server::load()
             if (filePath.endsWith('/'))
                 filePath.chop(1);
             RTags::decodePath(filePath);
-            if (filePath.isDir()) {
-                bool remove = false;
-                if (FILE *f = fopen((file + "/project").constData(), "r")) {
-                    Deserializer in(f);
-                    int version;
-                    in >> version;
+            bool remove = true;
+            char *end = nullptr;
+            uint32_t fileId = strtoul(filePath.fileName(), &end, 10);
+            if (!*end) {
+                filePath = filePath.parentDir();
+                if (filePath.isDir()) {
+                    if (FILE *f = fopen((file + "/project").constData(), "r")) {
+                        Deserializer in(f);
+                        int version;
+                        in >> version;
 
-                    if (version == RTags::DatabaseVersion) {
-                        int fs;
-                        in >> fs;
-                        if (fs != Rct::fileSize(f)) {
-                            error("%s seems to be corrupted, refusing to restore. Removing.",
-                                  file.constData());
-                            remove = true;
+                        if (version == RTags::DatabaseVersion) {
+                            int fs;
+                            in >> fs;
+                            if (fs != Rct::fileSize(f)) {
+                                error("%s seems to be corrupted, refusing to restore. Removing.",
+                                      file.constData());
+                            } else {
+                                remove = false;
+                                addProject(filePath.ensureTrailingSlash(), fileId);
+                            }
                         } else {
-                            addProject(filePath.ensureTrailingSlash());
+                            error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
                         }
+                        fclose(f);
+                    }
+                }
+            }
+            if (remove) {
+                Path::rmdir(file);
+            }
+        }
+        return true;
+    }
+
+    if (!fileIdsFile.error().empty()) {
+        error("Can't restore file ids: %s", fileIdsFile.error().constData());
+    }
+    Hash<Path, List<IndexParseData>> projects;
+    mOptions.dataDir.visit([&projects](const Path &path) {
+        if (path.isDir()) {
+            Path sources = path + "sources";
+            if (sources.exists()) {
+                Path parentDir = path.parentDir();
+                Path filePath = parentDir.fileName();
+                if (filePath.endsWith("/"))
+                    filePath.chop(1);
+                RTags::decodePath(filePath);
+                if (!filePath.empty()) {
+                    String err;
+                    IndexParseData data;
+                    if (!Project::readSources(sources, data, &err)) {
+                        error("Sources restore error %s: %s", path.constData(), err.constData());
                     } else {
-                        remove = true;
-                        error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
-                    }
-                    fclose(f);
-                }
-                if (remove) {
-                    Path::rmdir(file);
-                }
-            }
-        }
-    } else {
-        if (!fileIdsFile.error().empty()) {
-            error("Can't restore file ids: %s", fileIdsFile.error().constData());
-        }
-        Hash<Path, IndexParseData> projects;
-        mOptions.dataDir.visit([&projects](const Path &path) {
-            if (path.isDir()) {
-                Path sources = path + "sources";
-                if (sources.exists()) {
-                    Path filePath = path.fileName();
-                    if (filePath.endsWith("/"))
-                        filePath.chop(1);
-                    RTags::decodePath(filePath);
-                    if (!filePath.empty()) {
-                        String err;
-                        IndexParseData data;
-                        if (!Project::readSources(sources, data, &err)) {
-                            error("Sources restore error %s: %s", path.constData(), err.constData());
-                        } else {
-                            data.project = filePath;
-                            projects[filePath] = std::move(data);
+                        char *end = nullptr;
+                        data.compileCommandsFileId = strtoul(parentDir.fileName(), &end, 10);
+                        if (!*end) {
+                            projects[filePath].push_back(std::move(data));
                         }
                     }
                 }
             }
-            return Path::Continue;
-        });
-
-        clearProjects(Clear_KeepFileIds);
-        if (!projects.empty()) {
-            error() << "Recovering sources" << projects.size();
         }
-        for (auto &s : projects) {
-            auto p = addProject(s.first);
+        return Path::Continue;
+    });
+
+    clearProjects(Clear_KeepFileIds);
+    if (!projects.empty()) {
+        error() << "Recovering sources" << projects.size();
+    }
+    for (auto &s : projects) {
+        for (auto &pp : s.second) {
+            auto p = addProject(s.first, pp.compileCommandsFileId);
             if (p) {
-                p->processParseData(std::move(s.second));
+                p->processParseData(std::move(pp));
                 p->save();
             }
         }
-        saveFileIds();
     }
+    saveFileIds();
     return true;
 }
 
@@ -973,7 +1053,7 @@ bool Server::runTests()
             }
             data.project = workingDirectory;
             String commands = "clang " + source.convert<String>();
-            if (!parse(data, std::move(commands), workingDirectory)) {
+            if (!parse(data, std::move(commands), workingDirectory, 0)) {
                 error() << "Failed to index" << ("clang " + source.convert<String>()) << workingDirectory;
                 ret = false;
                 continue;

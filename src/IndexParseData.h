@@ -39,90 +39,51 @@ class IndexParseData
 {
 public:
     Path project;
-    struct CompileCommands {
-        CompileCommands()
-            : lastModifiedMs(0)
-        {}
-        CompileCommands(CompileCommands &&other)
-            : lastModifiedMs(other.lastModifiedMs), sources(std::move(other.sources)), environment(std::move(other.environment))
-        {
-            other.lastModifiedMs = 0;
-        }
-        CompileCommands(const CompileCommands &other)
-            : lastModifiedMs(other.lastModifiedMs), sources(other.sources), environment(other.environment)
-        {}
 
-        CompileCommands &operator=(CompileCommands &&other)
-        {
-            lastModifiedMs = other.lastModifiedMs;
-            sources = std::move(other.sources);
-            environment = std::move(other.environment);
-            other.lastModifiedMs = 0;
-            return *this;
-        }
+    void clearSources()
+    {
+        lastModifiedMs = 0;
+        sources.clear();
+    }
 
-        CompileCommands &operator=(const CompileCommands &other)
-        {
-            lastModifiedMs = other.lastModifiedMs;
-            sources = other.sources;
-            environment = other.environment;
-            return *this;
-        }
+    void clear()
+    {
+        compileCommandsFileId = 0;
+        lastModifiedMs = 0;
+        sources.clear();
+        environment.clear();
+    }
 
-        void clearSources()
-        {
-            lastModifiedMs = 0;
-            sources.clear();
-        }
-
-        uint64_t lastModifiedMs;
-        Sources sources;
-        List<String> environment;
-    };
-    Hash<uint32_t, CompileCommands> compileCommands; // fileId for compile_commands.json -> CompileCommands
-    List<String> environment;
+    uint32_t compileCommandsFileId { 0 };
+    uint64_t lastModifiedMs { 0 };
     Sources sources;
+    List<String> environment;
 
-    bool empty() const { return compileCommands.empty() && environment.empty() && sources.empty(); }
+    bool empty() const { return environment.isEmpty() && sources.isEmpty(); }
     bool write(const std::function<bool(const String &)> &write, const Match &match = Match()) const;
 };
 
-inline Serializer &operator<<(Serializer &s, const IndexParseData::CompileCommands &commands)
-{
-    s << commands.lastModifiedMs << commands.sources << Sandbox::encoded(commands.environment);
-    return s;
-}
-
-inline Deserializer &operator>>(Deserializer &s, IndexParseData::CompileCommands &commands)
-{
-    s >> commands.lastModifiedMs >> commands.sources >> commands.environment;
-    Sandbox::decode(commands.environment);
-    return s;
-}
-
 inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
 {
-    s << Sandbox::encoded(data.project) << static_cast<uint32_t>(data.compileCommands.size());
-    for (const auto &pair : data.compileCommands) {
-        s << Location::path(pair.first) << pair.first << pair.second;
+    s << Sandbox::encoded(data.project);
+    if (!data.compileCommandsFileId) {
+        s << Path();
+    } else {
+        s << Location::path(data.compileCommandsFileId);
     }
-    s << data.sources << Sandbox::encoded(data.environment);
+    s << data.compileCommandsFileId << data.sources << Sandbox::encoded(data.environment);
     return s;
 }
 
 inline Deserializer &operator>>(Deserializer &s, IndexParseData &data)
 {
     s >> data.project;
-    data.compileCommands.clear();
-    uint32_t size;
-    s >> size;
-    while (size-- > 0) {
-        Path file;
-        s >> file;
-        uint32_t fileId;
-        s >> fileId;
-        Location::set(file, fileId);
-        s >> data.compileCommands[fileId];
+    data.clear();
+    Path file;
+    s >> file;
+    s >> data.compileCommandsFileId;
+    if (data.compileCommandsFileId) {
+        Location::set(file, data.compileCommandsFileId);
     }
     s >> data.sources >> data.environment;
     Sandbox::decode(data.environment);

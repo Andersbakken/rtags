@@ -15,6 +15,8 @@
 
 #include "IndexParseData.h"
 #include "Location.h"
+#include "Project.h"
+#include "Server.h"
 
 bool IndexParseData::write(const std::function<bool(const String &)> &write, const Match &match) const
 {
@@ -36,12 +38,11 @@ bool IndexParseData::write(const std::function<bool(const String &)> &write, con
         }
         return true;
     };
-    if (!process("Sources", sources))
-        return false;
-
-    for (const auto &commands : compileCommands) {
-        if (!process(Location::path(commands.first), commands.second.sources))
+    if (!compileCommandsFileId) {
+        if (!process("Sources", sources))
             return false;
+    } else if (!process(Location::path(compileCommandsFileId), sources)) {
+        return false;
     }
     return true;
 }

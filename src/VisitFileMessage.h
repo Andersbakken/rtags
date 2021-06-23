@@ -23,19 +23,24 @@ class VisitFileMessage : public RTagsMessage
 public:
     enum { MessageId = VisitFileId };
 
-    VisitFileMessage(const Path &file = Path(), const Path &project = Path(), uint32_t sourceFileId = 0)
-        : RTagsMessage(MessageId), mFile(file), mProject(project), mSourceFileId(sourceFileId)
+    VisitFileMessage(const Path &file = Path(),
+                     const Path &project = Path(),
+                     uint32_t sourceFileId = 0,
+                     uint32_t compileCommandsFileId = 0)
+        : RTagsMessage(MessageId), mFile(file), mProject(project),
+          mSourceFileId(sourceFileId), mCompileCommandsFileId(compileCommandsFileId)
     {
     }
 
     Path project() const { return mProject; }
     Path file() const { return mFile; }
     uint32_t sourceFileId() const { return mSourceFileId; }
-    void encode(Serializer &serializer) const override { serializer << mProject << mFile << mSourceFileId; }
-    void decode(Deserializer &deserializer) override { deserializer >> mProject >> mFile >> mSourceFileId; }
+    uint32_t compileCommandsFileId() const { return mCompileCommandsFileId; }
+    void encode(Serializer &serializer) const override { serializer << mProject << mFile << mSourceFileId << mCompileCommandsFileId; }
+    void decode(Deserializer &deserializer) override { deserializer >> mProject >> mFile >> mSourceFileId >> mCompileCommandsFileId; }
 private:
     Path mFile, mProject;
-    uint32_t mSourceFileId;
+    uint32_t mSourceFileId, mCompileCommandsFileId;
 };
 
 #endif

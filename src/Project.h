@@ -79,7 +79,7 @@ struct DependencyNode
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
-    Project(const Path &path);
+    Project(const Path &path, uint32_t compileCommandsFileId);
     ~Project();
     bool init();
 
@@ -214,7 +214,6 @@ public:
     int reindex(const Match &match,
                 const std::shared_ptr<QueryMessage> &query,
                 const std::shared_ptr<Connection> &wait);
-    int remove(const Match &match);
     void onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg);
     String toCompileCommands() const;
     enum WatchMode {
@@ -223,6 +222,8 @@ public:
         Watch_Dependency = 0x4,
         Watch_CompileCommands = 0x8
     };
+
+    uint32_t compileCommandsFileId() const;
 
     void watch(const Path &dir, WatchMode mode);
     void unwatch(const Path &dir, WatchMode mode);
@@ -294,10 +295,6 @@ public:
         Continue,
         Remove // not allowed for const calls
     };
-    static void forEachSources(const IndexParseData &data, const std::function<VisitResult(const Sources &sources)>& cb);
-    static void forEachSources(IndexParseData &data, const std::function<VisitResult(Sources &sources)>& cb);
-    void forEachSources(std::function<VisitResult(const Sources &sources)> cb) const { forEachSources(mIndexParseData, cb); }
-    void forEachSources(std::function<VisitResult(Sources &sources)> cb) { forEachSources(mIndexParseData, cb); }
 
     static void forEachSourceList(const IndexParseData &data, std::function<VisitResult(const SourceList &sources)> cb);
     static void forEachSourceList(IndexParseData &data, std::function<VisitResult(SourceList &sources)> cb);
@@ -456,6 +453,7 @@ private:
     std::shared_ptr<FileMapScope> mFileMapScope;
 
     const Path mPath, mProjectDataDir;
+    const uint32_t mCompileCommandsFileId;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;

@@ -123,10 +123,10 @@ void decodePath(Path &path)
     path = decodeUrlComponent(path);
 }
 
-Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId)
+Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t compileCommandsFileId, uint32_t fileId)
 {
     String str = dataDir;
-    Path p = project;
+    Path p = project.ensureTrailingSlash() + std::to_string(compileCommandsFileId);
     encodePath(p);
     str << p << '/';
     if (fileId)

@@ -30,6 +30,7 @@
 #include <map>
 #include <sstream>
 #include <vector>
+#include <variant>
 
 #include "Diagnostic.h"
 #include "FileManager.h"
@@ -277,9 +278,10 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
     }
 }
 
-Project::Project(const Path &path)
-    : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path)),
-      mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(nullptr)), mBytesWritten(0), mSaveDirty(false)
+Project::Project(const Path &path, uint32_t compileCommandsFileId)
+    : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path, compileCommandsFileId)),
+      mCompileCommandsFileId(compileCommandsFileId), mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(nullptr)),
+      mBytesWritten(0), mSaveDirty(false)
 {
     mProjectFilePath = mProjectDataDir + "project";
     mSourcesFilePath = mProjectDataDir + "sources";
@@ -399,8 +401,9 @@ bool Project::init()
         file >> mVisitedFiles;
     }
     file >> mDiagnostics;
-    for (const auto &info : mIndexParseData.compileCommands)
-        watch(Location::path(info.first).parentDir(), Watch_CompileCommands);
+    if (mCompileCommandsFileId) {
+        watch(Location::path(mCompileCommandsFileId).parentDir(), Watch_CompileCommands);
+    }
 
     if (!loadDependencies(file, mDependencies)) {
         mDependencies.deleteAll();
@@ -519,21 +522,29 @@ void Project::check(CheckMode checkMode)
     mCheckTimer.restart(CheckPeriodicTimeout); // always checking every 1 hour
 }
 
-bool Project::match(const Match &p, bool *indexed) const
+bool Project::match(const Match &match, bool *indexed) const
 {
-    Path paths[] = { p.pattern(), p.pattern() };
-    paths[1].resolve();
-    const int count = paths[1].compare(paths[0]) ? 2 : 1;
+    assert(mCompileCommandsFileId == mCompileCommandsFileId);
+    List<Path> paths;
+    paths.push_back(match.pattern());
+    Path resolved = Path::resolved(match.pattern());
+    if (resolved != match.pattern()) {
+        paths.push_back(resolved);
+    }
+
+    if (mCompileCommandsFileId) {
+        paths.push_back(Location::path(mCompileCommandsFileId));
+    }
+
     bool ret = false;
     const Path resolvedPath = mPath.resolved();
-    for (int i=0; i<count; ++i) {
-        const Path &path = paths[i];
+    for (const Path &path : paths) {
         const uint32_t id = Location::fileId(path);
         if (id && isIndexed(id)) {
             if (indexed)
                 *indexed = true;
             return true;
-        } else if (mFiles.contains(path) || p.match(mPath) || p.match(resolvedPath)) {
+        } else if (mFiles.contains(path) || match.match(mPath) || match.match(resolvedPath)) {
             if (!indexed)
                 return true;
             ret = true;
@@ -844,19 +855,14 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         });
     }
 
-
-
     Set<uint32_t> visited = msg->visitedFiles();
     updateFixIts(visited, msg->fixIts());
     updateDependencies(fileId, msg);
     if (success) {
-        forEachSources([&msg, fileId](Sources &sources) -> VisitResult {
+        if (mIndexParseData.sources.contains(fileId)) {
             // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
-            if (sources.contains(fileId)) {
-                sources[fileId].parsed = msg->parseTime();
-            }
-            return Continue;
-        });
+            mIndexParseData.sources[fileId].parsed = msg->parseTime();
+        }
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
                                                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                                                   String::formatTime(time(nullptr), String::Time).constData(),
@@ -1010,7 +1016,7 @@ void Project::onFileAdded(const Path &path)
 void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
 {
     // error() << file.fileName() << fileId << mIndexParseData.compileCommands.keys();
-    if (mIndexParseData.compileCommands.contains(fileId)) {
+    if (fileId == mCompileCommandsFileId) {
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
@@ -1031,7 +1037,7 @@ void Project::onFileRemoved(const Path &file)
     if (!fileId)
         return;
 
-    if (mIndexParseData.compileCommands.contains(fileId)) {
+    if (fileId == mCompileCommandsFileId) {
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
@@ -1055,27 +1061,12 @@ void Project::onDirtyTimeout(Timer *)
 
 SourceList Project::sources(uint32_t fileId) const
 {
-    SourceList ret;
-    forEachSources([&ret, fileId](const Sources &srcs) {
-        const auto it = srcs.find(fileId);
-        if (it != srcs.end())
-            ret += it->second;
-        return Continue;
-    });
-    return ret;
+    return mIndexParseData.sources.value(fileId);
 }
 
 bool Project::hasSource(uint32_t fileId) const
 {
-    bool ret = false;
-    forEachSources([&ret, fileId](const Sources &srcs) {
-        if (srcs.contains(fileId)) {
-            ret = true;
-            return Stop;
-        }
-        return Continue;
-    });
-    return ret;
+    return mIndexParseData.sources.contains(fileId);
 }
 
 Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
@@ -1207,45 +1198,6 @@ int Project::reindex(const Match &match,
         IfModifiedDirty dirty(shared_from_this(), match);
         return startDirtyJobs(&dirty, IndexerJob::Dirty, query->unsavedFiles(), wait);
     }
-}
-
-int Project::remove(const Match &match)
-{
-    int count = 0;
-    bool needsSave = false;
-    Hash<uint32_t, uint32_t> removed;
-
-    auto it = mIndexParseData.compileCommands.begin();
-    while (it != mIndexParseData.compileCommands.end()) {
-        if (match.match(Location::path(it->first))) {
-            count += it->second.sources.size();
-            for (auto src : it->second.sources) {
-                removed[src.first] = 0;
-            }
-            mIndexParseData.compileCommands.erase(it++);
-            needsSave = true;
-        } else {
-            ++it;
-        }
-    }
-
-    forEachSourceList([&match, &count, &needsSave, &removed](SourceList &src) -> VisitResult {
-        if (match.match(Location::path(src.fileId()))) {
-            ++count;
-            removed[src.fileId()] = 0;
-            needsSave = true;
-            return Remove;
-        }
-        return Continue;
-    });
-
-    removeSources(removed);
-
-    if (needsSave) {
-        save();
-    }
-
-    return count;
 }
 
 int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
@@ -1543,6 +1495,11 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryM
         std::sort(sorted.begin(), sorted.end());
     }
     return sorted;
+}
+
+uint32_t Project::compileCommandsFileId() const
+{
+    return mCompileCommandsFileId;
 }
 
 void Project::watch(const Path &path, WatchMode mode)
@@ -2534,22 +2491,23 @@ void Project::reloadCompileCommands()
         data.environment = mIndexParseData.environment;
         bool found = false;
 
-        for (auto it = mIndexParseData.compileCommands.begin(); it != mIndexParseData.compileCommands.end(); ++it) {
-            const Path file = Location::path(it->first);
+        if (mCompileCommandsFileId) {
+            const Path file = Location::path(mCompileCommandsFileId);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
-                for (auto src : it->second.sources) {
-                    removed[src.first] = it->first;
-                }
-                it->second.clearSources();
+                error() << "wut?";
+                // for (auto src : mIndexParseData.sources) {
+                //     removed[src.first] = it->first;
+                // }
+                // it->second.clearSources();
             } else {
-                if (lastModified != it->second.lastModifiedMs
-                    && Server::instance()->loadCompileCommands(data, file, it->second.environment, &cache)) {
+                if (lastModified != mIndexParseData.lastModifiedMs
+                    && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
                     found = true;
                 }
             }
         }
-        removeSources(removed);
+        // removeSources(removed);
         if (found)
             processParseData(std::move(data));
     }
@@ -2568,7 +2526,8 @@ void Project::fixPCH(Source &source)
     for (Source::Include &inc : source.includePaths) {
         if (inc.type == Source::Include::Type_PCH) {
             const uint32_t fileId = Location::insertFile(inc.path);
-            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, fileId) + "pch.h";
+            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath,
+                                                   mCompileCommandsFileId, fileId) + "pch.h";
             error() << "PREPARING" << inc.path;
         }
     }
@@ -2624,20 +2583,12 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
 
 Source Project::source(uint32_t fileId, int buildIndex) const
 {
-    Source ret;
-    forEachSources([fileId, &buildIndex, &ret](const Sources &sources) {
-        auto it = sources.find(fileId);
-        if (it != sources.end()) {
-            for (const auto &src : it->second) {
-                if (!buildIndex--) {
-                    ret = src;
-                    return Stop;
-                }
-            }
-        }
-        return Continue;
-    });
-    return ret;
+    const auto it = mIndexParseData.sources.find(fileId);
+    if (it != mIndexParseData.sources.end()) {
+        const auto &sourceList = it->second;
+        return sourceList.value(buildIndex);
+    }
+    return {};
 }
 
 void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
@@ -2651,12 +2602,9 @@ void Project::processParseData(IndexParseData &&data)
     Hash<uint32_t, uint32_t> removed;
     if (mIndexParseData.empty()) {
         mIndexParseData = std::move(data);
-        forEachSources([&index](const Sources &sources) -> VisitResult {
-            for (auto pair : sources) {
-                index.insert(pair.first);
-            }
-            return Continue;
-        });
+        for (const auto &pair : mIndexParseData.sources) {
+            index.insert(pair.first);
+        }
     } else {
         forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
             // only allowing one "loose" build per fileId
@@ -2683,53 +2631,12 @@ void Project::processParseData(IndexParseData &&data)
             }
             return Continue;
         });
-
-        for (auto &cc : data.compileCommands) {
-            Sources oldSources;
-            auto oldIt = mIndexParseData.compileCommands.find(cc.first);
-            if (oldIt != mIndexParseData.compileCommands.end()) {
-                oldSources = std::move(oldIt->second.sources);
-            }
-
-            mIndexParseData.compileCommands[cc.first] = std::move(cc.second);
-            forEachSourceList(mIndexParseData.compileCommands[cc.first].sources, [&oldSources, &index](SourceList &list) {
-                const uint32_t fileId = list.fileId();
-                auto oit = oldSources.find(fileId);
-                if (oit != oldSources.end()) {
-                    bool same;
-                    const auto &oitSources = oit->second;
-                    if (list.size() == oitSources.size()) {
-                        same = true;
-                        for (size_t idx=0; idx<list.size(); ++idx) {
-                            if (!oitSources.at(idx).compareArguments(list.at(idx))) {
-                                same = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        same = false;
-                    }
-                    if (same) {
-                        list.parsed = oit->second.parsed; // don't want to reparse these, maintain parseTime
-                    } else if (!(Server::instance()->options().options & Server::NoFileSystemWatch)) {
-                        index.insert(fileId);
-                    }
-                    oldSources.erase(oit);
-                } else {
-                    index.insert(fileId);
-                }
-                return Continue;
-            });
-
-            for (auto it : oldSources) {
-                removed[it.first] = cc.first;
-            }
-        }
     }
     removeSources(removed);
 
-    for (const auto &info : mIndexParseData.compileCommands)
-        watch(Location::path(info.first), Watch_CompileCommands);
+    if (mCompileCommandsFileId) {
+        watch(Location::path(mCompileCommandsFileId), Watch_CompileCommands);
+    }
 
     for (uint32_t fileId : index) {
         reindex(fileId, IndexerJob::Compile);
@@ -2738,30 +2645,17 @@ void Project::processParseData(IndexParseData &&data)
 
 void Project::forEachSourceList(const IndexParseData &data, std::function<VisitResult(const SourceList &)> cb)
 {
-    bool done = false;
-    forEachSources(data, [&done, &cb](const Sources &sources) {
-        forEachSourceList(sources, [&done, &cb](const SourceList &list) {
-            auto ret = cb(list);
-            assert(ret != Remove);
-            if (ret == Stop)
-                done = true;
-            return ret;
-        });
-        return done ? Stop : Continue;
+    forEachSourceList(data.sources, [&cb](const SourceList &list) {
+        auto ret = cb(list);
+        assert(ret != Remove);
+        return ret;
     });
 }
 
 void Project::forEachSourceList(IndexParseData &data, std::function<VisitResult(SourceList &)> cb)
 {
-    bool done = false;
-    forEachSources(data, [&done, &cb](Sources &sources) {
-        forEachSourceList(sources, [&done, &cb](SourceList &list) {
-            auto ret = cb(list);
-            if (ret == Stop)
-                done = true;
-            return ret;
-        });
-        return done ? Stop : Continue;
+    forEachSourceList(data.sources, [&cb](SourceList &list) {
+        return cb(list);
     });
 }
 
@@ -2834,62 +2728,22 @@ void Project::forEachSource(Sources &sources, const std::function<VisitResult(So
     }
 }
 
-void Project::forEachSources(const IndexParseData &data, const std::function<VisitResult(const Sources &sources)>& cb)
-{
-    for (const auto &compileCommands : data.compileCommands) {
-        const auto ret = cb(compileCommands.second.sources);
-        assert(ret != Remove);
-        if (ret == Stop)
-            return;
-    }
-    const auto ret = cb(data.sources);
-    (void)ret;
-    assert(ret != Remove);
-}
-
-void Project::forEachSources(IndexParseData &data, const std::function<VisitResult(Sources &sources)>& cb)
-{
-    auto it = data.compileCommands.begin();
-    while (it != data.compileCommands.end()) {
-        const auto ret = cb(it->second.sources);
-        if (ret == Remove) {
-            data.compileCommands.erase(it++);
-        } else if (ret == Stop) {
-            return;
-        } else {
-            ++it;
-        }
-    }
-    if (cb(data.sources) == Remove)
-        data.sources.clear();
-}
-
 void Project::forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb)
 {
     bool stop = false;
-    forEachSources(data, [&stop, &cb](const Sources &sources) {
-        forEachSource(sources, [&stop, &cb](const Source &src) {
-            const auto ret = cb(src);
-            assert(ret != Remove);
-            if (ret == Stop)
-                stop = true;
-            return ret;
-        });
-        return stop ? Stop : Continue;
+    forEachSource(data.sources, [&stop, &cb](const Source &src) {
+        const auto ret = cb(src);
+        assert(ret != Remove);
+        if (ret == Stop)
+            stop = true;
+        return ret;
     });
 }
 
 void Project::forEachSource(IndexParseData &data, std::function<VisitResult(Source &source)> cb)
 {
-    bool stop = false;
-    forEachSources(data, [&stop, &cb](Sources &sources) {
-        forEachSource(sources, [&stop, &cb](Source &src) {
-            const auto ret = cb(src);
-            if (ret == Stop)
-                stop = true;
-            return ret;
-        });
-        return stop ? Stop : Continue;
+    forEachSource(data.sources, [&cb](Source &src) {
+        return cb(src);
     });
 }
 

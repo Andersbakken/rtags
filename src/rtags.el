@@ -64,7 +64,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Constants
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defconst rtags-protocol-version 128)
+(defconst rtags-protocol-version 127)
 (defconst rtags-package-version "2.41")
 (defconst rtags-popup-available (require 'popup nil t))
 (defconst rtags-supported-major-modes '(c-mode c++-mode objc-mode) "Major modes RTags supports.")
@@ -1527,11 +1527,11 @@ Uses `completing-read' to ask for the project."
       (goto-char (point-min))
       (while (not (eobp))
         (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
-          (cond ((string-match "^\\([^ ]+\\)[^<]*<=$" line)
+          (cond ((string-match "^[0-9]+: \\(.+\\) <=$" line)
                  (let ((name (match-string-no-properties 1 line)))
                    (push name projects)
                    (setq current name)))
-                ((string-match "^\\([^ ]+\\)[^<]*$" line)
+                ((string-match "^[0-9]+: \\(.+\\)$" line)
                  (push (match-string-no-properties 1 line) projects))
                 (t)))
         (forward-line)))

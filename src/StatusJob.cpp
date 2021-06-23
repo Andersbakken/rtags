@@ -135,15 +135,17 @@ int StatusJob::execute()
                 return 1;
             }
         }
-        for (auto p : Server::instance()->projects()) {
-            if (p.second != proj) {
-                watched = p.second->watchedPaths();
-                if (watched.empty())
-                    continue;
-                write<256>("Project: %s", p.first.c_str());
-                for (const auto &it : watched) {
-                    if (!write<256>("  %s (%s)", it.first.constData(), watchModeToString(it.second).constData())) {
-                        return 1;
+        for (const auto &p : Server::instance()->projects()) {
+            for (const auto &pp : p.second) {
+                if (pp != proj) {
+                    watched = pp->watchedPaths();
+                    if (watched.empty())
+                        continue;
+                    write<256>("Project: %s", p.first.c_str());
+                    for (const auto &it : watched) {
+                        if (!write<256>("  %s (%s)", it.first.constData(), watchModeToString(it.second).constData())) {
+                            return 1;
+                        }
                     }
                 }
             }
@@ -272,18 +274,15 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("project") || !write(delimiter))
             return 1;
         write(String::format<1024>("Path: %s", proj->path().constData()));
-        bool first = true;
-        for (const auto &info : proj->indexParseData().compileCommands) {
-            if (first) {
-                first = false;
-                write("\nCompile commands:");
-            }
+        const auto &indexParseData = proj->indexParseData();
+        if (indexParseData.compileCommandsFileId) {
+            write("\nCompile commands:");
             write(String::format<1024>("    File: %s\n"
                                        "    Last-Modified: %s (%llu)\n"
                                        "    Bytes written: %zu\n",
-                                       Location::path(info.first).constData(),
-                                       String::formatTime(info.second.lastModifiedMs / 1000).constData(),
-                                       static_cast<unsigned long long>(info.second.lastModifiedMs),
+                                       Location::path(indexParseData.compileCommandsFileId).constData(),
+                                       String::formatTime(indexParseData.lastModifiedMs / 1000).constData(),
+                                       static_cast<unsigned long long>(indexParseData.lastModifiedMs),
                                        proj->bytesWritten()));
 
         }

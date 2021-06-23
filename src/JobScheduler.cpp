@@ -253,7 +253,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
     assert(!(job->flags & IndexerJob::Aborted));
     assert(job);
     assert(message);
-    std::shared_ptr<Project> project = Server::instance()->project(job->project);
+    std::shared_ptr<Project> project = job->project;
     if (!project)
         return;
 

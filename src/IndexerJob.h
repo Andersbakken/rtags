@@ -70,7 +70,7 @@ public:
     SourceList sources;
     Path sourceFile;
     Flags<Flag> flags;
-    Path project;
+    std::shared_ptr<Project> project;
     UnsavedFiles unsavedFiles;
     Set<uint32_t> visited;
     int crashCount;

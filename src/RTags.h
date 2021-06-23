@@ -744,7 +744,10 @@ struct SortedSymbol
     }
 };
 
-Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t fileId = 0);
+Path encodeSourceFilePath(const Path &dataDir,
+                          const Path &project,
+                          uint32_t compileCommandsFileId,
+                          uint32_t fileId = 0);
 String encodeUrlComponent(const String &string);
 String decodeUrlComponent(const String &string);
 

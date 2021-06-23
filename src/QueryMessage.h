@@ -76,7 +76,6 @@ public:
         ReferencesName,
         Reindex,
         ReloadFileManager,
-        RemoveFile,
         SendDiagnostics,
         SetBuffers,
         Sources,
@@ -235,7 +234,6 @@ public:
         case DeleteProject:
         case Reindex:
         case IsIndexing:
-        case RemoveFile:
         case Sources:
             mFlags |= MatchRegex;
             break;

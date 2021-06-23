@@ -104,12 +104,12 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
             }
         }
         if (ret)
-            ret = parse(data, std::move(arguments), message->workingDirectory());
+            ret = parse(data, std::move(arguments), message->workingDirectory(), 0);
     }
     if (conn)
         conn->finish(ret ? 0 : 1);
     if (ret) {
-        auto proj = addProject(data.project.ensureTrailingSlash());
+        auto proj = addProject(data.project.ensureTrailingSlash(), data.compileCommandsFileId);
         if (proj) {
             assert(proj);
             proj->processParseData(std::move(data));
@@ -175,9 +175,6 @@ void Server::handleQueryMessage(const std::shared_ptr<QueryMessage> &message, co
         break;
     case QueryMessage::LastIndexed:
         lastIndexed(message, conn);
-        break;
-    case QueryMessage::RemoveFile:
-        removeFile(message, conn);
         break;
     case QueryMessage::JobCount:
         jobCount(message, conn);
@@ -304,16 +301,16 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
 
     const Path path = loc.path();
     if (!path.startsWith(project->path())) {
-        for (const auto &proj : mProjects) {
-            if (proj.second != project) {
-                Path paths[] = { proj.first, proj.first };
-                paths[1].resolve();
-                for (const Path &projectPath : paths) {
-                    if (path.startsWith(projectPath)) {
-                        FollowLocationJob job(loc, query, proj.second);
-                        if (job.run(conn)) {
-                            conn->finish();
-                            return;
+        for (const auto &projects : mProjects) {
+            for (const auto &proj : projects.second) {
+                if (proj != project) {
+                    for (const Path &projectPath : { proj->path(), proj->path().resolved() }) {
+                        if (path.startsWith(projectPath)) {
+                            FollowLocationJob job(loc, query, proj);
+                            if (job.run(conn)) {
+                                conn->finish();
+                                return;
+                            }
                         }
                     }
                 }
@@ -357,38 +354,16 @@ void Server::isIndexing(const std::shared_ptr<QueryMessage> &query, const std::s
         }
     } else {
         for (const auto &it : mProjects) {
-            if (it.second->isIndexing()) {
-                conn->write("1");
-                conn->finish();
-                return;
+            for (const auto &proj : it.second) {
+                if (proj->isIndexing()) {
+                    conn->write("1");
+                    conn->finish();
+                    return;
+                }
             }
         }
     }
     conn->write("0");
-    conn->finish();
-}
-
-void Server::removeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
-{
-    // Path path = query->path();
-    const Match match = query->match();
-    std::shared_ptr<Project> project = projectForQuery(query);
-    if (!project)
-        project = currentProject();
-
-    if (!project) {
-        error("No project");
-        conn->finish();
-        return;
-    }
-
-    const int count = project->remove(match);
-    // error() << count << query->query();
-    if (count) {
-        conn->write<128>("Removed %d files", count);
-    } else {
-        conn->write("No matches");
-    }
     conn->finish();
 }
 
@@ -450,18 +425,7 @@ void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std:
         return;
     }
 
-    std::shared_ptr<Project> project;
-    if (currentProject() && currentProject()->isIndexed(fileId)) {
-        project = currentProject();
-    } else {
-        for (const auto &p : mProjects) {
-            if (p.second->isIndexed(fileId)) {
-                project = p.second;
-                setCurrentProject(project);
-                break;
-            }
-        }
-    }
+    std::shared_ptr<Project> project = findProject(fileId);;
     if (!project) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
@@ -662,17 +626,7 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
 
     std::shared_ptr<Project> project;
     if (fileId) {
-        if (currentProject() && currentProject()->isIndexed(fileId)) {
-            project = currentProject();
-        } else {
-            for (const auto &p : mProjects) {
-                if (p.second->isIndexed(fileId)) {
-                    project = p.second;
-                    setCurrentProject(project);
-                    break;
-                }
-            }
-        }
+        project = findProject(fileId);
     } else {
         project = currentProject();
     }
@@ -924,6 +878,53 @@ void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shar
         conn->finish();
 }
 
+static size_t sharedRoot(const String &a, const String &b)
+{
+    const size_t size = std::min(a.size(), b.size());
+    assert(size);
+    size_t i;
+    for (i=0; i<size; ++i) {
+        if (a[i] != b[i])
+            break;
+    }
+    return i;
+}
+
+static List<std::shared_ptr<Project>> sorted(List<std::shared_ptr<Project>> projects, List<String> *names)
+{
+    std::sort(projects.begin(), projects.end(), [](const std::shared_ptr<Project> &a, const std::shared_ptr<Project> &b) {
+        if (!a->compileCommandsFileId() != !b->compileCommandsFileId()) {
+            return !a->compileCommandsFileId();
+        }
+        assert(a->compileCommandsFileId());
+        return Location::path(a->compileCommandsFileId()) < Location::path(b->compileCommandsFileId());
+    });
+    if (names) {
+        names->reserve(projects.size());
+        names->append(Location::path(projects[0]->compileCommandsFileId()).parentDir());
+        if (projects.size() > 1) {
+            size_t sharedRootLength = std::numeric_limits<size_t>::max();
+            size_t startIndex = 0;
+            if (names->last().isEmpty()) {
+                ++startIndex;
+                names->append(Location::path(projects[1]->compileCommandsFileId()).parentDir());
+            }
+
+            for (size_t i=startIndex + 1; i<projects.size(); ++i) {
+                String name = Location::path(projects[i]->compileCommandsFileId()).parentDir();
+                names->append(name);
+                sharedRootLength = std::min(sharedRootLength, sharedRoot(names->at(startIndex), name));
+            }
+            if (sharedRootLength) {
+                for (size_t i=startIndex; i<names->size(); ++i) {
+                    (*names)[i].remove(0, sharedRootLength);
+                }
+            }
+        }
+    }
+    return projects;
+}
+
 void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     std::shared_ptr<Project> project = projectForQuery(query);
@@ -937,8 +938,21 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
         }
     } else if (query->query().empty()) {
         const std::shared_ptr<Project> current = currentProject();
-        for (const auto &it : mProjects) {
-            conn->write<128>("%s%s", it.first.constData(), it.second == current ? " <=" : "");
+        size_t idx = 0;
+        for (const auto &projects : mProjects) {
+            List<String> names;
+            auto sortedProjects = sorted(projects.second, &names);
+            for (size_t i=0; i<sortedProjects.size(); ++i) {
+                const auto &proj = sortedProjects[i];
+                if (sortedProjects.size() > 1) {
+                    String name = names[i];
+                    if (name.isEmpty())
+                        name = "none";
+                    conn->write<128>("%zu: %s (%s)%s", idx++, proj->path().constData(), name.constData(), proj == current ? " <=" : "");
+                } else {
+                    conn->write<128>("%zu: %s%s", idx++, proj->path().constData(), proj == current ? " <=" : "");
+                }
+            }
         }
     } else {
         std::shared_ptr<Project> selected;
@@ -948,28 +962,34 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
         bool ok = false;
         unsigned long long index = query->query().toULongLong(&ok);
         if (it != mProjects.end()) {
-            selected = it->second;
+            selected = it->second.front();
         } else {
             if (ok) {
-                if (index < mProjects.size()) {
-                    selected = std::next(mProjects.cbegin(), index)->second;
-                    assert(selected);
+                for (auto pit = mProjects.begin(); pit != mProjects.end(); ++pit) {
+                    const auto projs = sorted(pit->second, nullptr);
+                    if (index < projs.size()) {
+                        selected = projs[index];
+                        break;
+                    } else {
+                        index -= projs.size();
+                    }
                 }
             }
             if (!selected) {
                 for (const auto &pit : mProjects) {
-                    assert(pit.second);
-                    if (pit.second->match(match)) {
-                        if (error) {
-                            conn->write(pit.first);
-                        } else if (selected) {
-                            error = true;
-                            conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                            conn->write(selected->path());
-                            conn->write(pit.first);
-                            selected.reset();
-                        } else {
-                            selected = pit.second;
+                    for (const auto &pp : pit.second) {
+                        if (pp->match(match)) {
+                            if (error) {
+                                conn->write(pit.first);
+                            } else if (selected) {
+                                error = true;
+                                conn->write<128>("Multiple matches for %s", match.pattern().constData());
+                                conn->write(selected->path());
+                                conn->write(pit.first);
+                                selected.reset();
+                            } else {
+                                selected = pp;
+                            }
                         }
                     }
                 }
@@ -1432,18 +1452,7 @@ void Server::tokens(const std::shared_ptr<QueryMessage> &query, const std::share
         return;
     }
 
-    std::shared_ptr<Project> project;
-    if (currentProject() && currentProject()->isIndexed(fileId)) {
-        project = currentProject();
-    } else {
-        for (const auto &p : mProjects) {
-            if (p.second->isIndexed(fileId)) {
-                project = p.second;
-                setCurrentProject(project);
-                break;
-            }
-        }
-    }
+    std::shared_ptr<Project> project = findProject(fileId);
     if (!project) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
@@ -1475,12 +1484,14 @@ void Server::handleVisitFileMessage(const std::shared_ptr<VisitFileMessage> &mes
     uint32_t fileId = 0;
     bool visit = false;
 
-    std::shared_ptr<Project> project = mProjects.value(message->project());
     const uint32_t id = message->sourceFileId();
-    if (project && project->isActiveJob(id)) {
-        assert(message->file() == message->file().resolved());
-        fileId = Location::insertFile(message->file());
-        visit = project->visitFile(fileId, id);
+    for (const auto &project : mProjects.value(message->project())) {
+        if (project->isActiveJob(id)) {
+            assert(message->file() == message->file().resolved());
+            fileId = Location::insertFile(message->file());
+            visit = project->visitFile(fileId, id);
+            break;
+        }
     }
     VisitFileResponseMessage msg(fileId, visit);
     conn->send(msg);

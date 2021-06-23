@@ -111,7 +111,6 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::GenerateTest, "generate-test", 0, CommandLineParser::Required, "Generate a test for a given source file." },
     { RClient::RdmLog, "rdm-log", 'g', CommandLineParser::NoValue, "Receive logs from rdm." },
     { RClient::FixIts, "fixits", 0, CommandLineParser::Required, "Get fixits for file." },
-    { RClient::RemoveFile, "remove", 'D', CommandLineParser::Required, "Remove file from project." },
     { RClient::FindProjectRoot, "find-project-root", 0, CommandLineParser::Required, "Use to check behavior of find-project-root." },
     { RClient::FindProjectBuildRoot, "find-project-build-root", 0, CommandLineParser::Required, "Use to check behavior of find-project-root for builds." },
     { RClient::IncludeFile, "include-file", 0, CommandLineParser::Required, "Use to generate include statement for symbol." },
@@ -1310,14 +1309,6 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
             }
             addQuery(QueryMessage::AsmFile, std::move(p), QueryMessage::HasMatch);
-            break; }
-        case RemoveFile: {
-            Path p = Path::resolved(value, Path::MakeAbsolute);
-            if (!p.exists()) {
-                addQuery(QueryMessage::RemoveFile, std::move(p), QueryMessage::HasMatch);
-            } else {
-                addQuery(QueryMessage::RemoveFile, std::move(value), QueryMessage::HasMatch);
-            }
             break; }
         case ReferenceName: {
             addQuery(QueryMessage::ReferencesName, std::move(value));

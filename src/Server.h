@@ -137,7 +137,7 @@ public:
     bool runTests();
     const Options &options() const { return mOptions; }
     bool suspended() const { return mSuspended; }
-    std::shared_ptr<Project> project(const Path &path) const { return mProjects.value(path); }
+    List<std::shared_ptr<Project>> projects(const Path &path) const { return mProjects.value(path); }
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
     void dumpJobs(const std::shared_ptr<Connection> &conn);
@@ -164,15 +164,11 @@ public:
     ActiveBufferType activeBufferType(uint32_t fileId) const { return mActiveBuffers.value(fileId, Inactive); }
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
-    Hash<Path, std::shared_ptr<Project> > projects() const { return mProjects; }
+    const Map<Path, List<std::shared_ptr<Project>>> &projects() const { return mProjects; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
     bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const;
-    bool parse(IndexParseData &data,
-               String &&arguments,
-               const Path &pwd,
-               uint32_t compileCommandsFileId = 0,
-               SourceCache *cache = nullptr) const;
+    bool parse(IndexParseData &data, String arguments, const Path &pwd, uint32_t compileCommandsFileId = 0, SourceCache *cache = nullptr) const;
     enum FileIdsFileFlag {
         None = 0x0,
         HasSandboxRoot = 0x1,
@@ -192,6 +188,7 @@ private:
         Clear_KeepFileIds
     };
     void clearProjects(ClearMode mode);
+    std::shared_ptr<Project> findProject(uint32_t fileId);
 
     // handlers
     void handleIndexMessage(const std::shared_ptr<IndexMessage> &message, const std::shared_ptr<Connection> &conn);
@@ -230,7 +227,6 @@ private:
     void referencesForName(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void reindex(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void reloadFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
-    void removeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void sendDiagnostics(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
@@ -244,14 +240,13 @@ private:
 
     std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
     std::shared_ptr<Project> projectForMatches(const List<Match> &matches);
-    std::shared_ptr<Project> addProject(const Path &path);
+    std::shared_ptr<Project> addProject(const Path &path, uint32_t compileCommandsFileId);
 
     bool initServers();
     void removeSocketFile();
     void prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const std::shared_ptr<Project> &project);
 
-    typedef Hash<Path, std::shared_ptr<Project> > ProjectsMap;
-    ProjectsMap mProjects;
+    Map<Path, List<std::shared_ptr<Project>>> mProjects;
     std::weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;

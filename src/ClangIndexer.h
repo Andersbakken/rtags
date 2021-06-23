@@ -168,6 +168,7 @@ private:
 
     const Mode mMode;
     Path mProject;
+    uint32_t mCompileCommandsFileId;
     SourceList mSources, mCachedSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;

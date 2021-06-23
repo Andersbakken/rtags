@@ -36,7 +36,7 @@ IndexerJob::IndexerJob(const SourceList &s,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
     : id(0), flags(f),
-      project(p->path()), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
+      project(p), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
 {
     sources.push_back(s.front());
     for (size_t i=1; i<s.size(); ++i) {
@@ -80,7 +80,6 @@ int IndexerJob::priority() const
         } else if (flags & Reindex) {
             ret += 4;
         }
-        std::shared_ptr<Project> p = server->project(project);
         switch (server->activeBufferType(fileId)) {
         case Server::Active:
             ret += 8;
@@ -89,7 +88,7 @@ int IndexerJob::priority() const
             ret += 3;
             break;
         case Server::Inactive:
-            if (DependencyNode *node = p->dependencyNode(fileId)) {
+            if (DependencyNode *node = project->dependencyNode(fileId)) {
                 Set<DependencyNode*> seen;
                 seen.insert(node);
                 std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
@@ -107,7 +106,7 @@ int IndexerJob::priority() const
             }
         }
 
-        if (p && server->currentProject() == p)
+        if (project && server->currentProject() == project)
             ++ret;
         mCachedPriority = ret;
     }
@@ -120,13 +119,13 @@ String IndexerJob::encode() const
     {
         Serializer serializer(ret);
         serializer.write("1234", sizeof(int)); // for size
-        std::shared_ptr<Project> proj = Server::instance()->project(project);
         const Server::Options &options = Server::instance()->options();
         serializer << static_cast<uint16_t>(RTags::DatabaseVersion)
                    << options.sandboxRoot
                    << id
                    << options.socketFile
-                   << project
+                   << project->path()
+                   << project->compileCommandsFileId()
                    << static_cast<uint32_t>(sources.size());
         for (Source copy : sources) {
             if (!(options.options & Server::AllowWErrorAndWFatalErrors)) {
@@ -153,7 +152,7 @@ String IndexerJob::encode() const
             Server::instance()->filterBlockedArguments(copy);
             copy.includePaths.insert(copy.includePaths.begin(), options.includePaths.begin(), options.includePaths.end());
             if (Server::instance()->options().options & Server::PCHEnabled)
-                proj->fixPCH(copy);
+                project->fixPCH(copy);
 
             copy.defines << options.defines;
             if (!(options.options & Server::EnableNDEBUG)) {
@@ -162,7 +161,7 @@ String IndexerJob::encode() const
             assert(!sourceFile.empty());
             copy.encode(serializer, Source::IgnoreSandbox);
         }
-        assert(proj);
+        assert(project);
         serializer << sourceFile
                    << flags
                    << static_cast<uint32_t>(options.rpVisitFileTimeout)
@@ -175,7 +174,7 @@ String IndexerJob::encode() const
                    << options.dataDir
                    << options.debugLocations;
 
-        proj->encodeVisitedFiles(serializer);
+        project->encodeVisitedFiles(serializer);
     }
     const uint32_t size = ret.size() - sizeof(int);
     memcpy(&ret[0], &size, sizeof(size));

@@ -74,7 +74,8 @@ ClangIndexer::State ClangIndexer::sState = ClangIndexer::NotStarted;
 std::mutex ClangIndexer::sStateMutex;
 Flags<Server::Option> ClangIndexer::sServerOpts;
 ClangIndexer::ClangIndexer(Mode mode)
-    : mMode(mode), mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
+    : mMode(mode), mCompileCommandsFileId(0),
+      mCurrentTranslationUnit(String::npos), mLastCursor(clang_getNullCursor()),
       mLastCallExprSymbol(nullptr), mVisitFileResponseMessageFileId(0),
       mVisitFileResponseMessageVisit(0), mParseDuration(0), mVisitDuration(0), mBlocked(0),
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
@@ -145,6 +146,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> id;
     deserializer >> socketFile;
     deserializer >> mProject;
+    deserializer >> mCompileCommandsFileId;
     uint32_t count;
     deserializer >> count;
     mSources.resize(count);
@@ -268,7 +270,7 @@ bool ClangIndexer::exec(const String &data)
             break;
         }
     }
-    if (!hasUnit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, 0), err)) {
+    if (!hasUnit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, mCompileCommandsFileId), err)) {
         message += " error";
         if (!err.empty())
             message += (' ' + err);
@@ -2234,7 +2236,7 @@ bool ClangIndexer::parse()
 
         if (unit->unit) {
             if (pch && ClangIndexer::serverOpts() & Server::PCHEnabled) {
-                Path path = RTags::encodeSourceFilePath(mDataDir, mProject, source.fileId);
+                Path path = RTags::encodeSourceFilePath(mDataDir, mProject, mCompileCommandsFileId, source.fileId);
                 Path::mkdir(path, Path::Recursive);
                 path << "pch.h.gch";
                 Path tmp = path;

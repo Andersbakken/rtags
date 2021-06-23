@@ -74,6 +74,9 @@ public:
     uint64_t id() const { return mId; }
     void setId(uint64_t i) { mId = i; }
 
+    // uint32_t compileCommandsFileId() const { return mCompileCommandsFileId; }
+    // void setCompileCommandsFileId(uint32_t id) { mCompileCommandsFileId = id; }
+
     uint64_t parseTime() const { return mParseTime; }
     void setParseTime(uint64_t time) { mParseTime = time; }
 
