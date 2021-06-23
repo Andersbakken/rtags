@@ -278,15 +278,6 @@ static void saveDependencies(DataFile &file, const Dependencies &dependencies)
     }
 }
 
-Project::Project(const Path &path, uint32_t compileCommandsFileId)
-    : mPath(path), mProjectDataDir(RTags::encodeSourceFilePath(Server::instance()->options().dataDir, path, compileCommandsFileId)),
-      mCompileCommandsFileId(compileCommandsFileId), mJobCounter(0), mJobsStarted(0), mLastIdleTime(time(nullptr)),
-      mBytesWritten(0), mSaveDirty(false)
-{
-    mProjectFilePath = mProjectDataDir + "project";
-    mSourcesFilePath = mProjectDataDir + "sources";
-}
-
 Project::~Project()
 {
     if (mSaveDirty)
@@ -345,8 +336,13 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
     return true;
 }
 
-bool Project::init()
+bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
 {
+    mPath = srcPath;
+    mProjectDataDir = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, srcPath, compileCommandsFileId);
+    mProjectFilePath = mProjectDataDir + "project";
+    mSourcesFilePath = mProjectDataDir + "sources";
+
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     const Server::Options &options = Server::instance()->options();
     if (!(options.options & Server::NoFileSystemWatch)) {
@@ -401,8 +397,8 @@ bool Project::init()
         file >> mVisitedFiles;
     }
     file >> mDiagnostics;
-    if (mCompileCommandsFileId) {
-        watch(Location::path(mCompileCommandsFileId).parentDir(), Watch_CompileCommands);
+    if (mIndexParseData.compileCommandsFileId) {
+        watch(Location::path(mIndexParseData.compileCommandsFileId).parentDir(), Watch_CompileCommands);
     }
 
     if (!loadDependencies(file, mDependencies)) {
@@ -524,7 +520,6 @@ void Project::check(CheckMode checkMode)
 
 bool Project::match(const Match &match, bool *indexed) const
 {
-    assert(mCompileCommandsFileId == mCompileCommandsFileId);
     List<Path> paths;
     paths.push_back(match.pattern());
     Path resolved = Path::resolved(match.pattern());
@@ -532,8 +527,8 @@ bool Project::match(const Match &match, bool *indexed) const
         paths.push_back(resolved);
     }
 
-    if (mCompileCommandsFileId) {
-        paths.push_back(Location::path(mCompileCommandsFileId));
+    if (mIndexParseData.compileCommandsFileId) {
+        paths.push_back(Location::path(mIndexParseData.compileCommandsFileId));
     }
 
     bool ret = false;
@@ -1016,7 +1011,7 @@ void Project::onFileAdded(const Path &path)
 void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
 {
     // error() << file.fileName() << fileId << mIndexParseData.compileCommands.keys();
-    if (fileId == mCompileCommandsFileId) {
+    if (fileId == mIndexParseData.compileCommandsFileId) {
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
@@ -1037,7 +1032,7 @@ void Project::onFileRemoved(const Path &file)
     if (!fileId)
         return;
 
-    if (fileId == mCompileCommandsFileId) {
+    if (fileId == mIndexParseData.compileCommandsFileId) {
         mCheckTimer.restart(CheckExplicitTimeout);
         return;
     }
@@ -1499,7 +1494,7 @@ List<RTags::SortedSymbol> Project::sort(const Set<Symbol> &symbols, Flags<QueryM
 
 uint32_t Project::compileCommandsFileId() const
 {
-    return mCompileCommandsFileId;
+    return mIndexParseData.compileCommandsFileId;
 }
 
 void Project::watch(const Path &path, WatchMode mode)
@@ -2491,8 +2486,8 @@ void Project::reloadCompileCommands()
         data.environment = mIndexParseData.environment;
         bool found = false;
 
-        if (mCompileCommandsFileId) {
-            const Path file = Location::path(mCompileCommandsFileId);
+        if (mIndexParseData.compileCommandsFileId) {
+            const Path file = Location::path(mIndexParseData.compileCommandsFileId);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
                 error() << "wut?";
@@ -2527,7 +2522,7 @@ void Project::fixPCH(Source &source)
         if (inc.type == Source::Include::Type_PCH) {
             const uint32_t fileId = Location::insertFile(inc.path);
             inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath,
-                                                   mCompileCommandsFileId, fileId) + "pch.h";
+                                                   mIndexParseData.compileCommandsFileId, fileId) + "pch.h";
             error() << "PREPARING" << inc.path;
         }
     }
@@ -2634,8 +2629,8 @@ void Project::processParseData(IndexParseData &&data)
     }
     removeSources(removed);
 
-    if (mCompileCommandsFileId) {
-        watch(Location::path(mCompileCommandsFileId), Watch_CompileCommands);
+    if (mIndexParseData.compileCommandsFileId) {
+        watch(Location::path(mIndexParseData.compileCommandsFileId), Watch_CompileCommands);
     }
 
     for (uint32_t fileId : index) {

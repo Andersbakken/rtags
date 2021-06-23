@@ -79,9 +79,9 @@ struct DependencyNode
 class Project : public std::enable_shared_from_this<Project>
 {
 public:
-    Project(const Path &path, uint32_t compileCommandsFileId);
+    Project() = default;
     ~Project();
-    bool init();
+    bool init(const Path &path, uint32_t compileCommandsFileId);
 
     std::shared_ptr<FileManager> fileManager() const { return mFileManager; }
 
@@ -452,16 +452,15 @@ private:
 
     std::shared_ptr<FileMapScope> mFileMapScope;
 
-    const Path mPath, mProjectDataDir;
-    const uint32_t mCompileCommandsFileId;
+    Path mPath, mProjectDataDir;
     Path mProjectFilePath, mSourcesFilePath;
 
     Files mFiles;
 
     Set<uint32_t> mVisitedFiles;
-    int mJobCounter, mJobsStarted;
+    int mJobCounter { 0 }, mJobsStarted { 0 };
 
-    time_t mLastIdleTime;
+    time_t mLastIdleTime { time(nullptr) };
 
     Diagnostics mDiagnostics;
 
@@ -480,8 +479,8 @@ private:
     Hash<uint32_t, DependencyNode*> mDependencies;
     Set<uint32_t> mSuspendedFiles;
 
-    size_t mBytesWritten;
-    bool mSaveDirty;
+    size_t mBytesWritten { 0 };
+    bool mSaveDirty { false };
 
     mutable std::mutex mMutex;
 };

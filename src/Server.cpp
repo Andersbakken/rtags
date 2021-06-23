@@ -345,8 +345,8 @@ std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCo
             return project;
         }
     }
-    auto proj = std::make_shared<Project>(path, compileCommandsFileId);
-    if (!proj->init()) {
+    auto proj = std::make_shared<Project>();
+    if (!proj->init(path, compileCommandsFileId)) {
         Path::rmdir(proj->projectDataDir());
         if (projects.empty()) {
             mProjects.erase(path);
