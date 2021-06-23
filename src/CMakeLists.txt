@@ -16,6 +16,7 @@
 set(CMAKE_SKIP_BUILD_RPATH            FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH    FALSE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(CMAKE_CXX_STANDARD 17)
 
 include(ExternalProject)
 
@@ -122,7 +123,7 @@ int main()
 }
 ")
 include(CheckCXXSourceRuns)
-set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} "-std=c++11" ${CMAKE_CXX_FLAGS} ${LIBCLANG_CXXFLAGS})
+
 check_cxx_source_runs("${CXX_11_EXTENDED_REGEX_TEST}" CXX_11_EXTENDED_REGEX_SUPPORT)
 if (NOT CXX_11_EXTENDED_REGEX_SUPPORT)
     message(FATAL_ERROR "The compiler uses a libstdc++ without c++11 regex support.")
