@@ -28,43 +28,56 @@
 
 FollowLocationJob::FollowLocationJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,
-                                     const std::shared_ptr<Project> &project)
-    : QueryJob(query, project), location(loc)
+                                     List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects)), location(loc)
 {
 }
 
 int FollowLocationJob::execute()
 {
     int idx = 0;
-    Symbol symbol = project()->findSymbol(location, &idx);
+    Symbol symbol;
+    for (const auto &project : projects()) {
+        symbol = project->findSymbol(location, &idx);
+        if (!symbol.isNull()) {
+            // if you invoke a destructor explicitly there's a typeref on the class
+            // name. This finds the destructor instead.
+            if ((symbol.kind == CXCursor_TypeRef || symbol.kind == CXCursor_TemplateRef) && idx > 0) {
+                auto symbols = project->openSymbols(location.fileId());
+                if (!symbols || !symbols->count())
+                    return 1;
+                const Symbol prev = symbols->valueAt(idx - 1);
+                if (prev.kind == CXCursor_MemberRefExpr
+                    && prev.location.column() == symbol.location.column() - 1
+                    && prev.location.line() == symbol.location.line()
+                    && prev.symbolName.contains("~")) {
+                    symbol = prev;
+                }
+            }
+            break;
+        }
+    }
     if (symbol.isNull()) {
         return 1;
     }
 
-    // if you invoke a destructor explicitly there's a typeref on the class
-    // name. This finds the destructor instead.
-    if ((symbol.kind == CXCursor_TypeRef || symbol.kind == CXCursor_TemplateRef) && idx > 0) {
-        auto symbols = project()->openSymbols(location.fileId());
-        if (!symbols || !symbols->count())
-            return 1;
-        const Symbol prev = symbols->valueAt(idx - 1);
-        if (prev.kind == CXCursor_MemberRefExpr
-            && prev.location.column() == symbol.location.column() - 1
-            && prev.location.line() == symbol.location.line()
-            && prev.symbolName.contains("~")) {
-            symbol = prev;
-        }
-    }
-
     if (queryFlags() & QueryMessage::TargetUsrs) {
-        const Set<String> usrs = project()->findTargetUsrs(location);
+        Set<String> usrs;
+        for (const auto &project : projects()) {
+            usrs += project->findTargetUsrs(location);
+        }
         for (const String &usr : usrs) {
             write(usr);
         }
         return 0;
     }
 
-    auto targets = RTags::sortTargets(project()->findTargets(symbol));
+    Set<Symbol> t;
+    for (const auto &project : projects()) {
+        t += project->findTargets(symbol);
+    }
+    List<Symbol> targets = RTags::sortTargets(t);
+
 
     int rank = -1;
     Set<Location> seen;
@@ -86,7 +99,11 @@ int FollowLocationJob::execute()
         }
 
         if (queryFlags() & QueryMessage::DeclarationOnly ? target.isDefinition() : !target.isDefinition()) {
-            const auto others = RTags::sortTargets(project()->findTargets(target));
+            Set<Symbol> o;
+            for (const auto &project : projects()) {
+                o += project->findTargets(target);
+            }
+            const auto others = RTags::sortTargets(o);
             bool found = false;
             for (auto other : others) {
                 if (!other.isNull() && other.usr == target.usr) {

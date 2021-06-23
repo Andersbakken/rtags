@@ -28,7 +28,7 @@ class QueryMessage;
 class FindFileJob : public QueryJob
 {
 public:
-    FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    FindFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
 protected:
     virtual int execute() override;
 private:

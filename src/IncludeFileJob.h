@@ -28,7 +28,7 @@ class QueryMessage;
 class IncludeFileJob : public QueryJob
 {
 public:
-    IncludeFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    IncludeFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
 protected:
     virtual int execute() override;
 private:

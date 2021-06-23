@@ -27,18 +27,30 @@ class QueryMessage;
 
 ClassHierarchyJob::ClassHierarchyJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,
-                                     const std::shared_ptr<Project> &project)
-    : QueryJob(query, project), location(loc)
+                                     List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects)), location(loc)
 {
 }
 
 int ClassHierarchyJob::execute()
 {
-    Symbol symbol = project()->findSymbol(location);
+    Symbol symbol;
+    for (const auto &project : projects()) {
+        symbol = project->findSymbol(location);
+        if (!symbol.isNull())
+            break;
+    }
     if (symbol.isNull())
         return 1;
-    if (!symbol.isClass() || !symbol.isDefinition())
-        symbol = project()->findTarget(symbol.location);
+    if (!symbol.isClass() || !symbol.isDefinition()) {
+        for (const auto &project : projects()) {
+            auto sym = project->findSymbol(location);
+            if (!sym.isNull()) {
+                symbol = std::move(sym);
+                break;
+            }
+        }
+    }
     if (!symbol.isClass())
         return 1;
 
@@ -70,17 +82,29 @@ int ClassHierarchyJob::execute()
     };
 
     recurse(symbol, "Superclasses:", 0, [this](const Symbol &sym) {
-            Set<Symbol> ret;
-            for (const String &usr : sym.baseClasses) {
-                for (const auto &s : project()->findByUsr(usr, sym.location.fileId(), Project::ArgDependsOn)) {
+        Set<Symbol> ret;
+        for (const String &usr : sym.baseClasses) {
+            for (const auto &project : projects()) {
+                bool done = false;
+                for (const auto &s : project->findByUsr(usr, sym.location.fileId(), Project::ArgDependsOn)) {
                     if (s.isDefinition()) {
                         ret.insert(s);
+                        done = true;
                         break;
                     }
                 }
+                if (done)
+                    break;
             }
-            return ret;
-        });
-    recurse(symbol, "Subclasses:", 0, [this](const Symbol &sym) { return project()->findSubclasses(sym); });
+        }
+        return ret;
+    });
+    recurse(symbol, "Subclasses:", 0, [this](const Symbol &sym) {
+        Set<Symbol> ret;
+        for (const auto &project : projects()) {
+            ret += project->findSubclasses(sym);
+        }
+        return ret;
+    });
     return 0;
 }

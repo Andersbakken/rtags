@@ -24,8 +24,8 @@
 #include "rct/Path.h"
 #include "rct/Serializer.h"
 
-DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : QueryJob(query, project, QuietJob)
+DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects), QuietJob)
 {
     Deserializer deserializer(query->query());
     Path path;
@@ -35,9 +35,12 @@ DependenciesJob::DependenciesJob(const std::shared_ptr<QueryMessage> &query, con
 
 int DependenciesJob::execute()
 {
-    std::shared_ptr<Project> proj = project();
-    if (!proj)
-        return 2;
-    write(proj->dumpDependencies(mFileId, mArgs, queryFlags()));
+    for (const auto &proj : projects()) {
+        String ret = proj->dumpDependencies(mFileId, mArgs, queryFlags());
+        if (!ret.isEmpty()) {
+            write(ret);
+            break;
+        }
+    }
     return 0;
 }

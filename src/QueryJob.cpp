@@ -29,9 +29,9 @@
 #include "rct/Value.h"
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
-                   const std::shared_ptr<Project> &proj,
+                   List<std::shared_ptr<Project>> projects,
                    Flags<JobFlag> jobFlags)
-    : Project::FileMapScopeScope(proj), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProject(proj), mFileFilter(0)
+    : Project::FileMapScopeScope(projects), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProjects(std::move(projects)), mFileFilter(0)
 {
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
@@ -45,8 +45,8 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
             for (const QueryMessage::PathFilter &filter : pathFilters) {
                 if (filter.mode == QueryMessage::PathFilter::Dependency) {
                     uint32_t f = Location::fileId(filter.pattern);
-                    if (f && mProject)
-                        mFilters.push_back(std::make_shared<DependencyFilter>(f, mProject));
+                    if (f && !mProjects.empty())
+                        mFilters.push_back(std::make_shared<DependencyFilter>(f, mProjects));
                 } else if (query->flags() & QueryMessage::MatchRegex) {
                     mFilters.push_back(std::make_shared<RegexFilter>(filter.pattern, query->flags() & QueryMessage::MatchCaseInsensitive));
                 } else {
@@ -139,7 +139,12 @@ bool QueryJob::locationToString(Location location,
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || containingFunctionLocation || cursorKind || displayName || !mKindFilters.empty()) {
         int idx;
-        Symbol symbol = project()->findSymbol(location, &idx);
+        Symbol symbol;
+        for (const auto &proj : projects()) {
+            symbol = proj->findSymbol(location, &idx);
+            if (!symbol.isNull())
+                break;
+        }
         if (symbol.isNull()) {
             if (!(symbol.flags & Symbol::FileSymbol)) {
                 error() << "Somehow can't find" << location << "in symbols";
@@ -155,23 +160,29 @@ bool QueryJob::locationToString(Location location,
                 const uint32_t fileId = location.fileId();
                 const unsigned int line = location.line();
                 const unsigned int column = location.column();
-                auto fileMap = project()->openSymbols(location.fileId());
-                if (fileMap) {
-                    while (idx > 0) {
-                        symbol = fileMap->valueAt(--idx);
-                        if (symbol.location.fileId() != fileId)
-                            break;
-                        if (symbol.isDefinition() && RTags::isContainer(symbol.kind)
-                            && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
-                            && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
-                            if (containingFunction)
-                                cb(Piece_ContainingFunctionName, symbol.symbolName);
-                            if (containingFunctionLocation)
-                                cb(Piece_ContainingFunctionLocation,
-                                   symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
-                            break;
+                bool done = false;
+                for (const auto &proj : projects()) {
+                    auto fileMap = proj->openSymbols(location.fileId());
+                    if (fileMap) {
+                        while (idx > 0) {
+                            symbol = fileMap->valueAt(--idx);
+                            if (symbol.location.fileId() != fileId)
+                                break;
+                            if (symbol.isDefinition() && RTags::isContainer(symbol.kind)
+                                && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
+                                && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
+                                if (containingFunction)
+                                    cb(Piece_ContainingFunctionName, symbol.symbolName);
+                                if (containingFunctionLocation)
+                                    cb(Piece_ContainingFunctionLocation,
+                                       symbol.location.toString(locationToStringFlags() & ~Location::ShowContext));
+                                done = true;
+                                break;
+                            }
                         }
                     }
+                    if (done)
+                        break;
                 }
             }
         }
@@ -244,14 +255,14 @@ String QueryJob::symbolToString(const Symbol &symbol) const
 
     String out;
     if (queryFlags() & (QueryMessage::Elisp | QueryMessage::JSON)) {
-        Value val = symbol.toValue(project(), toStringFlags, locationToStringFlags() | Location::NoColor, mPieceFilters);
+        Value val = symbol.toValue(projects(), toStringFlags, locationToStringFlags() | Location::NoColor, mPieceFilters);
         if (queryFlags() & QueryMessage::Elisp) {
             out = RTags::toElisp(val);
         } else {
             out = val.toJSON();
         }
     } else {
-        out = symbol.toString(project(), toStringFlags, locationToStringFlags(), mPieceFilters);
+        out = symbol.toString(projects(), toStringFlags, locationToStringFlags(), mPieceFilters);
     }
     return out;
 }

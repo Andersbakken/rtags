@@ -125,6 +125,7 @@ String IndexerJob::encode() const
                    << id
                    << options.socketFile
                    << project->path()
+                   << project->trailer()
                    << project->compileCommandsFileId()
                    << static_cast<uint32_t>(sources.size());
         for (Source copy : sources) {

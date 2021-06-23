@@ -27,7 +27,7 @@ class QueryMessage;
 class ClassHierarchyJob : public QueryJob
 {
 public:
-    ClassHierarchyJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    ClassHierarchyJob(Location loc, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
 protected:
     virtual int execute() override;
 private:

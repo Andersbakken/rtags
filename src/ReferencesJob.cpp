@@ -38,23 +38,20 @@ static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryF
     return (queryFlags & QueryMessage::Elisp ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput) : Flags<QueryJob::JobFlag>());
 }
 
-ReferencesJob::ReferencesJob(Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj, ::jobFlags(query->flags()))
+ReferencesJob::ReferencesJob(Location loc, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects), ::jobFlags(query->flags()))
 {
     mLocations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj, ::jobFlags(query->flags())), mSymbolName(sym)
+ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects), ::jobFlags(query->flags())), mSymbolName(sym)
 {
 }
 
 int ReferencesJob::execute()
 {
     const bool rename = queryFlags() & QueryMessage::Rename;
-    std::shared_ptr<Project> proj = project();
-    if (!proj)
-        return 1;
     Set<Symbol> refs;
     Map<Location, std::pair<bool, CXCursorKind> > references;
     if (!mSymbolName.empty()) {
@@ -72,7 +69,9 @@ int ReferencesJob::execute()
                 }
             }
         };
-        proj->findSymbols(mSymbolName, inserter, queryFlags());
+        for (const auto &proj : projects()) {
+            proj->findSymbols(mSymbolName, inserter, queryFlags());
+        }
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
     const bool definitionOnly = queryFlags() & QueryMessage::DefinitionOnly;
@@ -80,7 +79,12 @@ int ReferencesJob::execute()
     bool first = true;
     for (auto it = mLocations.begin(); it != mLocations.end(); ++it) {
         const Location pos = *it;
-        Symbol sym = proj->findSymbol(pos);
+        Symbol sym;
+        for (const auto &proj : projects()) {
+            sym = proj->findSymbol(pos);
+            if (!sym.isNull())
+                break;
+        }
         if (sym.isNull())
             continue;
         if (first && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
@@ -89,7 +93,12 @@ int ReferencesJob::execute()
         }
 
         if (sym.isReference()) {
-            const Symbol target = proj->findTarget(sym);
+            Symbol target;
+            for (const auto &proj : projects()) {
+                target = proj->findTarget(sym);
+                if (!target.isNull())
+                    break;
+            }
             if (!target.isNull() && target.kind != CXCursor_MacroExpansion)
                 sym = target;
         }
@@ -99,22 +108,37 @@ int ReferencesJob::execute()
         if (rename && sym.isConstructorOrDestructor()) {
             const Location loc = sym.location;
             sym.clear();
-            const Set<String> usrs = proj->findTargetUsrs(loc);
+            Set<String> usrs;
+            for (const auto &proj : projects()) {
+                usrs += proj->findTargetUsrs(loc);
+            }
+            bool done = false;
             for (const String &usr : usrs) {
-                for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::All)) {
-                    if (s.isClass()) {
-                        sym = s;
-                        if (s.isDefinition())
-                            break;
+                for (const auto &proj : projects()) {
+                    for (const Symbol &s : proj->findByUsr(usr, loc.fileId(), Project::All)) {
+                        if (s.isClass()) {
+                            sym = s;
+                            if (s.isDefinition()) {
+                                done = true;
+                                break;
+                            }
+                        }
                     }
+                    if (done)
+                        break;
                 }
+                if (done)
+                    break;
             }
 
             if (sym.isNull())
                 continue;
         }
         if (queryFlags() & QueryMessage::AllReferences) {
-            const Set<Symbol> all = proj->findAllReferences(sym);
+            Set<Symbol> all;
+            for (const auto &proj : projects()) {
+                all += proj->findAllReferences(sym);
+            }
             for (const auto &symbol : all) {
                 if (rename) {
                     if (symbol.kind == CXCursor_MacroExpansion && sym.kind != CXCursor_MacroDefinition) {
@@ -133,7 +157,10 @@ int ReferencesJob::execute()
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
         } else if (queryFlags() & QueryMessage::FindVirtuals) {
-            const Set<Symbol> virtuals = proj->findVirtuals(sym);
+            Set<Symbol> virtuals;
+            for (const auto &proj : projects()) {
+                virtuals += proj->findVirtuals(sym);
+            }
             for (const auto &symbol : virtuals) {
                 const bool def = symbol.isDefinition();
                 if (def) {
@@ -145,7 +172,10 @@ int ReferencesJob::execute()
                 references[symbol.location] = std::make_pair(def, symbol.kind);
             }
         } else {
-            const Set<Symbol> symbols = proj->findCallers(sym);
+            Set<Symbol> symbols;
+            for (const auto &proj : projects()) {
+                symbols += proj->findCallers(sym);
+            }
             for (const auto &symbol : symbols) {
                 const bool def = symbol.isDefinition();
                 if (def) {

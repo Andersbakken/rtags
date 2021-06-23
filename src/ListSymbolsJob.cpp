@@ -35,8 +35,8 @@
 const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | QueryJob::QuietJob);
 const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);
 
-ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj, query->flags() & QueryMessage::Elisp ? elispFlags : defaultFlags),
+ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects), query->flags() & QueryMessage::Elisp ? elispFlags : defaultFlags),
       string(query->query())
 {
 }
@@ -44,30 +44,31 @@ ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, const
 int ListSymbolsJob::execute()
 {
     Set<String> out;
-    std::shared_ptr<Project> proj = project();
-    if (proj) {
-        if (queryFlags() & QueryMessage::WildcardSymbolNames
-            && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
-            string += '*';
-        }
-        List<QueryMessage::PathFilter> filters = pathFilters();
-        List<Path> paths;
-        for (const auto &filter : filters) {
-            if (filter.mode == QueryMessage::PathFilter::Self) {
-                paths.push_back(filter.pattern);
-                if (!paths.back().isFile()) {
+    for (const auto &proj : projects()) {
+        if (proj) {
+            if (queryFlags() & QueryMessage::WildcardSymbolNames
+                && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
+                string += '*';
+            }
+            List<QueryMessage::PathFilter> filters = pathFilters();
+            List<Path> paths;
+            for (const auto &filter : filters) {
+                if (filter.mode == QueryMessage::PathFilter::Self) {
+                    paths.append(filter.pattern);
+                    if (!paths.last().isFile()) {
+                        paths.clear();
+                        break;
+                    }
+                } else {
                     paths.clear();
                     break;
                 }
-            } else {
-                paths.clear();
-                break;
             }
-        }
-        if (!paths.empty()) {
-            out = listSymbolsWithPathFilter(proj, paths);
-        } else {
-            out = listSymbols(proj);
+            if (!paths.empty()) {
+                out += listSymbolsWithPathFilter(proj, paths);
+            } else {
+                out += listSymbols(proj);
+            }
         }
     }
 

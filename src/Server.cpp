@@ -337,6 +337,74 @@ bool Server::initServers()
     return true;
 }
 
+static size_t sharedRoot(const Path &a, const Path &b)
+{
+    assert(a.endsWith("/"));
+    assert(b.endsWith("/"));
+    size_t size = std::min(a.size(), b.size());
+
+    size_t i;
+
+    {
+        i = a.size() - 2;
+        while (i > 0 && a[i] != '/')
+            --i;
+        size = std::min(i, size);
+        // error() << a << a.size() << "\n" << b << b.size() << size;
+    }
+
+    {
+        i = b.size() - 2;
+        while (i > 0 && b[i] != '/')
+            --i;
+        size = std::min(size, i);
+        // error() << a << a.size() << "\n" << b << b.size() << size;
+    }
+
+    for (i=0; i<size; ++i) {
+        if (a[i] != b[i]) {
+            // error() << "mismatch at" << i << size << a.size() << b.size() << "\n" << a.left(i + 1) << "\n" << b.left(i + 1);
+            break;
+        }
+    }
+    return i;
+}
+
+void Server::updateTrailers(const List<std::shared_ptr<Project>> &projects)
+{
+    assert(!projects.isEmpty());
+    if (projects.size() == 1) {
+        projects.front()->setTrailer(String());
+    } else {
+        List<String> names;
+        names.reserve(projects.size());
+        names.append(Location::path(projects[0]->compileCommandsFileId()).parentDir());
+        size_t sharedRootLength = std::numeric_limits<size_t>::max();
+        size_t startIndex = 0;
+        if (names[0].isEmpty()) {
+            names[0] = "none";
+            ++startIndex;
+            names.append(Location::path(projects[1]->compileCommandsFileId()).parentDir());
+        }
+        for (size_t i=startIndex + 1; i<projects.size(); ++i) {
+            String name = Location::path(projects[i]->compileCommandsFileId()).parentDir();
+            names.append(name);
+            sharedRootLength = std::min(sharedRootLength, sharedRoot(names.at(startIndex), name));
+        }
+        if (sharedRootLength > 1) {
+            for (size_t i=startIndex; i<names.size(); ++i) {
+                String old = names[i];
+                names[i].remove(0, sharedRootLength);
+                // error() << "fixing things" << sharedRootLength << "\n" << old << " => \n" << names[i];
+            }
+        }
+        assert(names.size() == projects.size());
+        for (size_t i=0; i<projects.size(); ++i) {
+            projects[i]->setTrailer(names[i]);
+        }
+    }
+}
+
 std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCommandsFileId)
 {
     List<std::shared_ptr<Project>> &projects = mProjects[path];
@@ -354,6 +422,9 @@ std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCo
         }
     }
     projects.push_back(proj);
+    if (projects.size() > 1) {
+        updateTrailers(projects);
+    }
     return proj;
 }
 
@@ -456,7 +527,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     return String::join(ret, ' ');
 }
 
-bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const
+bool Server::loadCompileCommands(IndexParseData &data, Path compileCommands, const List<String> &environment, SourceCache *cache) const
 {
     if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
@@ -464,6 +535,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
         return false;
     }
 
+    compileCommands.resolve();
     CXCompilationDatabase_Error err;
     CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(compileCommands.parentDir().constData(), &err);
     if (err != CXCompilationDatabase_NoError) {
@@ -693,7 +765,7 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
     }
 }
 
-std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMessage> &query)
+List<std::shared_ptr<Project>> Server::projectsForQuery(const std::shared_ptr<QueryMessage> &query)
 {
     List<Match> matches;
     if (query->flags() & QueryMessage::HasLocation) {
@@ -704,39 +776,69 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
     if (!query->currentFile().empty())
         matches << query->currentFile();
 
-    return projectForMatches(matches);
+    return projectsForMatches(query->flags(), matches);
 }
 
-std::shared_ptr<Project> Server::projectForMatches(const List<Match> &matches)
+enum class MatchState {
+    No = 0,
+    Yes = 1,
+    Indexed = 2
+};
+
+static MatchState match(const List<Match> &matches, const std::shared_ptr<Project> &project)
 {
-    std::shared_ptr<Project> best;
-    std::shared_ptr<Project> cur = currentProject();
-    // give current a chance first to avoid switching project when using system headers etc
+    if (!project)
+        return MatchState::No;
+    bool matched = false;
     for (const Match &match : matches) {
         bool isIndexed = false;
-        if (cur && cur->match(match, &isIndexed)) {
-            if (isIndexed)
-                return cur;
-            best = cur;
+        if (project->match(match, &isIndexed)) {
+            if (isIndexed) {
+                return MatchState::Indexed;
+            }
+            matched = true;
         }
+    }
+    return matched ? MatchState::Yes : MatchState::No;
+}
 
-        for (const auto &p : mProjects) {
-            for (const auto &project : p.second) {
-                if (project != cur && project->match(match, &isIndexed)) {
-                    if (isIndexed) {
-                        setCurrentProject(project);
-                        error() << "Found project" << Location::path(project->compileCommandsFileId());
-                        return project;
-                    } else if (!best) {
-                        best = project;
-                    }
+List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Flag> queryFlags, const List<Match> &matches)
+{
+    List<std::shared_ptr<Project>> ret;
+    const std::shared_ptr<Project> cur = currentProject();
+    const MatchState currentMatch = ::match(matches, cur);
+    MatchState best = currentMatch;
+    if (currentMatch != MatchState::No) {
+        ret.push_back(cur);
+    }
+
+    for (const auto &p : mProjects) {
+        for (const auto &project : p.second) {
+            assert(project);
+            if (project == cur)
+                continue;
+
+            const MatchState m = ::match(matches, project);
+            switch (m) {
+            case MatchState::No:
+                break;
+            case MatchState::Indexed:
+            case MatchState::Yes:
+                if (m > best) {
+                    best = m;
+                    ret.insert(ret.begin(), project);
+                } else {
+                    ret.append(project);
                 }
+                setCurrentProject(project);
+                break;
             }
         }
     }
-    if (best && best != cur)
-        setCurrentProject(best);
-    return best;
+    if (ret.size() > 1 && !(queryFlags & QueryMessage::MultiProject)) {
+        ret.erase(ret.begin() + 1, ret.end());
+    }
+    return ret;
 }
 
 void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
@@ -767,7 +869,8 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
         if (it->second.empty()) {
             it = mProjects.erase(it);
         } else {
-            ++pit;
+            updateTrailers(it->second);
+            ++it;
         }
     }
     if (!found) {
@@ -854,6 +957,11 @@ bool Server::load()
                 Path::rmdir(file);
             }
         }
+        for (const auto &pair : mProjects) {
+            for (const auto &proj : pair.second) {
+                proj->check(Project::Check_Init);
+            }
+        }
         return true;
     }
 
@@ -896,9 +1004,14 @@ bool Server::load()
         for (auto &pp : s.second) {
             auto p = addProject(s.first, pp.compileCommandsFileId);
             if (p) {
-                p->processParseData(std::move(pp));
+                p->processParseData(std::move(pp), Project::ProcessParseData::Init);
                 p->save();
             }
+        }
+    }
+    for (const auto &pair : mProjects) {
+        for (const auto &proj : pair.second) {
+            proj->check(Project::Check_Init);
         }
     }
     saveFileIds();
@@ -1183,14 +1296,20 @@ void Server::sourceFileModified(const std::shared_ptr<Project> &project, uint32_
     }
 }
 
-void Server::prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const std::shared_ptr<Project> &project)
+void Server::prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const List<std::shared_ptr<Project>> &projects)
 {
     if (query->flags() & QueryMessage::CodeCompletionEnabled && !mCompletionThread) {
         mCompletionThread = new CompletionThread(mOptions.completionCacheSize);
         mCompletionThread->start();
     }
 
-    if (mCompletionThread && fileId) {
+    if (mCompletionThread && fileId && !projects.isEmpty()) {
+        for (const auto &project : projects) {
+            if (mCompletionThread->isCached(project, fileId)) {
+                return;
+            }
+        }
+        const auto project = projects.value(0);
         if (!mCompletionThread->isCached(project, fileId)) {
             Source source = project->source(fileId, query->buildIndex());
             if (source.isNull()) {

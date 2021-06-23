@@ -39,8 +39,8 @@
 #include "rct/Set.h"
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, const std::shared_ptr<Project> &project)
-    : QueryJob(q, project, WriteUnfiltered|QuietJob), query(q->query())
+StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(q, std::move(projects), WriteUnfiltered|QuietJob), query(q->query())
 {
 }
 
@@ -106,7 +106,7 @@ int StatusJob::execute()
         Server::instance()->dumpDaemons(connection());
     }
 
-    std::shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = projects().value(0);
     if (!proj) {
         if (!matched)
             write(alternatives);

@@ -30,8 +30,8 @@ class QueryMessage;
 class ReferencesJob : public QueryJob
 {
 public:
-    ReferencesJob(Location location, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
-    ReferencesJob(const String &symbolName, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    ReferencesJob(Location location, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
+    ReferencesJob(const String &symbolName, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
 protected:
     virtual int execute() override;
 private:

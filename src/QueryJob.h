@@ -54,7 +54,7 @@ public:
     };
     enum { Priority = 10 };
     QueryJob(const std::shared_ptr<QueryMessage> &msg,
-             const std::shared_ptr<Project> &proj,
+             List<std::shared_ptr<Project>> proj,
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
     virtual ~QueryJob();
 
@@ -106,7 +106,7 @@ public:
     Flags<Location::ToStringFlag> locationToStringFlags() const { return QueryMessage::locationToStringFlags(queryFlags()); }
     bool filter(const String &val) const;
     Signal<std::function<void(const String &)> > &output() { return mOutput; }
-    std::shared_ptr<Project> project() const { return mProject; }
+    List<std::shared_ptr<Project>> projects() const { return mProjects; }
     virtual int execute() = 0;
     int run(const std::shared_ptr<Connection> &connection = nullptr);
     bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
@@ -142,11 +142,18 @@ private:
     class DependencyFilter : public Filter
     {
     public:
-        DependencyFilter(uint32_t f, const std::shared_ptr<Project> &p) : fileId(f), project(p) {}
-        virtual bool match(uint32_t f, const Path &) const override { return project->dependsOn(fileId, f); }
+        DependencyFilter(uint32_t f, const List<std::shared_ptr<Project>> &p) : fileId(f), projects(p) {}
+        virtual bool match(uint32_t f, const Path &) const override
+        {
+            for (const auto &project : projects) {
+                if (project->dependsOn(fileId, f))
+                    return true;
+            }
+            return false;
+        }
 
         const uint32_t fileId;
-        const std::shared_ptr<Project> project;
+        const List<std::shared_ptr<Project>> projects;
     };
 
     mutable std::mutex mMutex;
@@ -156,7 +163,7 @@ private:
     std::shared_ptr<QueryMessage> mQueryMessage;
     Flags<JobFlag> mJobFlags;
     Signal<std::function<void(const String &)> > mOutput;
-    std::shared_ptr<Project> mProject;
+    List<std::shared_ptr<Project>> mProjects;
     uint32_t mFileFilter;
     List<std::shared_ptr<Filter> > mFilters;
     QueryMessage::KindFilters mKindFilters;

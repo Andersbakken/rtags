@@ -30,11 +30,12 @@
 #include "rct/SocketServer.h"
 #include "rct/String.h"
 #include "rct/Thread.h"
-#include "Source.h"
-#include "RTags.h"
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/SignalSlot.h"
+#include "Source.h"
+#include "QueryMessage.h"
+#include "RTags.h"
 
 class IndexMessage;
 class SocketServer;
@@ -167,7 +168,7 @@ public:
     const Map<Path, List<std::shared_ptr<Project>>> &projects() const { return mProjects; }
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
-    bool loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const;
+    bool loadCompileCommands(IndexParseData &data, Path compileCommands, const List<String> &environment, SourceCache *cache) const;
     bool parse(IndexParseData &data, String arguments, const Path &pwd, uint32_t compileCommandsFileId = 0, SourceCache *cache = nullptr) const;
     enum FileIdsFileFlag {
         None = 0x0,
@@ -238,13 +239,14 @@ private:
     void tokens(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
     void validate(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn);
 
-    std::shared_ptr<Project> projectForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
-    std::shared_ptr<Project> projectForMatches(const List<Match> &matches);
+    List<std::shared_ptr<Project>> projectsForQuery(const std::shared_ptr<QueryMessage> &queryMessage);
+    List<std::shared_ptr<Project>> projectsForMatches(Flags<QueryMessage::Flag> queryFlags, const List<Match> &matches);
     std::shared_ptr<Project> addProject(const Path &path, uint32_t compileCommandsFileId);
 
     bool initServers();
+    void updateTrailers(const List<std::shared_ptr<Project>> &projects);
     void removeSocketFile();
-    void prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const std::shared_ptr<Project> &project);
+    void prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint32_t fileId, const List<std::shared_ptr<Project>> &project);
 
     Map<Path, List<std::shared_ptr<Project>>> mProjects;
     std::weak_ptr<Project> mCurrentProject;

@@ -30,24 +30,34 @@
 
 SymbolInfoJob::SymbolInfoJob(Location s, Location e,
                              Set<String> &&pieceFilters,
-                             const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj), start(s), end(e)
+                             const std::shared_ptr<QueryMessage> &query,
+                             List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects)), start(s), end(e)
 {
     setPieceFilters(std::move(pieceFilters));
 }
 
 int SymbolInfoJob::execute()
 {
-    int ret = 1;
     if (end.isNull()) {
-        auto symbol = project()->findSymbol(start);
+        Symbol symbol;
+        for (const auto &project : projects()) {
+            symbol = project->findSymbol(start);
+            if (!symbol.isNull())
+                break;
+        }
+
         if (!symbol.isNull()) {
             write(symbol);
-            ret = 0;
+            return 0;
         }
-    } else {
-        assert(start.fileId() == end.fileId());
-        auto symbols = project()->openSymbols(start.fileId());
+        return 1;
+    }
+
+    assert(start.fileId() == end.fileId());
+    int ret = 1;
+    for (const auto &project : projects()) {
+        auto symbols = project->openSymbols(start.fileId());
         if (symbols && symbols->count()) {
             bool exact = false;
             uint32_t idx = symbols->lowerBound(start, &exact);
@@ -81,9 +91,12 @@ int SymbolInfoJob::execute()
                 }
                 ++idx;
             }
-            if (!ret && queryFlags() & QueryMessage::Elisp)
+            if (!ret && queryFlags() & QueryMessage::Elisp) {
                 write(")");
+                break; // ideally this would maybe use a set of symbols to check
+                       // if we'd already written it and process all projects
+            }
         }
-    }
+}
     return ret;
 }

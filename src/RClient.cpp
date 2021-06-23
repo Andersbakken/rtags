@@ -137,6 +137,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Command flags:" },
     { RClient::StripParen, "strip-paren", 'p', CommandLineParser::NoValue, "Strip parens in various contexts." },
     { RClient::Max, "max", 'M', CommandLineParser::Required, "Max lines of output for queries." },
+    { RClient::MultiProject, "multi-project", 0, CommandLineParser::NoValue, "Search in all projects with the same source dir." },
     { RClient::ReverseSort, "reverse-sort", 'O', CommandLineParser::NoValue, "Sort output reversed." },
     { RClient::Rename, "rename", 0, CommandLineParser::NoValue, "Used for --references to indicate that we're using the results to rename symbols." },
     { RClient::UnsavedFile, "unsaved-file", 0, CommandLineParser::Required, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
@@ -584,6 +585,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case MatchRegex: {
             mQueryFlags |= QueryMessage::MatchRegex;
+            break; }
+        case MultiProject: {
+            mQueryFlags |= QueryMessage::MultiProject;
             break; }
         case AbsolutePath: {
             mQueryFlags |= QueryMessage::AbsolutePath;

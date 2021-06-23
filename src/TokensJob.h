@@ -30,7 +30,7 @@ class TokensJob : public QueryJob
 public:
     TokensJob(const std::shared_ptr<QueryMessage> &query,
               uint32_t fileId, uint32_t from, uint32_t to,
-              const std::shared_ptr<Project> &project);
+              List<std::shared_ptr<Project>> &&project);
 protected:
     virtual int execute() override;
 private:

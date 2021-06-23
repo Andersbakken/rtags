@@ -146,6 +146,7 @@ bool ClangIndexer::exec(const String &data)
     deserializer >> id;
     deserializer >> socketFile;
     deserializer >> mProject;
+    deserializer >> mTrailer;
     deserializer >> mCompileCommandsFileId;
     uint32_t count;
     deserializer >> count;
@@ -277,8 +278,12 @@ bool ClangIndexer::exec(const String &data)
     } else {
         writeDuration = sw.elapsed();
     }
+
     if (ClangIndexer::state() == Stopped)
         return true;
+    if (!mTrailer.isEmpty()) {
+        message += " (" + mTrailer + ')';
+    }
     message += String::format<16>(" in %lldms. ", mTimer.elapsed());
     if (mSources.size() > 1) {
         message += String::format("(%zu builds) ", mSources.size());

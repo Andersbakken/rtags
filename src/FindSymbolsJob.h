@@ -27,7 +27,7 @@ class Project;
 class FindSymbolsJob : public QueryJob
 {
 public:
-    FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
 protected:
     virtual int execute() override;
 private:

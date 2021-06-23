@@ -189,6 +189,7 @@ private:
     FILE *mLogFile;
     std::shared_ptr<Connection> mConnection;
     Path mDataDir;
+    String mTrailer;
     bool mUnionRecursion;
     bool mFromCache;
 

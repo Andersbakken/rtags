@@ -89,6 +89,9 @@ public:
     Path projectDataDir() const { return mProjectDataDir; }
     bool match(const Match &match, bool *indexed = nullptr) const;
 
+    String trailer() const;
+    void setTrailer(const String &trailer);
+
     enum FileMapType {
         Symbols,
         SymbolNames,
@@ -200,7 +203,12 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void processParseData(IndexParseData &&data);
+    enum class ProcessParseData {
+        Init,
+        ReloadCompileCommands,
+        IndexMessage
+    };
+    void processParseData(IndexParseData &&data, ProcessParseData type);
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
@@ -210,7 +218,9 @@ public:
     bool isActiveJob(uint32_t sourceFileId) { return !sourceFileId || mActiveJobs.contains(sourceFileId); }
     inline bool visitFile(uint32_t fileId, uint32_t sourceFileId);
     inline void releaseFileIds(const Set<uint32_t> &fileIds);
-    String fixIts(uint32_t fileId) const;
+    Set<FixIt> fixIts(uint32_t fileId) const;
+    static String fixItsToString(const Set<FixIt> &fixIts);
+
     int reindex(const Match &match,
                 const std::shared_ptr<QueryMessage> &query,
                 const std::shared_ptr<Connection> &wait);
@@ -257,23 +267,22 @@ public:
     class FileMapScopeScope
     {
     public:
-        FileMapScopeScope(Project *p, Flags<ScopeFlag> flags = NullFlags)
-            : mProject(p)
+        FileMapScopeScope(const List<std::shared_ptr<Project>> &projects, Flags<ScopeFlag> flags = NullFlags)
+            : mProjects(projects)
         {
-            if (mProject)
-                mProject->beginScope(flags);
+            for (const auto &ref : mProjects) {
+                ref->beginScope(flags);
+            }
         }
-        FileMapScopeScope(const std::shared_ptr<Project> &p)
-            : FileMapScopeScope(p.get())
-        {}
 
         ~FileMapScopeScope()
         {
-            if (mProject)
-                mProject->endScope();
+            for (const auto &ref : mProjects) {
+                ref->endScope();
+            }
         }
     private:
-        Project *mProject;
+        List<std::shared_ptr<Project>> mProjects;
     };
 
     void beginScope(Flags<ScopeFlag> flags = NullFlags);
@@ -454,6 +463,7 @@ private:
 
     Path mPath, mProjectDataDir;
     Path mProjectFilePath, mSourcesFilePath;
+    String mTrailer;
 
     Files mFiles;
 

@@ -117,6 +117,7 @@ public:
         MatchRegex,
         Max,
         MaxDepth,
+        MultiProject,
         NoColor,
         NoContext,
         NoRealPath,

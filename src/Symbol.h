@@ -164,11 +164,11 @@ struct Symbol
         IncludeContainingFunctionLocation = 0x20,
         IncludeSourceCode = 0x40
     };
-    Value toValue(const std::shared_ptr<Project> &project,
+    Value toValue(const List<std::shared_ptr<Project>> &projects,
                   Flags<ToStringFlag> toStringFlags,
                   Flags<Location::ToStringFlag> locationToStringFlags,
                   const Set<String> &pieceFilters) const;
-    String toString(const std::shared_ptr<Project> &project = std::shared_ptr<Project>(),
+    String toString(const List<std::shared_ptr<Project>> &projects = List<std::shared_ptr<Project>>(),
                     Flags<ToStringFlag> toStringFlags = DefaultFlags,
                     Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
                     const Set<String> &pieceFilters = Set<String>()) const;

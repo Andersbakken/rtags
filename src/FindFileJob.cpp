@@ -41,8 +41,8 @@ static Flags<QueryJob::JobFlag> flags(Flags<QueryMessage::Flag> queryFlags)
     return flags;
 }
 
-FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project)
-    : QueryJob(query, project, ::flags(query->flags()))
+FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects), ::flags(query->flags()))
 {
     const String q = query->query();
     if (!q.empty()) {
@@ -60,7 +60,7 @@ FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::
 
 int FindFileJob::execute()
 {
-    std::shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = projects().value(0);
     if (!proj) {
         return 1;
     }

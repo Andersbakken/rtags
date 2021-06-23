@@ -29,7 +29,7 @@ class QueryMessage;
 class DependenciesJob : public QueryJob
 {
 public:
-    DependenciesJob(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
+    DependenciesJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
 protected:
     virtual int execute() override;
 private:

@@ -71,7 +71,7 @@ inline Serializer &operator<<(Serializer &s, const IndexParseData &data)
     } else {
         s << Location::path(data.compileCommandsFileId);
     }
-    s << data.compileCommandsFileId << data.sources << Sandbox::encoded(data.environment);
+    s << data.compileCommandsFileId << data.lastModifiedMs << data.sources << Sandbox::encoded(data.environment);
     return s;
 }
 
@@ -85,6 +85,7 @@ inline Deserializer &operator>>(Deserializer &s, IndexParseData &data)
     if (data.compileCommandsFileId) {
         Location::set(file, data.compileCommandsFileId);
     }
+    s >> data.lastModifiedMs;
     s >> data.sources >> data.environment;
     Sandbox::decode(data.environment);
     return s;

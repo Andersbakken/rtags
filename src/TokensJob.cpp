@@ -31,14 +31,14 @@ TokensJob::TokensJob(const std::shared_ptr<QueryMessage> &query,
                      uint32_t fileId,
                      uint32_t from,
                      uint32_t to,
-                     const std::shared_ptr<Project> &proj)
-    : QueryJob(query, proj), mFileId(fileId), mFrom(from), mTo(to)
+                     List<std::shared_ptr<Project>> &&projects)
+    : QueryJob(query, std::move(projects)), mFileId(fileId), mFrom(from), mTo(to)
 {
 }
 
 int TokensJob::execute()
 {
-    std::shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = projects().value(0);
     if (!proj)
         return 1;
     auto map = proj->openTokens(mFileId);

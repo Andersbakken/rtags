@@ -79,7 +79,7 @@ static String sourceCode(const Path &path, int startLine, int startColumn, int e
     return source.mid(start, end - start);
 }
 
-String Symbol::toString(const std::shared_ptr<Project> &project,
+String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
                         const Flags<ToStringFlag> cursorInfoFlags,
                         Flags<Location::ToStringFlag> locationToStringFlags,
                         const Set<String> &pieceFilters) const
@@ -123,14 +123,18 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     List<String> bases;
     List<String> args;
 
-    if (project) {
+    if (!projects.empty()) {
         if (filterPiece("baseclasses")) {
             for (const auto &base : baseClasses) {
                 bool found = false;
-                for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn)) {
-                    bases << sym.symbolName;
-                    found = true;
-                    break;
+                for (const auto &project : projects) {
+                    for (const auto &sym : project->findByUsr(base, location.fileId(), Project::ArgDependsOn)) {
+                        bases << sym.symbolName;
+                        found = true;
+                        break;
+                    }
+                    if (found)
+                        break;
                 }
                 if (!found) {
                     bases << base;
@@ -139,10 +143,15 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         }
         if (filterPiece("arguments")) {
             for (const auto &arg : arguments) {
-                const String symName = project->findSymbol(arg.cursor).symbolName;
-                if (!symName.empty()) {
-                    args << symName;
-                } else {
+                String symName;
+                for (const auto &project : projects) {
+                    symName = project->findSymbol(arg.cursor).symbolName;
+                    if (!symName.empty()) {
+                        args << symName;
+                        break;
+                    }
+                }
+                if (symName.empty()) {
                     args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
                 }
             }
@@ -204,35 +213,44 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     if ((cursorInfoFlags & IncludeParents && filterPiece("parent"))
         || (cursorInfoFlags & (IncludeContainingFunction) && filterPiece("cf"))
         || (cursorInfoFlags & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
-        auto syms = project->openSymbols(location.fileId());
-        uint32_t idx = -1;
-        if (syms) {
-            idx = syms->lowerBound(location);
-            if (idx == std::numeric_limits<uint32_t>::max()) {
-                idx = syms->count() - 1;
+        for (const auto &project : projects) {
+            auto syms = project->openSymbols(location.fileId());
+            uint32_t idx = -1;
+            if (syms) {
+                idx = syms->lowerBound(location);
+                if (idx == std::numeric_limits<uint32_t>::max()) {
+                    idx = syms->count() - 1;
+                }
             }
-        }
-        const unsigned int line = location.line();
-        const unsigned int column = location.column();
-        while (idx-- > 0) {
-            const Symbol s = syms->valueAt(idx);
-            if (s.isDefinition()
-                && s.isContainer()
-                && comparePosition(line, column, s.startLine, s.startColumn) >= 0
-                && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                if (cursorInfoFlags & IncludeContainingFunctionLocation)
-                    writePiece("Containing function location", "cfl", s.location.toString(locationToStringFlags));
-                if (cursorInfoFlags & IncludeContainingFunction)
-                    writePiece("Containing function", "cf", s.symbolName);
-                if (cursorInfoFlags & IncludeParents)
-                    writePiece("Parent", "parent", s.location.toString(locationToStringFlags)); // redundant, this is a mess
+            const unsigned int line = location.line();
+            const unsigned int column = location.column();
+            bool done = false;
+            while (idx-- > 0) {
+                const Symbol s = syms->valueAt(idx);
+                if (s.isDefinition()
+                    && s.isContainer()
+                    && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                    && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                    if (cursorInfoFlags & IncludeContainingFunctionLocation)
+                        writePiece("Containing function location", "cfl", s.location.toString(locationToStringFlags));
+                    if (cursorInfoFlags & IncludeContainingFunction)
+                        writePiece("Containing function", "cf", s.symbolName);
+                    if (cursorInfoFlags & IncludeParents)
+                        writePiece("Parent", "parent", s.location.toString(locationToStringFlags)); // redundant, this is a mess
+                    done = true;
+                    break;
+                }
+            }
+            if (done)
                 break;
-            }
         }
     }
 
-    if (cursorInfoFlags & IncludeTargets && project && filterPiece("targets")) {
-        const auto targets = project->findTargets(*this);
+    if (cursorInfoFlags & IncludeTargets && !projects.empty() && filterPiece("targets")) {
+        Set<Symbol> targets;
+        for (const auto &project : projects) {
+            targets += project->findTargets(*this);
+        }
         if (targets.size()) {
             ret.push_back("Targets:\n");
             auto best = RTags::bestTarget(targets);
@@ -245,8 +263,11 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         }
     }
 
-    if (cursorInfoFlags & IncludeReferences && project && !isReference() && filterPiece("references")) {
-        const auto references = project->findCallers(*this);
+    if (cursorInfoFlags & IncludeReferences && !projects.empty() && !isReference() && filterPiece("references")) {
+        Set<Symbol> references;
+        for (const auto &project : projects) {
+            references += project->findCallers(*this);
+        }
         if (references.size()) {
             ret.push_back("References:\n");
             for (const auto &r : references) {
@@ -303,7 +324,7 @@ bool Symbol::isContainer() const
     return RTags::isContainer(kind);
 }
 
-Value Symbol::toValue(const std::shared_ptr<Project> &project,
+Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                       Flags<ToStringFlag> toStringFlags,
                       Flags<Location::ToStringFlag> locationToStringFlags,
                       const Set<String> &pieceFilters) const
@@ -427,7 +448,10 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             if (symbol.flags & Symbol::TemplateReference && filterPiece("templatereference"))
                 ret["templatereference"] = true;
             if (f & IncludeTargets) {
-                const auto targets = project->findTargets(symbol);
+                Set<Symbol> targets;
+                for (const auto &project : projects) {
+                    targets += project->findTargets(symbol);
+                }
                 if (!targets.empty() && filterPiece("targets")) {
                     Value t;
                     for (const auto &target : targets) {
@@ -437,7 +461,10 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
             if (f & IncludeReferences) {
-                const auto references = project->findCallers(symbol);
+                Set<Symbol> references;
+                for (const auto &project : projects) {
+                    references += project->findCallers(symbol);
+                }
                 if (!references.empty() && filterPiece("references")) {
                     Value r;
                     for (const auto &ref : references) {
@@ -449,9 +476,15 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             if (f & IncludeBaseClasses && filterPiece("baseclasses")) {
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
-                    for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn)) {
-                        b.push_back(toValue(s, NullFlags));
-                        break;
+                    bool found = false;
+                    for (const auto &project : projects) {
+                        for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn)) {
+                            found = true;
+                            b.append(toValue(s, NullFlags));
+                            break;
+                        }
+                        if (found)
+                            break;
                     }
                 }
                 if (!baseClasses.empty()) {
@@ -462,31 +495,37 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             if ((f & IncludeParents && filterPiece("parent"))
                 || (f & (IncludeContainingFunction) && filterPiece("cf"))
                 || (f & (IncludeContainingFunctionLocation) && (filterPiece("cfl") || filterPiece("cflcontext")))) {
-                auto syms = project->openSymbols(symbol.location.fileId());
-                uint32_t idx = -1;
-                if (syms) {
-                    idx = syms->lowerBound(symbol.location);
-                    if (idx == std::numeric_limits<uint32_t>::max()) {
-                        idx = syms->count() - 1;
-                    }
-                }
-                const unsigned int line = symbol.location.line();
-                const unsigned int column = symbol.location.column();
-                while (idx-- > 0) {
-                    const Symbol s = syms->valueAt(idx);
-                    if (s.isDefinition()
-                        && s.isContainer()
-                        && comparePosition(line, column, s.startLine, s.startColumn) >= 0
-                        && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
-                        if (f & IncludeContainingFunctionLocation) {
-                            formatLocation(s.location, "cfl", "cflcontext");
+                for (const auto &project : projects) {
+                    auto syms = project->openSymbols(symbol.location.fileId());
+                    uint32_t idx = -1;
+                    if (syms) {
+                        idx = syms->lowerBound(symbol.location);
+                        if (idx == std::numeric_limits<uint32_t>::max()) {
+                            idx = syms->count() - 1;
                         }
-                        if (f & IncludeContainingFunction && filterPiece("cf"))
-                            ret["cf"] = s.symbolName;
-                        if (f & IncludeParents && filterPiece("parent"))
-                            ret["parent"] = toValue(s, IncludeParents);
-                        break;
                     }
+                    const unsigned int line = symbol.location.line();
+                    const unsigned int column = symbol.location.column();
+                    bool done = false;
+                    while (idx-- > 0) {
+                        const Symbol s = syms->valueAt(idx);
+                        if (s.isDefinition()
+                            && s.isContainer()
+                            && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                            && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                            if (f & IncludeContainingFunctionLocation) {
+                                formatLocation(s.location, "cfl", "cflcontext");
+                            }
+                            if (f & IncludeContainingFunction && filterPiece("cf"))
+                                ret["cf"] = s.symbolName;
+                            if (f & IncludeParents && filterPiece("parent"))
+                                ret["parent"] = toValue(s, IncludeParents);
+                            done = true;
+                            break;
+                        }
+                    }
+                    if (done)
+                        break;
                 }
             }
         }

@@ -111,9 +111,9 @@ public:
     {
         return mDirty;
     }
-    void insertDirtyFile(uint32_t fileId)
+    bool insertDirtyFile(uint32_t fileId)
     {
-        mDirty.insert(fileId);
+        return mDirty.insert(fileId);
     }
     inline uint64_t lastModified(uint32_t fileId)
     {
@@ -155,7 +155,11 @@ public:
                 uint64_t depLastModified = lastModified(it);
                 if (!depLastModified || depLastModified > sourceList.parsed) {
                     ret = true;
-                    insertDirtyFile(it);
+                    if (insertDirtyFile(it)) {
+                        // error() << "dude is dirty" << Location::path(fileId)
+                        //         << sourceList.size()
+                        //         << depLastModified << sourceList.parsed;
+                    }
                 }
             }
             if (ret)
@@ -365,7 +369,7 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
             error("Sources restore error %s: %s", mPath.constData(), err.constData());
             return false;
         }
-
+        mIndexParseData.compileCommandsFileId = compileCommandsFileId;
         return true;
     }
 
@@ -381,7 +385,7 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
             return Path::Continue;
         });
         auto parseData = std::move(mIndexParseData);
-        processParseData(std::move(parseData));
+        processParseData(std::move(parseData), ProcessParseData::Init);
     };
 
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
@@ -414,7 +418,6 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
         watchFile(dep.first);
     }
 
-    check(Check_Init);
     return true;
 }
 
@@ -443,7 +446,10 @@ void Project::check(CheckMode checkMode)
         int idx = 0;
         bool outputDirty = false;
         if (checkMode == Check_Init && mDependencies.size() >= 100) {
-            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", mPath.constData()), LogOutput::StdOut);
+            String name = mPath;
+            if (!mTrailer.isEmpty())
+                name += " (" + mTrailer + ')';
+            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", name.constData()), LogOutput::StdOut);
             outputDirty = true;
         }
         const std::shared_ptr<Project> project = shared_from_this();
@@ -527,8 +533,9 @@ bool Project::match(const Match &match, bool *indexed) const
         paths.push_back(resolved);
     }
 
+    Path compileCommandsPath;
     if (mIndexParseData.compileCommandsFileId) {
-        paths.push_back(Location::path(mIndexParseData.compileCommandsFileId));
+        compileCommandsPath = Location::path(mIndexParseData.compileCommandsFileId);
     }
 
     bool ret = false;
@@ -539,7 +546,7 @@ bool Project::match(const Match &match, bool *indexed) const
             if (indexed)
                 *indexed = true;
             return true;
-        } else if (mFiles.contains(path) || match.match(mPath) || match.match(resolvedPath)) {
+        } else if (mFiles.contains(path) || match.match(mPath) || match.match(resolvedPath) || match.match(compileCommandsPath)) {
             if (!indexed)
                 return true;
             ret = true;
@@ -548,6 +555,16 @@ bool Project::match(const Match &match, bool *indexed) const
     if (indexed)
         *indexed = false;
     return ret;
+}
+
+String Project::trailer() const
+{
+    return mTrailer;
+}
+
+void Project::setTrailer(const String &trailer)
+{
+    mTrailer = trailer;
 }
 
 inline static const char *severityToString(Diagnostic::Flag type)
@@ -794,7 +811,9 @@ static Flags<QueryMessage::Flag> queryFlags(const std::shared_ptr<LogOutput> &ou
 
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
-    FileMapScopeScope scope(this, NoValidate);
+    List<std::shared_ptr<Project>> projects;
+    projects.append(shared_from_this());
+    FileMapScopeScope scope(projects, NoValidate);
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = job->sourceFileId();
@@ -855,7 +874,6 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     updateDependencies(fileId, msg);
     if (success) {
         if (mIndexParseData.sources.contains(fileId)) {
-            // error() << "finished with" << Location::path(fileId) << sources.contains(fileId) << msg->parseTime();
             mIndexParseData.sources[fileId].parsed = msg->parseTime();
         }
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
@@ -1356,22 +1374,22 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     }
 }
 
-String Project::fixIts(uint32_t fileId) const
+Set<FixIt> Project::fixIts(uint32_t fileId) const
 {
-    const auto it = mFixIts.find(fileId);
-    String out;
-    if (it != mFixIts.end()) {
-        const Set<FixIt> &fixIts = it->second;
-        if (!fixIts.empty()) {
-            auto f = fixIts.end();
-            do {
-                --f;
-                if (!out.empty())
-                    out.append('\n');
-                out.push_back(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
+    return mFixIts.value(fileId);
+}
 
-            } while (f != fixIts.begin());
-        }
+String Project::fixItsToString(const Set<FixIt> &fixIts)
+{
+    String out;
+    if (!fixIts.isEmpty()) {
+        auto f = fixIts.end();
+        do {
+            --f;
+            if (!out.isEmpty())
+                out.append('\n');
+            out.append(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
+        } while (f != fixIts.begin());
     }
     return out;
 }
@@ -2273,7 +2291,9 @@ static String formatTable(const String &name, const std::shared_ptr<FileMap<Key,
 
 void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn)
 {
-    FileMapScopeScope scope(this);
+    List<std::shared_ptr<Project>> projects;
+    projects.append(shared_from_this());
+    FileMapScopeScope scope(projects);
     String err;
 
     Path path;
@@ -2328,7 +2348,9 @@ void Project::dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::
 void Project::prepare(uint32_t fileId)
 {
     if (fileId && isIndexed(fileId)) {
-        FileMapScopeScope scope(this);
+        List<std::shared_ptr<Project>> projects;
+        projects.append(shared_from_this());
+        FileMapScopeScope scope(projects);
         String err;
         openSymbolNames(fileId, &err);
         openSymbols(fileId, &err);
@@ -2504,7 +2526,7 @@ void Project::reloadCompileCommands()
         }
         // removeSources(removed);
         if (found)
-            processParseData(std::move(data));
+            processParseData(std::move(data), ProcessParseData::ReloadCompileCommands);
     }
 }
 
@@ -2591,7 +2613,7 @@ void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
     index(std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this()));
 }
 
-void Project::processParseData(IndexParseData &&data)
+void Project::processParseData(IndexParseData &&data, ProcessParseData type)
 {
     Set<uint32_t> index;
     Hash<uint32_t, uint32_t> removed;
@@ -2608,6 +2630,7 @@ void Project::processParseData(IndexParseData &&data)
                 if (!ref.contains(source)) {
                     ref.push_back(source);
                     ref.parsed = 0; // dirty
+                    // error() << "processParseData 1" << Location::path(source.fileId);
                     if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                         index.insert(source.fileId);
                 }
@@ -2619,6 +2642,7 @@ void Project::processParseData(IndexParseData &&data)
                     if (!ref[0].compareArguments(source)) {
                         if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                             index.insert(source.fileId);
+                        // error() << "processParseData 1" << Location::path(source.fileId);
                         ref.parsed = 0; // dirty
                     }
                     ref[0] = source;

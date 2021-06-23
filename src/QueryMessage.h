@@ -138,7 +138,8 @@ public:
         CodeCompleteNoWait = (1ull << 46),
         SymbolInfoIncludeSourceCode = (1ull << 47),
         AllTargets = (1ull << 48),
-        HasMatch = (1ull << 49)
+        HasMatch = (1ull << 49),
+        MultiProject = (1ull << 50)
     };
 
     QueryMessage(Type type = Invalid);

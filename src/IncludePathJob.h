@@ -26,12 +26,12 @@ class QueryMessage;
 
 class IncludePathJob : public QueryJob
 {
-    public:
-        IncludePathJob(const Location loc, const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Project> &project);
-    protected:
-        virtual int execute() override;
-    private:
-        const Location location;
+public:
+    IncludePathJob(const Location loc, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
+protected:
+    virtual int execute() override;
+private:
+    const Location location;
 };
 
 #endif
