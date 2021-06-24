@@ -549,7 +549,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
                 // namespaces can include all namespaces in their symbolname
                 if (originalKind == CXCursor_Namespace)
                     break;
-                RCT_FALL_THROUGH;
+                [[fallthrough]];
             default:
                 cutoff = pos;
                 break;
@@ -2058,7 +2058,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         default:
             break;
         }
-        RCT_FALL_THROUGH;
+        [[fallthrough]];
     case CXCursor_FunctionDecl:
     case CXCursor_FunctionTemplate:
         if (c.kind == CXCursor_FunctionTemplate)
@@ -2079,7 +2079,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         break;
     case CXCursor_Constructor:
         extractArguments(&c.arguments, cursor);
-        RCT_FALL_THROUGH;
+        [[fallthrough]];
     case CXCursor_Destructor: {
         CXCursor parent = clang_getCursorSemanticParent(cursor);
 

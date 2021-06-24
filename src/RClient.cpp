@@ -723,7 +723,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             const Path path = value.left(colon);
             if (!path.isFile()) {
-                return { String::format<1024>("Can't open [%s] for reading", path.nullTerminated()), CommandLineParser::Parse_Error };
+                return { String::format<1024>("Can't open [%s] for reading", path.c_str()), CommandLineParser::Parse_Error };
             }
 
             FILE *f;
