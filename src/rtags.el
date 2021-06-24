@@ -1539,7 +1539,12 @@ Uses `completing-read' to ask for the project."
                    (format "RTags select project (current is %s): " current)
                    projects))
     (when project
-      (find-file project))))
+      (string-match "^\\(.*\\)/ (" project)
+      (let ((buf (buffer-file-name))
+            (projectpath (match-string-no-properties 1 project)))
+        (unless (and (> (length buf) (length projectpath))
+                     (string= (substring buf 0 (length projectpath)) projectpath))
+          (find-file projectpath))))))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
   (or (and rtags-use-mark-as-current-symbol
