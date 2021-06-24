@@ -281,7 +281,7 @@ bool ClangIndexer::exec(const String &data)
 
     if (ClangIndexer::state() == Stopped)
         return true;
-    if (!mTrailer.isEmpty()) {
+    if (!mTrailer.empty()) {
         message += " (" + mTrailer + ')';
     }
     message += String::format<16>(" in %lldms. ", mTimer.elapsed());

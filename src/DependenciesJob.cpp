@@ -37,7 +37,7 @@ int DependenciesJob::execute()
 {
     for (const auto &proj : projects()) {
         String ret = proj->dumpDependencies(mFileId, mArgs, queryFlags());
-        if (!ret.isEmpty()) {
+        if (!ret.empty()) {
             write(ret);
             break;
         }

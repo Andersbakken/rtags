@@ -203,12 +203,7 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    enum class ProcessParseData {
-        Init,
-        ReloadCompileCommands,
-        IndexMessage
-    };
-    void processParseData(IndexParseData &&data, ProcessParseData type);
+    void processParseData(IndexParseData &&data);
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);

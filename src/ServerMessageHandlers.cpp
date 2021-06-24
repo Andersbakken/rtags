@@ -113,7 +113,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         if (proj) {
             assert(proj);
             proj->check(Project::Check_Init);
-            proj->processParseData(std::move(data), Project::ProcessParseData::IndexMessage);
+            proj->processParseData(std::move(data));
             if (!currentProject())
                 setCurrentProject(proj);
         }
@@ -275,7 +275,7 @@ void Server::followLocation(const std::shared_ptr<QueryMessage> &query, const st
         return;
     }
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
@@ -309,10 +309,10 @@ void Server::lastIndexed(const std::shared_ptr<QueryMessage> &query, const std::
     // Path path = query->path();
     const Match match = query->match();
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty())
+    if (projects.empty())
         projects.push_back(currentProject());
 
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         error("No project");
         conn->finish();
         return;
@@ -364,7 +364,7 @@ void Server::startClangThread(const std::shared_ptr<QueryMessage> &query, const 
     }
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
@@ -431,13 +431,13 @@ void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::sha
     }
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         if (!fileId) {
             auto project = mCurrentProject.lock();
             if (project)
                 projects.push_back(project);
         }
-        if (projects.isEmpty()) {
+        if (projects.empty()) {
             conn->write<256>("%s is not indexed", query->query().constData());
             conn->finish();
             return;
@@ -471,7 +471,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
     }
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
@@ -549,7 +549,7 @@ void Server::symbolInfo(const std::shared_ptr<QueryMessage> &query, const std::s
     }
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         List<Match> matches;
         matches << path;
         projects = projectsForMatches(query->flags(), matches);
@@ -588,7 +588,7 @@ void Server::includePath(const std::shared_ptr<QueryMessage> &query, const std::
     }
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
@@ -624,7 +624,7 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
     } else if (auto cur = currentProject()) {
         projects.push_back(std::move(cur));
     }
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
@@ -639,7 +639,7 @@ void Server::fixIts(const std::shared_ptr<QueryMessage> &query, const std::share
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
     String out;
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         uint32_t fileId = Location::fileId(query->query());
         if (fileId) {
             prepareCompletion(query, fileId, projects);
@@ -661,7 +661,7 @@ void Server::referencesForLocation(const std::shared_ptr<QueryMessage> &query, c
     }
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
 
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
@@ -694,13 +694,13 @@ void Server::referencesForName(const std::shared_ptr<QueryMessage> &query, const
     const String name = query->query();
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur)
             projects.push_back(std::move(cur));
     }
 
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->finish();
         return;
@@ -716,14 +716,14 @@ void Server::findSymbols(const std::shared_ptr<QueryMessage> &query, const std::
     const String partial = query->query();
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur)
             projects.push_back(std::move(cur));
     }
 
     int ret = 0;
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         ret = 1;
         error("No project");
     } else {
@@ -738,13 +738,13 @@ void Server::listSymbols(const std::shared_ptr<QueryMessage> &query, const std::
     const String partial = query->query();
 
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur)
             projects.push_back(std::move(cur));
     }
 
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->finish();
         return;
@@ -771,7 +771,7 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::sh
     String ret = "unknown";
     const Match match = query->match();
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         for (const auto &project : projects) {
             bool indexed = false;
             if (project->match(match, &indexed)) {
@@ -795,14 +795,14 @@ void Server::isIndexed(const std::shared_ptr<QueryMessage> &query, const std::sh
 void Server::reloadFileManager(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur) {
             projects.append(std::move(cur));
         }
     }
 
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         if (mOptions.options & NoFileManager) {
             conn->write<512>("Not watching files");
             conn->finish(RTags::GeneralFailure);
@@ -821,10 +821,10 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
 {
     const Path path = query->query();
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty() && currentProject()) {
+    if (projects.empty() && currentProject()) {
         projects.append(currentProject());
     }
-    if (!projects.isEmpty() && (projects.first()->fileManager() ? projects.first()->fileManager()->contains(path) : projects.first()->match(query->match()))) {
+    if (!projects.empty() && (projects.first()->fileManager() ? projects.first()->fileManager()->contains(path) : projects.first()->match(query->match()))) {
         if (!(query->flags() & QueryMessage::SilentQuery))
             warning("=> 1");
         conn->write("1");
@@ -839,7 +839,7 @@ void Server::hasFileManager(const std::shared_ptr<QueryMessage> &query, const st
 void Server::includeFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         conn->write("No project");
         conn->finish();
         return;
@@ -852,7 +852,7 @@ void Server::includeFile(const std::shared_ptr<QueryMessage> &query, const std::
 void Server::preprocessFile(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         conn->write("No project");
         conn->finish();
         return;
@@ -882,11 +882,11 @@ void Server::reindex(const std::shared_ptr<QueryMessage> &query, const std::shar
 {
     Match match = query->match();
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur)
             projects.append(std::move(cur));
-        if (projects.isEmpty()) {
+        if (projects.empty()) {
             error("No project");
             conn->finish();
             return;
@@ -929,11 +929,11 @@ static List<std::shared_ptr<Project>> sortProjects(const List<std::shared_ptr<Pr
 void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         setCurrentProject(projects.first());
     }
 
-    if (!projects.isEmpty() || query->flags() & QueryMessage::CurrentProjectOnly) {
+    if (!projects.empty() || query->flags() & QueryMessage::CurrentProjectOnly) {
         if (std::shared_ptr<Project> current = currentProject()) {
             conn->write(current->path());
         }
@@ -997,7 +997,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
         if (selected) {
             String name = selected->path();
             String trailer = selected->trailer();
-            if (!trailer.isEmpty())
+            if (!trailer.empty())
                 name += " (" + trailer + ')';
             if (selected == currentProject()) {
                 conn->write<128>("%s is already the active project", name.constData());
@@ -1054,12 +1054,12 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto project = currentProject();
         if (project)
             projects.append(std::move(project));
     }
-    if (!projects.isEmpty()) {
+    if (!projects.empty()) {
         class DeadFunctionsJob : public QueryJob
         {
         public:
@@ -1178,7 +1178,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
     };
     if (path.isFile()) {
         List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-        if (!projects.isEmpty()) {
+        if (!projects.empty()) {
             const uint32_t fileId = Location::fileId(path);
             if (fileId) {
                 prepareCompletion(query, fileId, projects);
@@ -1264,12 +1264,12 @@ void Server::dumpCompletions(const std::shared_ptr<QueryMessage> &/*query*/, con
 void Server::dumpCompileCommands(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = currentProject();
         if (cur)
             projects.append(std::move(cur));
     }
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         conn->write("No current project");
         conn->finish(RTags::GeneralFailure);
         return;
@@ -1434,7 +1434,7 @@ void Server::classHierarchy(const std::shared_ptr<QueryMessage> &query, const st
         return;
     }
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->write("Not indexed");
         conn->finish(RTags::NotIndexed);
@@ -1507,12 +1507,12 @@ void Server::tokens(const std::shared_ptr<QueryMessage> &query, const std::share
 void Server::validate(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         auto cur = mCurrentProject.lock();
         if (cur)
             projects.append(std::move(cur));
     }
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project");
         conn->write("No current project");
         conn->finish(RTags::GeneralFailure);
@@ -1547,7 +1547,7 @@ void Server::codeCompleteAt(const std::shared_ptr<QueryMessage> &query, const st
 {
     const Location loc = query->location(Location::CreateLocation);
     List<std::shared_ptr<Project>> projects = projectsForQuery(query);
-    if (projects.isEmpty()) {
+    if (projects.empty()) {
         error("No project found for %s", loc.path().constData());
         conn->finish();
         return;

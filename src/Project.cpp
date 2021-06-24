@@ -385,7 +385,7 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
             return Path::Continue;
         });
         auto parseData = std::move(mIndexParseData);
-        processParseData(std::move(parseData), ProcessParseData::Init);
+        processParseData(std::move(parseData));
     };
 
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
@@ -447,7 +447,7 @@ void Project::check(CheckMode checkMode)
         bool outputDirty = false;
         if (checkMode == Check_Init && mDependencies.size() >= 100) {
             String name = mPath;
-            if (!mTrailer.isEmpty())
+            if (!mTrailer.empty())
                 name += " (" + mTrailer + ')';
             logDirect(LogLevel::Error, String::format<128>("Restoring %s ", name.constData()), LogOutput::StdOut);
             outputDirty = true;
@@ -1382,11 +1382,11 @@ Set<FixIt> Project::fixIts(uint32_t fileId) const
 String Project::fixItsToString(const Set<FixIt> &fixIts)
 {
     String out;
-    if (!fixIts.isEmpty()) {
+    if (!fixIts.empty()) {
         auto f = fixIts.end();
         do {
             --f;
-            if (!out.isEmpty())
+            if (!out.empty())
                 out.append('\n');
             out.append(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
         } while (f != fixIts.begin());
@@ -2526,7 +2526,7 @@ void Project::reloadCompileCommands()
         }
         // removeSources(removed);
         if (found)
-            processParseData(std::move(data), ProcessParseData::ReloadCompileCommands);
+            processParseData(std::move(data));
     }
 }
 
@@ -2613,7 +2613,7 @@ void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
     index(std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this()));
 }
 
-void Project::processParseData(IndexParseData &&data, ProcessParseData type)
+void Project::processParseData(IndexParseData &&data)
 {
     Set<uint32_t> index;
     Hash<uint32_t, uint32_t> removed;

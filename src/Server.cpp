@@ -372,7 +372,7 @@ static size_t sharedRoot(const Path &a, const Path &b)
 
 void Server::updateTrailers(const List<std::shared_ptr<Project>> &projects)
 {
-    assert(!projects.isEmpty());
+    assert(!projects.empty());
     if (projects.size() == 1) {
         projects.front()->setTrailer(String());
     } else {
@@ -381,7 +381,7 @@ void Server::updateTrailers(const List<std::shared_ptr<Project>> &projects)
         names.append(Location::path(projects[0]->compileCommandsFileId()).parentDir());
         size_t sharedRootLength = std::numeric_limits<size_t>::max();
         size_t startIndex = 0;
-        if (names[0].isEmpty()) {
+        if (names[0].empty()) {
             names[0] = "none";
             ++startIndex;
             names.append(Location::path(projects[1]->compileCommandsFileId()).parentDir());
@@ -1004,7 +1004,7 @@ bool Server::load()
         for (auto &pp : s.second) {
             auto p = addProject(s.first, pp.compileCommandsFileId);
             if (p) {
-                p->processParseData(std::move(pp), Project::ProcessParseData::Init);
+                p->processParseData(std::move(pp));
                 p->save();
             }
         }
@@ -1303,7 +1303,7 @@ void Server::prepareCompletion(const std::shared_ptr<QueryMessage> &query, uint3
         mCompletionThread->start();
     }
 
-    if (mCompletionThread && fileId && !projects.isEmpty()) {
+    if (mCompletionThread && fileId && !projects.empty()) {
         for (const auto &project : projects) {
             if (mCompletionThread->isCached(project, fileId)) {
                 return;

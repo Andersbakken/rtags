@@ -59,7 +59,7 @@ public:
     Sources sources;
     List<String> environment;
 
-    bool empty() const { return environment.isEmpty() && sources.isEmpty(); }
+    bool empty() const { return environment.empty() && sources.empty(); }
     bool write(const std::function<bool(const String &)> &write, const Match &match = Match()) const;
 };
 
