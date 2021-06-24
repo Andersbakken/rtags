@@ -2224,27 +2224,27 @@ static List<String> split(const String &value, size_t max)
     size_t i = 0;
     while (i < words.size()) {
         const String &word = words.at(i);
-        if (ret.last().size() && ret.last().size() + word.size() > max) {
-            fixString(ret.last(), max);
+        if (ret.back().size() && ret.back().size() + word.size() > max) {
+            fixString(ret.back(), max);
             ret.append(String());
             continue;
         }
 
         if (word.size() > max) {
-            assert(ret.last().empty());
+            assert(ret.back().empty());
             for (size_t j=0; j<word.size(); j += max) {
                 if (j)
                     ret.append(String());
-                ret.last() = word.mid(j, max);
-                fixString(ret.last(), max);
+                ret.back() = word.mid(j, max);
+                fixString(ret.back(), max);
             }
         } else {
-            ret.last().append(word);
+            ret.back().append(word);
         }
         ++i;
     }
 
-    fixString(ret.last(), max);
+    fixString(ret.back(), max);
     return ret;
 }
 

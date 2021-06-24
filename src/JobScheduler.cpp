@@ -101,7 +101,7 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
     if (mPendingJobs.empty() || job->priority() > mPendingJobs.front()->job->priority()) {
         mPendingJobs.prepend(node);
     } else {
-        std::shared_ptr<Node> after = mPendingJobs.last();
+        std::shared_ptr<Node> after = mPendingJobs.back();
         while (job->priority() > after->job->priority()) {
             after = after->prev;
             assert(after);

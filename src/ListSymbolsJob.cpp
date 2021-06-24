@@ -55,7 +55,7 @@ int ListSymbolsJob::execute()
         for (const auto &filter : filters) {
             if (filter.mode == QueryMessage::PathFilter::Self) {
                 paths.append(filter.pattern);
-                if (!paths.last().isFile()) {
+                if (!paths.back().isFile()) {
                     paths.clear();
                     break;
                 }

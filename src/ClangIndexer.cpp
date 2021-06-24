@@ -947,7 +947,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     // for details. I really should report this as a bug.
     if (cursorPtr)
         *cursorPtr = nullptr;
-    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.last()) != CXCursor_CallExpr)
+    if (kind != CXCursor_MemberRefExpr && clang_getCursorKind(mParents.back()) != CXCursor_CallExpr)
         return false;
 
     const CXCursor templateRef = RTags::findChild(cursor, CXCursor_TemplateRef);
@@ -980,7 +980,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
     if (!name.empty()) {
         RTags::Filter out;
         out.kinds.insert(CXCursor_MemberRefExpr);
-        const int argCount = RTags::children(mParents.last(), RTags::Filter(), out).size();
+        const int argCount = RTags::children(mParents.back(), RTags::Filter(), out).size();
         RTags::Filter in(RTags::Filter::And);
         in.names.insert(name);
         in.argumentCount = argCount;
@@ -1232,9 +1232,9 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     if (mInTemplateFunction && !mParents.empty()) {
-        if ((kind == CXCursor_DeclRefExpr && mParents.last() == CXCursor_MemberRefExpr)
-            || (kind == CXCursor_TypeRef && mParents.last() == CXCursor_DeclRefExpr)) {
-            CXSourceRange parentRange = clang_getCursorExtent(mParents.last());
+        if ((kind == CXCursor_DeclRefExpr && mParents.back() == CXCursor_MemberRefExpr)
+            || (kind == CXCursor_TypeRef && mParents.back() == CXCursor_DeclRefExpr)) {
+            CXSourceRange parentRange = clang_getCursorExtent(mParents.back());
             CXToken *tokens = nullptr;
             unsigned numTokens = 0;
             auto tu = mTranslationUnits.at(mCurrentTranslationUnit)->unit;
@@ -1260,7 +1260,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                             sym.kind = CXCursor_DeclRefExpr; // yes this is weird
                         }
                         sym.flags = Symbol::TemplateReference;
-                        setType(sym, clang_getCursorType(mParents.last()));
+                        setType(sym, clang_getCursorType(mParents.back()));
                         setRange(sym, memberRange);
                         if (kind == CXCursor_DeclRefExpr) // there might be more than one level of ::
                             break;
