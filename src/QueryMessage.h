@@ -165,7 +165,7 @@ public:
         Map<String, Flags<DefinitionType> > in, out;
         bool filter(const Symbol &symbol) const;
         void insert(const String &arg);
-        bool isEmpty() const { return in.isEmpty() && out.isEmpty(); }
+        bool empty() const { return in.empty() && out.empty(); }
     };
 
     struct PathFilter {

@@ -19,13 +19,13 @@
 bool IndexParseData::write(const std::function<bool(const String &)> &write, const Match &match) const
 {
     auto process = [&write, &match](const String &str, const Sources &sss) {
-        if (!sss.isEmpty()) {
+        if (!sss.empty()) {
             if (!write(str + ":"))
                 return false;
 
             for (const auto &ss : sss) {
                 const Path file = Location::path(ss.first);
-                if (match.isEmpty() || match.match(file)) {
+                if (match.empty() || match.match(file)) {
                     write("  " + file + ":");
                     for (const auto &s : ss.second) {
                         if (!write("    " + s.toString()))

@@ -58,9 +58,9 @@ public:
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
     virtual ~QueryJob();
 
-    bool hasFilter() const { return mFileFilter || !mFilters.isEmpty(); }
-    bool hasKindFilter() const { return !mKindFilters.isEmpty(); }
-    bool hasPieceFilter() const { return !mPieceFilters.isEmpty(); }
+    bool hasFilter() const { return mFileFilter || !mFilters.empty(); }
+    bool hasKindFilter() const { return !mKindFilters.empty(); }
+    bool hasPieceFilter() const { return !mPieceFilters.empty(); }
     List<QueryMessage::PathFilter> pathFilters() const
     {
         if (mQueryMessage)

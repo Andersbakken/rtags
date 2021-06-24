@@ -45,7 +45,7 @@ FindFileJob::FindFileJob(const std::shared_ptr<QueryMessage> &query, const std::
     : QueryJob(query, project, ::flags(query->flags()))
 {
     const String q = query->query();
-    if (!q.isEmpty()) {
+    if (!q.empty()) {
         if (query->flags() & QueryMessage::MatchRegex) {
             if (query->flags() & QueryMessage::MatchCaseInsensitive) {
                 mRegex.assign(q.ref(), std::regex::icase);
@@ -79,7 +79,7 @@ int FindFileJob::execute()
     String::CaseSensitivity cs = String::CaseSensitive;
     if (queryFlags() & QueryMessage::MatchRegex) {
         mode = Regex;
-    } else if (!mPattern.isEmpty()) {
+    } else if (!mPattern.empty()) {
         mode = mPattern[0] == '/' ? FilePath : Pattern;
     }
     if (queryFlags() & QueryMessage::MatchCaseInsensitive)
@@ -92,7 +92,7 @@ int FindFileJob::execute()
         out.append(srcRoot);
     const Files& dirs = proj->files();
     assert(proj->fileManager());
-    if (dirs.isEmpty())
+    if (dirs.empty())
         proj->fileManager()->load(FileManager::Synchronous);
     Files::const_iterator dirit = dirs.begin();
     bool foundExact = false;

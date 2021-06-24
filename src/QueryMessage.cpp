@@ -133,7 +133,7 @@ QueryMessage::Flag QueryMessage::flagFromString(const String &string)
 
 bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
 {
-    if (isEmpty())
+    if (empty())
         return true;
 
     String spelling = Symbol::kindSpelling(symbol.kind).toLower();
@@ -193,10 +193,10 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
         }
         return false;
     };
-    if (!out.isEmpty() && match(out, flags & (OutHasWildcards|OutHasCategories))) {
+    if (!out.empty() && match(out, flags & (OutHasWildcards|OutHasCategories))) {
         return false;
     }
-    if (in.isEmpty() || match(in, flags & (InHasWildcards|InHasCategories))) {
+    if (in.empty() || match(in, flags & (InHasWildcards|InHasCategories))) {
         return true;
     } else {
         return false;

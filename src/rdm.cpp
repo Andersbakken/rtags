@@ -114,7 +114,7 @@ enum {
 static inline Path defaultRP()
 {
     static Path rp;
-    if (rp.isEmpty()) {
+    if (rp.empty()) {
         rp = Rct::executablePath().parentDir() + "rp";
         if (!rp.isFile()) {
             rp = Rct::executablePath();
@@ -680,7 +680,7 @@ int main(int argc, char** argv)
             break; }
         case ArgTransform: {
             serverOpts.argTransform = Process::findCommand(value);
-            if (!value.isEmpty() && serverOpts.argTransform.isEmpty()) {
+            if (!value.empty() && serverOpts.argTransform.empty()) {
                 return { String::format<1024>("Invalid argument to -V. Can't resolve %s", value.constData()), CommandLineParser::Parse_Error };
             }
             break; }
@@ -805,9 +805,9 @@ int main(int argc, char** argv)
         }
     }
 
-    if (serverOpts.excludeFilters.isEmpty())
+    if (serverOpts.excludeFilters.empty())
         serverOpts.excludeFilters = String(DEFAULT_EXCLUDEFILTER).split(';');
-    if (serverOpts.compilerWrappers.isEmpty())
+    if (serverOpts.compilerWrappers.empty())
         serverOpts.compilerWrappers = String(DEFAULT_COMPILER_WRAPPERS).split(';').toSet();
 
     serverOpts.tempDir = serverOpts.tempDir.ensureTrailingSlash() + "rdm/";
@@ -846,7 +846,7 @@ int main(int argc, char** argv)
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
     auto server = std::make_shared<Server>();
-    if (!serverOpts.tests.isEmpty()) {
+    if (!serverOpts.tests.empty()) {
         char buf[1024];
         Path path;
         while (true) {
@@ -891,7 +891,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (!serverOpts.tests.isEmpty()) {
+    if (!serverOpts.tests.empty()) {
         return server->runTests() ? 0 : 1;
     }
 

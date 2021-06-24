@@ -61,7 +61,7 @@ String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *context
         Server *server = Server::instance();
         if (std::shared_ptr<Project> pp = server->currentProject()) {
             const Path projectPath = pp->path();
-            if (!projectPath.isEmpty() && p.startsWith(projectPath))
+            if (!projectPath.empty() && p.startsWith(projectPath))
                 p.remove(0, projectPath.size());
         }
     }
@@ -69,7 +69,7 @@ String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *context
     String ret(p.size() + extra, ' ');
 
     const int w = snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:", p.constData(), l, c);
-    if (!ctx.isEmpty()) {
+    if (!ctx.empty()) {
         memcpy(ret.data() + w, ctx.constData(), ctx.size());
     }
     return ret;
@@ -86,7 +86,7 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
             if (auto project = Server::instance()->currentProject()) {
                 const Path f = project->sourceFilePath(fileId(), "unsaved");
                 String contents = f.readAll();
-                if (!contents.isEmpty())
+                if (!contents.empty())
                     return contents;
             }
         }
@@ -94,7 +94,7 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
     };
     if (cache) {
         String &ref = (*cache)[p];
-        if (ref.isEmpty()) {
+        if (ref.empty()) {
             ref = readAll();
         }
         code = &ref;
@@ -104,7 +104,7 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
     }
 
     String ret;
-    if (!code->isEmpty()) {
+    if (!code->empty()) {
         unsigned int l = line();
         if (!l)
             return String();
@@ -154,9 +154,9 @@ bool Location::init(const Hash<Path, uint32_t> &pathsToIds)
     sIdsToPaths.clear();
     sLastId = 0;
     for (const auto &it : sPathsToIds) {
-        assert(!it.first.isEmpty());
+        assert(!it.first.empty());
         Path &ref = sIdsToPaths[it.second];
-        if (!ref.isEmpty())  {
+        if (!ref.empty())  {
             sPathsToIds.clear();
             sIdsToPaths.clear();
             sLastId = 0;
@@ -176,7 +176,7 @@ void Location::init(const Hash<uint32_t, Path> &idsToPaths)
     sLastId = 0;
     for (const auto &it : sIdsToPaths) {
         sPathsToIds[it.second] = it.first;
-        assert(!it.second.isEmpty());
+        assert(!it.second.empty());
         sLastId = std::max(sLastId, it.first);
     }
 }

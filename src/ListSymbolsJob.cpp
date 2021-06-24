@@ -64,7 +64,7 @@ int ListSymbolsJob::execute()
                 break;
             }
         }
-        if (!paths.isEmpty()) {
+        if (!paths.empty()) {
             out = listSymbolsWithPathFilter(proj, paths);
         } else {
             out = listSymbols(proj);
@@ -89,7 +89,7 @@ int ListSymbolsJob::execute()
             write(sorted.at(i));
         }
     }
-    return out.isEmpty() ? 1 : 0;
+    return out.empty() ? 1 : 0;
 }
 
 Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const
@@ -114,9 +114,9 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
                 continue;
             }
             const String &symbolName = symbol.symbolName;
-            if (symbolName.isEmpty())
+            if (symbolName.empty())
                 continue;
-            if (!string.isEmpty()) {
+            if (!string.empty()) {
                 if (wildcard) {
                     if (!Project::matchSymbolName(string, symbolName, cs)) {
                         continue;

@@ -75,7 +75,7 @@ ParseStatus parse(int argc, char **argv,
     Hash<String, const Option<T> *> longOpts;
     Hash<char, const Option<T> *> shortOpts;
     for (const auto &opt : optsList) {
-        if (!opt.longOpt.isEmpty())
+        if (!opt.longOpt.empty())
             longOpts[opt.longOpt] = &opt;
         if (opt.shortOpt)
             shortOpts[opt.shortOpt] = &opt;
@@ -90,7 +90,7 @@ ParseStatus parse(int argc, char **argv,
         }
         printf("Unused: %s\n", unused.constData());
         for (const auto &opt : optsList) {
-            if (!opt.longOpt.isEmpty()) {
+            if (!opt.longOpt.empty()) {
                 if (!opt.shortOpt) {
                     printf("No shortoption for %s\n", opt.longOpt.constData());
                 } else if (opt.longOpt[0] != opt.shortOpt) {
@@ -102,7 +102,7 @@ ParseStatus parse(int argc, char **argv,
     }
 
     List<String> args;
-    if (configOpts.size() && !app.isEmpty()) {
+    if (configOpts.size() && !app.empty()) {
         bool norc = false;
         Path rcfile = Path::home() + "." + app + "rc";
         if (!rcfile.exists()) {
@@ -130,17 +130,17 @@ ParseStatus parse(int argc, char **argv,
         if (!norc) {
             args.push_back(argv[0]);
             String rc = Path("/etc/rcrc").readAll();
-            if (!rc.isEmpty()) {
+            if (!rc.empty()) {
                 for (const String &s : rc.split('\n')) {
-                    if (!s.isEmpty() && !s.startsWith('#'))
+                    if (!s.empty() && !s.startsWith('#'))
                         args += s.split(' ');
                 }
             }
-            if (!rcfile.isEmpty()) {
+            if (!rcfile.empty()) {
                 rc = rcfile.readAll();
-                if (!rc.isEmpty()) {
+                if (!rc.empty()) {
                     for (const String& s : rc.split('\n')) {
-                        if (!s.isEmpty() && !s.startsWith('#'))
+                        if (!s.empty() && !s.startsWith('#'))
                             args += s.split(' ');
                     }
                 }
@@ -149,7 +149,7 @@ ParseStatus parse(int argc, char **argv,
                 args.append(argv[i]);
         }
     }
-    if (args.isEmpty()) {
+    if (args.empty()) {
         args.resize(argc);
         for (int i=0; i<argc; ++i) {
             args[i] = argv[i];
@@ -204,7 +204,7 @@ ParseStatus parse(int argc, char **argv,
             addArg(longOpts.value(a));
         } else if (arg.startsWith("-")) {
             for (size_t j=1; j<arg.size(); ++j) {
-                if (j > 1 && !opts.isEmpty() && opts.back()->valueType != NoValue) {
+                if (j > 1 && !opts.empty() && opts.back()->valueType != NoValue) {
                     if (arg.at(j) == '=')
                         ++j;
                     value = arg.mid(j);
@@ -220,12 +220,12 @@ ParseStatus parse(int argc, char **argv,
         for (const Option<T> *opt : opts) {
             switch (opt->valueType) {
             case Required:
-                if (value.isEmpty() && i + 1 < args.size())
+                if (value.empty() && i + 1 < args.size())
                     value = args.at(++i);
                 status = handler(opt->option, std::move(value), i, args);
                 break;
             case Optional:
-                if (value.isEmpty() && i + 1 < args.size() && (!args.at(i + 1).startsWith('-') || args.at(i + 1).size() == 1))
+                if (value.empty() && i + 1 < args.size() && (!args.at(i + 1).startsWith('-') || args.at(i + 1).size() == 1))
                     value = args.at(++i);
                 status = handler(opt->option, std::move(value), i, args);
                 break;
@@ -248,12 +248,12 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T> > opt
     List<String> out;
     size_t longest = 0;
     for (const auto &opt : optsList) {
-        if (opt.longOpt.isEmpty() && !opt.shortOpt) {
+        if (opt.longOpt.empty() && !opt.shortOpt) {
             out.append(String());
         } else {
             out.append(String::format<64>("  %s%s%s%s",
-                                          (opt.longOpt.isEmpty() ? String() : ("--" + opt.longOpt)).constData(),
-                                          !opt.longOpt.isEmpty() && opt.shortOpt ? "|" : "",
+                                          (opt.longOpt.empty() ? String() : ("--" + opt.longOpt)).constData(),
+                                          !opt.longOpt.empty() && opt.shortOpt ? "|" : "",
                                           opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
                                           opt.valueType == Required ? " [arg] "
                                           : opt.valueType == Optional ? " [optional] " : ""));
@@ -264,7 +264,7 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T> > opt
     const Option<T> *opts = optsList.begin();
     const size_t c = out.size();
     for (size_t i=0; i<c; ++i) {
-        if (out.at(i).isEmpty()) {
+        if (out.at(i).empty()) {
             fprintf(f, "%s\n", opts[i].description.constData());
         } else {
             fprintf(f, "%s%s %s\n",

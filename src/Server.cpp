@@ -185,7 +185,7 @@ bool Server::init(const Options &options)
         Log l(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine);
         l << "Running with" << mOptions.jobCount << "jobs, using args:"
           << String::join(mOptions.defaultArguments, ' ');
-        if (!mOptions.includePaths.isEmpty()) {
+        if (!mOptions.includePaths.empty()) {
             l << "\nIncludepaths:";
             for (const auto &inc : mOptions.includePaths)
                 l << inc.toString();
@@ -379,7 +379,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     List<String> ret;
     bool hasInput = false;
     Set<Path> roots;
-    if (!projectRootOverride.isEmpty())
+    if (!projectRootOverride.empty())
         roots.insert(projectRootOverride.ensureTrailingSlash());
     ret << "/usr/bin/g++"; // this should be clang on mac
     const List<String> split = args.split(" ");
@@ -387,7 +387,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         const String &s = split.at(i);
         if (s == "--build-root") {
             const Path root = split.value(++i);
-            if (!root.isEmpty())
+            if (!root.empty())
                 roots.insert(root.ensureTrailingSlash());
             continue;
         }
@@ -400,7 +400,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
                 ret << file;
                 includePaths.insert(file.parentDir());
                 const Path projectRoot = RTags::findProjectRoot(file, RTags::SourceRoot);
-                if (!projectRoot.isEmpty())
+                if (!projectRoot.empty())
                     roots.insert(projectRoot);
             } else {
                 return String();
@@ -419,11 +419,11 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
             if (maybeHeader.isHeader()) {
                 Path p = path;
                 do {
-                    assert(!p.isEmpty());
+                    assert(!p.empty());
                     if (!includePaths.insert(p) || p == root)
                         break;
                     p = p.parentDir();
-                } while (!p.isEmpty());
+                } while (!p.empty());
                 break;
             }
         }
@@ -435,7 +435,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
     for (const Path &root : roots)
         process(root, root);
     for (const Path &p : includePaths) {
-        assert(!p.isEmpty());
+        assert(!p.empty());
         ret << ("-I" + p);
     }
 
@@ -444,7 +444,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
 
 bool Server::loadCompileCommands(IndexParseData &data, const Path &compileCommands, const List<String> &environment, SourceCache *cache) const
 {
-    if (Sandbox::hasRoot() && !data.project.isEmpty() && !data.project.startsWith(Sandbox::root())) {
+    if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
               data.project.constData(), Sandbox::root().constData());
         return false;
@@ -505,7 +505,7 @@ bool Server::loadCompileCommands(IndexParseData &data, const Path &compileComman
 
 bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, uint32_t compileCommandsFileId, SourceCache *cache) const
 {
-    if (Sandbox::hasRoot() && !data.project.isEmpty() && !data.project.startsWith(Sandbox::root())) {
+    if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
               data.project.constData(), Sandbox::root().constData());
         return false;
@@ -513,7 +513,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
 
     assert(pwd.endsWith('/'));
     List<Path> unresolvedPaths;
-    if (!mOptions.argTransform.isEmpty()) {
+    if (!mOptions.argTransform.empty()) {
         Process process;
         if (process.exec(mOptions.argTransform, List<String>() << arguments) == Process::Done) {
             if (process.returnCode() != 0) {
@@ -521,7 +521,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
                 return false;
             }
             String stdOut = process.readAllStdOut();
-            if (!stdOut.isEmpty() && stdOut != arguments) {
+            if (!stdOut.empty() && stdOut != arguments) {
                 warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
                 arguments = std::move(stdOut);
             }
@@ -531,14 +531,14 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
     assert(!compileCommandsFileId || data.compileCommands.contains(compileCommandsFileId));
     const auto &env = compileCommandsFileId ? data.compileCommands[compileCommandsFileId].environment : data.environment;
     SourceList sources = Source::parse(arguments, pwd, env, &unresolvedPaths, cache);
-    bool ret = (sources.isEmpty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
+    bool ret = (sources.empty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     debug() << "Got" << sources.size() << "sources, and" << unresolvedPaths << "from" << arguments;
     size_t idx = 0;
     for (Source &source : sources) {
         const Path path = source.sourceFile();
 
         std::shared_ptr<Project> current = currentProject();
-        if (data.project.isEmpty()) {
+        if (data.project.empty()) {
             const Path unresolvedPath = unresolvedPaths.at(idx++);
             if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
                 data.project = current->path();
@@ -551,9 +551,9 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
                 }
             }
 
-            if (data.project.isEmpty()) {
+            if (data.project.empty()) {
                 data.project = RTags::findProjectRoot(unresolvedPath, RTags::SourceRoot, cache);
-                if (data.project.isEmpty() && path != unresolvedPath) {
+                if (data.project.empty() && path != unresolvedPath) {
                     data.project = RTags::findProjectRoot(path, RTags::SourceRoot, cache);
                 }
             }
@@ -588,7 +588,7 @@ void Server::clearProjects(ClearMode mode)
 
 bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 {
-    if (srcRoot.isEmpty()) {
+    if (srcRoot.empty()) {
         warning() << "Shouldn't index" << source.sourceFile() << "because of missing srcRoot";
         return false;
     }
@@ -605,7 +605,7 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
         return false;
     }
 
-    if (Sandbox::hasRoot() && !srcRoot.isEmpty() && !srcRoot.startsWith(Sandbox::root())) {
+    if (Sandbox::hasRoot() && !srcRoot.empty() && !srcRoot.startsWith(Sandbox::root())) {
         error("Invalid project root for %s '%s', must be inside --sandbox-root '%s'",
               sourceFile.constData(), srcRoot.constData(), Sandbox::root().constData());
         return false;
@@ -656,7 +656,7 @@ std::shared_ptr<Project> Server::projectForQuery(const std::shared_ptr<QueryMess
     } else if (query->flags() & QueryMessage::HasMatch) {
         matches << query->match();
     }
-    if (!query->currentFile().isEmpty())
+    if (!query->currentFile().empty())
         matches << query->currentFile();
 
     return projectForMatches(matches);
@@ -782,7 +782,7 @@ bool Server::load()
             }
         }
     } else {
-        if (!fileIdsFile.error().isEmpty()) {
+        if (!fileIdsFile.error().empty()) {
             error("Can't restore file ids: %s", fileIdsFile.error().constData());
         }
         Hash<Path, IndexParseData> projects;
@@ -794,7 +794,7 @@ bool Server::load()
                     if (filePath.endsWith("/"))
                         filePath.chop(1);
                     RTags::decodePath(filePath);
-                    if (!filePath.isEmpty()) {
+                    if (!filePath.empty()) {
                         String err;
                         IndexParseData data;
                         if (!Project::readSources(sources, data, &err)) {
@@ -810,7 +810,7 @@ bool Server::load()
         });
 
         clearProjects(Clear_KeepFileIds);
-        if (!projects.isEmpty()) {
+        if (!projects.empty()) {
             error() << "Recovering sources" << projects.size();
         }
         for (auto &s : projects) {
@@ -918,7 +918,7 @@ private:
 
 bool Server::runTests()
 {
-    assert(!mOptions.tests.isEmpty());
+    assert(!mOptions.tests.empty());
     bool ret = true;
     int sourceCount = 0;
     mIndexDataMessageReceived.connect([&sourceCount]() {
@@ -930,7 +930,7 @@ bool Server::runTests()
     });
     for (const auto &file : mOptions.tests) {
         const String fileContents = file.readAll();
-        if (fileContents.isEmpty()) {
+        if (fileContents.empty()) {
             error() << "Failed to open file" << file;
             ret = false;
             continue;
@@ -944,13 +944,13 @@ bool Server::runTests()
             continue;
         }
         const List<Value> tests = value.operator[]<List<Value> >("tests");
-        if (tests.isEmpty()) {
+        if (tests.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
         }
         const List<Value> sources = value.operator[]<List<Value> >("sources");
-        if (sources.isEmpty()) {
+        if (sources.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
@@ -958,7 +958,7 @@ bool Server::runTests()
         warning() << sources.size() << "sources and" << tests.size() << "tests";
         const Path workingDirectory = file.parentDir();
         const Path projectRoot = RTags::findProjectRoot(workingDirectory, RTags::SourceRoot);
-        if (projectRoot.isEmpty()) {
+        if (projectRoot.empty()) {
             error() << "Can't find project root" << workingDirectory;
             ret = false;
             continue;
@@ -999,7 +999,7 @@ bool Server::runTests()
                 continue;
             }
             const String type = test.operator[]<String>("type");
-            if (type.isEmpty()) {
+            if (type.empty()) {
                 error() << "Invalid test. No type";
                 ret = false;
                 continue;
@@ -1007,7 +1007,7 @@ bool Server::runTests()
             std::shared_ptr<QueryMessage> query;
             if (type == "follow-location") {
                 String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
-                if (location.isEmpty()) {
+                if (location.empty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
                     continue;
@@ -1016,7 +1016,7 @@ bool Server::runTests()
                 query->setQuery(std::move(location));
             } else if (type == "references") {
                 String location = Location::encode(test.operator[]<String>("location"), workingDirectory);
-                if (location.isEmpty()) {
+                if (location.empty()) {
                     error() << "Invalid test. Invalid location";
                     ret = false;
                     continue;
@@ -1025,7 +1025,7 @@ bool Server::runTests()
                 query->setQuery(std::move(location));
             } else if (type == "references-name") {
                 String name = test.operator[]<String>("name");
-                if (name.isEmpty()) {
+                if (name.empty()) {
                     error() << "Invalid test. Invalid name";
                     ret = false;
                     continue;

@@ -191,7 +191,7 @@ bool ClangIndexer::exec(const String &data)
         }
     }
 
-    if (mSourceFile.isEmpty()) {
+    if (mSourceFile.empty()) {
         error("No sourcefile");
         return false;
     }
@@ -215,7 +215,7 @@ bool ClangIndexer::exec(const String &data)
         }
     }
 
-    if (mProject.isEmpty()) {
+    if (mProject.empty()) {
         error("No project");
         return false;
     }
@@ -270,7 +270,7 @@ bool ClangIndexer::exec(const String &data)
     }
     if (!hasUnit || !writeFiles(RTags::encodeSourceFilePath(mDataDir, mProject, 0), err)) {
         message += " error";
-        if (!err.isEmpty())
+        if (!err.empty())
             message += (' ' + err);
     } else {
         writeDuration = sw.elapsed();
@@ -394,7 +394,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
                 // whether or not to index it. This is a little hairy but we
                 // have to try to optimize this process.
 #ifndef NDEBUG
-                if (resolved.isEmpty())
+                if (resolved.empty())
                     resolved = sourceFile.resolved();
 #endif
                 assert(id);
@@ -586,7 +586,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
         const size_t paren = type.indexOf('(');
         if (paren != String::npos) {
             type.resize(paren);
-        } else if (!type.isEmpty() && !type.endsWith('*') && !type.endsWith('&')) {
+        } else if (!type.empty() && !type.endsWith('*') && !type.endsWith('&')) {
             type.append(' ');
         }
         break; }
@@ -596,10 +596,10 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
         cutoff = pos;
 
     String ret;
-    if (!type.isEmpty()) {
+    if (!type.empty()) {
         ret = type;
         ret.append(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
-        if (!trailer.isEmpty())
+        if (!trailer.empty())
             ret += trailer;
         if (cursorType != RTags::Type_Reference) {
             unit(location.fileId())->symbolNames[ret].insert(location);
@@ -624,7 +624,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
         for (int j=0; j<colonColonCount; ++j) {
             const char *ch = buf + colonColons[j];
             String name(ch, std::max<int>(0, sizeof(buf) - (ch - buf) - 1));
-            if (name.isEmpty())
+            if (name.empty())
                 continue;
             unit(location.fileId())->symbolNames[name].insert(location);
             if (originalKind == CXCursor_ObjCClassMethodDecl) {
@@ -634,7 +634,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
                     unit(location.fileId())->symbolNames[name].insert(location);
                 }
             }
-            if (!type.isEmpty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
+            if (!type.empty() && (originalKind != CXCursor_ParmDecl || !strchr(ch, '('))) {
                 // We only want to add the type to the final declaration for ParmDecls
                 // e.g.
                 // void foo(int)::bar
@@ -888,7 +888,7 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
             List<Symbol::Argument> destArguments;
             extractArguments(&destArguments, ref);
             visit(cursor);
-            if (mLastCallExprSymbol && !arguments.isEmpty()) {
+            if (mLastCallExprSymbol && !arguments.empty()) {
                 const Location invokedLocation = createLocation(ref, refKind);
                 auto u = unit(loc);
                 size_t idx = 0;
@@ -977,7 +977,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
         }
     }
     fclose(f);
-    if (!name.isEmpty()) {
+    if (!name.empty()) {
         RTags::Filter out;
         out.kinds.insert(CXCursor_MemberRefExpr);
         const int argCount = RTags::children(mParents.last(), RTags::Filter(), out).size();
@@ -1081,7 +1081,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     }
 
     const String refUsr = RTags::usr(ref);
-    if (refUsr.isEmpty()) {
+    if (refUsr.empty()) {
         return false;
     }
 
@@ -1123,7 +1123,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                             auto idit = mit->second.data.find(id);
                             if (idit != mit->second.data.end()) {
                                 List<Location> &locs = idit->second.locations;
-                                assert(!locs.isEmpty());
+                                assert(!locs.empty());
                                 location = locs.front();
                                 if (locs.size() == 1) {
                                     if (mit->second.data.size() == 1) {
@@ -1149,7 +1149,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         }
     }
 
-    assert(!refUsr.isEmpty());
+    assert(!refUsr.empty());
     targets[refUsr] = refTargetValue;
 
     if (mInTemplateFunction)
@@ -1213,7 +1213,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     c->location = location;
 
     c->symbolName = RTags::eatString(clang_getCursorSpelling(cursor));
-    if (c->symbolName.isEmpty())
+    if (c->symbolName.empty())
         c->symbolName = (result == Found ? reffedCursor.symbolName : addNamePermutations(ref, refLoc, RTags::Type_Reference));
     if (isOperator) {
         c->symbolLength = symLength;
@@ -1231,7 +1231,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         mLastCallExprSymbol = c;
     }
 
-    if (mInTemplateFunction && !mParents.isEmpty()) {
+    if (mInTemplateFunction && !mParents.empty()) {
         if ((kind == CXCursor_DeclRefExpr && mParents.last() == CXCursor_MemberRefExpr)
             || (kind == CXCursor_TypeRef && mParents.last() == CXCursor_DeclRefExpr)) {
             CXSourceRange parentRange = clang_getCursorExtent(mParents.last());
@@ -1426,7 +1426,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
     while (i<constructors.size()) {
         const CXCursor &cc = constructors[i];
         String usr = RTags::usr(cc);
-        if (usr.isEmpty()) {
+        if (usr.empty()) {
             constructors.removeAt(i);
             continue;
         }
@@ -1460,7 +1460,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
     if (constructors.size() == 1) {
         const int16_t refTargetValue = RTags::createTargetsValue(CXCursor_Constructor, clang_isCursorDefinition(constructors[0]));
         targets[usrs[0]] = refTargetValue;
-    } else if (!constructors.isEmpty()) {
+    } else if (!constructors.empty()) {
         List<std::pair<size_t, MatchTypeResult> > matched;
         matched.reserve(constructors.size());
         bool hasMatch = false;
@@ -1514,8 +1514,8 @@ std::unordered_set<CXCursor> ClangIndexer::addOverriddenCursors(const CXCursor &
                 const CXCursor resolved = resolveTemplate(overridden[i]);
                 ret.insert(resolved);
                 const String usr = RTags::usr(resolved);
-                assert(!usr.isEmpty());
-                // assert(!locCursor.usr.isEmpty());
+                assert(!usr.empty());
+                // assert(!locCursor.usr.empty());
 
                 // error() << location << "targets" << overridden[i];
                 unit(location)->targets[location][usr] = 0;
@@ -1616,7 +1616,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             Location(location.fileId(), c.startLine, c.startColumn),
             Location(location.fileId(), c.endLine, c.endColumn - 1)
         };
-        if (mScopeStack.isEmpty() || mScopeStack.back().end != scope.end) {
+        if (mScopeStack.empty() || mScopeStack.back().end != scope.end) {
             c.location = location;
             c.kind = kind;
             c.symbolName = "{}";
@@ -1743,11 +1743,11 @@ void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
         }
     }
     const String usr = RTags::usr(ref);
-    if (usr.isEmpty()) {
+    if (usr.empty()) {
         warning() << "Couldn't find usr for" << clang_getCursorReferenced(cursor) << cursor << mLastClass;
         return;
     }
-    assert(!usr.isEmpty());
+    assert(!usr.empty());
     lastClass.baseClasses << usr;
 }
 
@@ -1856,7 +1856,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     switch (kind) {
     case CXCursor_ParmDecl:
     case CXCursor_VarDecl: {
-        if (type.kind != CXType_Record || mScopeStack.isEmpty() || mScopeStack.back().type == Scope::FunctionDeclaration)
+        if (type.kind != CXType_Record || mScopeStack.empty() || mScopeStack.back().type == Scope::FunctionDeclaration)
             break;
 
         CXCursor ref = RTags::findChild(cursor, CXCursor_TypeRef);
@@ -1873,7 +1873,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
                 const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
                 if (RTags::isValid(destructor)) {
                     const String destructorUsr = RTags::usr(destructor);
-                    assert(!destructorUsr.isEmpty());
+                    assert(!destructorUsr.empty());
                     const Location scopeEndLocation = mScopeStack.back().end;
                     auto u = unit(scopeEndLocation);
                     Map<String, uint16_t> &t = u->targets[scopeEndLocation];
@@ -2093,7 +2093,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
 
         // these are for joining constructors/destructor with their classes (for renaming symbols)
-        assert(!RTags::usr(parent).isEmpty());
+        assert(!RTags::usr(parent).empty());
         unit(location)->targets[location][RTags::usr(parent)] = 0;
         break; }
     case CXCursor_ClassTemplate:
@@ -2116,13 +2116,13 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
         }
 
-        for (auto it = cursors.begin(); it != cursors.end() && (c.briefComment.isEmpty() || c.xmlComment.isEmpty()); ++it) {
+        for (auto it = cursors.begin(); it != cursors.end() && (c.briefComment.empty() || c.xmlComment.empty()); ++it) {
             comment = clang_Cursor_getParsedComment(*it);
             if (clang_Comment_getKind(comment) != CXComment_Null) {
-                if (c.briefComment.isEmpty()) {
+                if (c.briefComment.empty()) {
                     c.briefComment = RTags::eatString(clang_Cursor_getBriefCommentText(*it));
                 }
-                if (c.xmlComment.isEmpty())
+                if (c.xmlComment.empty())
                     c.xmlComment = RTags::eatString(clang_FullComment_getAsXML(comment));
             }
         }
@@ -2547,8 +2547,8 @@ bool ClangIndexer::visit()
             const Location loc = createLocation(cursor, kind, &ignored);
             if (!loc.isNull()) {
                 const String refUsr = RTags::usr(resolveTemplateUsr(resolveTemplate(ref)));
-                if (!refUsr.isEmpty()) {
-                    assert(!refUsr.isEmpty());
+                if (!refUsr.empty()) {
+                    assert(!refUsr.empty());
                     const uint32_t fileId = mSources.front().fileId;
                     unit(fileId)->targets[loc][refUsr] = RTags::createTargetsValue(refKind, clang_isCursorDefinition(ref));
                 }

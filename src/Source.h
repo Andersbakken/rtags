@@ -360,7 +360,7 @@ inline String Source::Define::toString(Flags<CommandLineFlag> f) const
     ret += define;
     if (!(flags & NoValue)) {
         ret += '=';
-        if (!value.isEmpty()) {
+        if (!value.empty()) {
             if (f & Source::QuoteDefines) {
                 String out = value;
                 out.replace("\\", "\\\\");
@@ -379,7 +379,7 @@ class SourceList : public List<Source>
 public:
     uint64_t parsed = 0;
 
-    uint32_t fileId() const { return isEmpty() ? 0 : front().fileId; }
+    uint32_t fileId() const { return empty() ? 0 : front().fileId; }
 };
 
 template <>

@@ -117,7 +117,7 @@ int main(int argc, char **argv)
     while (true) {
         String data;
 
-        if (!file.isEmpty()) {
+        if (!file.empty()) {
             data = file.readAll();
         } else {
             uint32_t size;

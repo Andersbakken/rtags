@@ -140,7 +140,7 @@ Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> fl
     if (cache) {
         const Path parent = path.parentDir();
         cacheResult = &cache->ancestorCache[parent][SourceCache::AncestorCacheKey { fn, flags }];
-        if (!cacheResult->isEmpty()) {
+        if (!cacheResult->empty()) {
             return *cacheResult;
         }
     }
@@ -214,7 +214,7 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
             if (it != cache->rtagsConfigCache.end()) {
                 for (const auto &entry : it->second) {
                     auto &ref = ret[entry.first];
-                    if (ref.isEmpty())
+                    if (ref.empty())
                         ref = entry.second;
                 }
                 dir = dir.parentDir();
@@ -245,7 +245,7 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
                     } else {
                         key.assign(buf, len);
                     }
-                    if (!key.isEmpty()) {
+                    if (!key.empty()) {
                         if (!ret.contains(key))
                             ret[key] = value;
                         if (cacheEntry)
@@ -270,19 +270,19 @@ static inline Path checkEntries(const Entry *entries, const Path &path, const Pa
     Path best;
     for (int i=0; entries[i].name; ++i) {
         Path p = findAncestor(path, entries[i].name, entries[i].flags, cache);
-        if ((p.isEmpty() || p == home) && (entries[i].flags & Wildcard)) {
+        if ((p.empty() || p == home) && (entries[i].flags & Wildcard)) {
             const int len = strlen(entries[i].name);
             if (entries[i].name[len - 1] == '*') {
                 const String name(entries[i].name, len - 1);
                 p = findAncestor(path, name.constData(), entries[i].flags & ~Wildcard, cache);
             }
         }
-        if (p.isEmpty() || p == home)
+        if (p.empty() || p == home)
             continue;
         if (entries[i].flags & Authoritative) {
             best = p;
             break;
-        } else if (best.isEmpty() || p.size() < best.size()) {
+        } else if (best.empty() || p.size() < best.size()) {
             best = p;
         }
     }
@@ -299,7 +299,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
     const Map<String, String> config = rtagsConfig(path, cache);
     {
         const Path project = config.value("project");
-        if (!project.isEmpty() && project.isDir())
+        if (!project.empty() && project.isDir())
             return project.ensureTrailingSlash();
     }
 
@@ -332,15 +332,15 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
         };
         {
             const Path e = checkEntries(before, path, home, cache);
-            if (!e.isEmpty() && (e.size() < ret.size() || ret.isEmpty()))
+            if (!e.empty() && (e.size() < ret.size() || ret.empty()))
                 ret = e;
         }
     }
-    if (!ret.isEmpty())
+    if (!ret.empty())
         return ret;
     {
         const Path configStatus = findAncestor(path, "config.status", Flags<FindAncestorFlag>(), cache);
-        if (!configStatus.isEmpty()) {
+        if (!configStatus.empty()) {
             if (mode == BuildRoot)
                 return configStatus;
             FILE *f = fopen((configStatus + "config.status").constData(), "r");
@@ -366,18 +366,18 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
                             }
                         }
                     }
-                    if (!ret.isEmpty())
+                    if (!ret.empty())
                         break;
                 }
                 fclose(f);
-                if (!ret.isEmpty())
+                if (!ret.empty())
                     return ret;
             }
         }
     }
     {
         const Path cmakeCache = findAncestor(path, "CMakeCache.txt", Flags<FindAncestorFlag>(), cache);
-        if (!cmakeCache.isEmpty()) {
+        if (!cmakeCache.empty()) {
             if (mode == BuildRoot)
                 return cmakeCache;
             FILE *f = fopen((cmakeCache + "Makefile").constData(), "r");
@@ -423,7 +423,7 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
                     }
                 }
                 fclose(f);
-                if (!ret.isEmpty())
+                if (!ret.empty())
                     return ret;
             }
         }
@@ -437,11 +437,11 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
 
     {
         const Path e = checkEntries(after, path, home, cache);
-        if (!e.isEmpty() && (e.size() < ret.size() || ret.isEmpty()))
+        if (!e.empty() && (e.size() < ret.size() || ret.empty()))
             ret = e;
     }
 
-    if (!ret.isEmpty())
+    if (!ret.empty())
         return ret;
 
     if (mode == BuildRoot)
@@ -515,9 +515,9 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
 
     const String name = eatString(clang_getCursorDisplayName(cursor));
     const String other = eatString(clang_getCursorSpelling(cursor));
-    if (!name.isEmpty())
+    if (!name.empty())
         ret += " " + name;
-    if (other != name && !other.isEmpty())
+    if (other != name && !other.empty())
         ret += " " + other;
 
     if (clang_isCursorDefinition(cursor))
@@ -525,7 +525,7 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
 
     if (flags & IncludeUSR) {
         const String usr = RTags::usr(cursor);
-        if (!usr.isEmpty()) {
+        if (!usr.empty()) {
             ret += " " + usr;
         }
     }
@@ -534,7 +534,7 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
         const CXCursor general = clang_getSpecializedCursorTemplate(cursor);
         if (!clang_Cursor_isNull(general)) {
             const String usr = RTags::usr(general);
-            if (!usr.isEmpty()) {
+            if (!usr.empty()) {
                 ret += " " + usr;
             }
         }
@@ -785,12 +785,12 @@ void DiagnosticsProvider::diagnose()
             String message;
             if (flags & Diagnostic::DisplayCategory)
                 message << RTags::eatString(clang_getDiagnosticCategoryText(d));
-            if (!message.isEmpty())
+            if (!message.empty())
                 message << ": ";
             message << RTags::eatString(clang_getDiagnosticSpelling(d));
 
             const String option = RTags::eatString(clang_getDiagnosticOption(d, nullptr));
-            if (!option.isEmpty()) {
+            if (!option.empty()) {
                 message << ": " << option;
             }
 
@@ -904,7 +904,7 @@ void DiagnosticsProvider::diagnose()
                     Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
                     entry.flags = Diagnostic::Fixit;
                     entry.sourceFileId = sourceFile;
-                    if (entry.message.isEmpty()) {
+                    if (entry.message.empty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
                     }
                     entry.length = endOffset - startOffset;
@@ -1022,7 +1022,7 @@ struct FindChildVisitor
 static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
-    if (u->name.isEmpty()) {
+    if (u->name.empty()) {
         if (clang_getCursorKind(cursor) == u->kind) {
             u->cursor = cursor;
             return CXChildVisit_Break;
@@ -1098,7 +1098,7 @@ static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientDa
 
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds)
 {
-    assert(!kinds.isEmpty());
+    assert(!kinds.empty());
     FindChainVisitor userData = { kinds, List<CXCursor>() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChainVisitor, &userData);
@@ -1141,7 +1141,7 @@ String typeName(const CXCursor &cursor)
     default:
         return String();
     }
-    if (!ret.isEmpty() && !ret.endsWith('*') && !ret.endsWith('&'))
+    if (!ret.empty() && !ret.endsWith('*') && !ret.endsWith('&'))
         ret.append(' ');
     return ret;
 }

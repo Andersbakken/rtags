@@ -145,7 +145,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
         }
     }
     const String usr = RTags::usr(cursor);
-    if (usr.isEmpty() || mSeen.insert(usr)) {
+    if (usr.empty() || mSeen.insert(usr)) {
         ++mIndentLevel;
         clang_visitChildren(cursor, ClangThread::visitor, this);
         if (isAborted())

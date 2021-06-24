@@ -52,7 +52,7 @@ IndexerJob::IndexerJob(const SourceList &s,
             sources.append(src);
     }
 
-    assert(!sources.isEmpty());
+    assert(!sources.empty());
     sourceFile = s.begin()->sourceFile();
     acquireId();
     visited.insert(sources.begin()->fileId);
@@ -159,7 +159,7 @@ String IndexerJob::encode() const
             if (!(options.options & Server::EnableNDEBUG)) {
                 copy.defines.remove(Source::Define("NDEBUG"));
             }
-            assert(!sourceFile.isEmpty());
+            assert(!sourceFile.empty());
             copy.encode(serializer, Source::IgnoreSandbox);
         }
         assert(proj);

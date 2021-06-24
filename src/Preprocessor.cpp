@@ -70,7 +70,7 @@ void Preprocessor::onProcessFinished()
     mConnection->write<256>("/* %s %s */", mSource.compiler().constData(), String::join(mArgs, ' ').constData());
     mConnection->write(mProcess->readAllStdOut());
     const String err = mProcess->readAllStdErr();
-    if (!err.isEmpty()) {
+    if (!err.empty()) {
         mConnection->write<1024>("/* %s */", err.constData());
     }
     mConnection->finish();

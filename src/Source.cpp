@@ -156,7 +156,7 @@ static inline size_t hashIncludePaths(const List<Source::Include> &includes, con
             continue;
         }
 
-        if (!buildRoot.isEmpty() && inc.path.startsWith(buildRoot)) {
+        if (!buildRoot.empty() && inc.path.startsWith(buildRoot)) {
             h = hasher(inc.path.mid(buildRoot.size()));
         } else {
             h = hasher(inc.path);
@@ -354,7 +354,7 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
 {
     std::pair<Path, bool> dummy;
     auto &compiler = cache ? cache->compilerCache[unresolved] : dummy;
-    if (compiler.first.isEmpty()) {
+    if (compiler.first.empty()) {
         bool wrapper = false;
         // error() << "Coming in with" << unresolved << cwd << pathEnvironment;
         Path resolve;
@@ -368,7 +368,7 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
             file = unresolved;
         }
 
-        if (!resolve.isEmpty()) {
+        if (!resolve.empty()) {
             const Path resolved = resolve.resolved();
             if (isWrapper(resolved.fileName())) {
                 wrapper = true;
@@ -376,7 +376,7 @@ static std::pair<Path, bool> resolveCompiler(const Path &unresolved,
             compiler.first = resolve;
         }
 
-        if (compiler.first.isEmpty()) {
+        if (compiler.first.empty()) {
             for (const Path &path : pathEnvironment) {
                 bool ok;
                 const Path p = Path::resolved(file, Path::RealPath, path, &ok);
@@ -464,9 +464,9 @@ SourceList Source::parse(const String &cmdLine,
         }
     }
     assert(cwd.endsWith('/'));
-    assert(!unresolvedInputLocations || unresolvedInputLocations->isEmpty());
+    assert(!unresolvedInputLocations || unresolvedInputLocations->empty());
     List<String> split = splitCommandLine(cmdLine);
-    if (split.isEmpty())
+    if (split.empty())
         return SourceList();
 
     debug() << "Source::parse (" << cmdLine << ") => " << split << cwd;
@@ -497,13 +497,13 @@ SourceList Source::parse(const String &cmdLine,
                 ++i;
             }
         }
-        if (!compiler.isEmpty())
+        if (!compiler.empty())
             split.insert(idx, compiler);
         debug() << "Postfisk Source::parse (" << split;
     }
 
     for (size_t i=0; i<split.size(); ++i) {
-        if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.isEmpty()) {
+        if (split.at(i) == "cd" || !resolveCompiler(split.at(i), cwd, environment, pathEnvironment, cache).first.empty()) {
             if (i) {
                 split.remove(0, i);
             }
@@ -511,7 +511,7 @@ SourceList Source::parse(const String &cmdLine,
         }
     }
 
-    if (split.isEmpty()) {
+    if (split.empty()) {
         warning() << "Source::parse No args" << cmdLine;
         return SourceList();
     }
@@ -523,7 +523,7 @@ SourceList Source::parse(const String &cmdLine,
     } else {
         path = cwd;
     }
-    if (split.isEmpty()) {
+    if (split.empty()) {
         warning() << "Source::parse No args" << cmdLine;
         return SourceList();
     }
@@ -538,11 +538,11 @@ SourceList Source::parse(const String &cmdLine,
         if (!responseFile.isFile())
             continue;
         auto contents = responseFile.readAll();
-        if (contents.isEmpty())
+        if (contents.empty())
             continue;
         contents.chomp("\r\n\t ");
         List<String> subcommands = splitCommandLine(contents);
-        if (!subcommands.isEmpty()) {
+        if (!subcommands.empty()) {
             split.removeAt(i);
             split.insert(i, subcommands);
             i += subcommands.size() - 1;
@@ -570,7 +570,7 @@ SourceList Source::parse(const String &cmdLine,
         arg = split.at(i);
         if (verbose)
             debug() << "parsing argument" << i << arg;
-        if (arg.isEmpty())
+        if (arg.empty())
             continue;
         if ((arg.startsWith('\'') && arg.endsWith('\'')) ||
             (arg.startsWith('"') && arg.endsWith('"')))
@@ -607,7 +607,7 @@ SourceList Source::parse(const String &cmdLine,
                 } else {
                     return SourceList();
                 }
-                if (!a.isEmpty()) {
+                if (!a.empty()) {
                     arguments.append("-x");
                     arguments.append(a);
                 }
@@ -621,7 +621,7 @@ SourceList Source::parse(const String &cmdLine,
                     a = arg;
                     def = arg.mid(2);
                 }
-                if (!def.isEmpty()) {
+                if (!def.empty()) {
                     const int eq = def.indexOf('=');
                     if (eq == -1) {
                         define.define = def;
@@ -632,7 +632,7 @@ SourceList Source::parse(const String &cmdLine,
                     }
                     debug("Parsing define: [%s] => [%s]%s[%s]", def.constData(),
                           define.define.constData(),
-                          define.value.isEmpty() ? "" : "=",
+                          define.value.empty() ? "" : "=",
                           define.value.constData());
                     defines.insert(define);
                 }
@@ -686,7 +686,7 @@ SourceList Source::parse(const String &cmdLine,
                 } else if (i + 1 < s) {
                     p = split.value(++i);
                 }
-                if (!p.isEmpty()) {
+                if (!p.empty()) {
                     bool ok;
                     p = Path::resolved(p, Path::RealPath, path, &ok);
                     // error() << p << ok << split.value(i) << Path::resolved(split.value(i), Path::MakeAbsolute);
@@ -732,7 +732,7 @@ SourceList Source::parse(const String &cmdLine,
             if (!compilerId) {
                 add = false;
                 const std::pair<Path, bool> compiler = resolveCompiler(arg, cwd, environment, pathEnvironment, cache);
-                if (!compiler.first.isEmpty()) {
+                if (!compiler.first.empty()) {
                     validCompiler = compiler.second;
                     compilerId = Location::insertFile(compiler.first);
                 } else {
@@ -745,7 +745,7 @@ SourceList Source::parse(const String &cmdLine,
                     add = false;
                     if (i == 1) {
                         const std::pair<Path, bool> inPath = resolveCompiler(c, cwd, environment, pathEnvironment, cache);
-                        if (!inPath.first.isEmpty()) {
+                        if (!inPath.first.empty()) {
                             extraCompiler = inPath.first;
                             if (!validCompiler)
                                 validCompiler = inPath.second;
@@ -769,13 +769,13 @@ SourceList Source::parse(const String &cmdLine,
         return SourceList();
     }
 
-    if (inputs.isEmpty()) {
+    if (inputs.empty()) {
         warning() << "Source::parse No file for" << cmdLine;
         return SourceList();
     }
 
     SourceList ret;
-    if (!inputs.isEmpty()) {
+    if (!inputs.empty()) {
         if (!buildRootId) {
             buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot, cache);
             if (buildRoot.isDir())
@@ -928,7 +928,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     if ((f & IncludeCompiler) == IncludeCompiler) {
         ret.append(compiler());
     }
-    if (f & IncludeExtraCompiler && !extraCompiler.isEmpty()) {
+    if (f & IncludeExtraCompiler && !extraCompiler.empty()) {
         ret.append(extraCompiler);
     }
 
@@ -1005,7 +1005,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
             }
         }
     }
-    if (f & IncludeOutputFilename && !outputFilename.isEmpty()) {
+    if (f & IncludeOutputFilename && !outputFilename.empty()) {
         ret << "-o" << outputFilename;
     }
     if (f & IncludeRTagsConfig) {
@@ -1034,7 +1034,7 @@ void Source::encode(Serializer &s, EncodeMode mode) const
     // SBROOT
     // sourceFile, buildRoot, compiler(?), includePaths
 
-    if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) {
+    if (mode == EncodeSandbox && !Sandbox::root().empty()) {
         s << Sandbox::encoded(sourceFile()) << fileId << Sandbox::encoded(compiler()) << compilerId
           << Sandbox::encoded(extraCompiler) << Sandbox::encoded(buildRoot()) << buildRootId
           << compileCommands() << compileCommandsFileId
@@ -1066,7 +1066,7 @@ void Source::decode(Deserializer &s, EncodeMode mode)
       >> directory >> includePathHash;
     language = static_cast<Language>(lang);
 
-    if (mode == EncodeSandbox && !Sandbox::root().isEmpty()) { // SBROOT
+    if (mode == EncodeSandbox && !Sandbox::root().empty()) { // SBROOT
         Sandbox::decode(source);
         Sandbox::decode(buildRoot);
         Sandbox::decode(compileCommands);

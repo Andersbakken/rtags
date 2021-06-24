@@ -81,7 +81,7 @@ int IncludePathJob::execute()
                     if (n->fileId == target.location.fileId()) {
                         String path;
                         for (uint32_t fileId : paths) {
-                            if (!path.isEmpty())
+                            if (!path.empty())
                                 path += " -> ";
                             Path p = Location::path(fileId);
                             if (!absolute && p.startsWith(projectPath)) {

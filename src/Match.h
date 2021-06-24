@@ -69,9 +69,9 @@ public:
         }
         return index;
     }
-    inline bool isEmpty() const
+    inline bool empty() const
     {
-        return !mFlags || mPattern.isEmpty();
+        return !mFlags || mPattern.empty();
     }
 
     inline std::regex regex() const
@@ -100,7 +100,7 @@ inline Log operator<<(Log log, const Match &match)
     ret += String::number(match.flags().cast<unsigned int>(), 16);
     if (match.flags() & Match::Flag_Regex)
         ret += " rx";
-    if (!match.pattern().isEmpty())
+    if (!match.pattern().empty())
         ret += " pattern: " + match.pattern();
     ret += ")";
     log << ret;

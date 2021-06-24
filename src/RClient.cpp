@@ -325,7 +325,7 @@ public:
         msg.setArguments(std::move(args));
         msg.setCompileCommands(std::move(compileCommands));
         msg.setEnvironment(rc->environment());
-        if (!rc->projectRoot().isEmpty())
+        if (!rc->projectRoot().empty())
             msg.setProjectRoot(rc->projectRoot());
 
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
@@ -667,7 +667,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case CodeCompleteAt: {
             String encoded = Location::encode(value);
-            if (encoded.isEmpty()) {
+            if (encoded.empty()) {
                 return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
@@ -746,7 +746,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
 
             String contents(bytes, '\0');
             const int r = fread(contents.data(), 1, bytes, f);
-            if (!unlinkFile.isEmpty())
+            if (!unlinkFile.empty())
                 Path::rm(unlinkFile);
             if (r != bytes) {
                 return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
@@ -757,7 +757,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case ClassHierarchy:
         case ReferenceLocation: {
             String encoded = Location::encode(value);
-            if (encoded.isEmpty()) {
+            if (encoded.empty()) {
                 return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
             QueryMessage::Type queryType = QueryMessage::Invalid;
@@ -840,13 +840,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case QuitRdm: {
             String arg;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 arg = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 arg = arguments[idx++];
             }
             int exit = 0;
-            if (!arg.isEmpty()) {
+            if (!arg.empty()) {
                 bool ok;
                 exit = String(arg).toLongLong(&ok);
                 if (!ok) {
@@ -860,7 +860,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case DebugLocations: {
             String arg;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 arg = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 arg = arguments[idx++];
@@ -948,12 +948,12 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
 
             String arg;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 arg = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 arg = arguments[idx++];
             }
-            if (!arg.isEmpty()) {
+            if (!arg.empty()) {
                 Path p(arg);
                 if (resolve && p.exists()) {
                     p.resolve();
@@ -966,7 +966,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             } else {
                 addQuery(queryType, String());
             }
-            assert(!mCommands.isEmpty());
+            assert(!mCommands.empty());
             if (queryType == QueryMessage::Project)
                 projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
@@ -1001,16 +1001,16 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case AddBuffers:
         case RemoveBuffers: {
             String arg;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 arg = std::move(value);
             } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
                 arg = arguments[idx++];
             }
             String encoded;
-            if (!arg.isEmpty()) {
+            if (!arg.empty()) {
                 Hash<Path, bool> paths;
                 auto addBuffer = [&paths](const String &p) {
-                    if (p.isEmpty())
+                    if (p.empty())
                         return;
                     bool active = true;
                     Path path;
@@ -1058,7 +1058,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case LoadCompileCommands: {
             Path path;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 path = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 path = arguments[idx++];
@@ -1081,7 +1081,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case HasFileManager: {
             Path p;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 p = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 p = arguments[idx++];
@@ -1107,13 +1107,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case Suspend: {
             Path p;
-            if (!value.isEmpty()) {
+            if (!value.empty()) {
                 p = std::move(value);
             } else if (idx < arguments.size() && arguments[idx][0] != '-') {
                 p = arguments[idx++];
             }
             String change;
-            if (!p.isEmpty() && p != "clear" && p != "all") {
+            if (!p.empty() && p != "clear" && p != "all") {
                 p.resolve(Path::MakeAbsolute);
                 if (!p.isFile()) {
                     return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
@@ -1146,14 +1146,14 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             if (idx + 1 < arguments.size()) {
                 args = quote(std::move(value));
                 while (++idx < arguments.size()) {
-                    if (!args.isEmpty())
+                    if (!args.empty())
                         args.append(' ');
                     args.append(quote(arguments[idx]));
                 }
             } else {
                 args = std::move(value);
             }
-            if (args == "-" || args.isEmpty()) {
+            if (args == "-" || args.empty()) {
                 String pending;
                 char buf[16384];
                 while (fgets(buf, sizeof(buf), stdin)) {
@@ -1164,7 +1164,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                         memset(pending.data() + pending.size() - 2, ' ', 2);
                     }
                 }
-                if (!pending.isEmpty()) {
+                if (!pending.empty()) {
                     addCompile(std::move(pending), Path::pwd());
                 }
             } else {
@@ -1188,11 +1188,11 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         case DeadFunctions:
         case FixIts: {
             Path p = std::move(value);
-            if (!p.exists() && (!p.isEmpty() || type != DeadFunctions)) {
+            if (!p.exists() && (!p.empty() || type != DeadFunctions)) {
                 return { String::format<1024>("%s does not exist", p.constData()), CommandLineParser::Parse_Error };
             }
 
-            if (!p.isAbsolute() && !p.isEmpty())
+            if (!p.isAbsolute() && !p.empty())
                 p.prepend(Path::pwd());
 
             if (p.isDir()) {
@@ -1203,7 +1203,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 }
             }
             Flags<QueryMessage::Flag> extraQueryFlags;
-            if (!p.isEmpty()) {
+            if (!p.empty()) {
                 p.resolve();
                 extraQueryFlags |= QueryMessage::HasMatch;
             }
@@ -1324,7 +1324,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case IncludePath: {
             String encoded = Location::encode(value);
-            if (encoded.isEmpty()) {
+            if (encoded.empty()) {
                 return { String::format<1024>("include path can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
             }
 
@@ -1359,7 +1359,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         return { String::format<1024>("Can't initialize logging with %d %s %s", mLogLevel.toInt(), logFile.constData(), logFlags.toString().constData()), CommandLineParser::Parse_Error };
     }
 
-    if (mCommands.isEmpty()) {
+    if (mCommands.empty()) {
         help(stderr, argv[0], opts);
         return { "No commands", CommandLineParser::Parse_Error };
     }
@@ -1371,13 +1371,13 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         const int count = projectCommands.size();
         for (int i = 0; i < count; ++i) {
             std::shared_ptr<QueryCommand> &cmd = projectCommands[i];
-            if (!cmd->query.isEmpty()) {
+            if (!cmd->query.empty()) {
                 cmd->extraQueryFlags |= QueryMessage::Silent;
             }
         }
     }
 
-    if (!logFile.isEmpty() || mLogLevel > LogLevel::Error) {
+    if (!logFile.empty() || mLogLevel > LogLevel::Error) {
         Log l(LogLevel::Warning);
         l << argc;
         for (size_t i = 0; i < argc; ++i)
@@ -1391,7 +1391,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
 {
     if (message->messageId() == ResponseMessage::MessageId) {
         const String response = std::static_pointer_cast<ResponseMessage>(message)->data();
-        if (!response.isEmpty() && mLogLevel >= LogLevel::Error) {
+        if (!response.empty() && mLogLevel >= LogLevel::Error) {
             fprintf(stdout, "%s\n", response.constData());
             fflush(stdout);
         }
@@ -1402,7 +1402,7 @@ void RClient::onNewMessage(const std::shared_ptr<Message> &message, const std::s
 
 List<String> RClient::environment() const
 {
-    if (mEnvironment.isEmpty()) {
+    if (mEnvironment.empty()) {
         mEnvironment = Rct::environment();
     }
 

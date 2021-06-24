@@ -98,7 +98,7 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
     std::shared_ptr<Node> node(new Node);
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
-    if (mPendingJobs.isEmpty() || job->priority() > mPendingJobs.first()->job->priority()) {
+    if (mPendingJobs.empty() || job->priority() > mPendingJobs.first()->job->priority()) {
         mPendingJobs.prepend(node);
     } else {
         std::shared_ptr<Node> after = mPendingJobs.last();
@@ -283,7 +283,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
 void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
 {
     conn->write<1024>("Pending: %zu", mPendingJobs.size());
-    if (!mPendingJobs.isEmpty()) {
+    if (!mPendingJobs.empty()) {
         for (const auto &node : mPendingJobs) {
             conn->write<128>("%s: %s %d %s",
                              node->job->sourceFile.constData(),
@@ -294,7 +294,7 @@ void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
     }
 
     conn->write<1024>("Active: %zu/%zu", mActiveById.size(), Server::instance()->options().jobCount);
-    if (!mActiveById.isEmpty()) {
+    if (!mActiveById.empty()) {
         const unsigned long long now = Rct::monoMs();
         for (const auto &node : mActiveById) {
             conn->write<128>("%s: %s priority: %d %s %lldms",
@@ -313,7 +313,7 @@ void JobScheduler::dumpDaemons(const std::shared_ptr<Connection> &conn)
     if (mDaemons.size()) {
         conn->write<1024>("Daemons: %zu", mDaemons.size());
         for (const auto &daemon : mDaemons) {
-            if (!daemon.second.cache.isEmpty()) {
+            if (!daemon.second.cache.empty()) {
                 conn->write<1024>("pid: %d %s%s",
                                   static_cast<int>(daemon.first->pid()),
                                   daemon.second.cache.front().sourceFile().constData(),
@@ -413,7 +413,7 @@ void JobScheduler::onProcessReadyReadStdOut(Process *proc)
             static_cast<void>(removed);
             assert(removed);
             assert(n->process == proc);
-            if (idx > 0 || !n->stdErr.isEmpty()) {
+            if (idx > 0 || !n->stdErr.empty()) {
                 error() << ("Output from " + n->job->sourceFile + ":")
                         << '\n' << n->stdErr << n->stdOut.mid(0, idx);
             }
@@ -442,7 +442,7 @@ void JobScheduler::onProcessFinished(Process *proc, pid_t pid)
     if (!n) {
         n = mActiveDaemonsByProcess.take(proc);
     }
-    if (n && (!n->stdOut.isEmpty() || !n->stdErr.isEmpty())) {
+    if (n && (!n->stdOut.empty() || !n->stdErr.empty())) {
         error() << "Finish output from" << n->job->sourceFile << '\n' << n->stdErr << n->stdOut;
     }
     const auto &options = Server::instance()->options();

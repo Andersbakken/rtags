@@ -150,7 +150,7 @@ int IncludeFileJob::execute()
                 last = locations;
             }
         }, queryFlags());
-    if (matches == 1 && !last.isEmpty()) {
+    if (matches == 1 && !last.empty()) {
         process(last);
     }
     List<String> alternatives = all.toList();

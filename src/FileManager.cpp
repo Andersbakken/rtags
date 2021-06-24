@@ -40,7 +40,7 @@ FileManager::FileManager(const std::shared_ptr<Project> &project)
 
 void FileManager::load(Mode mode)
 {
-    if (!Server::instance()->options().tests.isEmpty())
+    if (!Server::instance()->options().tests.empty())
         mode = Synchronous;
 
     mLastReloadTime = Rct::monoMs();
@@ -66,13 +66,13 @@ void FileManager::onRecurseJobFinished(const Set<Path> &paths)
     clearFileSystemWatcher();
     for (Set<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         const Path parent = it->parentDir();
-        if (parent.isEmpty()) {
+        if (parent.empty()) {
             error() << "Got empty parent here" << *it;
             continue;
         }
-        assert(!parent.isEmpty());
+        assert(!parent.empty());
         Set<String> &dir = map[parent];
-        if (dir.isEmpty()) {
+        if (dir.empty()) {
             watch(parent);
             // error() << "Watching parent" << parent;
         }
@@ -85,7 +85,7 @@ void FileManager::onFileAdded(const Path &path)
 {
     debug() << "fm file added" << path;
     std::lock_guard<std::mutex> lock(mMutex);
-    if (path.isEmpty()) {
+    if (path.empty()) {
         return;
     }
     const Filter::Result res = Filter::filter(path);
@@ -104,7 +104,7 @@ void FileManager::onFileAdded(const Path &path)
     assert(project);
     Files &map = project->files();
     const Path parent = path.parentDir();
-    if (!parent.isEmpty()) {
+    if (!parent.empty()) {
         Set<String> &dir = map[parent];
         watch(parent);
         dir.insert(path.fileName());
@@ -130,7 +130,7 @@ void FileManager::onFileRemoved(const Path &path)
         if (map.contains(parent)) {
             Set<String> &dir = map[parent];
             dir.remove(String(path.fileName()));
-            if (dir.isEmpty()) {
+            if (dir.empty()) {
                 project->unwatch(parent, Project::Watch_FileManager);
                 map.remove(parent);
             }
@@ -140,8 +140,8 @@ void FileManager::onFileRemoved(const Path &path)
 
 static inline bool startsWith(const Path &left, const Path &right)
 {
-    assert(!left.isEmpty());
-    return !right.isEmpty() && left.startsWith(right);
+    assert(!left.empty());
+    return !right.empty() && left.startsWith(right);
 }
 
 bool FileManager::contains(const Path &path) const

@@ -230,7 +230,7 @@ public:
     Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
 
     time_t lastIdleTime() const { return mLastIdleTime; }
-    bool isIndexing() const { return !mActiveJobs.isEmpty(); }
+    bool isIndexing() const { return !mActiveJobs.empty(); }
     void onFileAdded(const Path &path);
     void onFileModified(const Path &path);
     void onFileRemoved(const Path &path);
@@ -509,7 +509,7 @@ inline bool Project::visitFile(uint32_t visitFileId, uint32_t id)
 
 inline void Project::releaseFileIds(const Set<uint32_t> &fileIds)
 {
-    if (!fileIds.isEmpty()) {
+    if (!fileIds.empty()) {
         std::lock_guard<std::mutex> lock(mMutex);
         for (const auto &f : fileIds) {
             // error() << "Returning files" << Location::path(f);

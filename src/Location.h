@@ -283,7 +283,7 @@ public:
         assert(!refId || refId == fileId);
         refId = fileId;
         Path &p = sIdsToPaths[fileId];
-        if (p.isEmpty()) {
+        if (p.empty()) {
             p = path;
         } else {
             assert(p == path || path.resolved() == p);

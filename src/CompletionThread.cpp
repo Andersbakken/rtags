@@ -67,7 +67,7 @@ void CompletionThread::run()
         Dump *dump = nullptr;
         {
             std::unique_lock<std::mutex> lock(mMutex);
-            while (!mShutdown && mPending.isEmpty() && !mDump) {
+            while (!mShutdown && mPending.empty() && !mDump) {
                 mCondition.wait(lock);
             }
             if (mShutdown) {
@@ -85,7 +85,7 @@ void CompletionThread::run()
             } else if (mDump) {
                 std::swap(dump, mDump);
             } else {
-                assert(!mPending.isEmpty());
+                assert(!mPending.empty());
                 request = mPending.takeFirst();
             }
         }
@@ -284,7 +284,7 @@ void CompletionThread::process(Request *request)
             return;
         }
         reparse = true;
-    } else if (!request->unsavedFiles.isEmpty()) {
+    } else if (!request->unsavedFiles.empty()) {
         reparse = request->unsavedFiles != cache->unsavedFiles;
         cache->lastModified = 0;
     } else {
@@ -294,7 +294,7 @@ void CompletionThread::process(Request *request)
             cache->unsavedFiles.clear();
             reparse = true;
         } else {
-            assert(cache->unsavedFiles.isEmpty());
+            assert(cache->unsavedFiles.empty());
         }
     }
 
@@ -377,7 +377,7 @@ void CompletionThread::process(Request *request)
                 String text = RTags::eatString(clang_getCompletionChunkText(string, j));
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     candidate->name = text;
-                    if (candidate->name.isEmpty() || (candidate->name == "RTAGS" && kind == CXCursor_MacroDefinition)) {
+                    if (candidate->name.empty() || (candidate->name == "RTAGS" && kind == CXCursor_MacroDefinition)) {
                         delete candidate;
                         candidate = nullptr;
                         break;
@@ -400,7 +400,7 @@ void CompletionThread::process(Request *request)
                     const CXStringScope annotation = clang_getCompletionAnnotation(string, j);
                     const char *cstr = clang_getCString(annotation);
                     if (strlen(cstr)) {
-                        if (!candidate->annotation.isEmpty())
+                        if (!candidate->annotation.empty())
                             candidate->annotation += ' ';
                         candidate->annotation + cstr;
                     }
@@ -414,7 +414,7 @@ void CompletionThread::process(Request *request)
             matches.resize(request->max);
         }
 
-        if (!matches.isEmpty()) {
+        if (!matches.empty()) {
             printCompletions(matches, request);
             processTime = sw.elapsed();
             LOG() << "Sent" << matches.size() << "completions for" << request->location;
@@ -436,15 +436,15 @@ void CompletionThread::process(Request *request)
 Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
 {
     Value ret;
-    if (!completion.isEmpty())
+    if (!completion.empty())
         ret["completion"] = completion;
-    if (!signature.isEmpty())
+    if (!signature.empty())
         ret["signature"] = signature;
-    if (!annotation.isEmpty())
+    if (!annotation.empty())
         ret["annotation"] = annotation;
-    if (!parent.isEmpty())
+    if (!parent.empty())
         ret["parent"] = parent;
-    if (!briefComment.isEmpty())
+    if (!briefComment.empty())
         ret["briefComment"] = briefComment;
     ret["priority"] = priority;
 #ifdef RTAGS_COMPLETION_TOKENS_ENABLED
@@ -453,7 +453,7 @@ Value CompletionThread::Completions::Candidate::toValue(unsigned int f) const
     String str;
     str << cursorKind;
     ret["kind"] = str;
-    if (f & Flag_IncludeChunks && !chunks.isEmpty()) {
+    if (f & Flag_IncludeChunks && !chunks.empty()) {
         Value cc;
         cc.arrayReserve(chunks.size());
         for (const auto &chunk : chunks) {
@@ -542,7 +542,7 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
             });
     }
 
-    if (!outputs.isEmpty()) {
+    if (!outputs.empty()) {
         String rawOut, xmlOut, elispOut;
 #ifdef HAS_JSON_H
         String jsonOut;

@@ -37,7 +37,7 @@ QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
     if (query->flags() & QueryMessage::SilentQuery)
         setJobFlag(QuietJob);
     const List<QueryMessage::PathFilter> &pathFilters = query->pathFilters();
-    if (!pathFilters.isEmpty()) {
+    if (!pathFilters.empty()) {
         if (pathFilters.size() == 1 && pathFilters.first().mode == QueryMessage::PathFilter::Self) {
             mFileFilter = Location::fileId(pathFilters.first().pattern);
         }
@@ -137,7 +137,7 @@ bool QueryJob::locationToString(Location location,
     const bool containingFunctionLocation = queryFlags() & QueryMessage::ContainingFunctionLocation;
     const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
     const bool displayName = queryFlags() & QueryMessage::DisplayName;
-    if (containingFunction || containingFunctionLocation || cursorKind || displayName || !mKindFilters.isEmpty()) {
+    if (containingFunction || containingFunctionLocation || cursorKind || displayName || !mKindFilters.empty()) {
         int idx;
         Symbol symbol = project()->findSymbol(location, &idx);
         if (symbol.isNull()) {
@@ -259,14 +259,14 @@ String QueryJob::symbolToString(const Symbol &symbol) const
 bool QueryJob::write(const Symbol &symbol, Flags<WriteFlag> writeFlags)
 {
     String out = symbolToString(symbol);
-    if (!out.isEmpty())
+    if (!out.empty())
         return write(out, writeFlags | Unfiltered);
     return true;
 }
 
 bool QueryJob::filter(const String &value) const
 {
-    if (mFilters.isEmpty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
+    if (mFilters.empty() && !(queryFlags() & QueryMessage::FilterSystemIncludes))
         return true;
 
     const char *val = value.constData();
@@ -288,7 +288,7 @@ bool QueryJob::filter(const String &value) const
         return false;
     fileId = Location::fileId(path);
 
-    if (mFilters.isEmpty())
+    if (mFilters.empty())
         return true;
 
     for (const std::shared_ptr<Filter> &filter : mFilters) {
@@ -322,7 +322,7 @@ bool QueryJob::filterLocation(Location loc) const
             return false;
         }
     }
-    if (!mFilters.isEmpty()) {
+    if (!mFilters.empty()) {
         for (const std::shared_ptr<Filter> &filter : mFilters) {
             if (filter->match(loc.fileId(), loc.path()))
                 return true;

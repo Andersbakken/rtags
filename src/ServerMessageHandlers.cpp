@@ -84,7 +84,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
     IndexParseData data;
     data.project = message->projectRoot();
     bool ret = true;
-    if (!path.isEmpty()) {
+    if (!path.empty()) {
         SourceCache cache;
         if (loadCompileCommands(data, path, message->environment(), &cache)) {
             if (conn)
@@ -98,7 +98,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         String arguments = std::move(message->takeArguments());
         if (message->flags() & IndexMessage::GuessFlags) {
             arguments = guessArguments(arguments, message->workingDirectory(), data.project);
-            if (arguments.isEmpty()) {
+            if (arguments.empty()) {
                 conn->write("Can't guess args from arguments");
                 ret = false;
             }
@@ -475,7 +475,7 @@ void Server::dumpFileMaps(const std::shared_ptr<QueryMessage> &query, const std:
 void Server::diagnose(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     uint32_t fileId = 0;
-    if (!query->query().isEmpty()) {
+    if (!query->query().empty()) {
         fileId = Location::fileId(query->query());
         if (!fileId) {
             conn->write<256>("%s is not indexed", query->query().constData());
@@ -654,7 +654,7 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
     Deserializer deserializer(query->query());
     deserializer >> path;
     const uint32_t fileId = Location::fileId(path);
-    if (!fileId && !path.isEmpty()) {
+    if (!fileId && !path.empty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
         conn->finish();
         return;
@@ -696,7 +696,7 @@ void Server::fixIts(const std::shared_ptr<QueryMessage> &query, const std::share
         if (fileId) {
             prepareCompletion(query, fileId, project);
             out = project->fixIts(fileId);
-            if (!out.isEmpty())
+            if (!out.empty())
                 conn->write(out);
         }
     }
@@ -935,7 +935,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
         if (std::shared_ptr<Project> current = currentProject()) {
             conn->write(current->path());
         }
-    } else if (query->query().isEmpty()) {
+    } else if (query->query().empty()) {
         const std::shared_ptr<Project> current = currentProject();
         for (const auto &it : mProjects) {
             conn->write<128>("%s%s", it.first.constData(), it.second == current ? " <=" : "");
@@ -995,7 +995,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
 {
     enum { MaxJobCount = 512 };
     String q = query->query();
-    if (q.isEmpty()) {
+    if (q.empty()) {
         conn->write<128>("Running with %zu jobs", mOptions.jobCount);
     } else {
         int jobCount = -1;
@@ -1004,7 +1004,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
             ok = true;
             jobCount = mDefaultJobCount;
         } else if (q == "pop") {
-            if (mJobCountStack.isEmpty()) {
+            if (mJobCountStack.empty()) {
                 conn->write<128>("Job count stack is empty");
             } else {
                 jobCount = mJobCountStack.back();
@@ -1057,7 +1057,7 @@ void Server::deadFunctions(const std::shared_ptr<QueryMessage> &query, const std
                 auto process = [this, proj, &failed](uint32_t file) {
                     for (const auto &pair : proj->findDeadFunctions(file)) {
                         String out = symbolToString(pair.first);
-                        if (!out.isEmpty()) {
+                        if (!out.empty()) {
                             out.chop(1);
                             out += String::format<32>(" - %zu callers\n", pair.second);
                             if (!write(out, Unfiltered)) {
@@ -1144,7 +1144,7 @@ void Server::sources(const std::shared_ptr<QueryMessage> &query, const std::shar
             if (fileId) {
                 prepareCompletion(query, fileId, project);
                 SourceList sources = project->sources(fileId);
-                if (sources.isEmpty() && path.isHeader()) {
+                if (sources.empty() && path.isHeader()) {
                     Set<uint32_t> seen;
                     std::function<uint32_t(uint32_t)> findSourceFileId = [&findSourceFileId, &project, &seen](uint32_t file) {
                         DependencyNode *node = project->dependencyNode(file);
@@ -1244,11 +1244,11 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     } mode = ListFiles;
     if (p == "clear") {
         mode = Clear;
-        assert(modeString.isEmpty());
+        assert(modeString.empty());
     } else if (p == "all") {
         mode = All;
-        assert(modeString.isEmpty());
-    } else if (!p.isEmpty()) {
+        assert(modeString.empty());
+    } else if (!p.empty()) {
         if (modeString == "on") {
             mode = FileOn;
         } else if (modeString == "off") {
@@ -1259,12 +1259,12 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     }
 
     List<Match> matches;
-    if (!query->currentFile().isEmpty())
+    if (!query->currentFile().empty())
         matches.push_back(query->currentFile());
     if (mode == FileOn || mode == FileOff || mode == FileToggle)
         matches.push_back(p);
     std::shared_ptr<Project> project;
-    if (matches.isEmpty()) {
+    if (matches.empty()) {
         project = currentProject();
     } else {
         project = projectForMatches(matches);
@@ -1287,7 +1287,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             conn->write("All files are suspended.");
         if (project) {
             const Set<uint32_t> suspendedFiles = project->suspendedFiles();
-            if (suspendedFiles.isEmpty()) {
+            if (suspendedFiles.empty()) {
                 conn->write<512>("No files suspended for project %s", project->path().constData());
             } else {
                 for (const auto &it : suspendedFiles)
@@ -1329,7 +1329,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
 void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const String encoded = query->query();
-    if (encoded.isEmpty()) {
+    if (encoded.empty()) {
         for (const auto &buffer : mActiveBuffers) {
             conn->write<1024>("%s: %s", Location::path(buffer.first).constData(), buffer.second == Active ? "active" : "open");
         }
@@ -1407,10 +1407,10 @@ void Server::debugLocations(const std::shared_ptr<QueryMessage> &query, const st
     } else if (str == "all" || str == "*") {
         mOptions.debugLocations.clear();
         mOptions.debugLocations << "all";
-    } else if (!str.isEmpty()) {
+    } else if (!str.empty()) {
         mOptions.debugLocations << str;
     }
-    if (mOptions.debugLocations.isEmpty()) {
+    if (mOptions.debugLocations.empty()) {
         conn->write("No debug locations");
     } else {
         conn->write<1024>("Debug locations:\n%s", String::join(mOptions.debugLocations, '\n').constData());

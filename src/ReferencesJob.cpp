@@ -57,7 +57,7 @@ int ReferencesJob::execute()
         return 1;
     Set<Symbol> refs;
     Map<Location, std::pair<bool, CXCursorKind> > references;
-    if (!mSymbolName.isEmpty()) {
+    if (!mSymbolName.empty()) {
         const bool hasFilter = QueryJob::hasFilter();
         auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
             if (type == Project::StartsWith) {
@@ -235,7 +235,7 @@ int ReferencesJob::execute()
     };
 
     if (rename) {
-        if (!references.isEmpty()) {
+        if (!references.empty()) {
             if (queryFlags() & QueryMessage::ReverseSort) {
                 Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
                 do {
@@ -282,5 +282,5 @@ int ReferencesJob::execute()
         write(json.toJSON(), DontQuote|Unfiltered);
     }
 
-    return references.isEmpty() ? 1 : 0;
+    return references.empty() ? 1 : 0;
 }

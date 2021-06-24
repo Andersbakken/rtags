@@ -65,7 +65,7 @@ int StatusJob::execute()
             return 1;
     }
 
-    if (query.isEmpty() || match("info")) {
+    if (query.empty() || match("info")) {
         matched = true;
         if (!write(delimiter) || !write("info") || !write(delimiter))
             return 1;
@@ -92,14 +92,14 @@ int StatusJob::execute()
         write(out);
     }
 
-    if (query.isEmpty() || match("jobs")) {
+    if (query.empty() || match("jobs")) {
         matched = true;
         if (!write(delimiter) || !write("jobs") || !write(delimiter))
             return 1;
         Server::instance()->dumpJobs(connection());
     }
 
-    if (query.isEmpty() || match("daemon")) {
+    if (query.empty() || match("daemon")) {
         matched = true;
         if (!write(delimiter) || !write("daemon") || !write(delimiter))
             return 1;
@@ -113,7 +113,7 @@ int StatusJob::execute()
         return matched ? 0 : 1;
     }
 
-    if (query.isEmpty() || match("watchedpaths")) {
+    if (query.empty() || match("watchedpaths")) {
         matched = true;
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
             return 1;
@@ -151,7 +151,7 @@ int StatusJob::execute()
     }
 
     const Dependencies &deps = proj->dependencies();
-    if (query.isEmpty() || match("dependencies")) {
+    if (query.empty() || match("dependencies")) {
         matched = true;
         if (!write(delimiter) || !write("dependencies") || !write(delimiter))
             return 1;
@@ -163,7 +163,7 @@ int StatusJob::execute()
             return 1;
     }
 
-    if (query.isEmpty() || match("symbols") || match("cursors")) {
+    if (query.empty() || match("symbols") || match("cursors")) {
         matched = true;
         write(delimiter);
         write("symbols");
@@ -184,7 +184,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || match("targets")) {
+    if (query.empty() || match("targets")) {
         matched = true;
         write(delimiter);
         write("targets");
@@ -211,7 +211,7 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || match("symbolnames")) {
+    if (query.empty() || match("symbolnames")) {
         matched = true;
         write(delimiter);
         write("symbolnames");
@@ -233,14 +233,14 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || match("sources")) {
+    if (query.empty() || match("sources")) {
         matched = true;
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
         proj->indexParseData().write([this](const String &str) { return write(str); });
     }
 
-    if (query.isEmpty() || match("compilers")) {
+    if (query.empty() || match("compilers")) {
         matched = true;
         if (!write(delimiter) || !write("compilers") || !write(delimiter))
             return 1;
@@ -261,14 +261,14 @@ int StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || match("memory")) {
+    if (query.empty() || match("memory")) {
         if (!write(delimiter) || !write("memory") || !write(delimiter))
             return 1;
         write(proj->estimateMemory());
         matched = true;
     }
 
-    if (query.isEmpty() || match("project")) {
+    if (query.empty() || match("project")) {
         if (!write(delimiter) || !write("project") || !write(delimiter))
             return 1;
         write(String::format<1024>("Path: %s", proj->path().constData()));

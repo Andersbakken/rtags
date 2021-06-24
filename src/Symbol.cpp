@@ -60,7 +60,7 @@ static String sourceCode(const Path &path, int startLine, int startColumn, int e
     assert(endColumn != -1);
     assert(startLine < endLine || (startLine == endLine && startColumn < endColumn));
     const String source = path.readAll(1024 * 1024);
-    if (source.isEmpty()) {
+    if (source.empty()) {
         return String();
     }
 
@@ -84,7 +84,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
                         Flags<Location::ToStringFlag> locationToStringFlags,
                         const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
     auto properties = [this, &filterPiece]() -> String {
         List<String> ret;
         if (isDefinition() && filterPiece("definition"))
@@ -115,7 +115,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         if (flags & TemplateReference && filterPiece("templatereference"))
             ret << "TemplateReference";
 
-        if (ret.isEmpty())
+        if (ret.empty())
             return String();
         return String::join(ret, ' ') + '\n';
     };
@@ -140,7 +140,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         if (filterPiece("arguments")) {
             for (const auto &arg : arguments) {
                 const String symName = project->findSymbol(arg.cursor).symbolName;
-                if (!symName.isEmpty()) {
+                if (!symName.empty()) {
                     args << symName;
                 } else {
                     args << arg.cursor.toString(locationToStringFlags & ~Location::ShowContext);
@@ -153,7 +153,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
 
     String ret;
     auto writePiece = [&ret, &filterPiece](const char *key, const char *filter, const String &piece) {
-        if (piece.isEmpty())
+        if (piece.empty())
             return;
         if (!filterPiece(filter))
             return;
@@ -165,7 +165,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     writePiece("SymbolName", "symbolname", symbolName);
     writePiece("Kind", "kind", kindSpelling());
     if (filterPiece("type")) {
-        if (!typeName.isEmpty()) {
+        if (!typeName.empty()) {
             ret += "Type: " + typeName + "\n";
         } else if (type != CXType_Invalid) {
             ret += "Type: " + RTags::eatString(clang_getTypeKindSpelling(type)) + "\n";
@@ -194,9 +194,9 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
                    String::format<32>("%d/%d", fieldOffset, fieldOffset / 8));
     if (alignment >= 0)
         writePiece("Alignment", "alignment", std::to_string(alignment));
-    if (!args.isEmpty())
+    if (!args.empty())
         writePiece("Arguments", "arguments", String::join(args, ", "));
-    if (!bases.isEmpty())
+    if (!bases.empty())
         writePiece("Base classes", "baseclasses", String::join(bases, ", "));
     writePiece("Brief comment", "briefcomment", briefComment);
     writePiece("XML comment", "xmlcomment", xmlComment);
@@ -258,7 +258,7 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     if (cursorInfoFlags & IncludeSourceCode && (endLine > startLine || (endLine == startLine && endColumn > startColumn))) {
         const Path path = location.path();
         String source = sourceCode(path, startLine, startColumn, endLine, endColumn);
-        if (!source.isEmpty()) {
+        if (!source.empty()) {
             ret.append(String::format<1024>("\nSource code: %s:%d:%d-%d:%d\n",
                                             path.constData(), startLine, startColumn,
                                             endLine, endColumn));
@@ -308,7 +308,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                       Flags<Location::ToStringFlag> locationToStringFlags,
                       const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.isEmpty() || pieceFilters.contains(name); };
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
     std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
         auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
@@ -340,12 +340,12 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 if (filterPiece("argumentindex"))
                     ret["argumentIndex"] = symbol.argumentUsage.index;
             }
-            if (!symbol.symbolName.isEmpty() && filterPiece("symbolname"))
+            if (!symbol.symbolName.empty() && filterPiece("symbolname"))
                 ret["symbolName"] = symbol.symbolName;
-            if (!symbol.usr.isEmpty() && filterPiece("usr"))
+            if (!symbol.usr.empty() && filterPiece("usr"))
                 ret["usr"] = symbol.usr;
             if (filterPiece("type")) {
-                if (!symbol.typeName.isEmpty()) {
+                if (!symbol.typeName.empty()) {
                     ret["type"] = symbol.typeName;
                 } else if (symbol.type != CXType_Invalid) {
                     String str;
@@ -354,9 +354,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 }
             }
 
-            if (!symbol.baseClasses.isEmpty() && filterPiece("baseclasses"))
+            if (!symbol.baseClasses.empty() && filterPiece("baseclasses"))
                 ret["baseClasses"] = symbol.baseClasses;
-            if (!symbol.arguments.isEmpty() && filterPiece("arguments")) {
+            if (!symbol.arguments.empty() && filterPiece("arguments")) {
                 Value args;
                 for (const auto &arg : symbol.arguments) {
                     Value a;
@@ -380,9 +380,9 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["linkage"] = str;
             }
 
-            if (!symbol.briefComment.isEmpty() && filterPiece("briefcomment"))
+            if (!symbol.briefComment.empty() && filterPiece("briefcomment"))
                 ret["briefComment"] = symbol.briefComment;
-            if (!symbol.xmlComment.isEmpty() && filterPiece("xmlcomment"))
+            if (!symbol.xmlComment.empty() && filterPiece("xmlcomment"))
                 ret["xmlComment"] = symbol.xmlComment;
             if (filterPiece("range")) {
                 ret["startLine"] = symbol.startLine;
@@ -428,7 +428,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 ret["templatereference"] = true;
             if (f & IncludeTargets) {
                 const auto targets = project->findTargets(symbol);
-                if (!targets.isEmpty() && filterPiece("targets")) {
+                if (!targets.empty() && filterPiece("targets")) {
                     Value t;
                     for (const auto &target : targets) {
                         t.push_back(toValue(target, NullFlags));
@@ -438,7 +438,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
             }
             if (f & IncludeReferences) {
                 const auto references = project->findCallers(symbol);
-                if (!references.isEmpty() && filterPiece("references")) {
+                if (!references.empty() && filterPiece("references")) {
                     Value r;
                     for (const auto &ref : references) {
                         r.push_back(toValue(ref, NullFlags));
@@ -454,7 +454,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                         break;
                     }
                 }
-                if (!baseClasses.isEmpty()) {
+                if (!baseClasses.empty()) {
                     ret["baseClasses"] = b;
                 }
             }
