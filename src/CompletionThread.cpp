@@ -92,7 +92,7 @@ void CompletionThread::run()
         if (dump) {
             std::unique_lock<std::mutex> lock(dump->mutex);
             Log out(&dump->string);
-            for (SourceFile *cache = mCacheList.first(); cache; cache = cache->next) {
+            for (SourceFile *cache = mCacheList.front(); cache; cache = cache->next) {
                 out << cache->source
                     << "\nparseTime:" << cache->parseTime
                     << "\nreparseTime:" << cache->reparseTime
@@ -726,7 +726,7 @@ String CompletionThread::Request::toString() const
 Source CompletionThread::findSource(const Set<uint32_t> &deps) const
 {
     std::unique_lock<std::mutex> lock(mMutex);
-    for (SourceFile *sourceFile = mCacheList.first(); sourceFile; sourceFile = sourceFile->next) {
+    for (SourceFile *sourceFile = mCacheList.front(); sourceFile; sourceFile = sourceFile->next) {
         if (deps.contains(sourceFile->source.fileId)) {
             return sourceFile->source;
         }

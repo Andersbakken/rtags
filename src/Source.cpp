@@ -777,7 +777,7 @@ SourceList Source::parse(const String &cmdLine,
     SourceList ret;
     if (!inputs.empty()) {
         if (!buildRootId) {
-            buildRoot = RTags::findProjectRoot(inputs.first().realPath, RTags::BuildRoot, cache);
+            buildRoot = RTags::findProjectRoot(inputs.front().realPath, RTags::BuildRoot, cache);
             if (buildRoot.isDir())
                 buildRootId = Location::insertFile(buildRoot);
         }

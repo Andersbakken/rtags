@@ -990,7 +990,7 @@ bool ClangIndexer::superclassTemplateMemberFunctionUgleHack(const CXCursor &curs
             // ### not sure this is correct with line/col
             return handleReference(cursor, kind,
                                    Location(location.fileId(), location.line(), location.column() + 1),
-                                   alternatives.first(), cursorPtr);
+                                   alternatives.front(), cursorPtr);
             break;
         case 0:
             break;

@@ -98,7 +98,7 @@ void JobScheduler::add(const std::shared_ptr<IndexerJob> &job)
     std::shared_ptr<Node> node(new Node);
     node->job = job;
     // error() << job->priority << job->sourceFile << mProcrastination;
-    if (mPendingJobs.empty() || job->priority() > mPendingJobs.first()->job->priority()) {
+    if (mPendingJobs.empty() || job->priority() > mPendingJobs.front()->job->priority()) {
         mPendingJobs.prepend(node);
     } else {
         std::shared_ptr<Node> after = mPendingJobs.last();
@@ -146,7 +146,7 @@ void JobScheduler::startJobs()
             nodes[i]->process->kill();
         }
     }
-    std::shared_ptr<Node> node = mPendingJobs.first();
+    std::shared_ptr<Node> node = mPendingJobs.front();
     while (node && (slots || daemonSlots)) {
         const Server::ActiveBufferType type = Server::instance()->activeBufferType(node->job->sourceFileId());
         if (daemonSlots && type == Server::Active) {
