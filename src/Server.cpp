@@ -740,6 +740,13 @@ void Server::setCurrentProject(const std::shared_ptr<Project> &project)
 {
     std::shared_ptr<Project> old = currentProject();
     if (project != old) {
+        debug() << "changing current from"
+                << (old ? old->path() : String())
+                << (old ? old->trailer() : String())
+                << "to"
+                << (project ? project->path() : String())
+                << (project ? project->trailer() : String());
+
         if (old && old->fileManager())
             old->fileManager()->clearFileSystemWatcher();
         mCurrentProject = project;
@@ -827,10 +834,10 @@ List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Fl
                 if (m > best) {
                     best = m;
                     ret.insert(ret.begin(), project);
+                    setCurrentProject(project);
                 } else {
                     ret.append(project);
                 }
-                setCurrentProject(project);
                 break;
             }
         }
