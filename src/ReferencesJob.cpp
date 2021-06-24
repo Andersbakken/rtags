@@ -253,7 +253,7 @@ int ReferencesJob::execute()
         sorted.reserve(references.size());
         for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
              it != references.end(); ++it) {
-            sorted.append(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
+            sorted.push_back(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
         }
         if (queryFlags() & QueryMessage::ReverseSort) {
             std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedSymbol>());

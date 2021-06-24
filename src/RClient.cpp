@@ -358,28 +358,28 @@ void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessa
 {
     auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;
-    mCommands.append(cmd);
+    mCommands.push_back(cmd);
 }
 
 void RClient::addQuitCommand(int exitCode)
 {
     auto cmd = std::make_shared<QuitCommand>(exitCode);
-    mCommands.append(cmd);
+    mCommands.push_back(cmd);
 }
 
 void RClient::addLog(LogLevel level)
 {
-    mCommands.append(std::make_shared<RdmLogCommand>(level));
+    mCommands.push_back(std::make_shared<RdmLogCommand>(level));
 }
 
 void RClient::addCompile(String &&args, const Path &cwd)
 {
-    mCommands.append(std::make_shared<CompileCommand>(std::move(args), cwd));
+    mCommands.push_back(std::make_shared<CompileCommand>(std::move(args), cwd));
 }
 
 void RClient::addCompile(Path &&path)
 {
-    mCommands.append(std::make_shared<CompileCommand>(std::move(path)));
+    mCommands.push_back(std::make_shared<CompileCommand>(std::move(path)));
 }
 
 void RClient::exec()
@@ -968,7 +968,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             }
             assert(!mCommands.empty());
             if (queryType == QueryMessage::Project)
-                projectCommands.append(std::static_pointer_cast<QueryCommand>(mCommands.back()));
+                projectCommands.push_back(std::static_pointer_cast<QueryCommand>(mCommands.back()));
             break; }
         case ListBuffers: {
             addQuery(QueryMessage::SetBuffers);
@@ -1137,7 +1137,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                     String ret = str;
                     ret.replace("\"", "\\\"");
                     ret.insert(0, "\"");
-                    ret.append("\"");
+                    ret.push_back("\"");
                     return ret;
                 }
                 return str;
@@ -1148,7 +1148,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 while (++idx < arguments.size()) {
                     if (!args.empty())
                         args.append(' ');
-                    args.append(quote(arguments[idx]));
+                    args.push_back(quote(arguments[idx]));
                 }
             } else {
                 args = std::move(value);
@@ -1242,7 +1242,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             String encoded;
             List<String> args;
             while (idx < arguments.size() && arguments[idx][0] != '-') {
-                args.append(arguments[idx++]);
+                args.push_back(arguments[idx++]);
             }
             Serializer s(encoded);
             s << Path() << args;
@@ -1257,7 +1257,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             p.resolve();
             List<String> args;
             while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
-                args.append(arguments[++idx]);
+                args.push_back(arguments[++idx]);
             }
 
             String encoded;

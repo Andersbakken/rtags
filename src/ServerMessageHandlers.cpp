@@ -543,7 +543,7 @@ void Server::generateTest(const std::shared_ptr<QueryMessage> &query, const std:
             if (idx != -1)
                 ref.remove(idx, root.size());
         }
-        compile.append(source.sourceFile().fileName());
+        compile.push_back(source.sourceFile().fileName());
 
         Value tests;
 
@@ -1014,7 +1014,7 @@ void Server::jobCount(const std::shared_ptr<QueryMessage> &query, const std::sha
         } else if (q.startsWith("push:")) {
             jobCount = q.mid(5).toLongLong(&ok);
             if (ok && jobCount > 0 && jobCount < MaxJobCount) {
-                mJobCountStack.append(mOptions.jobCount);
+                mJobCountStack.push_back(mOptions.jobCount);
             };
         } else {
             jobCount = q.toLongLong(&ok);

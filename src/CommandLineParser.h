@@ -146,7 +146,7 @@ ParseStatus parse(int argc, char **argv,
                 }
             }
             for (int i=1; i<argc; ++i)
-                args.append(argv[i]);
+                args.push_back(argv[i]);
         }
     }
     if (args.empty()) {
@@ -181,7 +181,7 @@ ParseStatus parse(int argc, char **argv,
         String value;
         auto addArg = [&arg, &opts, &status, flags](const Option<T> *opt) -> bool {
             if (opt) {
-                opts.append(opt);
+                opts.push_back(opt);
                 return true;
             }
             if (flags & IgnoreUnknown)
@@ -249,14 +249,14 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T> > opt
     size_t longest = 0;
     for (const auto &opt : optsList) {
         if (opt.longOpt.empty() && !opt.shortOpt) {
-            out.append(String());
+            out.push_back(String());
         } else {
-            out.append(String::format<64>("  %s%s%s%s",
-                                          (opt.longOpt.empty() ? String() : ("--" + opt.longOpt)).constData(),
-                                          !opt.longOpt.empty() && opt.shortOpt ? "|" : "",
-                                          opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
-                                          opt.valueType == Required ? " [arg] "
-                                          : opt.valueType == Optional ? " [optional] " : ""));
+            out.push_back(String::format<64>("  %s%s%s%s",
+                                             (opt.longOpt.empty() ? String() : ("--" + opt.longOpt)).constData(),
+                                             !opt.longOpt.empty() && opt.shortOpt ? "|" : "",
+                                             opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
+                                             opt.valueType == Required ? " [arg] "
+                                             : opt.valueType == Optional ? " [optional] " : ""));
             longest = std::max<size_t>(out.back().size(), longest);
         }
     }

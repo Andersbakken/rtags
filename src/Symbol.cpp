@@ -234,13 +234,13 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     if (cursorInfoFlags & IncludeTargets && project && filterPiece("targets")) {
         const auto targets = project->findTargets(*this);
         if (targets.size()) {
-            ret.append("Targets:\n");
+            ret.push_back("Targets:\n");
             auto best = RTags::bestTarget(targets);
-            ret.append(String::format<128>("    %s\n", best.location.toString(locationToStringFlags).constData()));
+            ret.push_back(String::format<128>("    %s\n", best.location.toString(locationToStringFlags).constData()));
 
             for (const auto &tit : targets) {
                 if (tit.location != best.location)
-                    ret.append(String::format<128>("    %s\n", tit.location.toString(locationToStringFlags).constData()));
+                    ret.push_back(String::format<128>("    %s\n", tit.location.toString(locationToStringFlags).constData()));
             }
         }
     }
@@ -248,9 +248,9 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
     if (cursorInfoFlags & IncludeReferences && project && !isReference() && filterPiece("references")) {
         const auto references = project->findCallers(*this);
         if (references.size()) {
-            ret.append("References:\n");
+            ret.push_back("References:\n");
             for (const auto &r : references) {
-                ret.append(String::format<128>("    %s\n", r.location.toString(locationToStringFlags).constData()));
+                ret.push_back(String::format<128>("    %s\n", r.location.toString(locationToStringFlags).constData()));
             }
         }
     }
@@ -259,10 +259,10 @@ String Symbol::toString(const std::shared_ptr<Project> &project,
         const Path path = location.path();
         String source = sourceCode(path, startLine, startColumn, endLine, endColumn);
         if (!source.empty()) {
-            ret.append(String::format<1024>("\nSource code: %s:%d:%d-%d:%d\n",
+            ret.push_back(String::format<1024>("\nSource code: %s:%d:%d-%d:%d\n",
                                             path.constData(), startLine, startColumn,
                                             endLine, endColumn));
-            ret.append(source);
+            ret.push_back(source);
             ret.append('\n');
         }
     }
@@ -450,7 +450,7 @@ Value Symbol::toValue(const std::shared_ptr<Project> &project,
                 List<Value> b;
                 for (const auto &base : symbol.baseClasses) {
                     for (const Symbol &s : project->findByUsr(base, symbol.location.fileId(), Project::ArgDependsOn)) {
-                        b.append(toValue(s, NullFlags));
+                        b.push_back(toValue(s, NullFlags));
                         break;
                     }
                 }

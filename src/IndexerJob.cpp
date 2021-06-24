@@ -38,7 +38,7 @@ IndexerJob::IndexerJob(const SourceList &s,
     : id(0), flags(f),
       project(p->path()), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
 {
-    sources.append(s.front());
+    sources.push_back(s.front());
     for (size_t i=1; i<s.size(); ++i) {
         const Source &src = s.at(i);
         bool found = false;
@@ -49,7 +49,7 @@ IndexerJob::IndexerJob(const SourceList &s,
             }
         }
         if (!found)
-            sources.append(src);
+            sources.push_back(src);
     }
 
     assert(!sources.empty());

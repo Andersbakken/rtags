@@ -77,7 +77,7 @@ int IncludePathJob::execute()
             bool done = false;
             std::function<void(DependencyNode *)> process = [&](DependencyNode *n) {
                 if (done || !paths.contains(n->fileId)) {
-                    paths.append(n->fileId);
+                    paths.push_back(n->fileId);
                     if (n->fileId == target.location.fileId()) {
                         String path;
                         for (uint32_t fileId : paths) {

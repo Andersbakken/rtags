@@ -130,7 +130,7 @@ bool Server::init(const Options &options)
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     if (!(options.options & NoNoUnknownWarningsOption))
-        mOptions.defaultArguments.append("-Wno-unknown-warning-option");
+        mOptions.defaultArguments.push_back("-Wno-unknown-warning-option");
 
     mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
 
@@ -160,7 +160,7 @@ bool Server::init(const Options &options)
 #endif
     }
 #ifdef CLANG_INCLUDE
-    mOptions.includePaths.append(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
+    mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
 #endif
 
     if (!(mOptions.options & NoLibClangIncludePath)) {
@@ -169,7 +169,7 @@ bool Server::init(const Options &options)
             systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
             if (systemInclude.isDir()) {
-                mOptions.includePaths.append(Source::Include(Source::Include::Type_System, systemInclude));
+                mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, systemInclude));
                 break;
             }
         }
@@ -565,7 +565,7 @@ bool Server::parse(IndexParseData &data, String &&arguments, const Path &pwd, ui
             source.compileCommandsFileId = compileCommandsFileId;
             auto &list = s[source.fileId];
             if (!list.contains(source))
-                list.append(source);
+                list.push_back(source);
             ret = true;
         } else {
             debug() << "Shouldn't index" << source;
@@ -902,7 +902,7 @@ public:
                 if (response.startsWith(mWorkingDirectory)) {
                     response.remove(0, mWorkingDirectory.size());
                 }
-                mOutput.append(response);
+                mOutput.push_back(response);
             }
         });
     }
@@ -1075,7 +1075,7 @@ bool Server::runTests()
                     ret = false;
                     continue;
                 }
-                output.append(it->convert<String>());
+                output.push_back(it->convert<String>());
             }
             if (output != conn.output()) {
                 error() << "Test" << idx << "failed. Expected:";

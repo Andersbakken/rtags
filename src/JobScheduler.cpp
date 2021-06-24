@@ -370,7 +370,7 @@ void JobScheduler::sort()
     });
 
     for (std::shared_ptr<Node> &n : nodes) {
-        mPendingJobs.append(std::move(n));
+        mPendingJobs.push_back(std::move(n));
     }
 }
 
@@ -379,7 +379,7 @@ void JobScheduler::onProcessReadyReadStdErr(Process *proc)
     std::shared_ptr<Node> n = mActiveByProcess.value(proc);
     String out = proc->readAllStdErr();
     if (n)
-        n->stdErr.append(out);
+        n->stdErr.push_back(out);
 }
 
 void JobScheduler::onProcessReadyReadStdOut(Process *proc)
@@ -396,7 +396,7 @@ void JobScheduler::onProcessReadyReadStdOut(Process *proc)
         startJobs();
         return;
     }
-    n->stdOut.append(proc->readAllStdOut());
+    n->stdOut.push_back(proc->readAllStdOut());
 
     {
         std::regex rx("@CRASH@([^@]*)@CRASH@");

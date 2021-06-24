@@ -118,7 +118,7 @@ private:
     void handleMakeShared(const CXCursor &cursor, Map<String, uint16_t> &targets);
     void visit(CXCursor cursor)
     {
-        mParents.append(cursor);
+        mParents.push_back(cursor);
         clang_visitChildren(cursor, visitorHelper, this);
         mParents.removeLast();
     }

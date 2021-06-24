@@ -374,7 +374,7 @@ private:
             auto ptr = entryMap.value(key);
             assert(ptr);
             entryList.remove(ptr);
-            entryList.append(ptr);
+            entryList.push_back(ptr);
         }
 
         template <typename Key, typename Value>
@@ -394,7 +394,7 @@ private:
                 ++totalOpened;
                 cache[fileId] = fileMap;
                 auto entry = std::make_shared<LRUEntry>(type, fileId);
-                entryList.append(entry);
+                entryList.push_back(entry);
                 entryMap[entry->key] = entry;
                 if (++openedFiles > max) {
                     const std::shared_ptr<LRUEntry> e = entryList.takeFirst();

@@ -219,7 +219,7 @@ void CompletionThread::process(Request *request)
     if (!cache) {
         cache = new SourceFile;
         LOG() << "creating source file for" << request->source.sourceFile();
-        mCacheList.append(cache);
+        mCacheList.push_back(cache);
         while (mCacheMap.size() > mCacheSize) {
             SourceFile *c = mCacheList.removeFirst();
             LOG() << "over cache limit. discarding" << c->source.sourceFile();
@@ -501,7 +501,7 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
         auto output = std::make_shared<Output>();
         output->connection = request->conn;
         output->flags = request->flags;
-        outputs.append(output);
+        outputs.push_back(output);
         if (request->flags & Elisp) {
             elisp = true;
         } else if (request->flags & XML) {
@@ -537,7 +537,7 @@ void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> 
                     } else {
                         raw = true;
                     }
-                    outputs.append(out);
+                    outputs.push_back(out);
                 }
             });
     }

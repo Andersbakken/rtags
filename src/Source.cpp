@@ -428,7 +428,7 @@ static List<String> splitCommandLine(const String &cmdLine)
         case ' ':
             if (quote == '\0') {
                 if (cur > prev)
-                    split.append(unquote(trim(prev, cur - prev)));
+                    split.push_back(unquote(trim(prev, cur - prev)));
                 prev = cur + 1;
             }
             escape = 0;
@@ -441,7 +441,7 @@ static List<String> splitCommandLine(const String &cmdLine)
         ++cur;
     }
     if (cur > prev)
-        split.append(trim(prev, cur - prev));
+        split.push_back(trim(prev, cur - prev));
     return split;
 }
 
@@ -608,8 +608,8 @@ SourceList Source::parse(const String &cmdLine,
                     return SourceList();
                 }
                 if (!a.empty()) {
-                    arguments.append("-x");
-                    arguments.append(a);
+                    arguments.push_back("-x");
+                    arguments.push_back(a);
                 }
             } else if (arg.startsWith("-D")) {
                 Define define;
@@ -645,32 +645,32 @@ SourceList Source::parse(const String &cmdLine,
                 // quietly returns a null CXTranslationUnit and is very
                 // difficult to see why indexing failed (ie. debug)
                 if (!arguments.contains(arg)) {
-                    arguments.append(arg);
-                    arguments.append(split.value(++i));
+                    arguments.push_back(arg);
+                    arguments.push_back(split.value(++i));
                 } else {
                     warning() << "[Source::parse] Removing additional -arch argument(s) to allow indexing.";
                 }
 #endif
             } else if (arg == "-ObjC++") {
                 language = ObjectiveCPlusPlus;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg == "-ObjC") {
                 language = ObjectiveC;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg == "-fno-rtti") {
                 sourceFlags |= NoRtti;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg == "-m32") {
                 sourceFlags |= M32;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg == "-m64") {
                 sourceFlags |= M64;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg == "-frtti") {
                 sourceFlags &= ~NoRtti;
-                arguments.append(arg);
+                arguments.push_back(arg);
             } else if (arg.startsWith("-std=")) {
-                arguments.append(arg);
+                arguments.push_back(arg);
                 // error() << "Got std" << arg;
                 if (arg == "-std=c++0x" || arg == "-std=c++11" || arg == "-std=gnu++0x" || arg == "-std=gnu++11") {
                     if (language == CPlusPlusHeader) {
@@ -716,14 +716,14 @@ SourceList Source::parse(const String &cmdLine,
                 if (testLog(LogLevel::Warning))                         \
                     warning() << "Added include path" << p <<           \
                     "type:" << #type << "for argument" << arg;          \
-                includePaths.append(Source::Include(Source::Include::type, p)); \
+                includePaths.push_back(Source::Include(Source::Include::type, p)); \
             }
 #include "IncludeTypesInternal.h"
 #undef DECLARE_INCLUDE_TYPE
             else {
-                arguments.append(arg);
+                arguments.push_back(arg);
                 if (hasValue(arg)) {
-                    arguments.append(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
+                    arguments.push_back(Path::resolved(split.value(++i), Path::MakeAbsolute, path));
                 }
             }
         } else {
@@ -756,7 +756,7 @@ SourceList Source::parse(const String &cmdLine,
             if (add) {
                 const Language lang = language != NoLanguage ? language : guessLanguageFromSourceFile(resolved);
                 if (lang != NoLanguage) {
-                    inputs.append({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), arg, lang});
+                    inputs.push_back({resolved, Path::resolved(arg, Path::MakeAbsolute, cwd), arg, lang});
                 } else {
                     warning() << "Can't figure out language for" << arg;
                 }
@@ -786,7 +786,7 @@ SourceList Source::parse(const String &cmdLine,
 
         ret.reserve(inputs.size());
         for (const auto& input : inputs) {
-            unresolvedInputLocations->append(input.absolute);
+            unresolvedInputLocations->push_back(input.absolute);
             if (input.unmolested == "-")
                 continue;
             Source source;
@@ -926,10 +926,10 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     List<String> ret;
     ret.reserve(64);
     if ((f & IncludeCompiler) == IncludeCompiler) {
-        ret.append(compiler());
+        ret.push_back(compiler());
     }
     if (f & IncludeExtraCompiler && !extraCompiler.empty()) {
-        ret.append(extraCompiler);
+        ret.push_back(extraCompiler);
     }
 
     Map<String, String> config;
@@ -942,7 +942,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     if (!(f & ExcludeDefaultArguments)) {
         assert(server);
         for (const auto &arg : server->options().defaultArguments)
-            ret.append(arg);
+            ret.push_back(arg);
     }
 
     for (size_t i=0; i<arguments.size(); ++i) {
@@ -955,9 +955,9 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
         if (!skip && remove.contains(arg))
             skip = true;
         if (!skip) {
-            ret.append(arg);
+            ret.push_back(arg);
             if (hasValue)
-                ret.append(arguments.value(++i));
+                ret.push_back(arguments.value(++i));
         } else if (hasValue) {
             ++i;
         }
@@ -1013,7 +1013,7 @@ List<String> Source::toCommandLine(Flags<CommandLineFlag> f, bool *usedPch) cons
     }
 
     if (f & IncludeSourceFile)
-        ret.append(sourceFile());
+        ret.push_back(sourceFile());
 
     return ret;
 }

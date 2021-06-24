@@ -1421,7 +1421,7 @@ String Project::fixIts(uint32_t fileId) const
                 --f;
                 if (!out.empty())
                     out.append('\n');
-                out.append(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
+                out.push_back(String::format<32>("%d:%d %d %s", f->line, f->column, f->length, f->text.constData()));
 
             } while (f != fixIts.begin());
         }
@@ -2214,7 +2214,7 @@ inline String toString(const String &str, size_t &max)
 static inline void fixString(String &string, size_t size)
 {
     if (string.size() != size)
-        string.append(String(size - string.size(), ' '));
+        string.push_back(String(size - string.size(), ' '));
 }
 
 static List<String> split(const String &value, size_t max)
@@ -2226,7 +2226,7 @@ static List<String> split(const String &value, size_t max)
         const String &word = words.at(i);
         if (ret.back().size() && ret.back().size() + word.size() > max) {
             fixString(ret.back(), max);
-            ret.append(String());
+            ret.push_back(String());
             continue;
         }
 
@@ -2234,12 +2234,12 @@ static List<String> split(const String &value, size_t max)
             assert(ret.back().empty());
             for (size_t j=0; j<word.size(); j += max) {
                 if (j)
-                    ret.append(String());
+                    ret.push_back(String());
                 ret.back() = word.mid(j, max);
                 fixString(ret.back(), max);
             }
         } else {
-            ret.back().append(word);
+            ret.back().push_back(word);
         }
         ++i;
     }
@@ -2269,7 +2269,7 @@ static List<String> formatField(const String &value, size_t max)
                     ret.insert(i, split);
                     i += split.size() - 1;
                 } else if (ret.at(i).size() != max) {
-                    ret[i].append(String(max - ret.at(i).size(), ' '));
+                    ret[i].push_back(String(max - ret.at(i).size(), ' '));
                 }
             }
         } else {
@@ -2577,7 +2577,7 @@ void Project::fixPCH(Source &source)
 void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn, Source &&source) const
 {
     CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths);
-    source.includePaths.append(Server::instance()->options().includePaths);
+    source.includePaths.push_back(Server::instance()->options().includePaths);
     source.includePaths.sort();
     Set<Path> seen;
     if (flags & QueryMessage::Elisp) {
@@ -2663,7 +2663,7 @@ void Project::processParseData(IndexParseData &&data)
             auto &ref = mIndexParseData.sources[source.fileId];
             if (Server::instance()->options().options & Server::AllowMultipleSources) {
                 if (!ref.contains(source)) {
-                    ref.append(source);
+                    ref.push_back(source);
                     ref.parsed = 0; // dirty
                     if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                         index.insert(source.fileId);

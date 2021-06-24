@@ -53,12 +53,12 @@ static inline List<Path> headersForSymbol(const std::shared_ptr<Project> &projec
     List<Path> ret;
     const Path &path = loc.path();
     if (path.isHeader()) {
-        ret.append(path);
+        ret.push_back(path);
         if (const DependencyNode *node = project->dependencies().value(loc.fileId())) {
             for (const auto &dependent : node->dependents) {
                 const Path p = Location::path(dependent.first);
                 if (p.isHeader() && dependent.second->includes.size() == 1) {
-                    ret.append(p);
+                    ret.push_back(p);
                     // allow headers that only include one header if we don't
                     // find anything for the real header
                 }

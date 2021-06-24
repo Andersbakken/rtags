@@ -89,7 +89,7 @@ int FindFileJob::execute()
     out.reserve(PATH_MAX);
     const bool absolutePath = queryFlags() & QueryMessage::AbsolutePath;
     if (absolutePath)
-        out.append(srcRoot);
+        out.push_back(srcRoot);
     const Files& dirs = proj->files();
     assert(proj->fileManager());
     if (dirs.empty())
@@ -115,13 +115,13 @@ int FindFileJob::execute()
         if (dir.size() < srcRoot.size()) {
             continue;
         } else {
-            out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
+            out.push_back(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
         }
 
         const Set<String> &files = dirit->second;
         for (Set<String>::const_iterator it = files.begin(); it != files.end(); ++it) {
             const String &key = *it;
-            out.append(key);
+            out.push_back(key);
             bool ok = false;
             switch (mode) {
             case All:
@@ -164,7 +164,7 @@ int FindFileJob::execute()
                 if (absolutePath)
                     matched.resolve();
                 if (preferExact && !foundExact) {
-                    matches.append(matched);
+                    matches.push_back(matched);
                 } else {
                     if (!writeFile(matched))
                         return 1;

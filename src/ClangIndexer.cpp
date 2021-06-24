@@ -598,7 +598,7 @@ String ClangIndexer::addNamePermutations(const CXCursor &cursor, Location locati
     String ret;
     if (!type.empty()) {
         ret = type;
-        ret.append(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
+        ret.push_back(buf + cutoff, std::max<int>(0, sizeof(buf) - cutoff - 1));
         if (!trailer.empty())
             ret += trailer;
         if (cursorType != RTags::Type_Reference) {
@@ -1452,7 +1452,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
                 continue;
             }
         }
-        usrs.append(std::move(usr));
+        usrs.push_back(std::move(usr));
         ++i;
     }
 
@@ -1477,7 +1477,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
                 }
             }
             if (res != Mismatch) {
-                matched.append(std::make_pair(ci, res));
+                matched.push_back(std::make_pair(ci, res));
                 if (res == Match)
                     hasMatch = true;
             }
@@ -1622,7 +1622,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
             c.symbolName = "{}";
             c.symbolLength = 1;
             // should it have a symbolLength?
-            mScopeStack.append(scope);
+            mScopeStack.push_back(scope);
             visit(cursor);
             mScopeStack.removeLast();
         } else {
@@ -1681,7 +1681,7 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
                 Location(location.fileId(), c.endLine, c.endColumn)
             };
 
-            mLoopStack.append(loop);
+            mLoopStack.push_back(loop);
             visit(cursor);
             mLoopStack.removeLast();
             return CXChildVisit_Continue;
@@ -1930,13 +1930,13 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             if (k == CXToken_Identifier) {
                 const String spelling = RTags::eatString(clang_getTokenSpelling(tu, tokens[i]));
                 if (macroState == GettingArgs) {
-                    macroData.arguments.append(spelling);
+                    macroData.arguments.push_back(spelling);
                 } else {
                     if (!lastWasHashHash) {
                         last = &macroData.data[spelling];
 
                         List<Location> &locs = last->locations;
-                        locs.append(createLocation(clang_getTokenLocation(tu, tokens[i])));
+                        locs.push_back(createLocation(clang_getTokenLocation(tu, tokens[i])));
                     }
                     if (last) {
                         const size_t idx = macroData.arguments.indexOf(spelling);
@@ -2130,7 +2130,7 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
 
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
-        mScopeStack.append({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : nullptr,
+        mScopeStack.push_back({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : nullptr,
                             Location(location.fileId(), c.startLine, c.startColumn),
                             Location(location.fileId(), c.endLine, c.endColumn - 1)});
         bool isTemplateFunction = c.kind == CXCursor_FunctionTemplate;

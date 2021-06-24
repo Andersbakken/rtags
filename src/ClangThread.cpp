@@ -96,7 +96,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                 message += String::format<32>(" // %d-%d:%d, %d: ", location.column(), endLine, endColumn, mIndentLevel);
             }
             message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
-            message.append(" " + RTags::typeName(cursor));;
+            message.push_back(" " + RTags::typeName(cursor));;
             if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
                 RTags::Auto autoResolved;
                 if (RTags::resolveAuto(cursor, &autoResolved) && RTags::isValid(autoResolved.cursor)) {
@@ -106,14 +106,14 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             auto printCursor = [&message](const CXCursor &c, bool *spec = nullptr) {
                 CXCursor canonical = clang_getCanonicalCursor(c);
                 if (canonical != c && RTags::isValid(canonical)) {
-                    message.append(" canonical ");
-                    message.append(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
+                    message.push_back(" canonical ");
+                    message.push_back(RTags::cursorToString(canonical, RTags::AllCursorToStringFlags));
                 }
 
                 CXCursor specialized = clang_getSpecializedCursorTemplate(c);
                 if (specialized != c && RTags::isValid(specialized)) {
-                    message.append(" specialized ");
-                    message.append(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
+                    message.push_back(" specialized ");
+                    message.push_back(RTags::cursorToString(specialized, RTags::AllCursorToStringFlags));
                     if (spec)
                         *spec = true;
                 } else if (spec) {
@@ -123,14 +123,14 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
 
             const int argCount = clang_Cursor_getNumArguments(cursor);
             if (argCount != -1) {
-                message.append(String::format("arg count: %d ", argCount));
+                message.push_back(String::format("arg count: %d ", argCount));
             }
 
             CXCursor ref = clang_getCursorReferenced(cursor);
             bool refSpecialized = false;
             if (RTags::isValid(ref) && ref != cursor) {
-                message.append("refs ");
-                message.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
+                message.push_back("refs ");
+                message.push_back(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
                 printCursor(ref, &refSpecialized);
                 if (refSpecialized && cursor != CXCursor_DeclRefExpr && cursor != CXCursor_MemberRefExpr)
                     refSpecialized = false;
