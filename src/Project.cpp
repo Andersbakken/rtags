@@ -1364,17 +1364,22 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     }
 
     if (!files.empty() || !diagnostics.empty()) {
-        // if (debug) {
-        //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
-        // }
-        log([&](const std::shared_ptr<LogOutput> &output) {
-            if (output->testLog(RTags::DiagnosticsLevel)) {
-                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
-                if (!log.empty()) {
-                    output->log(log);
+        std::shared_ptr<Project> current = Server::instance()->currentProject();
+        // We don't want to send diagnostics for project if the current project
+        // is another build of the same path
+        if (!current || current.get() == this || current->path() != mPath) {
+            // if (debug) {
+            //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
+            // }
+            log([&](const std::shared_ptr<LogOutput> &output) {
+                if (output->testLog(RTags::DiagnosticsLevel)) {
+                    const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
+                    if (!log.empty()) {
+                        output->log(log);
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 }
 
