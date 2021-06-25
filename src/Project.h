@@ -92,6 +92,8 @@ public:
     String trailer() const;
     void setTrailer(const String &trailer);
 
+    String displayName() const;
+
     enum FileMapType {
         Symbols,
         SymbolNames,

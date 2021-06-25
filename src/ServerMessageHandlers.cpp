@@ -946,11 +946,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
             // auto sortedProjects = sorted(projs.second, &names);
             for (size_t i=0; i<sortedProjects.size(); ++i) {
                 const auto &proj = sortedProjects[i];
-                if (sortedProjects.size() > 1) {
-                    conn->write<128>("%zu: %s (%s)%s", idx++, proj->path().constData(), proj->trailer().constData(), proj == current ? " <=" : "");
-                } else {
-                    conn->write<128>("%zu: %s%s", idx++, proj->path().constData(), proj == current ? " <=" : "");
-                }
+                conn->write<128>("%zu: %s%s", idx++, proj->displayName().constData(), proj == current ? " <=" : "");
             }
         }
     } else {
@@ -979,12 +975,12 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
                     for (const auto &pp : pit.second) {
                         if (pp->match(match)) {
                             if (error) {
-                                conn->write(pit.first);
+                                conn->write(pp->displayName());
                             } else if (selected) {
                                 error = true;
                                 conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                                conn->write(selected->path());
-                                conn->write(pit.first);
+                                conn->write(selected->displayName());
+                                conn->write(pp->displayName());
                                 selected.reset();
                             } else {
                                 selected = pp;
@@ -995,10 +991,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
             }
         }
         if (selected) {
-            String name = selected->path();
-            String trailer = selected->trailer();
-            if (!trailer.empty())
-                name += " (" + trailer + ')';
+            String name = selected->displayName();
             if (selected == currentProject()) {
                 conn->write<128>("%s is already the active project", name.constData());
             } else {

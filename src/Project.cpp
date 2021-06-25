@@ -446,10 +446,7 @@ void Project::check(CheckMode checkMode)
         int idx = 0;
         bool outputDirty = false;
         if (checkMode == Check_Init && mDependencies.size() >= 100) {
-            String name = mPath;
-            if (!mTrailer.empty())
-                name += " (" + mTrailer + ')';
-            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", name.constData()), LogOutput::StdOut);
+            logDirect(LogLevel::Error, String::format<128>("Restoring %s ", displayName().constData()), LogOutput::StdOut);
             outputDirty = true;
         }
         const std::shared_ptr<Project> project = shared_from_this();
@@ -565,6 +562,13 @@ String Project::trailer() const
 void Project::setTrailer(const String &trailer)
 {
     mTrailer = trailer;
+}
+
+String Project::displayName() const
+{
+    if (mTrailer.empty())
+        return mPath;
+    return mPath + " (" + mTrailer + ')';
 }
 
 inline static const char *severityToString(Diagnostic::Flag type)
