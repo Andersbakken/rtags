@@ -2635,27 +2635,12 @@ void Project::processParseData(IndexParseData &&data)
         forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
             // only allowing one "loose" build per fileId
             auto &ref = mIndexParseData.sources[source.fileId];
-            if (Server::instance()->options().options & Server::AllowMultipleSources) {
-                if (!ref.contains(source)) {
-                    ref.push_back(source);
-                    ref.parsed = 0; // dirty
-                    // error() << "processParseData 1" << Location::path(source.fileId);
-                    if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
-                        index.insert(source.fileId);
-                }
-            } else {
-                if (ref.empty()) {
+            if (!ref.contains(source)) {
+                ref.push_back(source);
+                ref.parsed = 0; // dirty
+                // error() << "processParseData 1" << Location::path(source.fileId);
+                if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
                     index.insert(source.fileId);
-                    ref.push_back(source);
-                } else if (ref[0] != source) {
-                    if (!ref[0].compareArguments(source)) {
-                        if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
-                            index.insert(source.fileId);
-                        // error() << "processParseData 1" << Location::path(source.fileId);
-                        ref.parsed = 0; // dirty
-                    }
-                    ref[0] = source;
-                }
             }
             return Continue;
         });

@@ -169,7 +169,6 @@ enum OptionType {
     BlockArgument,
     NoSpellChecking,
     LargeByValueCopy,
-    AllowMultipleSources,
     NoStartupProject,
     NoLibClangIncludePath,
     NoNoUnknownWarningsOption,
@@ -331,7 +330,6 @@ int main(int argc, char** argv)
         { BlockArgument, "block-argument", 'G', CommandLineParser::Required, "Block this argument from being passed to clang. E.g. rdm --block-argument -fno-inline" },
         { NoSpellChecking, "no-spell-checking", 'l', CommandLineParser::NoValue, "Don't pass -fspell-checking." },
         { LargeByValueCopy, "large-by-value-copy", 'r', CommandLineParser::Required, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
-        { AllowMultipleSources, "allow-multiple-sources", 'm', CommandLineParser::NoValue, "Don't merge source files added with -c." },
         { NoStartupProject, "no-startup-project", 'o', CommandLineParser::NoValue, "Don't restore the last current project on startup." },
         { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', CommandLineParser::NoValue, "Don't pass -Wno-unknown-warning-option." },
         { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
@@ -516,9 +514,6 @@ int main(int argc, char** argv)
                 return { String::format<1024>("Can't parse argument to -r %s", value.constData()), CommandLineParser::Parse_Error };
             }
             serverOpts.defaultArguments.push_back("-Wlarge-by-value-copy=" + String(value)); // ### not quite working
-            break; }
-        case AllowMultipleSources: {
-            serverOpts.options |= Server::AllowMultipleSources;
             break; }
         case NoStartupProject: {
             serverOpts.options |= Server::NoStartupCurrentProject;
