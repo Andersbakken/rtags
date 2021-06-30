@@ -205,7 +205,14 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    void processParseData(IndexParseData &&data);
+    enum class ProcessParseData {
+        IndexMessage,
+        Recover,
+        ReloadCompileCommands,
+        Reindex
+    };
+    static const char *processParseDataModeToString(ProcessParseData mode);
+    void processParseData(ProcessParseData mode, IndexParseData &&data);
     const IndexParseData &indexParseData() const { return mIndexParseData; }
     void index(const std::shared_ptr<IndexerJob> &job);
     void reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags);
@@ -243,7 +250,6 @@ public:
     void onFileModified(const Path &path);
     void onFileRemoved(const Path &path);
     void dumpFileMaps(const std::shared_ptr<QueryMessage> &msg, const std::shared_ptr<Connection> &conn);
-    void removeSources(const Hash<uint32_t, uint32_t> &sources); // key fileid, value fileid for compile_commands.json
     void removeSource(uint32_t fileId);
     Set<uint32_t> visitedFiles() const
     {

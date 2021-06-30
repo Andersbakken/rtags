@@ -113,7 +113,7 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         if (proj) {
             assert(proj);
             proj->check(Project::Check_Init);
-            proj->processParseData(std::move(data));
+            proj->processParseData(Project::ProcessParseData::IndexMessage, std::move(data));
             if (!currentProject())
                 setCurrentProject(proj);
         }

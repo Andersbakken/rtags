@@ -306,6 +306,7 @@ void JobScheduler::dumpJobs(const std::shared_ptr<Connection> &conn)
 
         }
     }
+    conn->write<1024>("Total: %zu", mActiveById.size() + mPendingJobs.size());
 }
 
 void JobScheduler::dumpDaemons(const std::shared_ptr<Connection> &conn)

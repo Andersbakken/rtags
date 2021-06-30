@@ -1011,7 +1011,7 @@ bool Server::load()
         for (auto &pp : s.second) {
             auto p = addProject(s.first, pp.compileCommandsFileId);
             if (p) {
-                p->processParseData(std::move(pp));
+                p->processParseData(Project::ProcessParseData::Recover, std::move(pp));
                 p->save();
             }
         }

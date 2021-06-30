@@ -385,7 +385,7 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
             return Path::Continue;
         });
         auto parseData = std::move(mIndexParseData);
-        processParseData(std::move(parseData));
+        processParseData(Project::ProcessParseData::Reindex, std::move(parseData));
     };
 
     DataFile file(mProjectFilePath, RTags::DatabaseVersion);
@@ -2541,7 +2541,7 @@ void Project::reloadCompileCommands()
         }
         // removeSources(removed);
         if (found)
-            processParseData(std::move(data));
+            processParseData(Project::ProcessParseData::ReloadCompileCommands, std::move(data));
     }
 }
 
@@ -2628,30 +2628,62 @@ void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
     index(std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this()));
 }
 
-void Project::processParseData(IndexParseData &&data)
+const char *Project::processParseDataModeToString(ProcessParseData mode)
 {
+    switch (mode) {
+    case ProcessParseData::IndexMessage: return "IndexMessage";
+    case ProcessParseData::Recover: return "Recover";
+    case ProcessParseData::ReloadCompileCommands: return "ReloadCompileCommands";
+    case ProcessParseData::Reindex: return "Reindex";
+    }
+    return "";
+}
+
+void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
+{
+    debug() << "Project::processParseData" << displayName() << processParseDataModeToString(mode) << data.sources.size();
+
     Set<uint32_t> index;
-    Hash<uint32_t, uint32_t> removed;
     if (mIndexParseData.empty()) {
         mIndexParseData = std::move(data);
         for (const auto &pair : mIndexParseData.sources) {
             index.insert(pair.first);
         }
-    } else {
+    } else if (!mIndexParseData.compileCommandsFileId) {
         forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
-            // only allowing one "loose" build per fileId
-            auto &ref = mIndexParseData.sources[source.fileId];
+            const uint32_t fileId = source.fileId;
+            SourceList &ref = mIndexParseData.sources[fileId];
             if (!ref.contains(source)) {
                 ref.push_back(source);
-                ref.parsed = 0; // dirty
-                // error() << "processParseData 1" << Location::path(source.fileId);
-                if (!(Server::instance()->options().options & Server::NoFileSystemWatch))
-                    index.insert(source.fileId);
+                ref.parsed = 0;
+                index.insert(source.fileId);
+            }
+            return Continue;
+        });
+    } else {
+        const Path compileCommands = Location::path(mIndexParseData.compileCommandsFileId);
+        forEachSource(mIndexParseData.sources, [this, &data, &compileCommands](const Source &source) -> VisitResult {
+            if (!data.sources.contains(source.fileId)) {
+                error() << Location::path(source.fileId) << "is no longer in" << compileCommands << "removing";
+                removeSource(source.fileId);
+            }
+            return Continue;
+        });
+        const bool watching = !(Server::instance()->options().options & Server::NoFileSystemWatch);
+        forEachSourceList(data.sources, [this, &index, watching](const SourceList &sourceList) -> VisitResult {
+            const uint32_t fileId = sourceList.fileId();
+            SourceList &ref = mIndexParseData.sources[fileId];
+            if (ref != sourceList) {
+                error() << Location::path(fileId) << "has different builds. Reindexing";
+                ref = sourceList;
+                assert(ref.parsed == 0);
+                if (watching) {
+                    index.insert(fileId);
+                }
             }
             return Continue;
         });
     }
-    removeSources(removed);
 
     if (mIndexParseData.compileCommandsFileId) {
         watch(Location::path(mIndexParseData.compileCommandsFileId), Watch_CompileCommands);
@@ -2764,17 +2796,6 @@ void Project::forEachSource(IndexParseData &data, std::function<VisitResult(Sour
     forEachSource(data.sources, [&cb](Source &src) {
         return cb(src);
     });
-}
-
-void Project::removeSources(const Hash<uint32_t, uint32_t> &removed)
-{
-    for (auto it : removed) {
-        if (!hasSource(it.first)) {
-            if (it.second)
-                error() << Location::path(it.first) << "is no longer in" << Location::path(it.second) << "removing";
-            removeSource(it.first);
-        }
-    }
 }
 
 void Project::removeSource(uint32_t fileId)
