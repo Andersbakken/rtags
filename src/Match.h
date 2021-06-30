@@ -50,19 +50,17 @@ public:
 
     inline bool match(const String &text) const
     {
-        return indexIn(text) != String::npos;
+        if (mFlags & Flag_StringMatch) {
+            size_t index = text.indexOf(mPattern, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive);
+            if (index != String::npos)
+                return true;
+        }
+        if (mFlags & Flag_Regex && std::regex_search(text.ref(), mRegex)) {
+            return true;
+        }
+        return false;
     }
 
-    inline size_t indexIn(const String &text) const
-    {
-        size_t index = String::npos;
-        if (mFlags & Flag_StringMatch)
-            index = text.indexOf(mPattern, 0, mFlags & Flag_CaseInsensitive ? String::CaseInsensitive : String::CaseSensitive);
-        if (index == String::npos && mFlags & Flag_Regex) {
-            index = Rct::indexIn(text, mRegex);
-        }
-        return index;
-    }
     inline bool empty() const
     {
         return !mFlags || mPattern.empty();
