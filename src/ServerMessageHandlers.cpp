@@ -969,8 +969,7 @@ void Server::project(const std::shared_ptr<QueryMessage> &query, const std::shar
                         index -= projs.size();
                     }
                 }
-            }
-            if (!selected) {
+            } else {
                 for (const auto &pit : mProjects) {
                     for (const auto &pp : pit.second) {
                         if (pp->match(match)) {

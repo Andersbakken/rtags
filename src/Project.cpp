@@ -523,35 +523,41 @@ void Project::check(CheckMode checkMode)
 
 bool Project::match(const Match &match, bool *indexed) const
 {
-    List<Path> paths;
-    paths.push_back(match.pattern());
-    Path resolved = Path::resolved(match.pattern());
-    if (resolved != match.pattern()) {
-        paths.push_back(resolved);
-    }
-
-    Path compileCommandsPath;
-    if (mIndexParseData.compileCommandsFileId) {
-        compileCommandsPath = Location::path(mIndexParseData.compileCommandsFileId);
-    }
-
-    bool ret = false;
-    const Path resolvedPath = mPath.resolved();
-    for (const Path &path : paths) {
-        const uint32_t id = Location::fileId(path);
-        if (id && isIndexed(id)) {
-            if (indexed)
-                *indexed = true;
-            return true;
-        } else if (mFiles.contains(path) || match.match(mPath) || match.match(resolvedPath) || match.match(compileCommandsPath)) {
-            if (!indexed)
-                return true;
-            ret = true;
-        }
-    }
     if (indexed)
         *indexed = false;
-    return ret;
+
+    Path path = match.pattern();
+    const uint32_t id = Location::fileId(path);
+    if (id && isIndexed(id)) {
+        if (indexed)
+            *indexed = true;
+        return true;
+    }
+
+    if (path.exists()) {
+        if (mPath.isSameFile(path)) {
+            return true;
+        }
+        Path resolved = path.resolved();
+        if (mFiles.contains(path) || mFiles.contains(resolved)) {
+            return true;
+        }
+    }
+
+    if (match.match(mPath)) {
+        return true;
+    }
+
+    if (mIndexParseData.compileCommandsFileId) {
+        if (match.match(Location::path(mIndexParseData.compileCommandsFileId))) {
+            return true;
+        }
+        if (match.match(displayName())) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 String Project::trailer() const

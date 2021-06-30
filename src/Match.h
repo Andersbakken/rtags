@@ -50,13 +50,7 @@ public:
 
     inline bool match(const String &text) const
     {
-        if (indexIn(text) != String::npos)
-            return true;
-        if (mFlags & Flag_StringMatch)
-            return mPattern.indexOf(text, 0, (mFlags & Flag_CaseInsensitive
-                                              ? String::CaseInsensitive
-                                              : String::CaseSensitive)) != String::npos;
-        return false;
+        return indexIn(text) != String::npos;
     }
 
     inline size_t indexIn(const String &text) const

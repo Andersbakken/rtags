@@ -1540,8 +1540,10 @@ Uses `completing-read' to ask for the project."
                    projects))
     (when project
       (string-match "^\\(.*\\)/ (" project)
+      ;; (message "BALLS %s" project)
       (let ((buf (buffer-file-name))
             (projectpath (match-string-no-properties 1 project)))
+        (rtags-call-rc :noerror t "-w" project :output nil :path 'nopath)
         (unless (and (> (length buf) (length projectpath))
                      (string= (substring buf 0 (length projectpath)) projectpath))
           (find-file projectpath))))))
