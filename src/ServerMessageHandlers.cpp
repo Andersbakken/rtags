@@ -643,9 +643,13 @@ void Server::fixIts(const std::shared_ptr<QueryMessage> &query, const std::share
         uint32_t fileId = Location::fileId(query->query());
         if (fileId) {
             prepareCompletion(query, fileId, projects);
-            // out = project->fixIts(fileId);
-            if (!out.empty())
-                conn->write(out);
+            for (const auto &project : projects) {
+                out = Project::fixItsToString(project->fixIts(fileId));
+                if (!out.empty()) {
+                    conn->write(out);
+                    break;
+                }
+            }
         }
     }
     conn->finish();
