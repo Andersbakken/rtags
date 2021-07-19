@@ -864,9 +864,8 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
                 }
                 Path path = it->first;
                 conn->write<128>("Deleted project: %s", path.constData());
-                RTags::encodePath(path);
-                Path::rmdir(mOptions.dataDir + path);
-                warning() << "Deleted" << (mOptions.dataDir + path);
+                Path::rmdir(project->projectDataDir());
+                warning() << "Deleted" << project->projectDataDir();
                 project->destroy();
                 pit = it->second.erase(pit);
             } else {
