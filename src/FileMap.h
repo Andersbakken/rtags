@@ -188,13 +188,13 @@ public:
 
     Key keyAt(uint32_t index) const
     {
-        assert(index >= 0 && index < mCount);
+        assert(index < mCount);
         return read<Key>(keysSegment(), index);
     }
 
     Value valueAt(uint32_t index) const
     {
-        assert(index >= 0 && index < mCount);
+        assert(index < mCount);
         return read<Value>(valuesSegment(), index);
     }
 
