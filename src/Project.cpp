@@ -2661,20 +2661,25 @@ void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
             return Continue;
         });
     } else {
+        List<uint32_t> removed;
+        bool needSave = false;
         const Path compileCommands = Location::path(mIndexParseData.compileCommandsFileId);
-        forEachSource(mIndexParseData.sources, [this, &data, &compileCommands](const Source &source) -> VisitResult {
+        forEachSource(mIndexParseData.sources, [&needSave, &removed, &data, &compileCommands](const Source &source) -> VisitResult {
             if (!data.sources.contains(source.fileId)) {
                 error() << Location::path(source.fileId) << "is no longer in" << compileCommands << "removing";
-                removeSource(source.fileId);
+                removed += source.fileId;
+                needSave = true;
+                return Remove;
             }
             return Continue;
         });
         const bool watching = !(Server::instance()->options().options & Server::NoFileSystemWatch);
-        forEachSourceList(data.sources, [this, &index, watching](const SourceList &sourceList) -> VisitResult {
+        forEachSourceList(data.sources, [&needSave, this, &index, watching](const SourceList &sourceList) -> VisitResult {
             const uint32_t fileId = sourceList.fileId();
             SourceList &ref = mIndexParseData.sources[fileId];
             if (ref != sourceList) {
                 error() << Location::path(fileId) << "has different builds. Reindexing";
+                needSave = true;
                 ref = sourceList;
                 assert(ref.parsed == 0);
                 if (watching) {
@@ -2683,6 +2688,12 @@ void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
             }
             return Continue;
         });
+        for (uint32_t fileId : removed) {
+            removeSource(fileId);
+        }
+        if (needSave) {
+            save();
+        }
     }
 
     if (mIndexParseData.compileCommandsFileId) {
