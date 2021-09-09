@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.4)
+cmake_minimum_required(VERSION 3.8.2)
 project(rtags)
 set(RTAGS_VERSION_MAJOR 2)
 set(RTAGS_VERSION_MINOR 41)
