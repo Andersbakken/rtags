@@ -277,6 +277,17 @@ if (EMACS_EXECUTABLE)
         message(STATUS "Could not get emacs version (\"emacs --version\"), elisp files are not going to be installed")
         set(RTAGS_NO_ELISP_FILES TRUE)
     endif ()
+
+    execute_process(COMMAND ${EMACS_EXECUTABLE} --batch
+        --eval "(print (featurep 'native-compile))"
+        RESULT_VARIABLE EMACS_ERROR
+        OUTPUT_VARIABLE EMACS_NATIVE_COMPILE_INFORMATION
+        ERROR_QUIET)
+    string(STRIP "${EMACS_NATIVE_COMPILE_INFORMATION}" EMACS_NATIVE_COMPILE_INFORMATION)
+    if ("${EMACS_NATIVE_COMPILE_INFORMATION}" STREQUAL "t")
+        set(EMACS_NATIVE_COMPILE TRUE)
+    endif()
+
 else ()
     message(STATUS "Emacs was not found, elisp files are not going to be installed!")
     set(RTAGS_NO_ELISP_FILES TRUE)
@@ -316,6 +327,17 @@ if (NOT RTAGS_NO_ELISP_FILES)
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                 COMMENT "Creating byte-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}c")
             add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+
+            if (EMACS_NATIVE_COMPILE)
+                add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}o
+                    COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.elisp -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-native-compile
+                    ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                    COMMENT "Creating native-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}oauth")
+                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}o)
+            endif()
+
         endif ()
     endforeach()
 endif ()
