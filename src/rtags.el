@@ -167,7 +167,8 @@ with mismatched versions"
 (rtags-set-suspend-during-compilation-enabled)
 
 (defcustom rtags-references-tree-truncate t
-  "Whether RTags should truncate the output. Set to t to truncate to window-width, a number to truncate to that many columns or nil for no truncation"
+  "Whether RTags should truncate the output. Set to t to truncate to window-width,
+  a number to truncate to that many columns or nil for no truncation"
   :type 'sexp)
 
 (defcustom rtags-use-bookmarks t
@@ -224,12 +225,14 @@ If you're running Emacs in cygwin you might have to set this to nil."
   :safe 'booleanp)
 
 (defcustom rtags-spellcheck-enabled t
-  "Whether RTags does syntax checking with overlays etc to mark errors, warnings and fixups."
+  "Whether RTags does syntax checking with overlays etc to mark errors,
+  warnings and fixups."
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-multiple-targets t
-  "Whether RTags will offer multiple choices for `rtags-find-symbol-at-point' when appropriate, warnings and fixups."
+  "Whether RTags will offer multiple choices for `rtags-find-symbol-at-point'
+when appropriate, warnings and fixups."
   :type 'boolean
   :safe 'booleanp)
 
@@ -239,7 +242,8 @@ If you're running Emacs in cygwin you might have to set this to nil."
   :safe 'booleanp)
 
 (defcustom rtags-sort-references-by-input t
-  "Whether RTags sorts the references based on the input to `rtags-find-references'."
+  "Whether RTags sorts the references based on the input
+to `rtags-find-references'."
   :type 'boolean
   :safe 'booleanp)
 
@@ -280,8 +284,9 @@ If you're running Emacs in cygwin you might have to set this to nil."
 
 nil (Unset) means don't reparse preemptively.
 
-Setting this variable directly has no effect, either set this variable using
-the Customize interface, `rtags-set-periodic-reparse-timeout',
+Setting this variable directly has no effect, either set
+this variable using the Customize interface,
+`rtags-set-periodic-reparse-timeout',
 `customize-set-variable' or `custom-set-variables'."
   :type '(choice (const :tag "Unset" nil) number)
   :risky nil
@@ -296,7 +301,9 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
   :safe 'numberp)
 
 (defcustom rtags-imenu-syntax-highlighting nil
-  "Set to t to enable syntax highlight in rtags-imenu. If rtags-imenu-syntax-highlighting is set to a number this is considered the max number of lines to highlight"
+  "Set to t to enable syntax highlight in rtags-imenu.
+If rtags-imenu-syntax-highlighting is set to a number this
+is considered the max number of lines to highlight"
   :type 'boolean
   :safe 'booleanp)
 
@@ -384,9 +391,9 @@ the Customize interface, `rtags-set-periodic-reparse-timeout',
 (defcustom rtags-error-message-function 'rtags-error-message-default
   "Function rtags.el calls to produce errors messages
 
-This defaults to `rtags-error-message-default'. You provide
+This defaults to `rtags-error-message-default. You provide
 a function that takes an error type and should return the
-appropriate format string for `error'. For example,
+appropriate format string for error. For example,
 
 (defun my-rtags-error-message-function (type)
   \"Customize messages produced by RTags\"
