@@ -63,6 +63,7 @@ class VisitFileMessage;
 class JobScheduler;
 class IndexParseData;
 
+enum { DEFAULT_RP_DAEMON_COUNT = 2 };
 class Server
 {
 public:
@@ -113,7 +114,7 @@ public:
               rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
               completionCacheSize(0), testTimeout(60 * 1000 * 5),
               maxFileMapScopeCacheSize(512), pollTimer(0), maxSocketWriteBufferSize(0),
-              daemonCount(0), tcpPort(0)
+              daemonCount(DEFAULT_RP_DAEMON_COUNT), tcpPort(0)
         {
         }
 

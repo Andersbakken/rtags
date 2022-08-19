@@ -354,7 +354,7 @@ int main(int argc, char** argv)
         { CompletionNoFilter, "completion-no-filter", 0, CommandLineParser::NoValue, "Don't filter private members and destructors from completions." },
         { CompletionLogs, "completion-logs", 0, CommandLineParser::NoValue, "Log more info about completions." },
         { CompletionDiagnostics, "completion-diagnostics", 0, CommandLineParser::Optional, "Send diagnostics from completion thread." },
-        { RPDaemon, "rp-daemon", 0, CommandLineParser::Required, "Keep this many rp daemons alive and cache the last tu. Default to 1" },
+        { RPDaemon, "rp-daemon", 0, CommandLineParser::Required, String::format("Keep this many rp daemons alive and cache the last tu. (default %d)", DEFAULT_RP_DAEMON_COUNT) },
         { MaxIncludeCompletionDepth, "max-include-completion-depth", 0, CommandLineParser::Required, String::format("Max recursion depth for header completion (default %d).", DEFAULT_MAX_INCLUDE_COMPLETION_DEPTH) },
         { AllowWpedantic, "allow-Wpedantic", 'P', CommandLineParser::NoValue, "Don't strip out -Wpedantic. This can cause problems in certain projects." },
         { AllowWErrorAndWFatalErrors, "allow-Werror", 0, CommandLineParser::NoValue, "Don't strip out -Werror and -Wfatal-errors. By default these are stripped out. " },
