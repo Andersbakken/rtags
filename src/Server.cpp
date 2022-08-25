@@ -77,7 +77,7 @@
 // Absolute paths to search (under) for (clang) system include files
 // Iterate until we find a dir at <abspath>/clang/<version>/include.
 // As of clang 4.0.0 we don't need (and can't have) these includes on Mac.
-#if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin)
+#if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin) && 0
 static const List<Path> sSystemIncludePaths;
 #else
 static const List<Path> sSystemIncludePaths = {
@@ -164,11 +164,14 @@ bool Server::init(const Options &options)
 #endif
 
     if (!(mOptions.options & NoLibClangIncludePath)) {
+        printf("[Server.cpp:%d]: if (!(mOptions.options & NoLibClangIncludePath)) {\n", __LINE__); fflush(stdout);
         // Iterate until we find an existing directory
         for (Path systemInclude : sSystemIncludePaths) {
+            printf("BALLS %s\n", systemInclude.c_str());
             systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
             if (systemInclude.isDir()) {
+                printf("[Server.cpp:%d]: if (systemInclude.isDir()) {\n", __LINE__); fflush(stdout);
                 mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, systemInclude));
                 break;
             }

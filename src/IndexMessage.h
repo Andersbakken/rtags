@@ -48,7 +48,8 @@ public:
     void setArguments(String &&args) { mArgs = std::move(args); }
     enum Flag {
         None = 0x0,
-        GuessFlags = 0x1
+        GuessFlags = 0x1,
+        NoNoStdInc = 0x2
     };
     Flags<Flag> flags() const { return mFlags; }
     void setFlags(Flags<Flag> f) { mFlags = f; }

@@ -120,6 +120,7 @@ public:
         MultiProject,
         NoColor,
         NoContext,
+        NoNoStdInc,
         NoRealPath,
         NoSortReferencesByInput,
         NoSpellCheckinging,
@@ -153,8 +154,8 @@ public:
         SymbolInfoIncludeBaseClasses,
         SymbolInfoIncludeParents,
         SymbolInfoIncludeReferences,
-        SymbolInfoIncludeTargets,
         SymbolInfoIncludeSourceCode,
+        SymbolInfoIncludeTargets,
         SynchronousCompletions,
         SynchronousDiagnostics,
         TargetUsrs,
@@ -229,6 +230,7 @@ private:
     String mCodeCompletePrefix;
     uint16_t mTcpPort;
     bool mGuessFlags;
+    bool mNoNoStdInc;
     Path mProjectRoot;
     int mTerminalWidth;
     int mExitCode;

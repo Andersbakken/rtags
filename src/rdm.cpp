@@ -840,7 +840,7 @@ int main(int argc, char** argv)
     std::shared_ptr<EventLoop> loop = std::make_shared<EventLoop>();
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
-    auto server = std::make_shared<Server>();
+    std::shared_ptr<Server> server = std::make_shared<Server>();
     if (!serverOpts.tests.empty()) {
         char buf[1024];
         Path path;

@@ -81,6 +81,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Indexing commands:" },
     { RClient::Compile, "compile", 'c', CommandLineParser::Optional, "Pass compilation arguments to rdm." },
     { RClient::GuessFlags, "guess-flags", 0, CommandLineParser::NoValue, "Guess compile flags (used with -c)." },
+    { RClient::NoNoStdInc, "no-no-stdinc", 0, CommandLineParser::NoValue, "Disregard -no-stdinc and -no-stdinc++ in compile commands" },
     { RClient::LoadCompileCommands, "load-compile-commands", 'J', CommandLineParser::Optional, "Load compile_commands.json from directory" },
     { RClient::Suspend, "suspend", 'X', CommandLineParser::Optional, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
 
@@ -322,6 +323,7 @@ public:
         msg.setCommandLine(rc->commandLine());
         msg.setWorkingDirectory(std::move(cwd));
         msg.setFlag(IndexMessage::GuessFlags, rc->mGuessFlags);
+        msg.setFlag(IndexMessage::NoNoStdInc, rc->mNoNoStdInc);
         msg.setArguments(std::move(args));
         msg.setCompileCommands(std::move(compileCommands));
         msg.setEnvironment(rc->environment());
@@ -340,7 +342,7 @@ RClient::RClient()
     : mMax(-1), mMaxDepth(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
       mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
       mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
-      mTerminalWidth(-1), mExitCode(RTags::ArgumentParseError)
+      mNoNoStdInc(false), mTerminalWidth(-1), mExitCode(RTags::ArgumentParseError)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -495,6 +497,9 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
             break; }
         case GuessFlags: {
             mGuessFlags = true;
+            break; }
+        case NoNoStdInc: {
+            mNoNoStdInc = true;
             break; }
         case Wait: {
             mQueryFlags |= QueryMessage::Wait;
