@@ -626,6 +626,9 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
     const int count = args.size();
     for (int j=0; j<count; ++j) {
         String arg = args.at(j);
+        if (createFlags & NoNoStdInc && (arg == "-nostdinc" || arg == "-nostdinc++")) {
+            continue;
+        }
         clangArgs[idx++] = args.at(j).constData();
         arg.replace("\"", "\\\"");
         ret->clangLine += '"' + arg + '"';

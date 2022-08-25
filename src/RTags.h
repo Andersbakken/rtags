@@ -203,7 +203,8 @@ public:
     bool reparse(CXUnsavedFile *unsaved, int unsavedCount);
     enum CreateFlags {
         None = 0x0,
-        DisplayDiagnostics = 0x1
+        DisplayDiagnostics = 0x1,
+        NoNoStdInc = 0x2
     };
     static std::shared_ptr<TranslationUnit> create(const Path &sourceFile,
                                                    const List<String> &args,

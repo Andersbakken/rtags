@@ -172,6 +172,7 @@ enum OptionType {
     NoStartupProject,
     NoLibClangIncludePath,
     NoNoUnknownWarningsOption,
+    NoNoStdInc,
     IgnoreCompiler,
     CompilerWrappers,
     WatchSystemPaths,
@@ -332,6 +333,7 @@ int main(int argc, char** argv)
         { LargeByValueCopy, "large-by-value-copy", 'r', CommandLineParser::Required, "Use -Wlarge-by-value-copy=[arg] when invoking clang." },
         { NoStartupProject, "no-startup-project", 'o', CommandLineParser::NoValue, "Don't restore the last current project on startup." },
         { NoNoUnknownWarningsOption, "no-no-unknown-warnings-option", 'Y', CommandLineParser::NoValue, "Don't pass -Wno-unknown-warning-option." },
+        { NoNoStdInc, "no-no-stdinc", 0, CommandLineParser::NoValue, "Don't pass -no-stdinc or -nostdinc++ even if otherwise asked to." },
         { IgnoreCompiler, "ignore-compiler", 'b', CommandLineParser::Required, "Ignore this compiler." },
         { CompilerWrappers, "compiler-wrappers", 0, CommandLineParser::Required, String::format("Consider these filenames compiler wrappers (split on ;), default \"%s\".", DEFAULT_COMPILER_WRAPPERS) },
         { WatchSystemPaths, "watch-system-paths", 'w', CommandLineParser::NoValue, "Watch system paths for changes." },
@@ -523,6 +525,9 @@ int main(int argc, char** argv)
             break; }
         case NoNoUnknownWarningsOption: {
             serverOpts.options |= Server::NoNoUnknownWarningsOption;
+            break; }
+        case NoNoStdInc: {
+            serverOpts.options |= Server::NoNoStdInc;
             break; }
         case IgnoreCompiler: {
             serverOpts.ignoredCompilers.insert(Path::resolved(value));
