@@ -837,7 +837,7 @@ int main(int argc, char** argv)
     }
 #endif
 
-    std::shared_ptr<EventLoop> loop(new EventLoop);
+    std::shared_ptr<EventLoop> loop = std::make_shared<EventLoop>();
     loop->init(EventLoop::MainEventLoop|EventLoop::EnableSigIntHandler|EventLoop::EnableSigTermHandler);
 
     auto server = std::make_shared<Server>();
