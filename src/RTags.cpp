@@ -618,7 +618,7 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
 {
     auto ret = std::make_shared<TranslationUnit>();
     ret->clangLine = "clang ";
-    ret->index = clang_createIndex(0, createFlags & DisplayDiagnostics);
+    ret->index = clang_createIndex(0, createFlags.test(DisplayDiagnostics));
 
     int idx = 0;
     List<const char*> clangArgs(args.size() + 2, nullptr);

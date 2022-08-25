@@ -620,9 +620,15 @@ void Server::dependencies(const std::shared_ptr<QueryMessage> &query, const std:
 
     List<std::shared_ptr<Project>> projects;
     if (fileId) {
-        projects.push_back(findProject(fileId));
-    } else if (auto cur = currentProject()) {
-        projects.push_back(std::move(cur));
+        auto project = findProject(fileId);
+        if (project) {
+            projects.push_back(project);
+        }
+    }
+    if (projects.empty()) {
+        if (auto cur = currentProject()) {
+            projects.push_back(std::move(cur));
+        }
     }
     if (projects.empty()) {
         conn->write<256>("%s is not indexed", query->query().constData());
