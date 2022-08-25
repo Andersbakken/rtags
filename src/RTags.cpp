@@ -613,20 +613,20 @@ std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
 std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile, const List<String> &args,
                                                          CXUnsavedFile *unsaved, int unsavedCount,
                                                          Flags<CXTranslationUnit_Flags> translationUnitFlags,
-                                                         bool displayDiagnostics)
+                                                         Flags<CreateFlags> createFlags)
 
 {
     auto ret = std::make_shared<TranslationUnit>();
     ret->clangLine = "clang ";
-    ret->index = clang_createIndex(0, displayDiagnostics);
+    ret->index = clang_createIndex(0, createFlags & DisplayDiagnostics);
 
     int idx = 0;
     List<const char*> clangArgs(args.size() + 2, nullptr);
 
     const int count = args.size();
     for (int j=0; j<count; ++j) {
-        clangArgs[idx++] = args.at(j).constData();
         String arg = args.at(j);
+        clangArgs[idx++] = args.at(j).constData();
         arg.replace("\"", "\\\"");
         ret->clangLine += '"' + arg + '"';
         ret->clangLine += ' ';

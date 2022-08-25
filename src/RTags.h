@@ -165,7 +165,9 @@ String cursorToString(CXCursor cursor, Flags<CursorToStringFlags> = DefaultCurso
 
 RCT_FLAGS(CXTranslationUnit_Flags);
 
-struct TranslationUnit {
+class TranslationUnit
+{
+public:
     TranslationUnit()
         : index(nullptr), unit(nullptr)
     {}
@@ -199,12 +201,16 @@ struct TranslationUnit {
     CXCursor cursor() const { return clang_getTranslationUnitCursor(unit); }
 
     bool reparse(CXUnsavedFile *unsaved, int unsavedCount);
+    enum CreateFlags {
+        None = 0x0,
+        DisplayDiagnostics = 0x1
+    };
     static std::shared_ptr<TranslationUnit> create(const Path &sourceFile,
                                                    const List<String> &args,
                                                    CXUnsavedFile *unsaved,
                                                    int unsavedCount,
-                                                   Flags<CXTranslationUnit_Flags> translationUnitFlags = CXTranslationUnit_None,
-                                                   bool displayDiagnostics = true);
+                                                   Flags<CXTranslationUnit_Flags> translationUnitFlags,
+                                                   Flags<CreateFlags> createFlags);
 
     static std::shared_ptr<TranslationUnit> load(const Path &path);
 
@@ -212,6 +218,8 @@ struct TranslationUnit {
     CXTranslationUnit unit;
     String clangLine;
 };
+
+RCT_FLAGS(TranslationUnit::CreateFlags);
 
 struct CreateLocation
 {

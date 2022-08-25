@@ -171,7 +171,7 @@ void ClangThread::run()
     std::shared_ptr<RTags::TranslationUnit> translationUnit = RTags::TranslationUnit::create(mSource.sourceFile(),
                                                                                              mSource.toCommandLine(Source::Default),
                                                                                              &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord,
-                                                                                             false);
+                                                                                             RTags::TranslationUnit::None);
 
     const unsigned long long parseTime = sw.restart();
     warning() << "parseTime" << parseTime;

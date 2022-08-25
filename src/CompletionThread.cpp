@@ -274,7 +274,8 @@ void CompletionThread::process(Request *request)
 
         cache->translationUnit = RTags::TranslationUnit::create(sourceFile,
                                                                 cache->source.toCommandLine(Source::Default|Source::ExcludeDefaultArguments),
-                                                                unsavedFiles.data(), static_cast<int>(unsavedFiles.size()), flags, false);
+                                                                unsavedFiles.data(), static_cast<int>(unsavedFiles.size()), flags,
+                                                                RTags::TranslationUnit::None);
         // error() << "PARSING" << clangLine;
         parseTime = cache->parseTime = sw.elapsed();
         // with clang 3.8 it definitely seems like we have to reparse once to
