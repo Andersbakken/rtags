@@ -2237,7 +2237,9 @@ bool ClangIndexer::parse()
 
         if (!unit) {
             unit = RTags::TranslationUnit::create(mSourceFile, args, &unsavedFiles[0], unsavedIndex, flags,
-                                                  ClangIndexer::serverOpts() & Server::NoNoStdInc ? RTags::TranslationUnit::NoNoStdInc : NullFlags);
+                                                  ClangIndexer::serverOpts() & Server::NoNoStdInc
+                                                  ? RTags::TranslationUnit::NoNoStdInc
+                                                  : RTags::TranslationUnit::None);
             warning() << "CI::parse loading unit:" << unit->clangLine << " " << (unit->unit != nullptr);
         }
 
