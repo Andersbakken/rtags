@@ -70,7 +70,7 @@ String encodeUrlComponent(const String &str)
         } else if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
             new_str += c;
         } else {
-            sprintf(bufHex,"%X",c);
+            snprintf(bufHex, sizeof(bufHex), "%X", c);
             if (ic < 16) {
                 new_str += "%0";
             } else {
