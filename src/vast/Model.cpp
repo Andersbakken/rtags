@@ -62,7 +62,7 @@ inline static QString displayName(const CXType &type)
 {
     assert(type.kind != CXType_Invalid);
     const QString ret = eatString(clang_getTypeSpelling(type));
-    if (ret.empty()) {
+    if (ret.isEmpty()) {
         qDebug() << "GOT AN EMPTY TYPE" << eatString(clang_getTypeKindSpelling(type.kind));
     }
     return ret;
@@ -72,11 +72,11 @@ inline static QString displayName(const CXCursor &cursor)
 {
     assert(!clang_isInvalid(clang_getCursorKind(cursor)));
     QString ret = eatString(clang_getCursorDisplayName(cursor));
-    if (!ret.empty())
+    if (!ret.isEmpty())
         return ret;
     ret = eatString(clang_getCursorSpelling(cursor));
 
-    if (!ret.empty())
+    if (!ret.isEmpty())
         return ret;
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
@@ -134,7 +134,7 @@ inline static QString displayName(const CXCursor &cursor)
     default:
         break;
     }
-    if (ret.empty()) {
+    if (ret.isEmpty()) {
         qDebug() << "GOT AN EMPTY ONE" << eatString(clang_getCursorKindSpelling(kind));
     }
 

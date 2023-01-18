@@ -55,7 +55,7 @@ Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
     QObject::connect(mSplitter, SIGNAL(splitterMoved(int, int)), this, SLOT(onSplitterMoved()));
     {
         QByteArray savedState = QSettings().value("splitterState").value<QByteArray>();
-        if (!savedState.empty())
+        if (!savedState.isEmpty())
             mSplitter->restoreState(savedState);
     }
 
@@ -89,7 +89,7 @@ Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
 
 void Window::onSearchReturn()
 {
-    if (mSearch->text().empty()) {
+    if (mSearch->text().isEmpty()) {
         mFindNext->setEnabled(false);
         mFindPrevious->setEnabled(false);
         return;
@@ -211,7 +211,7 @@ void Window::showEvent(QShowEvent *e)
     QMainWindow::showEvent(e);
     mSourceViewWasVisible = mSourceView->width() != 0;
     QByteArray geom = QSettings().value("geometry").value<QByteArray>();
-    if (!geom.empty())
+    if (!geom.isEmpty())
         restoreGeometry(geom);
 }
 
