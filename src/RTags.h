@@ -1063,7 +1063,8 @@ inline bool isValid(const CXSourceLocation &location)
 
 namespace std
 {
-template <> struct hash<CXCursor> : public unary_function<CXCursor, size_t>
+template <>
+struct hash<CXCursor>
 {
     size_t operator()(const CXCursor &value) const
     {
