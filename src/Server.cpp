@@ -74,18 +74,6 @@
 #endif
 
 
-// Absolute paths to search (under) for (clang) system include files
-// Iterate until we find a dir at <abspath>/clang/<version>/include.
-// As of clang 4.0.0 we don't need (and can't have) these includes on Mac.
-#if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin)
-static const List<Path> sSystemIncludePaths;
-#else
-static const List<Path> sSystemIncludePaths = {
-    CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
-    "/usr/lib"        // fedora, arch
-};
-#endif
-
 Server *Server::sInstance = nullptr;
 Server::Server()
     : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0),
@@ -165,7 +153,20 @@ bool Server::init(const Options &options)
 
     if (!(mOptions.options & NoLibClangIncludePath)) {
         // Iterate until we find an existing directory
-        for (Path systemInclude : sSystemIncludePaths) {
+        // Absolute paths to search (under) for (clang) system include files
+        // Iterate until we find a dir at <abspath>/clang/<version>/include.
+        // As of clang 4.0.0 we don't need (and can't have) these includes on Mac.
+#if CINDEX_VERSION_ENCODE(CINDEX_VERSION_MAJOR, CINDEX_VERSION_MINOR) >= CINDEX_VERSION_ENCODE(0, 37) && defined(OS_Darwin)
+        const Path commandLineToolsPath = "/Library/Developer/CommandLineTools/usr/include/c++/v1/";
+        if (commandLineToolsPath.isDir()) {
+            mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, commandLineToolsPath));
+        }
+#else
+        const List<Path> systemIncludePaths = {
+            CLANG_LIBDIR_STR, // standard llvm build, debian/ubuntu
+            "/usr/lib"        // fedora, arch
+        };
+        for (Path systemInclude : systemIncludePaths) {
             systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
             if (systemInclude.isDir()) {
@@ -173,6 +174,7 @@ bool Server::init(const Options &options)
                 break;
             }
         }
+#endif
     }
 
     if (!initServers()) {
