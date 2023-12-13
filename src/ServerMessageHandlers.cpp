@@ -112,7 +112,6 @@ void Server::handleIndexMessage(const std::shared_ptr<IndexMessage> &message, co
         auto proj = addProject(data.project.ensureTrailingSlash(), data.compileCommandsFileId);
         if (proj) {
             assert(proj);
-            proj->check(Project::Check_Init);
             proj->processParseData(Project::ProcessParseData::IndexMessage, std::move(data));
             if (!currentProject())
                 setCurrentProject(proj);

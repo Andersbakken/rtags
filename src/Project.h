@@ -328,9 +328,9 @@ public:
         Check_Recurring,
         Check_Explicit
     };
-    void check(CheckMode mode);
+    bool check(CheckMode mode);
 private:
-    void reloadCompileCommands();
+    bool reloadCompileCommands(CheckMode mode);
     void onFileAddedOrModified(const Path &path, uint32_t fileId);
     void watchFile(uint32_t fileId);
     enum ValidateMode {

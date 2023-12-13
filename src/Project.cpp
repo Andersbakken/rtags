@@ -421,13 +421,13 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
     return true;
 }
 
-void Project::check(CheckMode checkMode)
+bool Project::check(CheckMode checkMode)
 {
     if ((checkMode == Check_Explicit) && isIndexing()) {
         // it's not safe to validate the project while it's still loading
         // try again in 5 minutes
         mCheckTimer.restart(CheckRetryTimeout);
-        return;
+        return true;
     }
 
     const Server::Options &options = Server::instance()->options();
@@ -507,7 +507,9 @@ void Project::check(CheckMode checkMode)
         return Continue;
     });
 
-    reloadCompileCommands();
+    if (!reloadCompileCommands(checkMode)) {
+        return false;
+    }
 
     if (needsSave)
         save();
@@ -519,6 +521,7 @@ void Project::check(CheckMode checkMode)
         startDirtyJobs(&simple, IndexerJob::Dirty);
     }
     mCheckTimer.restart(CheckPeriodicTimeout); // always checking every 1 hour
+    return true;
 }
 
 bool Project::match(const Match &match, bool *indexed) const
@@ -2513,7 +2516,7 @@ String Project::estimateMemory() const
     return String::join(ret, "\n");
 }
 
-void Project::reloadCompileCommands()
+bool Project::reloadCompileCommands(CheckMode mode)
 {
     if (!Server::instance()->suspended()) {
         SourceCache cache;
@@ -2527,22 +2530,21 @@ void Project::reloadCompileCommands()
             const Path file = Location::path(mIndexParseData.compileCommandsFileId);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
-                error() << "wut?";
-                // for (auto src : mIndexParseData.sources) {
-                //     removed[src.first] = it->first;
-                // }
-                // it->second.clearSources();
-            } else {
-                if (lastModified != mIndexParseData.lastModifiedMs
-                    && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
-                    found = true;
+                if (mode == Check_Init) {
+                    error() << "Can't load" << file << "removing project" << mPath;
+                    return false;
                 }
+                error() << "Can't load" << file;
+            } else if (lastModified != mIndexParseData.lastModifiedMs
+                && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
+                found = true;
             }
         }
         // removeSources(removed);
         if (found)
             processParseData(Project::ProcessParseData::ReloadCompileCommands, std::move(data));
     }
+    return true;
 }
 
 uint32_t Project::fileMapOptions() const

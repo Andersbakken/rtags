@@ -416,7 +416,7 @@ std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCo
         }
     }
     auto proj = std::make_shared<Project>();
-    if (!proj->init(path, compileCommandsFileId)) {
+    if (!proj->init(path, compileCommandsFileId) || !proj->check(Project::Check_Init)) {
         Path::rmdir(proj->projectDataDir());
         if (projects.empty()) {
             mProjects.erase(path);
@@ -951,8 +951,10 @@ bool Server::load()
                                 error("%s seems to be corrupted, refusing to restore. Removing.",
                                       file.constData());
                             } else {
-                                remove = false;
-                                addProject(filePath.ensureTrailingSlash(), fileId);
+                                if (addProject(filePath.ensureTrailingSlash(), fileId)) {
+                                    remove = false;
+                                }
+
                             }
                         } else {
                             error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
@@ -963,11 +965,6 @@ bool Server::load()
             }
             if (remove) {
                 Path::rmdir(file);
-            }
-        }
-        for (const auto &pair : mProjects) {
-            for (const auto &proj : pair.second) {
-                proj->check(Project::Check_Init);
             }
         }
         return true;
@@ -1015,11 +1012,6 @@ bool Server::load()
                 p->processParseData(Project::ProcessParseData::Recover, std::move(pp));
                 p->save();
             }
-        }
-    }
-    for (const auto &pair : mProjects) {
-        for (const auto &proj : pair.second) {
-            proj->check(Project::Check_Init);
         }
     }
     saveFileIds();
