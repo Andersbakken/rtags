@@ -69,11 +69,11 @@ struct Diagnostic;
 struct DependencyNode;
 class IndexDataMessage;
 
-typedef List<std::pair<uint32_t, uint32_t> > Includes;
+typedef List<std::pair<uint32_t, uint32_t>> Includes;
 typedef Hash<uint32_t, DependencyNode*> Dependencies;
 typedef Hash<uint32_t, SourceList> Sources;
-typedef Map<Path, Set<String> > Files;
-typedef Hash<uint32_t, Set<FixIt> > FixIts;
+typedef Map<Path, Set<String>> Files;
+typedef Hash<uint32_t, Set<FixIt>> FixIts;
 typedef Hash<Path, String> UnsavedFiles;
 
 struct SourceCache;
@@ -1088,8 +1088,8 @@ inline String dumpFileIds(const Container &container)
 
 struct SourceCache
 {
-    Hash<Path, Map<String, String> > rtagsConfigCache;
-    Hash<Path, std::pair<Path, bool> > compilerCache; // bool signifies isCompiler, not just executable
+    Hash<Path, Map<String, String>> rtagsConfigCache;
+    Hash<Path, std::pair<Path, bool>> compilerCache; // bool signifies isCompiler, not just executable
     struct AncestorCacheKey {
         String string;
         Flags<RTags::FindAncestorFlag> flags;
@@ -1102,7 +1102,7 @@ struct SourceCache
             return flags < other.flags;
         }
     };
-    Hash<Path, Map<AncestorCacheKey, Path> > ancestorCache;
+    Hash<Path, Map<AncestorCacheKey, Path>> ancestorCache;
 };
 
 inline Log operator<<(Log dbg, CXCursor cursor);

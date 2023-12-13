@@ -40,7 +40,7 @@ struct Dep : public DependencyNode
     Dep(uint32_t f)
         : DependencyNode(f)
     {}
-    Hash<uint32_t, Map<Location, Location> > references;
+    Hash<uint32_t, Map<Location, Location>> references;
 };
 
 ClangThread::ClangThread(const std::shared_ptr<QueryMessage> &queryMessage,

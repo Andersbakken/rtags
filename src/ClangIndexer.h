@@ -131,9 +131,9 @@ private:
 
     struct Unit {
         Map<Location, Symbol> symbols;
-        Map<Location, Map<String, uint16_t> > targets;
-        Map<String, Set<Location> > usrs;
-        Map<String, Set<Location> > symbolNames;
+        Map<Location, Map<String, uint16_t>> targets;
+        Map<String, Set<Location>> usrs;
+        Map<String, Set<Location>> symbolNames;
         Map<uint32_t, Token> tokens;
     };
 
@@ -164,7 +164,7 @@ private:
     };
     Map<Location, MacroData> mMacroTokens;
 
-    Hash<uint32_t, std::shared_ptr<Unit> > mUnits;
+    Hash<uint32_t, std::shared_ptr<Unit>> mUnits;
 
     const Mode mMode;
     Path mProject;
@@ -172,7 +172,7 @@ private:
     SourceList mSources, mCachedSources;
     Path mSourceFile;
     IndexDataMessage mIndexDataMessage;
-    List<std::shared_ptr<RTags::TranslationUnit> > mTranslationUnits, mCachedTranslationUnits;
+    List<std::shared_ptr<RTags::TranslationUnit>> mTranslationUnits, mCachedTranslationUnits;
     size_t mCurrentTranslationUnit;
     CXCursor mLastCursor;
     Symbol *mLastCallExprSymbol;

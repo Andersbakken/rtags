@@ -93,9 +93,9 @@ private:
         SourceList cache;
     };
     Hash<Process *, DaemonData> mDaemons;
-    EmbeddedLinkedList<std::shared_ptr<Node> > mPendingJobs;
-    Hash<Process *, std::shared_ptr<Node> > mActiveByProcess, mActiveDaemonsByProcess;
-    Hash<uint64_t, std::shared_ptr<Node> > mActiveById, mInactiveById;
+    EmbeddedLinkedList<std::shared_ptr<Node>> mPendingJobs;
+    Hash<Process *, std::shared_ptr<Node>> mActiveByProcess, mActiveDaemonsByProcess;
+    Hash<uint64_t, std::shared_ptr<Node>> mActiveById, mInactiveById;
 };
 
 #endif

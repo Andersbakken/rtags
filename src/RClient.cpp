@@ -55,7 +55,7 @@
 #define XSTR(s) #s
 #define STR(s) XSTR(s)
 
-std::initializer_list<CommandLineParser::Option<RClient::OptionType> > opts = {
+std::initializer_list<CommandLineParser::Option<RClient::OptionType>> opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Options:" },
     { RClient::Verbose, "verbose", 'v', CommandLineParser::NoValue, "Be more verbose." },
     { RClient::Version, "version", 0, CommandLineParser::NoValue, "Print current version." },
@@ -450,7 +450,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         mSocketFile += "/rdm.socket";
     }
 
-    List<std::shared_ptr<QueryCommand> > projectCommands;
+    List<std::shared_ptr<QueryCommand>> projectCommands;
 
     Path logFile;
     Flags<LogFlag> logFlags = LogStderr;
@@ -1338,7 +1338,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
         return { String(), CommandLineParser::Parse_Exec };
     };
 
-    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType>> configOpts = {
         { CommandLineParser::Config, "config", 0, CommandLineParser::Required, "Use this file (instead of ~/.rcrc)." },
         { CommandLineParser::NoRc, "no-rc", 0, CommandLineParser::NoValue, "Don't load any rc files." }
     };

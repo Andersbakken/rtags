@@ -112,28 +112,28 @@ public:
         }
         return nullptr;
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openSymbolNames(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, Set<Location>> > openSymbolNames(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(SymbolNames, fileId, mFileMapScope->symbolNames, err);
+        return mFileMapScope->openFileMap<String, Set<Location>>(SymbolNames, fileId, mFileMapScope->symbolNames, err);
     }
-    std::shared_ptr<FileMap<Location, Symbol> > openSymbols(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<Location, Symbol>> openSymbols(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<Location, Symbol>(Symbols, fileId, mFileMapScope->symbols, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openTargets(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, Set<Location>> > openTargets(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Targets, fileId, mFileMapScope->targets, err);
+        return mFileMapScope->openFileMap<String, Set<Location>>(Targets, fileId, mFileMapScope->targets, err);
     }
-    std::shared_ptr<FileMap<String, Set<Location> > > openUsrs(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<String, Set<Location>> > openUsrs(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
-        return mFileMapScope->openFileMap<String, Set<Location> >(Usrs, fileId, mFileMapScope->usrs, err);
+        return mFileMapScope->openFileMap<String, Set<Location>>(Usrs, fileId, mFileMapScope->usrs, err);
     }
 
-    std::shared_ptr<FileMap<uint32_t, Token> > openTokens(uint32_t fileId, String *err = nullptr)
+    std::shared_ptr<FileMap<uint32_t, Token>> openTokens(uint32_t fileId, String *err = nullptr)
     {
         assert(mFileMapScope);
         return mFileMapScope->openFileMap<uint32_t, Token>(Tokens, fileId, mFileMapScope->tokens, err);
@@ -242,7 +242,7 @@ public:
     void watch(const Path &dir, WatchMode mode);
     void unwatch(const Path &dir, WatchMode mode);
     void clearWatch(Flags<WatchMode> mode);
-    Hash<Path, Flags<WatchMode> > watchedPaths() const { return mWatchedPaths; }
+    Hash<Path, Flags<WatchMode>> watchedPaths() const { return mWatchedPaths; }
 
     time_t lastIdleTime() const { return mLastIdleTime; }
     bool isIndexing() const { return !mActiveJobs.empty(); }
@@ -387,8 +387,8 @@ private:
         }
 
         template <typename Key, typename Value>
-        std::shared_ptr<FileMap<Key, Value> > openFileMap(FileMapType type, uint32_t fileId,
-                                                          Hash<uint32_t, std::shared_ptr<FileMap<Key, Value> > > &cache,
+        std::shared_ptr<FileMap<Key, Value>> openFileMap(FileMapType type, uint32_t fileId,
+                                                          Hash<uint32_t, std::shared_ptr<FileMap<Key, Value>> > &cache,
                                                           String *errPtr)
         {
             auto it = cache.find(fileId);
@@ -448,18 +448,18 @@ private:
             return fileMap;
         }
 
-        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > symbolNames;
-        Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol> > > symbols;
-        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location> > > > targets, usrs;
-        Hash<uint32_t, std::shared_ptr<FileMap<uint32_t, Token> > > tokens;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location>> >> symbolNames;
+        Hash<uint32_t, std::shared_ptr<FileMap<Location, Symbol>> > symbols;
+        Hash<uint32_t, std::shared_ptr<FileMap<String, Set<Location>> >> targets, usrs;
+        Hash<uint32_t, std::shared_ptr<FileMap<uint32_t, Token>> > tokens;
         std::shared_ptr<Project> project;
         int openedFiles, totalOpened;
         const int max;
         bool loadFailed;
         Flags<ScopeFlag> flags;
 
-        EmbeddedLinkedList<std::shared_ptr<LRUEntry> > entryList;
-        Map<LRUKey, std::shared_ptr<LRUEntry> > entryMap;
+        EmbeddedLinkedList<std::shared_ptr<LRUEntry>> entryList;
+        Map<LRUKey, std::shared_ptr<LRUEntry>> entryMap;
     };
 
     std::shared_ptr<FileMapScope> mFileMapScope;
@@ -477,7 +477,7 @@ private:
 
     Diagnostics mDiagnostics;
 
-    Hash<uint32_t, std::shared_ptr<IndexerJob> > mActiveJobs;
+    Hash<uint32_t, std::shared_ptr<IndexerJob>> mActiveJobs;
 
     Timer mDirtyTimer, mCheckTimer;
     Set<uint32_t> mPendingDirtyFiles;
@@ -485,7 +485,7 @@ private:
     StopWatch mTimer;
     FileSystemWatcher mWatcher;
     IndexParseData mIndexParseData;
-    Hash<Path, Flags<WatchMode> > mWatchedPaths;
+    Hash<Path, Flags<WatchMode>> mWatchedPaths;
     std::shared_ptr<FileManager> mFileManager;
     FixIts mFixIts;
 

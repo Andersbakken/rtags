@@ -206,7 +206,7 @@ public:
         return ret;
     }
 
-    Hash<uint32_t, Set<uint32_t> > mModified;
+    Hash<uint32_t, Set<uint32_t>> mModified;
 };
 
 static Project::DependencyMode modeForSymbol(const Symbol &symbol)
@@ -2140,7 +2140,7 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         const uint32_t opts = fileMapOptions();
         {
             path = sourceFilePath(fileId, fileMapName(SymbolNames));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, Set<Location>> fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
@@ -2152,13 +2152,13 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
         }
         {
             path = sourceFilePath(fileId, fileMapName(Targets));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, Set<Location>> fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
         {
             path = sourceFilePath(fileId, fileMapName(Usrs));
-            FileMap<String, Set<Location> > fileMap;
+            FileMap<String, Set<Location>> fileMap;
             if (!fileMap.load(path, opts, &error))
                 goto error;
         }
@@ -2237,7 +2237,7 @@ static List<String> split(const String &value, size_t max)
 }
 
 template <typename T> struct PreferComma { enum { value = 0 }; };
-template <typename T> struct PreferComma<Set<T> > { enum { value = 1 }; };
+template <typename T> struct PreferComma<Set<T>> { enum { value = 1 }; };
 
 template <typename T>
 static List<String> formatField(const String &value, size_t max)
@@ -2267,7 +2267,7 @@ static List<String> formatField(const String &value, size_t max)
     return ret;
 }
 template <typename Key, typename Value>
-static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value> > &fileMap, size_t width)
+static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value>> &fileMap, size_t width)
 {
     width -= 7; // padding
     List<String> keys, values;

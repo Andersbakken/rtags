@@ -132,7 +132,7 @@ void JobScheduler::startJobs()
             << "daemonSlots" << daemonSlots;
 
     if (options.jobCount < mActiveByProcess.size()) {
-        List<std::shared_ptr<Node> > nodes;
+        List<std::shared_ptr<Node>> nodes;
         nodes.reserve(mActiveByProcess.size());
         for (const auto &pair : mActiveByProcess) {
             nodes.push_back(pair.second);
@@ -359,7 +359,7 @@ void JobScheduler::abort(const std::shared_ptr<IndexerJob> &job)
 
 void JobScheduler::sort()
 {
-    std::vector<std::shared_ptr<Node> > nodes(mPendingJobs.size());
+    std::vector<std::shared_ptr<Node>> nodes(mPendingJobs.size());
     for (size_t i=0; i<nodes.size(); ++i) {
         std::shared_ptr<Node> node = mPendingJobs.removeFirst();
         node->job->recalculatePriority();

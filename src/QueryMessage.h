@@ -162,7 +162,7 @@ public:
             Category = 0x8
         };
         Flags<Flag> flags;
-        Map<String, Flags<DefinitionType> > in, out;
+        Map<String, Flags<DefinitionType>> in, out;
         bool filter(const Symbol &symbol) const;
         void insert(const String &arg);
         bool empty() const { return in.empty() && out.empty(); }

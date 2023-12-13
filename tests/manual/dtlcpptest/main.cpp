@@ -9,9 +9,9 @@ uint32_t translatePoint(uint32_t offset, const dtl::Diff<char, std::string> &dif
 {
     const uint32_t old = offset;
     const dtl::Ses<char> ses = diff.getSes();
-    const std::vector<std::pair<char, dtl::elemInfo> > seq = ses.getSequence();
+    const std::vector<std::pair<char, dtl::elemInfo>> seq = ses.getSequence();
     int i = 0;
-    for (std::vector<std::pair<char, dtl::elemInfo> >::const_iterator it = seq.begin(); it != seq.end(); ++it) {
+    for (std::vector<std::pair<char, dtl::elemInfo>>::const_iterator it = seq.begin(); it != seq.end(); ++it) {
         if (it->second.type == 1) {
             if (it->second.afterIdx >= old || !offset) {
                 // printf("0 Breaking at(%c) because %d %lld\n", it->first, offset, it->second.afterIdx);

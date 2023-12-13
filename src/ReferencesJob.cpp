@@ -53,7 +53,7 @@ int ReferencesJob::execute()
 {
     const bool rename = queryFlags() & QueryMessage::Rename;
     Set<Symbol> refs;
-    Map<Location, std::pair<bool, CXCursorKind> > references;
+    Map<Location, std::pair<bool, CXCursorKind>> references;
     if (!mSymbolName.empty()) {
         const bool hasFilter = QueryJob::hasFilter();
         auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
@@ -267,7 +267,7 @@ int ReferencesJob::execute()
     if (rename) {
         if (!references.empty()) {
             if (queryFlags() & QueryMessage::ReverseSort) {
-                Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
+                Map<Location, std::pair<bool, CXCursorKind>>::const_iterator it = references.end();
                 do {
                     --it;
                     writeLoc(it->first);
@@ -281,7 +281,7 @@ int ReferencesJob::execute()
     } else {
         List<RTags::SortedSymbol> sorted;
         sorted.reserve(references.size());
-        for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
+        for (Map<Location, std::pair<bool, CXCursorKind>>::const_iterator it = references.begin();
              it != references.end(); ++it) {
             sorted.push_back(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
         }

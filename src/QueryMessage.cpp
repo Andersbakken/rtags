@@ -138,7 +138,7 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
 
     String spelling = Symbol::kindSpelling(symbol.kind).toLower();
     spelling.remove(' ');
-    auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType> > &map, bool hasWildcardsOrCategories) {
+    auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType>> &map, bool hasWildcardsOrCategories) {
         auto it = map.find(spelling);
         auto matchDefinition = [&symbol](Flags<DefinitionType> f) {
             f &= Definition|NotDefinition;
@@ -207,7 +207,7 @@ void QueryMessage::KindFilters::insert(const String &arg)
 {
     for (String a : arg.toLower().split(',', String::SkipEmpty)) {
         Flags<DefinitionType> f = Definition|NotDefinition;
-        Map<String, Flags<DefinitionType> > *target = &in;
+        Map<String, Flags<DefinitionType>> *target = &in;
         const bool hasWildCard = a.contains("?") || a.contains("*");
         if (hasWildCard)
             f |= Wildcard;

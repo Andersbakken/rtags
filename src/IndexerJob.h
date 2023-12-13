@@ -74,7 +74,7 @@ public:
     UnsavedFiles unsavedFiles;
     Set<uint32_t> visited;
     int crashCount;
-    Signal<std::function<void(IndexerJob *)> > destroyed;
+    Signal<std::function<void(IndexerJob *)>> destroyed;
 
 private:
     mutable int mCachedPriority;

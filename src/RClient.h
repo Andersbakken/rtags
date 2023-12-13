@@ -221,7 +221,7 @@ private:
     Set<QueryMessage::PathFilter> mPathFilters;
     QueryMessage::KindFilters mKindFilters;
     UnsavedFiles mUnsavedFiles;
-    List<std::shared_ptr<RCCommand> > mCommands;
+    List<std::shared_ptr<RCCommand>> mCommands;
     List<String> mRdmArgs;
     Path mSocketFile;
     Path mCurrentFile;

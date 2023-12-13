@@ -65,11 +65,11 @@ enum ConfigOptionType {
 RCT_FLAGS(Flag);
 template <typename T>
 ParseStatus parse(int argc, char **argv,
-                  std::initializer_list<Option<T> > optsList,
+                  std::initializer_list<Option<T>> optsList,
                   Flags<Flag> flags,
                   const std::function<ParseStatus(T, String &&value, size_t &idx, const List<String> &args)> &handler,
                   const String &app = String(),
-                  std::initializer_list<Option<ConfigOptionType> > configOpts = std::initializer_list<Option<ConfigOptionType> >(),
+                  std::initializer_list<Option<ConfigOptionType>> configOpts = std::initializer_list<Option<ConfigOptionType>>(),
                   String *cmdLine = nullptr)
 {
     Hash<String, const Option<T> *> longOpts;
@@ -243,7 +243,7 @@ ParseStatus parse(int argc, char **argv,
 }
 
 template <typename T>
-static void help(FILE *f, const char *app, std::initializer_list<Option<T> > optsList)
+static void help(FILE *f, const char *app, std::initializer_list<Option<T>> optsList)
 {
     List<String> out;
     size_t longest = 0;

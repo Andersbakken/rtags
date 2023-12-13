@@ -301,7 +301,7 @@ int main(int argc, char** argv)
     assert(Path::home().endsWith('/'));
     int inactivityTimeout = 0;
 
-    const std::initializer_list<CommandLineParser::Option<OptionType> > opts = {
+    const std::initializer_list<CommandLineParser::Option<OptionType>> opts = {
         { None, nullptr, 0, CommandLineParser::NoValue, "Options:" },
         { Help, "help", 'h', CommandLineParser::NoValue, "Display this page." },
         { Version, "version", 0, CommandLineParser::NoValue, "Display version." },
@@ -766,7 +766,7 @@ int main(int argc, char** argv)
         return { String(), CommandLineParser::Parse_Exec };
     };
 
-    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType> > configOpts = {
+    const std::initializer_list<CommandLineParser::Option<CommandLineParser::ConfigOptionType>> configOpts = {
         { CommandLineParser::Config, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
         { CommandLineParser::NoRc, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
     };

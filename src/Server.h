@@ -264,9 +264,9 @@ private:
     CompletionThread *mCompletionThread;
     bool mActiveBuffersSet;
     Hash<uint32_t, ActiveBufferType> mActiveBuffers;
-    Set<std::shared_ptr<Connection> > mConnections;
+    Set<std::shared_ptr<Connection>> mConnections;
 
-    Signal<std::function<void()> > mIndexDataMessageReceived;
+    Signal<std::function<void()>> mIndexDataMessageReceived;
     size_t mDefaultJobCount { 0 };
     List<size_t> mJobCountStack;
 };

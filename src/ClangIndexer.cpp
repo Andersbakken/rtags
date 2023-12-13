@@ -390,7 +390,7 @@ Location ClangIndexer::createLocation(const Path &sourceFile, unsigned int line,
 
     if (id) {
         if (blockedPtr) {
-            Hash<uint32_t, Flags<IndexDataMessage::FileFlag> >::iterator it = mIndexDataMessage.files().find(id);
+            Hash<uint32_t, Flags<IndexDataMessage::FileFlag>>::iterator it = mIndexDataMessage.files().find(id);
             if (it == mIndexDataMessage.files().end()) {
                 // the only reason we already have an id for a file that isn't
                 // in the mIndexDataMessage.mFiles is that it's blocked from the outset.
@@ -1468,7 +1468,7 @@ void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t
         const int16_t refTargetValue = RTags::createTargetsValue(CXCursor_Constructor, clang_isCursorDefinition(constructors[0]));
         targets[usrs[0]] = refTargetValue;
     } else if (!constructors.empty()) {
-        List<std::pair<size_t, MatchTypeResult> > matched;
+        List<std::pair<size_t, MatchTypeResult>> matched;
         matched.reserve(constructors.size());
         bool hasMatch = false;
         for (size_t ci=0; ci<constructors.size(); ++ci) {
@@ -2275,9 +2275,9 @@ bool ClangIndexer::parse()
     return ok;
 }
 
-static inline Map<String, Set<Location> > convertTargets(const Map<Location, Map<String, uint16_t> > &in, bool hasRoot)
+static inline Map<String, Set<Location>> convertTargets(const Map<Location, Map<String, uint16_t>> &in, bool hasRoot)
 {
-    Map<String, Set<Location> > ret;
+    Map<String, Set<Location>> ret;
     if (hasRoot) {
         for (const auto &v : in) {
             for (const auto &u : v.second) {
@@ -2313,7 +2313,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     const bool hasRoot = Sandbox::hasRoot();
     const uint32_t fileId = mSources.front().fileId;
 
-    auto process = [&](Hash<uint32_t, std::shared_ptr<Unit> >::const_iterator unit) {
+    auto process = [&](Hash<uint32_t, std::shared_ptr<Unit>>::const_iterator unit) {
         assert(mIndexDataMessage.files().value(unit->first) & IndexDataMessage::Visited);
         String unitRoot = root;
         unitRoot << unit->first;
@@ -2370,19 +2370,19 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         }
         bytesWritten += w;
 
-        if (!(w = FileMap<String, Set<Location> >::write(unitRoot + "/targets", convertTargets(unit->second->targets, hasRoot), fileMapOpts))) {
+        if (!(w = FileMap<String, Set<Location>>::write(unitRoot + "/targets", convertTargets(unit->second->targets, hasRoot), fileMapOpts))) {
             error = "Failed to write targets";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
+        if (!(w += FileMap<String, Set<Location>>::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
             error = "Failed to write usrs";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location> >::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
+        if (!(w += FileMap<String, Set<Location>>::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
             error = "Failed to write symbolNames";
             return false;
         }
@@ -2396,7 +2396,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         return true;
     };
 
-    List<std::shared_ptr<Unit> > templateSpecializationTargets;
+    List<std::shared_ptr<Unit>> templateSpecializationTargets;
     auto self = mUnits.end();
     for (auto it = mUnits.begin(); it != mUnits.end(); ++it) {
         if (!(mIndexDataMessage.files().value(it->first) & IndexDataMessage::Visited)) {

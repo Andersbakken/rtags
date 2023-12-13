@@ -117,7 +117,7 @@ int StatusJob::execute()
         matched = true;
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
             return 1;
-        Hash<Path, Flags<Project::WatchMode> > watched = proj->watchedPaths();
+        Hash<Path, Flags<Project::WatchMode>> watched = proj->watchedPaths();
         auto watchModeToString = [](Flags<Project::WatchMode> mode) {
             List<String> ret;
             if (mode & Project::Watch_FileManager)

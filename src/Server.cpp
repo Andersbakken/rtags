@@ -1136,13 +1136,13 @@ bool Server::runTests()
             ret = false;
             continue;
         }
-        const List<Value> tests = value.operator[]<List<Value> >("tests");
+        const List<Value> tests = value.operator[]<List<Value>>("tests");
         if (tests.empty()) {
             error() << "Invalid test" << file;
             ret = false;
             continue;
         }
-        const List<Value> sources = value.operator[]<List<Value> >("sources");
+        const List<Value> sources = value.operator[]<List<Value>>("sources");
         if (sources.empty()) {
             error() << "Invalid test" << file;
             ret = false;
@@ -1230,7 +1230,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            const List<Value> flags = test.operator[]<List<Value> >("flags");
+            const List<Value> flags = test.operator[]<List<Value>>("flags");
             for (const auto &flag : flags) {
                 if (!flag.isString()) {
                     error() << "Invalid flag";

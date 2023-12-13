@@ -134,7 +134,7 @@ private:
         Completions *next, *prev;
     };
 
-    void printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request);
+    void printCompletions(const List<std::unique_ptr<MatchResult>> &results, Request *request);
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 

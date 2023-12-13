@@ -409,7 +409,7 @@ void CompletionThread::process(Request *request)
             }
         }
 
-        List<std::unique_ptr<MatchResult> > matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
+        List<std::unique_ptr<MatchResult>> matches = StringTokenizer::find_and_sort_matches(candidates, request->prefix);
 
         if ((request->max != -1) && (static_cast<size_t>(request->max) < matches.size())) {
             matches.resize(request->max);
@@ -425,7 +425,7 @@ void CompletionThread::process(Request *request)
 
         } else {
             LOG() << "No completions available for" << request->location;
-            printCompletions(List<std::unique_ptr<MatchResult> >(), request);
+            printCompletions(List<std::unique_ptr<MatchResult>>(), request);
         }
 
         if (options.options & Server::CompletionDiagnostics)
@@ -486,11 +486,11 @@ struct Output
     Flags<CompletionThread::Flag> flags;
 };
 
-void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult> > &results, Request *request)
+void CompletionThread::printCompletions(const List<std::unique_ptr<MatchResult>> &results, Request *request)
 {
     static List<String> cursorKindNames;
     // error() << request->flags << testLog(RTags::DiagnosticsLevel) << completions.size() << request->conn;
-    List<std::shared_ptr<Output> > outputs;
+    List<std::shared_ptr<Output>> outputs;
     bool xml = false;
     bool elisp = false;
     bool raw = false;

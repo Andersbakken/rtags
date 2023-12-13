@@ -94,8 +94,8 @@ public:
         NoFileFlag = 0x0,
         Visited = 0x1
     };
-    Hash<uint32_t, Flags<FileFlag> > &files() { return mFiles; }
-    const Hash<uint32_t, Flags<FileFlag> > &files() const { return mFiles; }
+    Hash<uint32_t, Flags<FileFlag>> &files() { return mFiles; }
+    const Hash<uint32_t, Flags<FileFlag>> &files() const { return mFiles; }
 
     size_t bytesWritten() const { return mBytesWritten; }
     void setBytesWritten(size_t bytes) { mBytesWritten = bytes; }
@@ -123,7 +123,7 @@ private:
     FixIts mFixIts;
     Diagnostics mDiagnostics;
     Includes mIncludes;
-    Hash<uint32_t, Flags<FileFlag> > mFiles;
+    Hash<uint32_t, Flags<FileFlag>> mFiles;
     Flags<Flag> mFlags;
     size_t mBytesWritten;
 };

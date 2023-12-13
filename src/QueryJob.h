@@ -105,7 +105,7 @@ public:
     std::shared_ptr<QueryMessage> queryMessage() const { return mQueryMessage; }
     Flags<Location::ToStringFlag> locationToStringFlags() const { return QueryMessage::locationToStringFlags(queryFlags()); }
     bool filter(const String &val) const;
-    Signal<std::function<void(const String &)> > &output() { return mOutput; }
+    Signal<std::function<void(const String &)>> &output() { return mOutput; }
     List<std::shared_ptr<Project>> projects() const { return mProjects; }
     virtual int execute() = 0;
     int run(const std::shared_ptr<Connection> &connection = nullptr);
@@ -162,10 +162,10 @@ private:
     bool writeRaw(const String &out, Flags<WriteFlag> flags);
     std::shared_ptr<QueryMessage> mQueryMessage;
     Flags<JobFlag> mJobFlags;
-    Signal<std::function<void(const String &)> > mOutput;
+    Signal<std::function<void(const String &)>> mOutput;
     List<std::shared_ptr<Project>> mProjects;
     uint32_t mFileFilter;
-    List<std::shared_ptr<Filter> > mFilters;
+    List<std::shared_ptr<Filter>> mFilters;
     QueryMessage::KindFilters mKindFilters;
     Set<String> mPieceFilters;
     String mBuffer;
