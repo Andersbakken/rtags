@@ -2136,6 +2136,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
     }
 
+    c.mangledName = RTags::eatString(clang_Cursor_getMangling(cursor));
+
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
         mScopeStack.push_back({definition ? Scope::FunctionDefinition : Scope::FunctionDeclaration, definition ? &c : nullptr,

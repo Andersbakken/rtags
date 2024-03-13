@@ -207,6 +207,7 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
         writePiece("Arguments", "arguments", String::join(args, ", "));
     if (!bases.empty())
         writePiece("Base classes", "baseclasses", String::join(bases, ", "));
+    writePiece("Mangled name", "mangledname", mangledName);
     writePiece("Brief comment", "briefcomment", briefComment);
     writePiece("XML comment", "xmlcomment", xmlComment);
 
@@ -401,6 +402,8 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                 ret["linkage"] = str;
             }
 
+            if (!symbol.mangledName.empty() && filterPiece("mangledname"))
+                ret["mangledName"] = symbol.mangledName;
             if (!symbol.briefComment.empty() && filterPiece("briefcomment"))
                 ret["briefComment"] = symbol.briefComment;
             if (!symbol.xmlComment.empty() && filterPiece("xmlcomment"))
