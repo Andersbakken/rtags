@@ -1279,8 +1279,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         }
     }
 
-    if (refKind == CXCursor_FunctionDecl && c->symbolName == "make_shared") {
-        handleMakeShared(cursor, targets);
+    if (refKind == CXCursor_FunctionDecl && (c->symbolName == "make_shared" || c->symbolName == "make_unique")) {
+        handleMakeSharedOrMakeUnique(cursor, targets);
     }
 
     return true;
@@ -1384,7 +1384,7 @@ static MatchTypeResult matchTypes(CXCursor argument, const CXCursor &candidate)
     return Mismatch;
 }
 
-void ClangIndexer::handleMakeShared(const CXCursor &cursor, Map<String, uint16_t> &targets)
+void ClangIndexer::handleMakeSharedOrMakeUnique(const CXCursor &cursor, Map<String, uint16_t> &targets)
 {
     CXCursor ref = clang_getCursorReferenced(cursor);
     CXCursor p1 = clang_getCursorSemanticParent(ref);
