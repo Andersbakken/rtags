@@ -2557,13 +2557,25 @@ uint32_t Project::fileMapOptions() const
 
 void Project::fixPCH(Source &source)
 {
-    for (Source::Include &inc : source.includePaths) {
+    const bool enabled = Server::instance()->options().options & Server::PCHEnabled;
+    auto it = source.includePaths.begin();
+    while (it != source.includePaths.end()) {
+        auto &inc = *it;
         if (inc.type == Source::Include::Type_PCH) {
-            const uint32_t fileId = Location::insertFile(inc.path);
-            inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath,
-                                                   mIndexParseData.compileCommandsFileId, fileId) + "pch.h";
-            error() << "PREPARING" << inc.path;
+            if (enabled) {
+                const uint32_t fileId = Location::insertFile(inc.path);
+                inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath,
+                                                       mIndexParseData.compileCommandsFileId, fileId) + "pch.h";
+                error() << "PREPARING" << inc.path;
+            } else {
+                it = source.includePaths.erase(it);
+                continue;
+            }
+        } else if (inc.type == Source::Include::Type_File && inc.isPch()) {
+            it = source.includePaths.erase(it);
+            continue;
         }
+        ++it;
     }
 }
 

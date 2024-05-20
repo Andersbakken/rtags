@@ -152,8 +152,7 @@ String IndexerJob::encode() const
 
             Server::instance()->filterBlockedArguments(copy);
             copy.includePaths.insert(copy.includePaths.begin(), options.includePaths.begin(), options.includePaths.end());
-            if (Server::instance()->options().options & Server::PCHEnabled)
-                project->fixPCH(copy);
+            project->fixPCH(copy);
 
             copy.defines << options.defines;
             if (!(options.options & Server::EnableNDEBUG)) {
