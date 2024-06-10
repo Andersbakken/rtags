@@ -724,7 +724,7 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 
     const Path sourceFile = source.sourceFile();
 
-    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::) {
+    if (Filter::filter(sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
         debug() << "Shouldn't index" << source.sourceFile() << "because of exclude filter";
         return false;
     }
