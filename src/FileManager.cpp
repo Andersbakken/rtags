@@ -162,7 +162,7 @@ void FileManager::watch(const Path &path)
 {
     if (Server::instance()->options().options & Server::NoFileManagerWatch)
         return;
-    if (path.contains("/.git/") || path.contains("/.svn/") || path.contains("/.cvs/")) {
+    if (path.contains("/.git/") || path.contains("/.svn/") || path.contains("/.cvs/") || path.contains("/node_modules/")) {
         return; // more source control systems?
     }
     if (auto proj = mProject.lock()) {
