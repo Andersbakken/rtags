@@ -1309,8 +1309,8 @@ to only call this when `rtags-socket-address' is defined.
           (when path-filter-regex
             (push "-Z" arguments)))
         (when (and unsaved (rtags-buffer-file-name unsaved))
-          (setq tempfile (make-temp-file "/tmp/"))
-          (push (format "--unsaved-file=%s:%s" (rtags-untrampify (rtags-buffer-file-name unsaved)) tempfile) arguments)
+          (setq tempfile (make-nearby-temp-file "rtags"))
+          (push (format "--unsaved-file=%s:%s" (rtags-untrampify (rtags-buffer-file-name unsaved)) (rtags-untrampify tempfile)) arguments)
           (with-current-buffer unsaved
             (save-restriction
               (widen)
