@@ -72,6 +72,15 @@ public:
         : value(0)
     {}
 
+    class SaveFileIdsScope
+    {
+    public:
+        SaveFileIdsScope();
+        ~SaveFileIdsScope();
+
+        bool dirty { false };
+    };
+
     Location(uint32_t file, uint32_t l, uint32_t col)
         : value((static_cast<uint64_t>(col) << (FileBits + LineBits)) | (static_cast<uint64_t>(l) << (FileBits)) | file)
     {

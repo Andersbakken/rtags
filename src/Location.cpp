@@ -27,6 +27,7 @@ Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 std::mutex Location::sMutex;
+thread_local Location::SaveFileIdsScope* sSaveFileIdsScope = nullptr;
 static inline uint64_t createMask(int startBit, int bitCount)
 {
     uint64_t mask = 0;
@@ -141,8 +142,29 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
     return ret;
 }
 
+Location::SaveFileIdsScope::SaveFileIdsScope()
+{
+    if (!sSaveFileIdsScope) {
+        sSaveFileIdsScope = this;
+    }
+}
+
+Location::SaveFileIdsScope::~SaveFileIdsScope()
+{
+    if (sSaveFileIdsScope == this) {
+        sSaveFileIdsScope = nullptr;
+        if (dirty) {
+            saveFileIds();
+        }
+    }
+}
+
 void Location::saveFileIds()
 {
+    if (sSaveFileIdsScope) {
+        sSaveFileIdsScope->dirty = true;
+        return;
+    }
     assert(Server::instance());
     Server::instance()->saveFileIds();
 }
@@ -180,3 +202,4 @@ void Location::init(const Hash<uint32_t, Path> &idsToPaths)
         sLastId = std::max(sLastId, it.first);
     }
 }
+

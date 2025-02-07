@@ -537,6 +537,7 @@ bool Server::loadCompileCommands(IndexParseData &data, Path compileCommands, con
         return false;
     }
 
+    Location::SaveFileIdsScope saveFileIdsScope;
     compileCommands.resolve();
     CXCompilationDatabase_Error err;
     CXCompilationDatabase db = clang_CompilationDatabase_fromDirectory(compileCommands.parentDir().constData(), &err);
