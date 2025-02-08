@@ -20,8 +20,8 @@
 
 #include "Location.h"
 #include "QueryJob.h"
-#include "rct/String.h"
 #include "rct/Set.h"
+#include "rct/String.h"
 
 class SymbolInfo;
 class Project;
@@ -32,8 +32,10 @@ class ReferencesJob : public QueryJob
 public:
     ReferencesJob(Location location, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
     ReferencesJob(const String &symbolName, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
+
 protected:
     virtual int execute() override;
+
 private:
     Set<Location> mLocations;
     const String mSymbolName;

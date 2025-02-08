@@ -18,8 +18,8 @@
 
 #include <memory>
 
-#include "QueryJob.h"
 #include "Location.h"
+#include "QueryJob.h"
 
 class Project;
 class QueryMessage;
@@ -28,8 +28,10 @@ class IncludePathJob : public QueryJob
 {
 public:
     IncludePathJob(const Location loc, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
+
 protected:
     virtual int execute() override;
+
 private:
     const Location location;
 };

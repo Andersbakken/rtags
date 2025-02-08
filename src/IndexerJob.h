@@ -17,17 +17,17 @@
 #define IndexerJob_h
 
 #include <assert.h>
-#include <stdint.h>
 #include <functional>
 #include <memory>
+#include <stdint.h>
 #include <vector>
 
-#include "rct/Flags.h"
-#include "rct/SignalSlot.h"
 #include "RTags.h"
 #include "Source.h"
+#include "rct/Flags.h"
 #include "rct/Path.h"
 #include "rct/Set.h"
+#include "rct/SignalSlot.h"
 #include "rct/String.h"
 
 class Project;
@@ -35,19 +35,20 @@ class Project;
 class IndexerJob
 {
 public:
-    enum Flag {
-        None = 0x000,
-        Dirty = 0x001,
-        Reindex = 0x002,
-        Compile = 0x004,
-        Running = 0x010,
-        Crashed = 0x020,
-        Aborted = 0x040,
-        Complete = 0x080,
-        NoAbort = 0x100,
-        EditorOpen = 0x200, // opened in editor, the values of these are significant, EditorActive must be more than EditorOpen
+    enum Flag
+    {
+        None         = 0x000,
+        Dirty        = 0x001,
+        Reindex      = 0x002,
+        Compile      = 0x004,
+        Running      = 0x010,
+        Crashed      = 0x020,
+        Aborted      = 0x040,
+        Complete     = 0x080,
+        NoAbort      = 0x100,
+        EditorOpen   = 0x200, // opened in editor, the values of these are significant, EditorActive must be more than EditorOpen
         EditorActive = 0x400, // visible in editor
-        Type_Mask = Dirty|Compile|Reindex
+        Type_Mask    = Dirty | Compile | Reindex
     };
 
     static String dumpFlags(Flags<Flag> flags);
@@ -61,7 +62,11 @@ public:
     void acquireId();
     String encode() const;
 
-    uint32_t sourceFileId() const { assert(!sources.empty()); return sources.begin()->fileId; }
+    uint32_t sourceFileId() const
+    {
+        assert(!sources.empty());
+        return sources.begin()->fileId;
+    }
 
     int priority() const;
     void recalculatePriority();

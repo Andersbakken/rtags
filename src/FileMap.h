@@ -18,16 +18,17 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <functional>
+#include <limits>
 #include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <functional>
-#include <limits>
 
 #include "Location.h"
 #include "rct/Serializer.h"
 
-template <typename T> inline static int compare(const T &l, const T &r)
+template <typename T>
+inline static int compare(const T &l, const T &r)
 {
     if (l < r)
         return -1;
@@ -36,12 +37,14 @@ template <typename T> inline static int compare(const T &l, const T &r)
     return 0;
 }
 
-template <> inline int compare(const String &l, const String &r)
+template <>
+inline int compare(const String &l, const String &r)
 {
     return l.compare(r);
 }
 
-template <> inline int compare(const Location &l, const Location &r)
+template <>
+inline int compare(const Location &l, const Location &r)
 {
     return l.compare(r);
 }
@@ -51,43 +54,54 @@ class FileMap
 {
 public:
     FileMap()
-        : mPointer(nullptr), mSize(0), mCount(0), mValuesOffset(0), mFD(-1), mOptions(0)
-    {}
-    FileMap(FileMap &&other)
-        : mPointer(other.mPointer), mSize(other.mSize), mCount(other.mCount), mValuesOffset(other.mValuesOffset),
-          mFD(other.mFD), mOptions(other.mOptions)
+        : mPointer(nullptr)
+        , mSize(0)
+        , mCount(0)
+        , mValuesOffset(0)
+        , mFD(-1)
+        , mOptions(0)
     {
-        other.mPointer = 0;
-        other.mSize = 0;
-        other.mCount = 0;
+    }
+
+    FileMap(FileMap &&other)
+        : mPointer(other.mPointer)
+        , mSize(other.mSize)
+        , mCount(other.mCount)
+        , mValuesOffset(other.mValuesOffset)
+        , mFD(other.mFD)
+        , mOptions(other.mOptions)
+    {
+        other.mPointer      = 0;
+        other.mSize         = 0;
+        other.mCount        = 0;
         other.mValuesOffset = 0;
-        other.mFD = -1;
-        other.mOptions = 0;
-        other.mFD = -1;
+        other.mFD           = -1;
+        other.mOptions      = 0;
+        other.mFD           = -1;
     }
 
     FileMap &operator=(FileMap &&other)
     {
         clear();
-        mPointer = other.mPointer;
-        mSize = other.mSize;
-        mCount = other.mCount;
+        mPointer      = other.mPointer;
+        mSize         = other.mSize;
+        mCount        = other.mCount;
         mValuesOffset = other.mValuesOffset;
-        mFD = other.mFD;
-        mOptions = other.mOptions;
-        mFD = other.mFD;
+        mFD           = other.mFD;
+        mOptions      = other.mOptions;
+        mFD           = other.mFD;
 
-        other.mPointer = 0;
-        other.mSize = 0;
-        other.mCount = 0;
+        other.mPointer      = 0;
+        other.mSize         = 0;
+        other.mCount        = 0;
         other.mValuesOffset = 0;
-        other.mFD = -1;
-        other.mOptions = 0;
-        other.mFD = -1;
+        other.mFD           = -1;
+        other.mOptions      = 0;
+        other.mFD           = -1;
         return *this;
     }
 
-    FileMap(const FileMap &) = delete;
+    FileMap(const FileMap &)            = delete;
     FileMap &operator=(const FileMap &) = delete;
 
     ~FileMap()
@@ -99,7 +113,7 @@ public:
     {
         if (mFD != -1) {
             assert(mPointer);
-            munmap(const_cast<char*>(mPointer), mSize);
+            munmap(const_cast<char *>(mPointer), mSize);
             if (!(mOptions & NoLock))
                 lock(mFD, Unlock);
             int ret;
@@ -110,15 +124,17 @@ public:
     void init(const char *pointer, uint32_t size)
     {
         mPointer = pointer;
-        mSize = size;
+        mSize    = size;
         memcpy(&mCount, mPointer, sizeof(uint32_t));
         memcpy(&mValuesOffset, mPointer + sizeof(uint32_t), sizeof(uint32_t));
     }
 
-    enum Options {
-        None = 0x0,
+    enum Options
+    {
+        None   = 0x0,
         NoLock = 0x1
     };
+
     bool load(const Path &path, uint32_t options, String *error = nullptr)
     {
         eintrwrap(mFD, open(path.constData(), O_RDONLY));
@@ -153,7 +169,7 @@ public:
             return false;
         }
 
-        const char *pointer = static_cast<const char*>(mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, mFD, 0));
+        const char *pointer = static_cast<const char *>(mmap(nullptr, st.st_size, PROT_READ, MAP_PRIVATE, mFD, 0));
         // error() << errno;//  << mPointer;
         if (pointer == MAP_FAILED) {
             if (error) {
@@ -204,7 +220,6 @@ public:
             if (match)
                 *match = false;
             return std::numeric_limits<uint32_t>::max();
-
         }
         int lower = 0;
         int upper = mCount - 1;
@@ -240,7 +255,7 @@ public:
             valuesOffset = ((static_cast<uint32_t>(map.size()) * size) + (sizeof(uint32_t) * 2));
             serializer << valuesOffset;
             for (const auto &pair : map) {
-                out.append(reinterpret_cast<const char*>(&pair.first), size);
+                out.append(reinterpret_cast<const char *>(&pair.first), size);
             }
         } else {
             serializer << static_cast<uint32_t>(0); // values offset
@@ -249,7 +264,7 @@ public:
             Serializer keySerializer(keyData);
             for (const auto &pair : map) {
                 const uint32_t pos = offset + keyData.size();
-                out.append(reinterpret_cast<const char*>(&pos), sizeof(pos));
+                out.append(reinterpret_cast<const char *>(&pos), sizeof(pos));
                 keySerializer << pair.first;
             }
             out.append(keyData);
@@ -260,7 +275,7 @@ public:
 
         if (uint32_t size = FixedSize<Value>::value) {
             for (const auto &pair : map) {
-                out.append(reinterpret_cast<const char*>(&pair.second), size);
+                out.append(reinterpret_cast<const char *>(&pair.second), size);
             }
         } else {
             const uint32_t encodedValuesOffset = valuesOffset + (sizeof(uint32_t) * map.size());
@@ -268,21 +283,21 @@ public:
             Serializer valueSerializer(valueData);
             for (const auto &pair : map) {
                 const uint32_t pos = encodedValuesOffset + valueData.size();
-                out.append(reinterpret_cast<const char*>(&pos), sizeof(pos));
+                out.append(reinterpret_cast<const char *>(&pos), sizeof(pos));
                 valueSerializer << pair.second;
             }
             out.append(valueData);
-
         }
         return out;
     }
+
     static size_t write(const Path &path, const Map<Key, Value> &map, uint32_t options)
     {
-        int fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
+        int fd = open(path.constData(), O_RDWR | O_CREAT, 0644);
         if (fd == -1) {
             if (!Path::mkdir(path.parentDir(), Path::Recursive))
                 return 0;
-            fd = open(path.constData(), O_RDWR|O_CREAT, 0644);
+            fd = open(path.constData(), O_RDWR | O_CREAT, 0644);
             if (fd == -1)
                 return 0;
         }
@@ -291,7 +306,7 @@ public:
             return 0;
         }
         const String data = encode(map);
-        bool ok = ::ftruncate(fd, data.size()) != -1;
+        bool ok           = ::ftruncate(fd, data.size()) != -1;
         if (!ok) {
             if (!(options & NoLock))
                 lock(fd, Unlock);
@@ -308,24 +323,29 @@ public:
             unlink(path.constData());
         return ok ? data.size() : 0;
     }
+
 private:
-    enum Mode {
-        Read = F_RDLCK,
-        Write = F_WRLCK,
+    enum Mode
+    {
+        Read   = F_RDLCK,
+        Write  = F_WRLCK,
         Unlock = F_UNLCK
     };
+
     static bool lock(int fd, Mode mode)
     {
         struct flock fl;
         memset(&fl, 0, sizeof(fl));
-        fl.l_type = mode;
+        fl.l_type   = mode;
         fl.l_whence = SEEK_SET;
-        fl.l_pid = getpid();
+        fl.l_pid    = getpid();
         int ret;
         eintrwrap(ret, fcntl(fd, F_SETLKW, &fl));
         return ret != -1;
     }
+
     const char *valuesSegment() const { return mPointer + mValuesOffset; }
+
     const char *keysSegment() const { return mPointer + (sizeof(uint32_t) * 2); }
 
     template <typename T>
@@ -333,7 +353,7 @@ private:
     {
         if (const uint32_t size = FixedSize<T>::value) {
             T t = T();
-            memcpy((void*)&t, base + (index * size), FixedSize<T>::value);
+            memcpy((void *)&t, base + (index * size), FixedSize<T>::value);
             return t;
         }
         uint32_t offset;

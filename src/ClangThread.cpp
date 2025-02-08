@@ -19,13 +19,11 @@
 #include <functional>
 #include <utility>
 
-#include "rct/Connection.h"
-#include "RTags.h"
 #include "Location.h"
 #include "Project.h"
 #include "QueryMessage.h"
-#include "clang-c/CXString.h"
-#include "clang-c/Index.h"
+#include "RTags.h"
+#include "rct/Connection.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
@@ -34,19 +32,27 @@
 #include "rct/Path.h"
 #include "rct/SignalSlot.h"
 #include "rct/StopWatch.h"
+#include "clang-c/CXString.h"
+#include "clang-c/Index.h"
 
 struct Dep : public DependencyNode
 {
     Dep(uint32_t f)
         : DependencyNode(f)
-    {}
+    {
+    }
+
     Hash<uint32_t, Map<Location, Location>> references;
 };
 
 ClangThread::ClangThread(const std::shared_ptr<QueryMessage> &queryMessage,
                          const Source &source, const std::shared_ptr<Connection> &conn)
-    : Thread(), mQueryMessage(queryMessage), mSource(source),
-      mConnection(conn), mIndentLevel(0), mAborted(false)
+    : Thread()
+    , mQueryMessage(queryMessage)
+    , mSource(source)
+    , mConnection(conn)
+    , mIndentLevel(0)
+    , mAborted(false)
 {
     setAutoDelete(true);
 }
@@ -57,7 +63,7 @@ ClangThread::~ClangThread()
 
 CXChildVisitResult ClangThread::visitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
-    ClangThread *that = reinterpret_cast<ClangThread*>(userData);
+    ClangThread *that = reinterpret_cast<ClangThread *>(userData);
     assert(that);
     return that->visit(cursor);
 }
@@ -75,7 +81,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
             if (mQueryMessage->flags() & QueryMessage::NoColor)
                 locationFlags |= Location::NoColor;
 
-            CXSourceRange range = clang_getCursorExtent(cursor);
+            CXSourceRange range       = clang_getCursorExtent(cursor);
             CXSourceLocation rangeEnd = clang_getRangeEnd(range);
             unsigned int endLine, endColumn;
             clang_getPresumedLocation(rangeEnd, nullptr, &endLine, &endColumn);
@@ -96,14 +102,16 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                 message += String::format<32>(" // %d-%d:%d, %d: ", location.column(), endLine, endColumn, mIndentLevel);
             }
             message += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
-            message.push_back(" " + RTags::typeName(cursor));;
+            message.push_back(" " + RTags::typeName(cursor));
+            ;
             if (clang_getCursorKind(cursor) == CXCursor_VarDecl) {
                 RTags::Auto autoResolved;
                 if (RTags::resolveAuto(cursor, &autoResolved) && RTags::isValid(autoResolved.cursor)) {
                     message += "auto resolves to " + RTags::cursorToString(autoResolved.cursor, RTags::AllCursorToStringFlags);
                 }
             }
-            auto printCursor = [&message](const CXCursor &c, bool *spec = nullptr) {
+            auto printCursor = [&message](const CXCursor &c, bool *spec = nullptr)
+            {
                 CXCursor canonical = clang_getCanonicalCursor(c);
                 if (canonical != c && RTags::isValid(canonical)) {
                     message.push_back(" canonical ");
@@ -126,7 +134,7 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
                 message.push_back(String::format("arg count: %d ", argCount));
             }
 
-            CXCursor ref = clang_getCursorReferenced(cursor);
+            CXCursor ref        = clang_getCursorReferenced(cursor);
             bool refSpecialized = false;
             if (RTags::isValid(ref) && ref != cursor) {
                 message.push_back("refs ");
@@ -158,19 +166,23 @@ CXChildVisitResult ClangThread::visit(const CXCursor &cursor)
 void ClangThread::run()
 {
     StopWatch sw;
-    const auto key = mConnection->disconnected().connect([this](const std::shared_ptr<Connection> &) { abort(); });
+    const auto key = mConnection->disconnected().connect([this](const std::shared_ptr<Connection> &)
+                                                         {
+                                                             abort();
+                                                         });
 
-    String sourceCode = mSource.sourceFile().readAll();
+    String sourceCode     = mSource.sourceFile().readAll();
     CXUnsavedFile unsaved = {
         mSource.sourceFile().constData(),
         sourceCode.constData(),
         static_cast<unsigned long>(sourceCode.size())
     };
 
-
     std::shared_ptr<RTags::TranslationUnit> translationUnit = RTags::TranslationUnit::create(mSource.sourceFile(),
                                                                                              mSource.toCommandLine(Source::Default),
-                                                                                             &unsaved, 1, CXTranslationUnit_DetailedPreprocessingRecord,
+                                                                                             &unsaved,
+                                                                                             1,
+                                                                                             CXTranslationUnit_DetailedPreprocessingRecord,
                                                                                              RTags::TranslationUnit::None);
 
     const unsigned long long parseTime = sw.restart();
@@ -186,23 +198,24 @@ void ClangThread::run()
         }
     }
 
-
     mConnection->disconnected().disconnect(key);
     std::weak_ptr<Connection> conn = mConnection;
-    EventLoop::mainEventLoop()->callLater([conn]() {
-        if (auto c = conn.lock())
-            c->finish();
-    });
+    EventLoop::mainEventLoop()->callLater([conn]()
+                                          {
+                                              if (auto c = conn.lock())
+                                                  c->finish();
+                                          });
 }
 
 void ClangThread::writeToConnection(const String &message)
 {
     std::weak_ptr<Connection> conn = mConnection;
-    EventLoop::mainEventLoop()->callLater([conn, message]() {
-        if (auto c = conn.lock()) {
-            c->write(message);
-        }
-    });
+    EventLoop::mainEventLoop()->callLater([conn, message]()
+                                          {
+                                              if (auto c = conn.lock()) {
+                                                  c->write(message);
+                                              }
+                                          });
 }
 
 void ClangThread::handleInclude(Location loc, const CXCursor &cursor)
@@ -218,7 +231,7 @@ void ClangThread::handleInclude(Location loc, const CXCursor &cursor)
         const Path p = Path::resolved(cstr);
         clang_disposeString(fn);
         const uint32_t fileId = Location::insertFile(p);
-        Dep *&source = mDependencies[loc.fileId()];
+        Dep *&source          = mDependencies[loc.fileId()];
         if (!source)
             source = new Dep(loc.fileId());
         Dep *&include = mDependencies[fileId];
@@ -241,7 +254,7 @@ void ClangThread::handleReference(Location loc, const CXCursor &ref)
     Dep *refDep = mDependencies[refLoc.fileId()];
     assert(refDep);
     auto &refs = dep->references[refDep->fileId];
-    refs[loc] = refLoc;
+    refs[loc]  = refLoc;
 }
 
 void ClangThread::checkIncludes(Location location, const CXCursor &cursor)
@@ -265,7 +278,7 @@ static bool validateHasInclude(uint32_t ref, const Dep *cur, Set<uint32_t> &seen
     if (!seen.insert(ref))
         return false;
     for (const auto &pair : cur->includes) {
-        if (validateHasInclude(ref, static_cast<const Dep*>(pair.second), seen))
+        if (validateHasInclude(ref, static_cast<const Dep *>(pair.second), seen))
             return true;
     }
     return false;
@@ -283,7 +296,7 @@ static bool validateNeedsInclude(const Dep *source, const Dep *header, Set<uint3
     }
     for (const auto &child : header->includes) {
         // error() << "Checking child" << Location::path(child.second->fileId);
-        if (validateNeedsInclude(source, static_cast<const Dep*>(child.second), seen)) {
+        if (validateNeedsInclude(source, static_cast<const Dep *>(child.second), seen)) {
             return true;
         }
     }
@@ -299,9 +312,9 @@ void ClangThread::checkIncludes()
         if (path.isSystem())
             continue;
 
-        for (const auto &dep  : it.second->includes) {
+        for (const auto &dep : it.second->includes) {
             Set<uint32_t> seen;
-            if (!validateNeedsInclude(it.second, static_cast<Dep*>(dep.second), seen)) {
+            if (!validateNeedsInclude(it.second, static_cast<Dep *>(dep.second), seen)) {
                 writeToConnection(String::format<128>("%s includes %s for no reason",
                                                       path.constData(),
                                                       Location::path(dep.second->fileId).constData()));

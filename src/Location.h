@@ -16,14 +16,14 @@
 #ifndef Location_h
 #define Location_h
 
+#include <algorithm>
 #include <assert.h>
 #include <clang-c/Index.h>
-#include <stdio.h>
+#include <functional>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <algorithm>
-#include <functional>
 #include <type_traits>
 #include <utility>
 #if defined(OS_Linux)
@@ -36,16 +36,18 @@
 
 #define LOCK() const std::lock_guard<std::mutex> lock(sMutex)
 #else
-#define LOCK() do {} while (0)
+#define LOCK() \
+    do {       \
+    } while (0)
 #endif
 
 #include "rct/Flags.h"
+#include "rct/Hash.h"
 #include "rct/Log.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"
-#include "rct/String.h"
 #include "rct/StackBuffer.h"
-#include "rct/Hash.h"
+#include "rct/String.h"
 
 static inline int intCompare(uint32_t l, uint32_t r)
 {
@@ -55,6 +57,7 @@ static inline int intCompare(uint32_t l, uint32_t r)
         return 1;
     return 0;
 }
+
 static inline int comparePosition(uint32_t lline, uint32_t lcol, uint32_t rline, uint32_t rcol)
 {
     int ret = intCompare(lline, rline);
@@ -70,7 +73,8 @@ public:
 
     Location()
         : value(0)
-    {}
+    {
+    }
 
     class SaveFileIdsScope
     {
@@ -91,6 +95,7 @@ public:
         LOCK();
         return sPathsToIds.value(path);
     }
+
     static inline Path path(uint32_t id)
     {
         LOCK();
@@ -121,9 +126,9 @@ public:
             LOCK();
             uint32_t &id = sPathsToIds[path];
             if (!id) {
-                id = ++sLastId;
+                id              = ++sLastId;
                 sIdsToPaths[id] = path;
-                save = true;
+                save            = true;
             }
             ret = id;
         }
@@ -134,20 +139,52 @@ public:
         return ret;
     }
 
-    inline uint32_t fileId() const { return static_cast<uint32_t>(value & FILEID_MASK); }
-    inline uint32_t line() const { return static_cast<uint32_t>((value & LINE_MASK) >> FileBits); }
-    inline uint32_t column() const { return static_cast<uint32_t>((value & COLUMN_MASK) >> (FileBits + LineBits)); }
+    inline uint32_t fileId() const
+    {
+        return static_cast<uint32_t>(value & FILEID_MASK);
+    }
+
+    inline uint32_t line() const
+    {
+        return static_cast<uint32_t>((value & LINE_MASK) >> FileBits);
+    }
+
+    inline uint32_t column() const
+    {
+        return static_cast<uint32_t>((value & COLUMN_MASK) >> (FileBits + LineBits));
+    }
 
     inline Path path() const
     {
         LOCK();
         return sIdsToPaths.value(fileId());
     }
-    inline bool isNull() const { return !value; }
-    inline bool isValid() const { return value; }
-    inline void clear() { value = 0; }
-    inline bool operator==(Location other) const { return value == other.value; }
-    inline bool operator!=(Location other) const { return value != other.value; }
+
+    inline bool isNull() const
+    {
+        return !value;
+    }
+
+    inline bool isValid() const
+    {
+        return value;
+    }
+
+    inline void clear()
+    {
+        value = 0;
+    }
+
+    inline bool operator==(Location other) const
+    {
+        return value == other.value;
+    }
+
+    inline bool operator!=(Location other) const
+    {
+        return value != other.value;
+    }
+
     inline int compare(Location other) const
     {
         int ret = intCompare(fileId(), other.fileId());
@@ -158,6 +195,7 @@ public:
         }
         return ret;
     }
+
     inline bool operator<(Location other) const
     {
         return compare(other) < 0;
@@ -178,11 +216,12 @@ public:
         return compare(other) >= 0;
     }
 
-    enum ToStringFlag {
-        NoFlag = 0x0,
-        ShowContext = 0x1,
-        NoColor = 0x2,
-        AbsolutePath = 0x4,
+    enum ToStringFlag
+    {
+        NoFlag            = 0x0,
+        ShowContext       = 0x1,
+        NoColor           = 0x2,
+        AbsolutePath      = 0x4,
         ConvertToRelative = 0x8
     };
 
@@ -191,8 +230,9 @@ public:
 
     inline String debug() const;
 
-    enum DecodeFlag {
-        NoDecodeFlag = 0x0,
+    enum DecodeFlag
+    {
+        NoDecodeFlag   = 0x0,
         CreateLocation = 0x1
     };
 
@@ -215,6 +255,7 @@ public:
         error("%s:%d:%d is not indexed", path.constData(), line, col);
         return Location();
     }
+
     static bool parse(const String &str, const Path &pwd, Path::ResolveMode mode,
                       Path *path, uint32_t *line, uint32_t *col)
     {
@@ -264,11 +305,13 @@ public:
             return Location();
         return Location(fileId, line, col);
     }
+
     static Hash<uint32_t, Path> idsToPaths()
     {
         LOCK();
         return sIdsToPaths;
     }
+
     static Hash<Path, uint32_t> pathsToIds()
     {
         LOCK();
@@ -282,6 +325,7 @@ public:
             func(it.first, it.second);
         }
     }
+
     static bool init(const Hash<Path, uint32_t> &pathsToIds);
     static void init(const Hash<uint32_t, Path> &idsToPaths);
 
@@ -290,7 +334,7 @@ public:
         LOCK();
         uint32_t &refId = sPathsToIds[path];
         assert(!refId || refId == fileId);
-        refId = fileId;
+        refId   = fileId;
         Path &p = sIdsToPaths[fileId];
         if (p.empty()) {
             p = path;
@@ -299,6 +343,7 @@ public:
         }
         sLastId = std::max(sLastId, fileId);
     }
+
 private:
 #ifndef RTAGS_SINGLE_THREAD
     static std::mutex sMutex;
@@ -307,11 +352,14 @@ private:
     static Hash<Path, uint32_t> sPathsToIds;
     static Hash<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    enum {
-        FileBits = 22,
-        LineBits = 21,
+
+    enum
+    {
+        FileBits   = 22,
+        LineBits   = 21,
         ColumnBits = 64 - FileBits - LineBits
     };
+
     static const uint64_t FILEID_MASK;
     static const uint64_t LINE_MASK;
     static const uint64_t COLUMN_MASK;
@@ -319,14 +367,16 @@ private:
 
 RCT_FLAGS(Location::ToStringFlag);
 
-template <> struct FixedSize<Location>
+template <>
+struct FixedSize<Location>
 {
     static constexpr size_t value = sizeof(Location::value);
 };
 
-template <> inline Serializer &operator<<(Serializer &s, const Location &t)
+template <>
+inline Serializer &operator<<(Serializer &s, const Location &t)
 {
-    s.write(reinterpret_cast<const char*>(&t.value), sizeof(uint64_t));
+    s.write(reinterpret_cast<const char *>(&t.value), sizeof(uint64_t));
     return s;
 }
 
@@ -354,9 +404,10 @@ inline bool operator!=(const String &str, Location loc)
     return loc != fromPath;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
+template <>
+inline Deserializer &operator>>(Deserializer &s, Location &t)
 {
-    s.read(reinterpret_cast<char*>(&t), sizeof(uint64_t));
+    s.read(reinterpret_cast<char *>(&t), sizeof(uint64_t));
     return s;
 }
 
@@ -368,7 +419,7 @@ static inline Log operator<<(Log dbg, Location loc)
 
 inline String Location::debug() const
 {
-    return toString(NoColor|AbsolutePath);
+    return toString(NoColor | AbsolutePath);
 }
 
 #endif

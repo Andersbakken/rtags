@@ -18,27 +18,28 @@
 #include <ctype.h>
 #include <memory>
 
-#include "RTags.h"
-#include "Server.h"
 #include "Project.h"
+#include "RTags.h"
 #include "Sandbox.h"
+#include "Server.h"
 
 Hash<Path, uint32_t> Location::sPathsToIds;
 Hash<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
 std::mutex Location::sMutex;
-thread_local Location::SaveFileIdsScope* sSaveFileIdsScope = nullptr;
+thread_local Location::SaveFileIdsScope *sSaveFileIdsScope = nullptr;
+
 static inline uint64_t createMask(int startBit, int bitCount)
 {
     uint64_t mask = 0;
-    for (int i=startBit; i<startBit + bitCount; ++i) {
+    for (int i = startBit; i < startBit + bitCount; ++i) {
         mask |= (static_cast<uint64_t>(1) << i);
     }
     return mask;
 }
 
 const uint64_t Location::FILEID_MASK = createMask(0, FileBits);
-const uint64_t Location::LINE_MASK = createMask(FileBits, LineBits);
+const uint64_t Location::LINE_MASK   = createMask(FileBits, LineBits);
 const uint64_t Location::COLUMN_MASK = createMask(FileBits + LineBits, ColumnBits);
 
 String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *contextCache) const
@@ -47,7 +48,7 @@ String Location::toString(Flags<ToStringFlag> flags, Hash<Path, String> *context
         return String();
     const unsigned int l = line();
     const unsigned int c = column();
-    int extra = RTags::digits(l) + RTags::digits(c) + 3;
+    int extra            = RTags::digits(l) + RTags::digits(c) + 3;
     String ctx;
     if (flags & Location::ShowContext) {
         ctx += '\t';
@@ -82,10 +83,11 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
     String *code = nullptr;
     const Path p = path();
 
-    auto readAll = [&p, this]() {
+    auto readAll = [&p, this]()
+    {
         if (Server::instance()) {
             if (auto project = Server::instance()->currentProject()) {
-                const Path f = project->sourceFilePath(fileId(), "unsaved");
+                const Path f    = project->sourceFilePath(fileId(), "unsaved");
                 String contents = f.readAll();
                 if (!contents.empty())
                     return contents;
@@ -130,7 +132,7 @@ String Location::context(Flags<ToStringFlag> flags, Hash<Path, String> *cache) c
                     ++last;
                 while (ret.size() > last && (isalnum(ret.at(last)) || ret.at(last) == '_'))
                     ++last;
-                static const char *color = "\x1b[32;1m"; // dark yellow
+                static const char *color      = "\x1b[32;1m"; // dark yellow
                 static const char *resetColor = "\x1b[0;0m";
                 // error() << "foobar"<< end << col << ret.size();
                 ret.insert(last, resetColor);
@@ -178,13 +180,13 @@ bool Location::init(const Hash<Path, uint32_t> &pathsToIds)
     for (const auto &it : sPathsToIds) {
         assert(!it.first.empty());
         Path &ref = sIdsToPaths[it.second];
-        if (!ref.empty())  {
+        if (!ref.empty()) {
             sPathsToIds.clear();
             sIdsToPaths.clear();
             sLastId = 0;
             return false;
         }
-        ref = it.first;
+        ref     = it.first;
         sLastId = std::max(sLastId, it.second);
     }
     return true;
@@ -202,4 +204,3 @@ void Location::init(const Hash<uint32_t, Path> &idsToPaths)
         sLastId = std::max(sLastId, it.first);
     }
 }
-

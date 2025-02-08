@@ -18,12 +18,12 @@
 
 #include <functional>
 
-#include "rct/Path.h"
-#include "rct/SignalSlot.h"
-#include "rct/Thread.h"
 #include "rct/List.h"
+#include "rct/Path.h"
 #include "rct/Set.h"
+#include "rct/SignalSlot.h"
 #include "rct/String.h"
+#include "rct/Thread.h"
 
 class Project;
 
@@ -32,8 +32,11 @@ class ScanThread : public Thread
 public:
     ScanThread(const Path &path);
     virtual void run() override;
+
     Signal<std::function<void(Set<Path>)>> &finished() { return mFinished; }
+
     static Set<Path> paths(const Path &path, const List<String> &filters = List<String>());
+
 private:
     Path mPath;
     const List<String> &mFilters;

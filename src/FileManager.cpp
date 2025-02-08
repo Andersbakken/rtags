@@ -21,9 +21,9 @@
 
 #include "Filter.h"
 #include "Project.h"
+#include "RTags.h"
 #include "ScanThread.h"
 #include "Server.h"
-#include "RTags.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
@@ -34,7 +34,8 @@
 #include "rct/String.h"
 
 FileManager::FileManager(const std::shared_ptr<Project> &project)
-    : mProject(project), mLastReloadTime(0)
+    : mProject(project)
+    , mLastReloadTime(0)
 {
 }
 
@@ -43,7 +44,7 @@ void FileManager::load(Mode mode)
     if (!Server::instance()->options().tests.empty())
         mode = Synchronous;
 
-    mLastReloadTime = Rct::monoMs();
+    mLastReloadTime                  = Rct::monoMs();
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     if (mode == Asynchronous) {
@@ -90,19 +91,19 @@ void FileManager::onFileAdded(const Path &path)
     }
     const Filter::Result res = Filter::filter(path);
     switch (res) {
-    case Filter::Directory:
-        watch(path);
-        load(Asynchronous);
-        return;
-    case Filter::Filtered:
-        return;
-    default:
-        break;
+        case Filter::Directory:
+            watch(path);
+            load(Asynchronous);
+            return;
+        case Filter::Filtered:
+            return;
+        default:
+            break;
     }
 
     std::shared_ptr<Project> project = mProject.lock();
     assert(project);
-    Files &map = project->files();
+    Files &map        = project->files();
     const Path parent = path.parentDir();
     if (!parent.empty()) {
         Set<String> &dir = map[parent];
@@ -177,10 +178,11 @@ void FileManager::startScanThread()
     ScanThread *thread = new ScanThread(project->path());
     thread->setAutoDelete(true);
     std::weak_ptr<FileManager> that = shared_from_this();
-    thread->finished().connect<EventLoop::Move>([that](const Set<Path> &paths) {
-            if (auto strong = that.lock())
-                strong->onRecurseJobFinished(paths);
-        });
+    thread->finished().connect<EventLoop::Move>([that](const Set<Path> &paths)
+                                                {
+                                                    if (auto strong = that.lock())
+                                                        strong->onRecurseJobFinished(paths);
+                                                });
 
     thread->start();
 }

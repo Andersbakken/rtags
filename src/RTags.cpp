@@ -18,11 +18,11 @@
 #include <dirent.h>
 #include <fnmatch.h>
 #include <limits.h>
+#include <map>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <map>
 #include <unordered_map>
 #if defined(OS_FreeBSD) || defined(OS_DragonFly)
 #include <sys/sysctl.h>
@@ -31,20 +31,20 @@
 #include <mach-o/dyld.h>
 #endif
 
+#include "Diagnostic.h"
 #include "IndexDataMessage.h"
+#include "IndexMessage.h"
 #include "LogOutputMessage.h"
 #include "QueryMessage.h"
-#include "rct/Rct.h"
+#include "RTagsVersion.h"
+#include "Sandbox.h"
 #include "VisitFileMessage.h"
 #include "VisitFileResponseMessage.h"
-#include "RTagsVersion.h"
-#include "Diagnostic.h"
-#include "IndexMessage.h"
-#include "Sandbox.h"
-#include "clang-c/CXErrorCode.h"
-#include "clang-c/Index.h"
 #include "rct/Date.h"
 #include "rct/Message.h"
+#include "rct/Rct.h"
+#include "clang-c/CXErrorCode.h"
+#include "clang-c/Index.h"
 
 namespace RTags {
 String versionString()
@@ -57,12 +57,12 @@ String encodeUrlComponent(const String &str)
     String new_str = "";
     char c;
     int ic;
-    const char* chars = str.c_str();
+    const char *chars = str.c_str();
     char bufHex[10];
     const size_t len = str.size();
 
-    for(size_t i=0; i<len; ++i){
-        c = chars[i];
+    for (size_t i = 0; i < len; ++i) {
+        c  = chars[i];
         ic = c;
         // uncomment this if you want to encode spaces with +
         if (c == ' ') {
@@ -88,7 +88,7 @@ String decodeUrlComponent(const String &str)
     char ch;
     const size_t len = str.length();
 
-    for (size_t i=0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         if (str[i] != '%') {
             if (str[i] == '+') {
                 ret += ' ';
@@ -126,7 +126,7 @@ void decodePath(Path &path)
 Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t compileCommandsFileId, uint32_t fileId)
 {
     String str = dataDir;
-    Path p = project.ensureTrailingSlash() + std::to_string(compileCommandsFileId);
+    Path p     = project.ensureTrailingSlash() + std::to_string(compileCommandsFileId);
     encodePath(p);
     str << p << '/';
     if (fileId)
@@ -134,19 +134,19 @@ Path encodeSourceFilePath(const Path &dataDir, const Path &project, uint32_t com
     return str;
 }
 
-Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache)
+Path findAncestor(const Path &path, const String &fn, Flags<FindAncestorFlag> flags, SourceCache *cache)
 {
     Path *cacheResult = nullptr;
     if (cache) {
         const Path parent = path.parentDir();
-        cacheResult = &cache->ancestorCache[parent][SourceCache::AncestorCacheKey { fn, flags }];
+        cacheResult       = &cache->ancestorCache[parent][SourceCache::AncestorCacheKey { fn, flags }];
         if (!cacheResult->empty()) {
             return *cacheResult;
         }
     }
     Path ret;
     char buf[PATH_MAX + sizeof(dirent) + 1];
-    int slash = path.size();
+    int slash     = path.size();
     const int len = fn.size() + 1;
     struct stat st;
 
@@ -156,27 +156,27 @@ Path findAncestor(const Path& path, const String &fn, Flags<FindAncestorFlag> fl
             memcpy(buf + slash + 1, fn.constData(), len);
             if (!stat(buf, &st)) {
                 buf[slash + 1] = '\0';
-                ret = buf;
+                ret            = buf;
                 if (flags & Shallow) {
                     break;
                 }
             }
         } else {
             buf[slash + 1] = '\0';
-            DIR *dir = opendir(buf);
-            bool found = false;
+            DIR *dir       = opendir(buf);
+            bool found     = false;
             if (dir) {
                 while (dirent *entry = readdir(dir)) {
                     const int l = strlen(entry->d_name) + 1;
                     switch (l - 1) {
-                    case 1:
-                        if (entry->d_name[0] == '.')
-                            continue;
-                        break;
-                    case 2:
-                        if (entry->d_name[0] == '.' && entry->d_name[1] == '.')
-                            continue;
-                        break;
+                        case 1:
+                            if (entry->d_name[0] == '.')
+                                continue;
+                            break;
+                        case 2:
+                            if (entry->d_name[0] == '.' && entry->d_name[1] == '.')
+                                continue;
+                            break;
                     }
                     assert(buf[slash] == '/');
                     assert(l + slash + 1 < static_cast<int>(sizeof(buf)));
@@ -260,7 +260,8 @@ Map<String, String> rtagsConfig(const Path &path, SourceCache *cache)
     return ret;
 }
 
-struct Entry {
+struct Entry
+{
     const char *name;
     const Flags<FindAncestorFlag> flags;
 };
@@ -268,7 +269,7 @@ struct Entry {
 static inline Path checkEntries(const Entry *entries, const Path &path, const Path &home, SourceCache *cache)
 {
     Path best;
-    for (int i=0; entries[i].name; ++i) {
+    for (int i = 0; entries[i].name; ++i) {
         Path p = findAncestor(path, entries[i].name, entries[i].flags, cache);
         if ((p.empty() || p == home) && (entries[i].flags & Wildcard)) {
             const int len = strlen(entries[i].name);
@@ -346,8 +347,13 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
             FILE *f = fopen((configStatus + "config.status").constData(), "r");
             if (f) {
                 char line[1024];
-                enum { MaxLines = 10 };
-                for (int i=0; i<MaxLines; ++i) {
+
+                enum
+                {
+                    MaxLines = 10
+                };
+
+                for (int i = 0; i < MaxLines; ++i) {
                     int r = Rct::readLine(f, line, sizeof(line));
                     if (r == -1)
                         break;
@@ -380,16 +386,21 @@ Path findProjectRoot(const Path &path, ProjectRootMode mode, SourceCache *cache)
         if (!cmakeCache.empty()) {
             if (mode == BuildRoot)
                 return cmakeCache;
-            FILE *f = fopen((cmakeCache + "Makefile").constData(), "r");
+            FILE *f       = fopen((cmakeCache + "Makefile").constData(), "r");
             bool makefile = true;
             if (!f) {
-                f = fopen((cmakeCache + "build.ninja").constData(), "r");
+                f        = fopen((cmakeCache + "build.ninja").constData(), "r");
                 makefile = false;
             }
             if (f) {
                 char line[1024];
-                enum { MaxLines = 256 };
-                for (int i=0; i<MaxLines; ++i) {
+
+                enum
+                {
+                    MaxLines = 256
+                };
+
+                for (int i = 0; i < MaxLines; ++i) {
                     int r = Rct::readLine(f, line, sizeof(line));
                     if (r == -1) {
                         break;
@@ -476,6 +487,7 @@ void initMessages()
     Message::registerMessage<VisitFileMessage>();
     Message::registerMessage<VisitFileResponseMessage>();
 }
+
 String eatString(CXString str)
 {
     const String ret(clang_getCString(str));
@@ -493,27 +505,27 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
         return ret;
 
     switch (RTags::cursorType(kind)) {
-    case Type_Reference:
-        ret += " ref";
-        break;
-    case Type_Cursor:
-        ret += " cursor";
-        break;
-    case Type_Other:
-        ret += " other";
-        break;
-    case Type_Statement:
-        ret += " statement";
-        break;
-    case Type_Include:
-        ret += " include";
-        break;
-    case Type_Literal:
-        ret += " literal";
-        break;
+        case Type_Reference:
+            ret += " ref";
+            break;
+        case Type_Cursor:
+            ret += " cursor";
+            break;
+        case Type_Other:
+            ret += " other";
+            break;
+        case Type_Statement:
+            ret += " statement";
+            break;
+        case Type_Include:
+            ret += " include";
+            break;
+        case Type_Literal:
+            ret += " literal";
+            break;
     }
 
-    const String name = eatString(clang_getCursorDisplayName(cursor));
+    const String name  = eatString(clang_getCursorDisplayName(cursor));
     const String other = eatString(clang_getCursorSpelling(cursor));
     if (!name.empty())
         ret += " " + name;
@@ -543,18 +555,18 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
     if (flags & IncludeStructSizeof && Symbol::isClass(kind)) {
         const long long size = clang_Type_getSizeOf(clang_getCursorType(cursor));
         switch (size) {
-        case CXTypeLayoutError_Invalid:
-            // ret += " (sizeof: invalid)";
-            break;
-        case CXTypeLayoutError_Incomplete:
-            ret += " (sizeof: incomplete)";
-            break;
-        case CXTypeLayoutError_Dependent:
-            ret += " (sizeof: dependent)";
-            break;
-        default:
-            ret += String::format(" (sizeof: %lld)", size);
-            break;
+            case CXTypeLayoutError_Invalid:
+                // ret += " (sizeof: invalid)";
+                break;
+            case CXTypeLayoutError_Incomplete:
+                ret += " (sizeof: incomplete)";
+                break;
+            case CXTypeLayoutError_Dependent:
+                ret += " (sizeof: dependent)";
+                break;
+            default:
+                ret += String::format(" (sizeof: %lld)", size);
+                break;
         }
     }
 
@@ -592,7 +604,7 @@ String cursorToString(CXCursor cursor, const Flags<CursorToStringFlags> flags)
 
 std::shared_ptr<TranslationUnit> TranslationUnit::load(const Path &path)
 {
-    auto ret = std::make_shared<TranslationUnit>();
+    auto ret   = std::make_shared<TranslationUnit>();
     ret->index = clang_createIndex(0, false);
 #if CINDEX_VERSION_MINOR >= 23
     CXErrorCode error = clang_createTranslationUnit2(ret->index, path.constData(), &ret->unit);
@@ -616,15 +628,15 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
                                                          Flags<CreateFlags> createFlags)
 
 {
-    auto ret = std::make_shared<TranslationUnit>();
+    auto ret       = std::make_shared<TranslationUnit>();
     ret->clangLine = "clang ";
-    ret->index = clang_createIndex(0, createFlags.test(DisplayDiagnostics));
+    ret->index     = clang_createIndex(0, createFlags.test(DisplayDiagnostics));
 
     int idx = 0;
-    List<const char*> clangArgs(args.size() + 2, nullptr);
+    List<const char *> clangArgs(args.size() + 2, nullptr);
 
     const int count = args.size();
-    for (int j=0; j<count; ++j) {
+    for (int j = 0; j < count; ++j) {
         String arg = args.at(j);
         if (createFlags & NoNoStdInc && (arg == "-nostdinc" || arg == "-nostdinc++")) {
             continue;
@@ -641,18 +653,14 @@ std::shared_ptr<TranslationUnit> TranslationUnit::create(const Path &sourceFile,
 
     // StopWatch sw;
 #if CINDEX_VERSION_MINOR >= 23
-    for (int i=0; i<3; ++i) {
-        auto error = clang_parseTranslationUnit2(ret->index, sourceFile.constData(),
-                                                 clangArgs.data(), idx, unsaved, unsavedCount,
-                                                 translationUnitFlags.cast<unsigned int>(), &ret->unit);
+    for (int i = 0; i < 3; ++i) {
+        auto error = clang_parseTranslationUnit2(ret->index, sourceFile.constData(), clangArgs.data(), idx, unsaved, unsavedCount, translationUnitFlags.cast<unsigned int>(), &ret->unit);
         if (error != CXError_Crashed)
             break;
         usleep(100000);
     }
 #else
-    ret->unit = clang_parseTranslationUnit(ret->index, sourceFile.constData(),
-                                           clangArgs.data(), idx, unsaved, unsavedCount,
-                                           translationUnitFlags.cast<unsigned int>());
+    ret->unit = clang_parseTranslationUnit(ret->index, sourceFile.constData(), clangArgs.data(), idx, unsaved, unsavedCount, translationUnitFlags.cast<unsigned int>());
 #endif
     // error() << sourceFile << sw.elapsed();
     return ret;
@@ -673,9 +681,13 @@ bool TranslationUnit::reparse(CXUnsavedFile *unsaved, int unsavedCount)
 #if 1
 struct No
 {
-    template<typename T>
-    No &operator<<(const T &) { return *this; }
+    template <typename T>
+    No &operator<<(const T &)
+    {
+        return *this;
+    }
 };
+
 #define l() No()
 #else
 #define l() error()
@@ -693,12 +705,12 @@ bool resolveAuto(const CXCursor &cursor, Auto *a)
 #else
         type.kind != CXType_Unexposed || RTags::eatString(clang_getTypeSpelling(type)) != "auto"
 #endif
-        ) {
+    ) {
         return false;
     }
 
     if (a) {
-        a->type = clang_getCanonicalType(type);
+        a->type   = clang_getCanonicalType(type);
         a->cursor = clang_getTypeDeclaration(a->type);
     }
     return true;
@@ -710,18 +722,18 @@ static inline Diagnostic::Flag convertDiagnosticType(CXDiagnosticSeverity sev)
 {
     Diagnostic::Flag type = Diagnostic::None;
     switch (sev) {
-    case CXDiagnostic_Warning:
-        type = Diagnostic::Warning;
-        break;
-    case CXDiagnostic_Error:
-    case CXDiagnostic_Fatal:
-        type = Diagnostic::Error;
-        break;
-    case CXDiagnostic_Note:
-        type = Diagnostic::Note;
-        break;
-    default:
-        break;
+        case CXDiagnostic_Warning:
+            type = Diagnostic::Warning;
+            break;
+        case CXDiagnostic_Error:
+        case CXDiagnostic_Fatal:
+            type = Diagnostic::Error;
+            break;
+        case CXDiagnostic_Note:
+            type = Diagnostic::Note;
+            break;
+        default:
+            break;
     }
     return type;
 }
@@ -751,22 +763,23 @@ void DiagnosticsProvider::diagnose()
     const uint32_t sourceFile = sourceFileId();
 
     std::function<void(uint32_t, CXDiagnostic, Diagnostics &, Flags<Diagnostic::Flag>)> process;
-    process = [&](uint32_t u, CXDiagnostic d, Diagnostics &m, Flags<Diagnostic::Flag> flags) {
+    process = [&](uint32_t u, CXDiagnostic d, Diagnostics &m, Flags<Diagnostic::Flag> flags)
+    {
         flags |= convertDiagnosticType(clang_getDiagnosticSeverity(d));
         if ((flags & Diagnostic::Type_Mask) != Diagnostic::None) {
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(d);
-            Location location = createLocation(diagLoc, nullptr);
-            const uint32_t fileId = location.fileId();
+            Location location              = createLocation(diagLoc, nullptr);
+            const uint32_t fileId          = location.fileId();
 
             int length = -1;
             Map<Location, int> ranges;
 
             const unsigned int rangeCount = clang_getDiagnosticNumRanges(d);
-            bool first = true;
+            bool first                    = true;
             for (unsigned int rangePos = 0; rangePos < rangeCount; ++rangePos) {
-                const CXSourceRange range = clang_getDiagnosticRange(d, rangePos);
+                const CXSourceRange range    = clang_getDiagnosticRange(d, rangePos);
                 const CXSourceLocation start = clang_getRangeStart(range);
-                const CXSourceLocation end = clang_getRangeEnd(range);
+                const CXSourceLocation end   = clang_getRangeEnd(range);
 
                 unsigned int startOffset, endOffset;
                 clang_getSpellingLocation(start, nullptr, nullptr, nullptr, &startOffset);
@@ -776,9 +789,9 @@ void DiagnosticsProvider::diagnose()
                     clang_getSpellingLocation(start, nullptr, &line, &column, nullptr);
                     const Location l(fileId, line, column);
                     if (first) {
-                        first = false;
+                        first    = false;
                         location = l;
-                        length = endOffset - startOffset;
+                        length   = endOffset - startOffset;
                     } else {
                         ranges[l] = endOffset - startOffset;
                     }
@@ -797,16 +810,16 @@ void DiagnosticsProvider::diagnose()
                 message << ": " << option;
             }
 
-            Diagnostic &diagnostic = m[location];
-            diagnostic.flags = flags;
-            diagnostic.message = std::move(message);
-            diagnostic.ranges = std::move(ranges);
-            diagnostic.length = length;
+            Diagnostic &diagnostic  = m[location];
+            diagnostic.flags        = flags;
+            diagnostic.message      = std::move(message);
+            diagnostic.ranges       = std::move(ranges);
+            diagnostic.length       = length;
             diagnostic.sourceFileId = sourceFile;
 
             if (CXDiagnosticSet children = clang_getChildDiagnostics(d)) {
                 const unsigned int childCount = clang_getNumDiagnosticsInSet(children);
-                for (unsigned j=0; j<childCount; ++j) {
+                for (unsigned j = 0; j < childCount; ++j) {
                     process(u, clang_getDiagnosticInSet(children, j), diagnostic.children, NullFlags);
                 }
                 clang_disposeDiagnosticSet(children);
@@ -823,14 +836,14 @@ void DiagnosticsProvider::diagnose()
         skipped.resize(numUnits);
 #endif
 
-    for (size_t u=0; u<numUnits; ++u) {
+    for (size_t u = 0; u < numUnits; ++u) {
         List<String> compilationErrors;
         const size_t diagCount = diagnosticCount(u);
 
-        for (size_t j=0; j<diagCount; ++j) {
-            CXDiagnostic diag = diagnostic(u, j);
+        for (size_t j = 0; j < diagCount; ++j) {
+            CXDiagnostic diag              = diagnostic(u, j);
             const CXSourceLocation diagLoc = clang_getDiagnosticLocation(diag);
-            const uint32_t fileId = fixitFileId(createLocation(diagLoc, nullptr));
+            const uint32_t fileId          = fixitFileId(createLocation(diagLoc, nullptr));
             if (!fileId) {
                 clang_disposeDiagnostic(diag);
                 // error() << "Couldn't get location for diagnostics" << clang_getCursor(tu, diagLoc) << fileId << mSource.fileId
@@ -847,7 +860,7 @@ void DiagnosticsProvider::diagnose()
                 if (!(fileFlags & IndexDataMessage::Visited)) {
 #if CINDEX_VERSION >= CINDEX_VERSION_ENCODE(0, 21)
                     CXCursor cursor = cursorAt(u, diagLoc);
-                    bool found = false;
+                    bool found      = false;
                     do {
                         if (clang_Cursor_getNumTemplateArguments(cursor) != -1) {
                             found = true;
@@ -872,10 +885,10 @@ void DiagnosticsProvider::diagnose()
             // logDirect(RTags::DiagnosticsLevel, message.constData());
 
             const unsigned int fixItCount = clang_getDiagnosticNumFixIts(diag);
-            for (unsigned int f=0; f<fixItCount; ++f) {
+            for (unsigned int f = 0; f < fixItCount; ++f) {
                 CXSourceRange range;
                 const CXStringScope stringScope = clang_getDiagnosticFixIt(diag, f, &range);
-                CXSourceLocation start = clang_getRangeStart(range);
+                CXSourceLocation start          = clang_getRangeStart(range);
 
                 unsigned int line, column;
                 CXFile file;
@@ -894,18 +907,22 @@ void DiagnosticsProvider::diagnose()
                     assert(string);
                     if (!*string) {
                         error("Fixit for %s Remove %d character%s",
-                              loc.toString().constData(), endOffset - startOffset,
+                              loc.toString().constData(),
+                              endOffset - startOffset,
                               endOffset - startOffset > 1 ? "s" : "");
                     } else if (endOffset == startOffset) {
                         error("Fixit for %s Insert \"%s\"",
-                              loc.toString().constData(), string);
+                              loc.toString().constData(),
+                              string);
                     } else {
                         error("Fixit for %s Replace %d character%s with \"%s\"",
-                              loc.toString().constData(), endOffset - startOffset,
-                              endOffset - startOffset > 1 ? "s" : "", string);
+                              loc.toString().constData(),
+                              endOffset - startOffset,
+                              endOffset - startOffset > 1 ? "s" : "",
+                              string);
                     }
-                    Diagnostic &entry = indexData.diagnostics()[Location(loc.fileId(), line, column)];
-                    entry.flags = Diagnostic::Fixit;
+                    Diagnostic &entry  = indexData.diagnostics()[Location(loc.fileId(), line, column)];
+                    entry.flags        = Diagnostic::Fixit;
                     entry.sourceFileId = sourceFile;
                     if (entry.message.empty()) {
                         entry.message = String::format<64>("did you mean '%s'?", string);
@@ -923,21 +940,21 @@ void DiagnosticsProvider::diagnose()
             if (it.second & IndexDataMessage::Visited) {
                 const Location loc(it.first, 0, 0);
                 const Path path = loc.path();
-                CXFile file = getFile(u, path.constData());
+                CXFile file     = getFile(u, path.constData());
                 if (file) {
                     CXSourceRangeList *s = clang_getSkippedRanges(unit(u), file);
                     if (s) {
                         const unsigned int count = s->count;
-                        for (unsigned int j=0; j<count; ++j) {
+                        for (unsigned int j = 0; j < count; ++j) {
                             CXSourceLocation start = clang_getRangeStart(s->ranges[j]);
 
                             unsigned int line, column, startOffset, endOffset;
                             clang_getSpellingLocation(start, nullptr, &line, &column, &startOffset);
-                            Diagnostic &entry = diags[Location(loc.fileId(), line, column)];
-                            entry.sourceFileId = sourceFile;
+                            Diagnostic &entry    = diags[Location(loc.fileId(), line, column)];
+                            entry.sourceFileId   = sourceFile;
                             CXSourceLocation end = clang_getRangeEnd(s->ranges[j]);
                             clang_getSpellingLocation(end, nullptr, nullptr, nullptr, &endOffset);
-                            entry.flags = Diagnostic::Skipped;
+                            entry.flags  = Diagnostic::Skipped;
                             entry.length = endOffset - startOffset;
                             // error() << line << column << startOffset << endOffset;
                         }
@@ -954,7 +971,7 @@ void DiagnosticsProvider::diagnose()
         Diagnostics &target = indexData.diagnostics();
         for (auto it = skipped[0].begin(); it != skipped[0].end(); ++it) {
             bool ok = true;
-            for (size_t u=1; u<numUnits; ++u) {
+            for (size_t u = 1; u < numUnits; ++u) {
                 if (skipped[u].value(it->first) != it->second) {
                     ok = false;
                     break;
@@ -968,8 +985,6 @@ void DiagnosticsProvider::diagnose()
         }
     }
 #endif
-
-
 
 #if 0
     for (const auto &it : indexData.files()) {
@@ -993,7 +1008,7 @@ Location DiagnosticsProvider::createLocation(const CXCursor &cursor, CXCursorKin
         location = clang_getCursorLocation(cursor);
     } else {
         CXSourceRange range = clang_Cursor_getSpellingNameRange(cursor, 0, 0);
-        location = clang_getRangeStart(range);
+        location            = clang_getRangeStart(range);
     }
     if (!location)
         return Location();
@@ -1002,7 +1017,7 @@ Location DiagnosticsProvider::createLocation(const CXCursor &cursor, CXCursorKin
 
 static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    *reinterpret_cast<CXCursor*>(data) = cursor;
+    *reinterpret_cast<CXCursor *>(data) = cursor;
     return CXChildVisit_Break;
 }
 
@@ -1024,7 +1039,7 @@ struct FindChildVisitor
 
 static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
+    FindChildVisitor *u = reinterpret_cast<FindChildVisitor *>(data);
     if (u->name.empty()) {
         if (clang_getCursorKind(cursor) == u->kind) {
             u->cursor = cursor;
@@ -1065,7 +1080,7 @@ struct ChildrenVisitor
 
 static CXChildVisitResult childrenVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    ChildrenVisitor *u = reinterpret_cast<ChildrenVisitor*>(data);
+    ChildrenVisitor *u = reinterpret_cast<ChildrenVisitor *>(data);
     if ((u->out.isNull() || !u->out.match(cursor)) && (u->in.isNull() || u->in.match(cursor))) {
         u->children.push_back(cursor);
     }
@@ -1088,7 +1103,7 @@ struct FindChainVisitor
 
 static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    FindChainVisitor *u = reinterpret_cast<FindChainVisitor*>(data);
+    FindChainVisitor *u = reinterpret_cast<FindChainVisitor *>(data);
     if (clang_getCursorKind(cursor) == u->kinds.at(u->ret.size())) {
         u->ret.push_back(cursor);
         if (u->ret.size() < u->kinds.size())
@@ -1115,34 +1130,35 @@ String typeName(const CXCursor &cursor)
 {
     String ret;
     switch (clang_getCursorKind(cursor)) {
-    case CXCursor_FunctionTemplate:
-        // ### If the return value is a template type we get an empty string here
-    case CXCursor_FunctionDecl:
-    case CXCursor_CXXMethod:
-        ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
-        break;
-    case CXCursor_ClassTemplate:
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-    case CXCursor_UnionDecl:
-    case CXCursor_TypedefDecl:
-    case CXCursor_EnumDecl:
-        ret = RTags::eatString(clang_getCursorSpelling(cursor));
-        break;
-    case CXCursor_VarDecl: {
-        const CXCursor initType = RTags::findFirstChild(cursor);
-        if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
-            ret = typeString(clang_getCursorType(initType));
-        } else {
-            ret = typeString(clang_getCursorType(cursor));
+        case CXCursor_FunctionTemplate:
+            // ### If the return value is a template type we get an empty string here
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+            ret = typeString(clang_getResultType(clang_getCursorType(cursor)));
+            break;
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_UnionDecl:
+        case CXCursor_TypedefDecl:
+        case CXCursor_EnumDecl:
+            ret = RTags::eatString(clang_getCursorSpelling(cursor));
+            break;
+        case CXCursor_VarDecl: {
+            const CXCursor initType = RTags::findFirstChild(cursor);
+            if (clang_getCursorKind(initType) == CXCursor_InitListExpr) {
+                ret = typeString(clang_getCursorType(initType));
+            } else {
+                ret = typeString(clang_getCursorType(cursor));
+            }
+            break;
         }
-        break; }
-    case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
-    case CXCursor_ParmDecl:
-        ret = typeString(clang_getCursorType(cursor));
-        break;
-    default:
-        return String();
+        case CXCursor_FieldDecl: // ### If the return value is a template type we get an empty string here
+        case CXCursor_ParmDecl:
+            ret = typeString(clang_getCursorType(cursor));
+            break;
+        default:
+            return String();
     }
     if (!ret.empty() && !ret.endsWith('*') && !ret.endsWith('&'))
         ret.append(' ');
@@ -1154,110 +1170,121 @@ String typeString(const CXType &type)
     return eatString(clang_getTypeSpelling(type));
 }
 
-#define OUTPUT_LITERAL(string)                  \
-    {                                           \
-        const char literal[] = string;          \
-        output(literal, sizeof(literal) - 1);   \
+#define OUTPUT_LITERAL(string)                \
+    {                                         \
+        const char literal[] = string;        \
+        output(literal, sizeof(literal) - 1); \
     }
+
 class ElispFormatter : public Value::Formatter
 {
 public:
     virtual void format(const Value &value, std::function<void(const char *, size_t)> output) const override
     {
         switch (value.type()) {
-        case Value::Type_Invalid:
-        case Value::Type_Undefined:
-            OUTPUT_LITERAL("nil");
-            break;
-        case Value::Type_Boolean:
-            if (value.toBool()) {
-                OUTPUT_LITERAL("t");
-            } else {
+            case Value::Type_Invalid:
+            case Value::Type_Undefined:
                 OUTPUT_LITERAL("nil");
-            }
-            break;
-        case Value::Type_Integer: {
-            char buf[128];
-            const size_t w = snprintf(buf, sizeof(buf), "%d", value.toInteger());
-            output(buf, w);
-            break; }
-        case Value::Type_Double: {
-            char buf[128];
-            const size_t w = snprintf(buf, sizeof(buf), "%g", value.toDouble());
-            output(buf, w);
-            break; }
-        case Value::Type_String: {
-            const String str = elispEscape(value.toString());
-            OUTPUT_LITERAL("\"");
-            output(str.constData(), str.size());
-            OUTPUT_LITERAL("\"");
-            break; }
-        case Value::Type_Custom: {
-            const String str = elispEscape(value.toCustom()->toString());
-            OUTPUT_LITERAL("\"");
-            output(str.constData(), str.size());
-            OUTPUT_LITERAL("\"");
-            break; }
-        case Value::Type_Map: {
-            const auto end = value.end();
-            bool first = true;
-            output("(list ", 6);
-            for (auto it = value.begin(); it != end; ++it) {
-                if (!first) {
-                    output(" ", 1);
+                break;
+            case Value::Type_Boolean:
+                if (value.toBool()) {
+                    OUTPUT_LITERAL("t");
                 } else {
-                    first = false;
+                    OUTPUT_LITERAL("nil");
                 }
-                OUTPUT_LITERAL("(cons '");
-                output(it->first.constData(), it->first.size());
-                OUTPUT_LITERAL(" ");
-                format(it->second, output);
-                OUTPUT_LITERAL(")");
+                break;
+            case Value::Type_Integer: {
+                char buf[128];
+                const size_t w = snprintf(buf, sizeof(buf), "%d", value.toInteger());
+                output(buf, w);
+                break;
             }
-            output(")", 1);
-            break; }
-        case Value::Type_List: {
-            const auto end = value.listEnd();
-            OUTPUT_LITERAL("(list ");
-            bool first = true;
-            for (auto it = value.listBegin(); it != end; ++it) {
-                if (!first) {
+            case Value::Type_Double: {
+                char buf[128];
+                const size_t w = snprintf(buf, sizeof(buf), "%g", value.toDouble());
+                output(buf, w);
+                break;
+            }
+            case Value::Type_String: {
+                const String str = elispEscape(value.toString());
+                OUTPUT_LITERAL("\"");
+                output(str.constData(), str.size());
+                OUTPUT_LITERAL("\"");
+                break;
+            }
+            case Value::Type_Custom: {
+                const String str = elispEscape(value.toCustom()->toString());
+                OUTPUT_LITERAL("\"");
+                output(str.constData(), str.size());
+                OUTPUT_LITERAL("\"");
+                break;
+            }
+            case Value::Type_Map: {
+                const auto end = value.end();
+                bool first     = true;
+                output("(list ", 6);
+                for (auto it = value.begin(); it != end; ++it) {
+                    if (!first) {
+                        output(" ", 1);
+                    } else {
+                        first = false;
+                    }
+                    OUTPUT_LITERAL("(cons '");
+                    output(it->first.constData(), it->first.size());
                     OUTPUT_LITERAL(" ");
-                } else {
-                    first = false;
+                    format(it->second, output);
+                    OUTPUT_LITERAL(")");
                 }
-                format(*it, output);
+                output(")", 1);
+                break;
             }
-            OUTPUT_LITERAL(")");
-            break; }
-        case Value::Type_Date:
-            const String str = elispEscape(String::formatTime(value.toDate().time()));
-            OUTPUT_LITERAL("\"");
-            output(str.constData(), str.size());
-            OUTPUT_LITERAL("\"");
-            break;
+            case Value::Type_List: {
+                const auto end = value.listEnd();
+                OUTPUT_LITERAL("(list ");
+                bool first = true;
+                for (auto it = value.listBegin(); it != end; ++it) {
+                    if (!first) {
+                        OUTPUT_LITERAL(" ");
+                    } else {
+                        first = false;
+                    }
+                    format(*it, output);
+                }
+                OUTPUT_LITERAL(")");
+                break;
+            }
+            case Value::Type_Date:
+                const String str = elispEscape(String::formatTime(value.toDate().time()));
+                OUTPUT_LITERAL("\"");
+                output(str.constData(), str.size());
+                OUTPUT_LITERAL("\"");
+                break;
         }
     }
 };
+
 String toElisp(const Value &value)
 {
     return ElispFormatter().toString(value);
 }
 
-struct CursorArgumentsVisitor {
+struct CursorArgumentsVisitor
+{
     int numArgs;
     List<CXCursor> *args;
 };
+
 static CXChildVisitResult cursorArgumentsVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     if (clang_getCursorKind(cursor) == CXCursor_ParmDecl) {
-        CursorArgumentsVisitor *u = static_cast<CursorArgumentsVisitor*>(data);
+        CursorArgumentsVisitor *u = static_cast<CursorArgumentsVisitor *>(data);
         ++u->numArgs;
         if (u->args)
             u->args->push_back(cursor);
     }
     return CXChildVisit_Continue;
 }
+
 int cursorArguments(const CXCursor &cursor, List<CXCursor> *args)
 {
     int numArgs = 0;
@@ -1266,7 +1293,7 @@ int cursorArguments(const CXCursor &cursor, List<CXCursor> *args)
     // + clang_Cursor_getArgument() doesn't work with FunctionTemplate
     //
     if (clang_getCursorKind(cursor) == CXCursor_FunctionTemplate) {
-        CursorArgumentsVisitor u = {0, args};
+        CursorArgumentsVisitor u = { 0, args };
         clang_visitChildren(cursor, cursorArgumentsVisitor, &u);
         numArgs = u.numArgs;
     } else {
@@ -1294,14 +1321,14 @@ String usr(const CXCursor &cursor)
             continue;
         }
         size_t templateIdx = 0;
-        size_t start = ++idx;
+        size_t start       = ++idx;
         while (idx < str.size()) {
             if (str[idx] == '<') {
                 start = ++idx;
             } else if (str[idx] == ',') {
                 assert(str[idx + 1] == ' ');
                 const String replacement = String::format("T%zu", templateIdx++);
-                const ssize_t diff = replacement.size() - (idx - start);
+                const ssize_t diff       = replacement.size() - (idx - start);
                 str.replace(start, idx - start, replacement);
                 idx += diff + 2;
                 start = idx;
@@ -1315,4 +1342,4 @@ String usr(const CXCursor &cursor)
     }
     return str;
 }
-}
+} //namespace RTags

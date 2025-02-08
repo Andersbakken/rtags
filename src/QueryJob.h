@@ -16,27 +16,27 @@
 #ifndef QueryJob_h
 #define QueryJob_h
 
-#include <stdarg.h>
-#include <stdint.h>
-#include <regex>
-#include <mutex>
 #include <functional>
 #include <map>
 #include <memory>
+#include <mutex>
+#include <regex>
 #include <sstream>
+#include <stdarg.h>
+#include <stdint.h>
 #include <utility>
 #include <vector>
 
+#include "Location.h"
 #include "Project.h"
 #include "QueryMessage.h"
 #include "rct/Flags.h"
-#include "rct/List.h"
-#include "rct/SignalSlot.h"
-#include "rct/String.h"
-#include "Location.h"
 #include "rct/Hash.h"
+#include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/Set.h"
+#include "rct/SignalSlot.h"
+#include "rct/String.h"
 
 class Location;
 class QueryMessage;
@@ -46,43 +46,60 @@ struct Symbol;
 class QueryJob : public Project::FileMapScopeScope
 {
 public:
-    enum JobFlag {
-        None = 0x0,
+    enum JobFlag
+    {
+        None            = 0x0,
         WriteUnfiltered = 0x1,
-        QuoteOutput = 0x2,
-        QuietJob = 0x4
+        QuoteOutput     = 0x2,
+        QuietJob        = 0x4
     };
-    enum { Priority = 10 };
+
+    enum
+    {
+        Priority = 10
+    };
+
     QueryJob(const std::shared_ptr<QueryMessage> &msg,
              List<std::shared_ptr<Project>> proj,
              Flags<JobFlag> jobFlags = Flags<JobFlag>());
     virtual ~QueryJob();
 
     bool hasFilter() const { return mFileFilter || !mFilters.empty(); }
+
     bool hasKindFilter() const { return !mKindFilters.empty(); }
+
     bool hasPieceFilter() const { return !mPieceFilters.empty(); }
+
     List<QueryMessage::PathFilter> pathFilters() const
     {
         if (mQueryMessage)
             return mQueryMessage->pathFilters();
         return List<QueryMessage::PathFilter>();
     }
+
     Set<String> pieceFilters() const { return mPieceFilters; }
+
     void setPieceFilters(Set<String> &&pieceFilters) { mPieceFilters = std::move(pieceFilters); }
+
     uint32_t fileFilter() const { return mFileFilter; }
-    enum WriteFlag {
+
+    enum WriteFlag
+    {
         NoWriteFlags = 0x00,
-        IgnoreMax = 0x01,
-        DontQuote = 0x02,
-        Unfiltered = 0x04,
-        NoContext = 0x08
+        IgnoreMax    = 0x01,
+        DontQuote    = 0x02,
+        Unfiltered   = 0x04,
+        NoContext    = 0x08
     };
+
     String symbolToString(const Symbol &symbol) const;
 
     bool write(const String &out, Flags<WriteFlag> flags = Flags<WriteFlag>());
     bool write(const Symbol &symbol, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
     bool write(Location location, Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
-    enum LocationPiece {
+
+    enum LocationPiece
+    {
         Piece_Location,
         Piece_Context,
         Piece_SymbolName,
@@ -90,6 +107,7 @@ public:
         Piece_ContainingFunctionName,
         Piece_ContainingFunctionLocation
     };
+
     bool locationToString(Location location,
                           const std::function<void(LocationPiece, const String &)> &cb,
                           Flags<WriteFlag> writeFlags = Flags<WriteFlag>());
@@ -98,42 +116,78 @@ public:
     bool write(Flags<WriteFlag> writeFlags, const char *format, ...) RCT_PRINTF_WARNING(3, 4);
     template <int StaticBufSize>
     bool write(const char *format, ...) RCT_PRINTF_WARNING(2, 3);
+
     Flags<JobFlag> jobFlags() const { return mJobFlags; }
+
     void setJobFlags(Flags<JobFlag> flags) { mJobFlags = flags; }
+
     void setJobFlag(JobFlag flag, bool on = true) { mJobFlags.set(flag, on); }
+
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryMessage ? mQueryMessage->flags() : Flags<QueryMessage::Flag>(); }
+
     std::shared_ptr<QueryMessage> queryMessage() const { return mQueryMessage; }
+
     Flags<Location::ToStringFlag> locationToStringFlags() const { return QueryMessage::locationToStringFlags(queryFlags()); }
+
     bool filter(const String &val) const;
+
     Signal<std::function<void(const String &)>> &output() { return mOutput; }
+
     List<std::shared_ptr<Project>> projects() const { return mProjects; }
+
     virtual int execute() = 0;
     int run(const std::shared_ptr<Connection> &connection = nullptr);
-    bool isAborted() const { std::lock_guard<std::mutex> lock(mMutex); return mAborted; }
-    void abort() { std::lock_guard<std::mutex> lock(mMutex); mAborted = true; }
+
+    bool isAborted() const
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        return mAborted;
+    }
+
+    void abort()
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mAborted = true;
+    }
+
     std::mutex &mutex() const { return mMutex; }
+
     const std::shared_ptr<Connection> &connection() const { return mConnection; }
+
     bool filterLocation(Location loc) const;
+
     bool filterKind(const Symbol &symbol) const { return mKindFilters.filter(symbol); }
+
 private:
     class Filter
     {
     public:
         virtual ~Filter() {}
+
         virtual bool match(uint32_t fileId, const Path &path) const = 0;
     };
+
     class PathFilter : public Filter
     {
     public:
-        PathFilter(const Path &p) : pattern(p) {}
+        PathFilter(const Path &p)
+            : pattern(p)
+        {
+        }
+
         virtual bool match(uint32_t, const Path &path) const override { return path.startsWith(pattern); }
 
         const Path pattern;
     };
+
     class RegexFilter : public Filter
     {
     public:
-        RegexFilter(const String &str, bool caseInsensitive) : regex(str.ref(), caseInsensitive ? std::regex::icase : std::regex::ECMAScript) {}
+        RegexFilter(const String &str, bool caseInsensitive)
+            : regex(str.ref(), caseInsensitive ? std::regex::icase : std::regex::ECMAScript)
+        {
+        }
+
         virtual bool match(uint32_t, const Path &path) const override { return std::regex_search(path.constData(), regex); }
 
         const std::regex regex;
@@ -142,7 +196,12 @@ private:
     class DependencyFilter : public Filter
     {
     public:
-        DependencyFilter(uint32_t f, const List<std::shared_ptr<Project>> &p) : fileId(f), projects(p) {}
+        DependencyFilter(uint32_t f, const List<std::shared_ptr<Project>> &p)
+            : fileId(f)
+            , projects(p)
+        {
+        }
+
         virtual bool match(uint32_t f, const Path &) const override
         {
             for (const auto &project : projects) {

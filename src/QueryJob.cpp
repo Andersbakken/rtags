@@ -19,19 +19,25 @@
 #include <ctype.h>
 #include <string.h>
 
+#include "FileMap.h"
 #include "Project.h"
 #include "QueryMessage.h"
 #include "RTags.h"
-#include "rct/Connection.h"
-#include "FileMap.h"
 #include "Symbol.h"
+#include "rct/Connection.h"
 #include "rct/Log.h"
 #include "rct/Value.h"
 
 QueryJob::QueryJob(const std::shared_ptr<QueryMessage> &query,
                    List<std::shared_ptr<Project>> projects,
                    Flags<JobFlag> jobFlags)
-    : Project::FileMapScopeScope(projects), mAborted(false), mLinesWritten(0), mQueryMessage(query), mJobFlags(jobFlags), mProjects(std::move(projects)), mFileFilter(0)
+    : Project::FileMapScopeScope(projects)
+    , mAborted(false)
+    , mLinesWritten(0)
+    , mQueryMessage(query)
+    , mJobFlags(jobFlags)
+    , mProjects(std::move(projects))
+    , mFileFilter(0)
 {
     assert(query);
     if (query->flags() & QueryMessage::SilentQuery)
@@ -68,21 +74,21 @@ bool QueryJob::write(const String &out, Flags<WriteFlag> flags)
         if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
             String o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
-            int l = 2;
+            int l    = 2;
             for (size_t i = 0; i < out.size(); ++i) {
                 const char c = out.at(i);
                 switch (c) {
-                case '"':
-                case '\\':
-                    *(ch + 1) = c;
-                    *ch = '\\';
-                    ch += 2;
-                    l += 2;
-                    break;
-                default:
-                    ++l;
-                    *ch++ = c;
-                    break;
+                    case '"':
+                    case '\\':
+                        *(ch + 1) = c;
+                        *ch       = '\\';
+                        ch += 2;
+                        l += 2;
+                        break;
+                    default:
+                        ++l;
+                        *ch++ = c;
+                        break;
                 }
             }
             o.truncate(l);
@@ -123,7 +129,7 @@ bool QueryJob::writeRaw(const String &out, Flags<WriteFlag> flags)
 bool QueryJob::locationToString(Location location,
                                 const std::function<void(LocationPiece, const String &)> &cb,
                                 Flags<WriteFlag>
-                                writeFlags)
+                                    writeFlags)
 {
     if (location.isNull())
         return false;
@@ -133,10 +139,10 @@ bool QueryJob::locationToString(Location location,
     if (!(writeFlags & NoContext) && !(queryFlags() & QueryMessage::NoContext))
         cb(Piece_Context, location.context(kf, &mContextCache));
 
-    const bool containingFunction = queryFlags() & QueryMessage::ContainingFunction;
+    const bool containingFunction         = queryFlags() & QueryMessage::ContainingFunction;
     const bool containingFunctionLocation = queryFlags() & QueryMessage::ContainingFunctionLocation;
-    const bool cursorKind = queryFlags() & QueryMessage::CursorKind;
-    const bool displayName = queryFlags() & QueryMessage::DisplayName;
+    const bool cursorKind                 = queryFlags() & QueryMessage::CursorKind;
+    const bool displayName                = queryFlags() & QueryMessage::DisplayName;
     if (containingFunction || containingFunctionLocation || cursorKind || displayName || !mKindFilters.empty()) {
         int idx;
         Symbol symbol;
@@ -157,10 +163,10 @@ bool QueryJob::locationToString(Location location,
             if (cursorKind)
                 cb(Piece_Kind, symbol.kindSpelling());
             if (containingFunction || containingFunctionLocation) {
-                const uint32_t fileId = location.fileId();
-                const unsigned int line = location.line();
+                const uint32_t fileId     = location.fileId();
+                const unsigned int line   = location.line();
                 const unsigned int column = location.column();
-                bool done = false;
+                bool done                 = false;
                 for (const auto &proj : projects()) {
                     auto fileMap = proj->openSymbols(location.fileId());
                     if (fileMap) {
@@ -168,9 +174,7 @@ bool QueryJob::locationToString(Location location,
                             symbol = fileMap->valueAt(--idx);
                             if (symbol.location.fileId() != fileId)
                                 break;
-                            if (symbol.isDefinition() && RTags::isContainer(symbol.kind)
-                                && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0
-                                && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
+                            if (symbol.isDefinition() && RTags::isContainer(symbol.kind) && comparePosition(line, column, symbol.startLine, symbol.startColumn) >= 0 && comparePosition(line, column, symbol.endLine, symbol.endColumn) <= 0) {
                                 if (containingFunction)
                                     cb(Piece_ContainingFunctionName, symbol.symbolName);
                                 if (containingFunctionLocation)
@@ -201,24 +205,26 @@ bool QueryJob::write(Location location, Flags<WriteFlag> flags)
     }
 
     String out;
-    if (!locationToString(location,
-                          [&out](LocationPiece piece, const String &string) {
-                              switch (piece) {
-                              case Piece_Location:
-                                  break;
-                              case Piece_SymbolName:
-                              case Piece_Kind:
-                              case Piece_Context:
-                                  out << '\t';
-                                  break;
-                              case Piece_ContainingFunctionName:
-                              case Piece_ContainingFunctionLocation:
-                                  out << "\tfunction: ";
-                                  break;
-                              }
-                              out << string;
-                          },
-                          flags))
+    if (!locationToString(
+            location,
+            [&out](LocationPiece piece, const String &string)
+            {
+                switch (piece) {
+                    case Piece_Location:
+                        break;
+                    case Piece_SymbolName:
+                    case Piece_Kind:
+                    case Piece_Context:
+                        out << '\t';
+                        break;
+                    case Piece_ContainingFunctionName:
+                    case Piece_ContainingFunctionLocation:
+                        out << "\tfunction: ";
+                        break;
+                }
+                out << string;
+            },
+            flags))
         return false;
     return write(out, flags);
 }
@@ -312,9 +318,9 @@ bool QueryJob::filter(const String &value) const
 int QueryJob::run(const std::shared_ptr<Connection> &connection)
 {
     assert(connection);
-    mConnection = connection;
+    mConnection   = connection;
     const int ret = execute();
-    mConnection = nullptr;
+    mConnection   = nullptr;
     return ret;
 }
 

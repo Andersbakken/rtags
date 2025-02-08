@@ -19,21 +19,27 @@
 #include <Source.h>
 #include <type_traits>
 
-#include "rct/String.h"
-#include "rct/Path.h"
-#include "rct/Map.h"
 #include "rct/Hash.h"
 #include "rct/List.h"
+#include "rct/Map.h"
+#include "rct/Path.h"
+#include "rct/String.h"
 
 namespace Sandbox {
-enum ReplaceMode {
+enum ReplaceMode
+{
     StartsWith,
     Everywhere
 };
+
 static const String encodedRoot("[[SBROOT]]");
 const Path &root();
 void setRoot(const Path &root);
-inline bool hasRoot() { return !root().empty(); }
+
+inline bool hasRoot()
+{
+    return !root().empty();
+}
 
 template <typename T, typename std::enable_if<std::is_convertible<String, T>::value, T>::type * = nullptr>
 bool encode(T &t, ReplaceMode mode = Everywhere)
@@ -52,7 +58,7 @@ bool encode(T &t, ReplaceMode mode = Everywhere)
 
 template <typename T,
           typename std::enable_if<std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr,
-          typename std::enable_if<!std::is_convertible<typename T::key_type, String>::value>::type * = nullptr>
+          typename std::enable_if<!std::is_convertible<typename T::key_type, String>::value>::type   * = nullptr>
 bool encode(T &t, ReplaceMode mode = Everywhere)
 {
     bool ret = false;
@@ -65,11 +71,11 @@ bool encode(T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T,
-          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type * = nullptr,
+          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type     * = nullptr,
           typename std::enable_if<!std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr>
 bool encode(T &t, ReplaceMode mode = Everywhere)
 {
-    bool ret = false;
+    bool ret                = false;
     typename T::iterator it = t.begin();
     while (it != t.end()) {
         typename T::key_type key = it->first;
@@ -85,7 +91,7 @@ bool encode(T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T,
-          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type * = nullptr,
+          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type    * = nullptr,
           typename std::enable_if<std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr>
 bool encode(T &t, ReplaceMode mode = Everywhere)
 {
@@ -139,7 +145,7 @@ bool decode(T &t, ReplaceMode mode = Everywhere)
 
 template <typename T,
           typename std::enable_if<std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr,
-          typename std::enable_if<!std::is_convertible<typename T::key_type, String>::value>::type * = nullptr>
+          typename std::enable_if<!std::is_convertible<typename T::key_type, String>::value>::type   * = nullptr>
 bool decode(T &t, ReplaceMode mode = Everywhere)
 {
     bool ret = false;
@@ -152,11 +158,11 @@ bool decode(T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T,
-          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type * = nullptr,
+          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type     * = nullptr,
           typename std::enable_if<!std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr>
 bool decode(T &t, ReplaceMode mode = Everywhere)
 {
-    bool ret = false;
+    bool ret                = false;
     typename T::iterator it = t.begin();
     while (it != t.end()) {
         typename T::key_type key = it->first;
@@ -172,7 +178,7 @@ bool decode(T &t, ReplaceMode mode = Everywhere)
 }
 
 template <typename T,
-          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type * = nullptr,
+          typename std::enable_if<std::is_convertible<typename T::key_type, String>::value>::type    * = nullptr,
           typename std::enable_if<std::is_convertible<typename T::mapped_type, String>::value>::type * = nullptr>
 bool decode(T &t, ReplaceMode mode = Everywhere)
 {
@@ -209,6 +215,6 @@ T decoded(T &t, ReplaceMode mode = Everywhere)
     return t;
 }
 
-}
+} //namespace Sandbox
 
 #endif

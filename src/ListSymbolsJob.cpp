@@ -15,29 +15,29 @@
 
 #include "ListSymbolsJob.h"
 
-#include <stddef.h>
-#include <stdint.h>
 #include <algorithm>
 #include <functional>
 #include <set>
+#include <stddef.h>
+#include <stdint.h>
 #include <vector>
 
-#include "Project.h"
-#include "QueryMessage.h"
-#include "rct/List.h"
-#include "RTags.h"
 #include "FileMap.h"
 #include "Location.h"
+#include "Project.h"
+#include "QueryMessage.h"
+#include "RTags.h"
 #include "Symbol.h"
 #include "rct/Flags.h"
+#include "rct/List.h"
 #include "rct/Path.h"
 
 const Flags<QueryJob::JobFlag> defaultFlags = (QueryJob::WriteUnfiltered | QueryJob::QuietJob);
-const Flags<QueryJob::JobFlag> elispFlags = (defaultFlags | QueryJob::QuoteOutput);
+const Flags<QueryJob::JobFlag> elispFlags   = (defaultFlags | QueryJob::QuoteOutput);
 
 ListSymbolsJob::ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects), query->flags() & QueryMessage::Elisp ? elispFlags : defaultFlags),
-      string(query->query())
+    : QueryJob(query, std::move(projects), query->flags() & QueryMessage::Elisp ? elispFlags : defaultFlags)
+    , string(query->query())
 {
 }
 
@@ -46,8 +46,7 @@ int ListSymbolsJob::execute()
     Set<String> out;
     for (const auto &proj : projects()) {
         if (proj) {
-            if (queryFlags() & QueryMessage::WildcardSymbolNames
-                && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
+            if (queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?')) && !string.endsWith('*')) {
                 string += '*';
             }
             List<QueryMessage::PathFilter> filters = pathFilters();
@@ -96,12 +95,12 @@ int ListSymbolsJob::execute()
 Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const
 {
     Set<String> out;
-    const bool wildcard = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
-    const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
-    const bool caseInsensitive = queryFlags() & QueryMessage::MatchCaseInsensitive;
+    const bool wildcard              = queryFlags() & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const bool stripParentheses      = queryFlags() & QueryMessage::StripParentheses;
+    const bool caseInsensitive       = queryFlags() & QueryMessage::MatchCaseInsensitive;
     const String::CaseSensitivity cs = caseInsensitive ? String::CaseInsensitive : String::CaseSensitive;
-    for (size_t i=0; i<paths.size(); ++i) {
-        const Path file = paths.at(i);
+    for (size_t i = 0; i < paths.size(); ++i) {
+        const Path file       = paths.at(i);
         const uint32_t fileId = Location::fileId(file);
         if (!fileId)
             continue;
@@ -109,7 +108,7 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
         if (!symbols)
             continue;
         const int count = symbols->count();
-        for (int j=0; j<count; ++j) {
+        for (int j = 0; j < count; ++j) {
             const Symbol &symbol = symbols->valueAt(j);
             if (!filterKind(symbol)) {
                 continue;
@@ -145,14 +144,15 @@ Set<String> ListSymbolsJob::listSymbolsWithPathFilter(const std::shared_ptr<Proj
 
 Set<String> ListSymbolsJob::listSymbols(const std::shared_ptr<Project> &project) const
 {
-    const bool hasFilter = QueryJob::hasFilter();
-    const bool hasKindFilter = QueryJob::hasKindFilter();
+    const bool hasFilter        = QueryJob::hasFilter();
+    const bool hasKindFilter    = QueryJob::hasKindFilter();
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
 
     Set<String> out;
     auto inserter = [this, &project, hasFilter, hasKindFilter, stripParentheses, &out](Project::SymbolMatchType,
                                                                                        const String &str,
-                                                                                       const Set<Location> &locations) {
+                                                                                       const Set<Location> &locations)
+    {
         if (hasFilter) {
             bool ok = false;
             for (const auto &l : locations) {

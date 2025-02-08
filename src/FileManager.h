@@ -16,32 +16,38 @@
 #ifndef FileManager_h
 #define FileManager_h
 
-#include <stdint.h>
-#include <mutex>
 #include <memory>
+#include <mutex>
+#include <stdint.h>
 
 #include "rct/Path.h"
 #include "rct/Timer.h"
 
 class Project;
-template <typename T> class Set;
+template <typename T>
+class Set;
 
 class FileManager : public std::enable_shared_from_this<FileManager>
 {
 public:
     FileManager(const std::shared_ptr<Project> &project);
-    enum Mode {
+
+    enum Mode
+    {
         Synchronous,
         Asynchronous
     };
 
     void load(Mode mode);
+
     uint64_t lastReloadTime() const { return mLastReloadTime; }
+
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
     void onRecurseJobFinished(const Set<Path> &mPaths);
     bool contains(const Path &path) const;
     void clearFileSystemWatcher();
+
 private:
     void startScanThread();
     void watch(const Path &path);

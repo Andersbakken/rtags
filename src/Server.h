@@ -17,25 +17,25 @@
 #define Server_h
 
 #include <assert.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <functional>
 #include <memory>
+#include <stddef.h>
+#include <stdint.h>
 #include <utility>
 
 #include "IndexMessage.h"
+#include "QueryMessage.h"
+#include "RTags.h"
+#include "Source.h"
 #include "rct/Flags.h"
 #include "rct/Hash.h"
 #include "rct/List.h"
-#include "rct/SocketServer.h"
-#include "rct/String.h"
-#include "rct/Thread.h"
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/SignalSlot.h"
-#include "Source.h"
-#include "QueryMessage.h"
-#include "RTags.h"
+#include "rct/SocketServer.h"
+#include "rct/String.h"
+#include "rct/Thread.h"
 
 class IndexMessage;
 class SocketServer;
@@ -63,58 +63,76 @@ class VisitFileMessage;
 class JobScheduler;
 class IndexParseData;
 
-enum { DEFAULT_RP_DAEMON_COUNT = 2 };
+enum
+{
+    DEFAULT_RP_DAEMON_COUNT = 2
+};
+
 class Server
 {
 public:
     Server();
     ~Server();
+
     static Server *instance() { return sInstance; }
-    enum Option {
-        NoOptions = 0x0,
-        ClearProjects = (1ull << 1),
-        Wall = (1ull << 2),
-        IgnorePrintfFixits = (1ull << 3),
-        SpellChecking = (1ull << 4),
-        NoStartupCurrentProject = (1ull << 5),
-        WatchSystemPaths = (1ull << 6),
-        NoFileManagerWatch = (1ull << 7),
-        NoFileSystemWatch = (1ull << 8),
-        NoNoUnknownWarningsOption = (1ull << 9),
-        NoNoStdInc = (1ull << 10),
-        SuspendRPOnCrash = (1ull << 11),
-        SeparateDebugAndRelease = (1ull << 12),
-        AllowPedantic = (1ull << 13),
-        StartSuspended = (1ull << 14),
-        EnableCompilerManager = (1ull << 15),
-        EnableNDEBUG = (1ull << 16),
-        Progress = (1ull << 17),
-        Weverything = (1ull << 18),
-        NoComments = (1ull << 19),
-        Launchd = (1ull << 20),
-        RPLogToSyslog = (1ull << 21),
-        CompletionsNoFilter = (1ull << 22),
-        WatchSourcesOnly = (1ull << 23),
-        NoFileLock = (1ull << 24),
-        PCHEnabled = (1ull << 25),
-        NoFileManager = (1ull << 26),
-        ValidateFileMaps = (1ull << 27),
-        CompletionLogs = (1ull << 28),
-        AllowWErrorAndWFatalErrors = (1ull << 29),
-        NoRealPath = (1ull << 30),
-        Separate32BitAnd64Bit = (1ull << 31),
+
+    enum Option
+    {
+        NoOptions                               = 0x0,
+        ClearProjects                           = (1ull << 1),
+        Wall                                    = (1ull << 2),
+        IgnorePrintfFixits                      = (1ull << 3),
+        SpellChecking                           = (1ull << 4),
+        NoStartupCurrentProject                 = (1ull << 5),
+        WatchSystemPaths                        = (1ull << 6),
+        NoFileManagerWatch                      = (1ull << 7),
+        NoFileSystemWatch                       = (1ull << 8),
+        NoNoUnknownWarningsOption               = (1ull << 9),
+        NoNoStdInc                              = (1ull << 10),
+        SuspendRPOnCrash                        = (1ull << 11),
+        SeparateDebugAndRelease                 = (1ull << 12),
+        AllowPedantic                           = (1ull << 13),
+        StartSuspended                          = (1ull << 14),
+        EnableCompilerManager                   = (1ull << 15),
+        EnableNDEBUG                            = (1ull << 16),
+        Progress                                = (1ull << 17),
+        Weverything                             = (1ull << 18),
+        NoComments                              = (1ull << 19),
+        Launchd                                 = (1ull << 20),
+        RPLogToSyslog                           = (1ull << 21),
+        CompletionsNoFilter                     = (1ull << 22),
+        WatchSourcesOnly                        = (1ull << 23),
+        NoFileLock                              = (1ull << 24),
+        PCHEnabled                              = (1ull << 25),
+        NoFileManager                           = (1ull << 26),
+        ValidateFileMaps                        = (1ull << 27),
+        CompletionLogs                          = (1ull << 28),
+        AllowWErrorAndWFatalErrors              = (1ull << 29),
+        NoRealPath                              = (1ull << 30),
+        Separate32BitAnd64Bit                   = (1ull << 31),
         SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
-        NoLibClangIncludePath = (1ull << 33),
-        CompletionDiagnostics = (1ull << 34)
+        NoLibClangIncludePath                   = (1ull << 33),
+        CompletionDiagnostics                   = (1ull << 34)
     };
-    struct Options {
+
+    struct Options
+    {
         Options()
-            : jobCount(0), maxIncludeCompletionDepth(0),
-              rpVisitFileTimeout(0), rpIndexDataMessageTimeout(0), rpConnectTimeout(0),
-              rpConnectAttempts(0), rpNiceValue(0), maxCrashCount(0),
-              completionCacheSize(0), testTimeout(60 * 1000 * 5),
-              maxFileMapScopeCacheSize(512), pollTimer(0), maxSocketWriteBufferSize(0),
-              daemonCount(DEFAULT_RP_DAEMON_COUNT), tcpPort(0)
+            : jobCount(0)
+            , maxIncludeCompletionDepth(0)
+            , rpVisitFileTimeout(0)
+            , rpIndexDataMessageTimeout(0)
+            , rpConnectTimeout(0)
+            , rpConnectAttempts(0)
+            , rpNiceValue(0)
+            , maxCrashCount(0)
+            , completionCacheSize(0)
+            , testTimeout(60 * 1000 * 5)
+            , maxFileMapScopeCacheSize(512)
+            , pollTimer(0)
+            , maxSocketWriteBufferSize(0)
+            , daemonCount(DEFAULT_RP_DAEMON_COUNT)
+            , tcpPort(0)
         {
         }
 
@@ -135,17 +153,25 @@ public:
         Set<String> compilerWrappers;
         List<String> debugLocations;
     };
+
     bool init(const Options &options);
     bool runTests();
+
     const Options &options() const { return mOptions; }
+
     bool suspended() const { return mSuspended; }
+
     List<std::shared_ptr<Project>> projects(const Path &path) const { return mProjects.value(path); }
+
     bool shouldIndex(const Source &source, const Path &project) const;
     void stopServers();
     void dumpJobs(const std::shared_ptr<Connection> &conn);
     void dumpDaemons(const std::shared_ptr<Connection> &conn);
+
     std::shared_ptr<JobScheduler> jobScheduler() const { return mJobScheduler; }
-    enum ActiveBufferType {
+
+    enum ActiveBufferType
+    {
         Inactive,
         Active,
         Open
@@ -162,33 +188,45 @@ public:
         }
         return ret;
     }
+
     bool activeBuffersSet() const { return mActiveBuffersSet; }
+
     ActiveBufferType activeBufferType(uint32_t fileId) const { return mActiveBuffers.value(fileId, Inactive); }
+
     int exitCode() const { return mExitCode; }
+
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+
     const Map<Path, List<std::shared_ptr<Project>>> &projects() const { return mProjects; }
+
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
     bool loadCompileCommands(IndexParseData &data, Path compileCommands, const List<String> &environment, SourceCache *cache) const;
     bool parse(IndexParseData &data, String arguments, const Path &pwd, uint32_t compileCommandsFileId = 0, SourceCache *cache = nullptr) const;
-    enum FileIdsFileFlag {
-        None = 0x0,
+
+    enum FileIdsFileFlag
+    {
+        None           = 0x0,
         HasSandboxRoot = 0x1,
-        HasNoRealPath = 0x2,
-        HasRealPath = 0x4
+        HasNoRealPath  = 0x2,
+        HasRealPath    = 0x4
     };
 
     void filterBlockedArguments(Source &source);
     void sourceFileModified(const std::shared_ptr<Project> &project, uint32_t fileId);
+
 private:
     String guessArguments(const String &args, const Path &pwd, const Path &projectRootOverride) const;
     bool load();
     void onNewConnection(SocketServer *server);
     void setCurrentProject(const std::shared_ptr<Project> &project);
-    enum ClearMode {
+
+    enum ClearMode
+    {
         Clear_All,
         Clear_KeepFileIds
     };
+
     void clearProjects(ClearMode mode);
     std::shared_ptr<Project> findProject(uint32_t fileId);
 
@@ -270,6 +308,7 @@ private:
     size_t mDefaultJobCount { 0 };
     List<size_t> mJobCountStack;
 };
+
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);
 

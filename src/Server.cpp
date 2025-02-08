@@ -15,53 +15,53 @@
 
 #include "Server.h"
 
-#include <clang-c/Index.h>
 #include <clang-c/CXCompilationDatabase.h>
-#include <stdio.h>
+#include <clang-c/Index.h>
+#include <cstdint>
 #include <errno.h>
+#include <iterator>
+#include <map>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <cstdint>
-#include <iterator>
-#include <map>
 #include <unordered_map>
 #include <vector>
 
-#include "rct/QuitMessage.h"
-#include "rct/Message.h"
+#include "ClangThread.h"
 #include "CompletionThread.h"
+#include "FileManager.h"
+#include "FileMap.h"
+#include "Filter.h"
+#include "IndexParseData.h"
+#include "JobScheduler.h"
+#include "Location.h"
 #include "Match.h"
 #include "Preprocessor.h"
 #include "Project.h"
 #include "RClient.h"
-#include "IndexParseData.h"
+#include "RTags.h"
+#include "RTagsLogOutput.h"
+#include "RTagsVersion.h"
+#include "Sandbox.h"
+#include "Source.h"
+#include "Symbol.h"
 #include "rct/Connection.h"
 #include "rct/DataFile.h"
 #include "rct/EventLoop.h"
 #include "rct/Log.h"
+#include "rct/Map.h"
+#include "rct/Message.h"
 #include "rct/Path.h"
 #include "rct/Process.h"
+#include "rct/QuitMessage.h"
 #include "rct/Rct.h"
-#include "rct/SocketClient.h"
-#include "rct/Value.h"
-#include "ClangThread.h"
-#include "FileManager.h"
-#include "Filter.h"
-#include "RTags.h"
-#include "RTagsLogOutput.h"
-#include "Source.h"
-#include "RTagsVersion.h"
-#include "FileMap.h"
-#include "Location.h"
-#include "Sandbox.h"
-#include "Symbol.h"
-#include "clang-c/CXString.h"
-#include "rct/Map.h"
 #include "rct/Serializer.h"
+#include "rct/SocketClient.h"
 #include "rct/SocketServer.h"
 #include "rct/Thread.h"
-#include "JobScheduler.h"
+#include "rct/Value.h"
+#include "clang-c/CXString.h"
 
 #define TO_STR1(x) #x
 #define TO_STR(x) TO_STR1(x)
@@ -73,11 +73,16 @@
 #define CLANG_VERSION_STRING TO_STR(CLANG_VERSION)
 #endif
 
-
 Server *Server::sInstance = nullptr;
+
 Server::Server()
-    : mSuspended(false), mEnvironment(Rct::environment()), mPollTimer(-1), mExitCode(0),
-      mLastFileId(0), mCompletionThread(nullptr), mActiveBuffersSet(false)
+    : mSuspended(false)
+    , mEnvironment(Rct::environment())
+    , mPollTimer(-1)
+    , mExitCode(0)
+    , mLastFileId(0)
+    , mCompletionThread(nullptr)
+    , mActiveBuffersSet(false)
 {
     assert(!sInstance);
     sInstance = this;
@@ -108,7 +113,7 @@ bool Server::init(const Options &options)
 
     Sandbox::setRoot(options.sandboxRoot);
 
-    mOptions = options;
+    mOptions   = options;
     mSuspended = (options.options & StartSuspended);
     mOptions.defaultArguments << String::format<32>("-ferror-limit=%d", mOptions.errorLimit);
     if (options.options & Wall)
@@ -123,7 +128,7 @@ bool Server::init(const Options &options)
     mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
 
     if (mOptions.options & EnableCompilerManager) {
-#ifndef OS_Darwin   // this causes problems on MacOS+clang
+#ifndef OS_Darwin // this causes problems on MacOS+clang
         // http://clang.llvm.org/compatibility.html#vector_builtins
         const char *gccBuiltIntVectorFunctionDefines[] = {
             "__builtin_ia32_rolhi(...)",
@@ -184,7 +189,7 @@ bool Server::init(const Options &options)
 
     mDefaultJobCount = options.jobCount;
     {
-        Log l(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine);
+        Log l(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine);
         l << "Running with" << mOptions.jobCount << "jobs, using args:"
           << String::join(mOptions.defaultArguments, ' ');
         if (!mOptions.includePaths.empty()) {
@@ -208,7 +213,7 @@ bool Server::init(const Options &options)
         return false;
     if (!(mOptions.options & NoStartupCurrentProject)) {
         List<String> current = Path(mOptions.dataDir + ".currentProject").readAll(1024).split('\n');
-        bool found = false;
+        bool found           = false;
         if (current.size() == 3) {
             Path path = current[0];
             RTags::decodePath(path);
@@ -229,13 +234,15 @@ bool Server::init(const Options &options)
 
     assert(mOptions.pollTimer >= 0);
     if (mOptions.pollTimer) {
-        mPollTimer = EventLoop::eventLoop()->registerTimer([this](int) {
-            for (const auto &projects : mProjects) {
-                for (const auto &proj : projects.second) {
-                    proj->validateAll();
-                }
-            }
-        }, mOptions.pollTimer * 1000);
+        mPollTimer = EventLoop::eventLoop()->registerTimer([this](int)
+                                                           {
+                                                               for (const auto &projects : mProjects) {
+                                                                   for (const auto &proj : projects.second) {
+                                                                       proj->validateAll();
+                                                                   }
+                                                               }
+                                                           },
+                                                           mOptions.pollTimer * 1000);
     }
     return true;
 }
@@ -243,7 +250,7 @@ bool Server::init(const Options &options)
 bool Server::initServers()
 {
     if (mOptions.tcpPort) {
-        for (int i=0; i<10; ++i) {
+        for (int i = 0; i < 10; ++i) {
             mTcpServer.reset(new SocketServer);
             warning() << "listening" << mOptions.tcpPort;
             if (mTcpServer->listen(mOptions.tcpPort)) {
@@ -251,12 +258,22 @@ bool Server::initServers()
             }
             mTcpServer.reset();
             if (!i) {
-                enum { Timeout = 1000 };
+                enum
+                {
+                    Timeout = 1000
+                };
+
                 std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
                 if (connection->connectTcp("127.0.0.1", mOptions.tcpPort, Timeout)) {
                     connection->send(QuitMessage());
-                    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-                    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+                    connection->disconnected().connect(std::bind([]()
+                                                                 {
+                                                                     EventLoop::eventLoop()->quit();
+                                                                 }));
+                    connection->finished().connect(std::bind([]()
+                                                             {
+                                                                 EventLoop::eventLoop()->quit();
+                                                             }));
                     EventLoop::eventLoop()->exec(Timeout);
                 }
             } else {
@@ -315,12 +332,22 @@ bool Server::initServers()
     }
 
     if (Path::exists(mOptions.socketFile)) {
-        enum { Timeout = 1000 };
+        enum
+        {
+            Timeout = 1000
+        };
+
         std::shared_ptr<Connection> connection = Connection::create(RClient::NumOptions);
         if (connection->connectUnix(mOptions.socketFile, Timeout)) {
             connection->send(QuitMessage());
-            connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
-            connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+            connection->disconnected().connect(std::bind([]()
+                                                         {
+                                                             EventLoop::eventLoop()->quit();
+                                                         }));
+            connection->finished().connect(std::bind([]()
+                                                     {
+                                                         EventLoop::eventLoop()->quit();
+                                                     }));
             EventLoop::eventLoop()->exec(Timeout);
             sleep(1);
         }
@@ -363,7 +390,7 @@ static size_t sharedRoot(const Path &a, const Path &b)
         // error() << a << a.size() << "\n" << b << b.size() << size;
     }
 
-    for (i=0; i<size; ++i) {
+    for (i = 0; i < size; ++i) {
         if (a[i] != b[i]) {
             // error() << "mismatch at" << i << size << a.size() << b.size() << "\n" << a.left(i + 1) << "\n" << b.left(i + 1);
             break;
@@ -382,26 +409,26 @@ void Server::updateTrailers(const List<std::shared_ptr<Project>> &projects)
         names.reserve(projects.size());
         names.append(Location::path(projects[0]->compileCommandsFileId()).parentDir());
         size_t sharedRootLength = std::numeric_limits<size_t>::max();
-        size_t startIndex = 0;
+        size_t startIndex       = 0;
         if (names[0].empty()) {
             names[0] = "none";
             ++startIndex;
             names.append(Location::path(projects[1]->compileCommandsFileId()).parentDir());
         }
-        for (size_t i=startIndex + 1; i<projects.size(); ++i) {
+        for (size_t i = startIndex + 1; i < projects.size(); ++i) {
             String name = Location::path(projects[i]->compileCommandsFileId()).parentDir();
             names.append(name);
             sharedRootLength = std::min(sharedRootLength, sharedRoot(names.at(startIndex), name));
         }
         if (sharedRootLength > 1) {
-            for (size_t i=startIndex; i<names.size(); ++i) {
+            for (size_t i = startIndex; i < names.size(); ++i) {
                 String old = names[i];
                 names[i].remove(0, sharedRootLength);
                 // error() << "fixing things" << sharedRootLength << "\n" << old << " => \n" << names[i];
             }
         }
         assert(names.size() == projects.size());
-        for (size_t i=0; i<projects.size(); ++i) {
+        for (size_t i = 0; i < projects.size(); ++i) {
             projects[i]->setTrailer(names[i]);
         }
     }
@@ -441,22 +468,24 @@ void Server::onNewConnection(SocketServer *server)
         if (mOptions.maxSocketWriteBufferSize) {
             client->setMaxWriteBufferSize(mOptions.maxSocketWriteBufferSize);
         }
-        conn->setErrorHandler([](const std::shared_ptr<SocketClient> &, Message::MessageError &&error) {
-            if (error.type == Message::Message_VersionError) {
-                ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
-            } else {
-                logDirect(LogLevel::Error, error.text);
-            }
-        });
+        conn->setErrorHandler([](const std::shared_ptr<SocketClient> &, Message::MessageError &&error)
+                              {
+                                  if (error.type == Message::Message_VersionError) {
+                                      ::error("Wrong version marker. You're probably using mismatched versions of rc and rdm");
+                                  } else {
+                                      logDirect(LogLevel::Error, error.text);
+                                  }
+                              });
         conn->newMessage().connect(std::bind(&Server::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
         mConnections.insert(conn);
         std::weak_ptr<Connection> weak = conn;
-        conn->disconnected().connect(std::bind([this, weak]() {
-            if (std::shared_ptr<Connection> c = weak.lock()) {
-                c->disconnected().disconnect();
-                mConnections.remove(c);
-            }
-        }));
+        conn->disconnected().connect(std::bind([this, weak]()
+                                               {
+                                                   if (std::shared_ptr<Connection> c = weak.lock()) {
+                                                       c->disconnected().disconnect();
+                                                       mConnections.remove(c);
+                                                   }
+                                               }));
     }
 }
 
@@ -470,7 +499,7 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         roots.insert(projectRootOverride.ensureTrailingSlash());
     ret << "/usr/bin/g++"; // this should be clang on mac
     const List<String> split = args.split(" ");
-    for (size_t i=0; i<split.size(); ++i) {
+    for (size_t i = 0; i < split.size(); ++i) {
         const String &s = split.at(i);
         if (s == "--build-root") {
             const Path root = split.value(++i);
@@ -495,13 +524,13 @@ String Server::guessArguments(const String &args, const Path &pwd, const Path &p
         } else {
             ret << s;
         }
-
     }
     if (!hasInput) {
         return String();
     }
 
-    std::function<void(const Path &, const Path &)> process = [&](const Path &root, const Path &path) {
+    std::function<void(const Path &, const Path &)> process = [&](const Path &root, const Path &path)
+    {
         for (const Path &maybeHeader : path.files(Path::File)) {
             if (maybeHeader.isHeader()) {
                 Path p = path;
@@ -533,7 +562,8 @@ bool Server::loadCompileCommands(IndexParseData &data, Path compileCommands, con
 {
     if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
-              data.project.constData(), Sandbox::root().constData());
+              data.project.constData(),
+              Sandbox::root().constData());
         return false;
     }
 
@@ -545,18 +575,18 @@ bool Server::loadCompileCommands(IndexParseData &data, Path compileCommands, con
         error("Can't load compilation database from %s", compileCommands.constData());
         return false;
     }
-    const uint32_t fileId = Location::insertFile(compileCommands);
-    bool ret = false;
+    const uint32_t fileId  = Location::insertFile(compileCommands);
+    bool ret               = false;
     CXCompileCommands cmds = clang_CompilationDatabase_getAllCompileCommands(db);
-    const unsigned int sz = clang_CompileCommands_getSize(cmds);
+    const unsigned int sz  = clang_CompileCommands_getSize(cmds);
     assert(!data.compileCommandsFileId);
     data.compileCommandsFileId = fileId;
-    data.environment = environment;
-    data.lastModifiedMs = compileCommands.lastModifiedMs();
+    data.environment           = environment;
+    data.lastModifiedMs        = compileCommands.lastModifiedMs();
     for (unsigned int i = 0; i < sz; ++i) {
         CXCompileCommand cmd = clang_CompileCommands_getCommand(cmds, i);
         String args;
-        CXString str = clang_CompileCommand_getDirectory(cmd);
+        CXString str    = clang_CompileCommand_getDirectory(cmd);
         Path compileDir = clang_getCString(str);
         if (!compileDir.isAbsolute() || !compileDir.exists()) {
             bool resolveOk = false;
@@ -570,7 +600,7 @@ bool Server::loadCompileCommands(IndexParseData &data, Path compileCommands, con
         clang_disposeString(str);
         const unsigned int num = clang_CompileCommand_getNumArgs(cmd);
         for (unsigned int j = 0; j < num; ++j) {
-            str = clang_CompileCommand_getArg(cmd, j);
+            str            = clang_CompileCommand_getArg(cmd, j);
             const char *ch = clang_getCString(str);
             if (strchr(ch, ' ')) {
                 args += '"';
@@ -601,7 +631,8 @@ bool Server::parse(IndexParseData &data,
 {
     if (Sandbox::hasRoot() && !data.project.empty() && !data.project.startsWith(Sandbox::root())) {
         error("Invalid --project-root '%s', must be inside --sandbox-root '%s'",
-              data.project.constData(), Sandbox::root().constData());
+              data.project.constData(),
+              Sandbox::root().constData());
         return false;
     }
 
@@ -616,7 +647,9 @@ bool Server::parse(IndexParseData &data,
             }
             String stdOut = process.readAllStdOut();
             if (!stdOut.empty() && stdOut != arguments) {
-                warning() << "Changed\n" << arguments << "\nto\n" << stdOut;
+                warning() << "Changed\n"
+                          << arguments << "\nto\n"
+                          << stdOut;
                 arguments = std::move(stdOut);
             }
         }
@@ -624,7 +657,7 @@ bool Server::parse(IndexParseData &data,
 
     assert(data.compileCommandsFileId == compileCommandsFileId);
     SourceList sources = Source::parse(arguments, pwd, data.environment, &unresolvedPaths, cache);
-    bool ret = (sources.empty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
+    bool ret           = (sources.empty() && unresolvedPaths.size() == 1 && unresolvedPaths.front() == "-");
     debug() << "Got" << sources.size() << "sources, and" << unresolvedPaths << "from" << arguments;
     size_t idx = 0;
     for (Source &source : sources) {
@@ -643,7 +676,7 @@ bool Server::parse(IndexParseData &data,
             }
             if (data.project.empty()) {
                 std::shared_ptr<Project> current = currentProject();
-                const Path unresolvedPath = unresolvedPaths.at(idx++);
+                const Path unresolvedPath        = unresolvedPaths.at(idx++);
                 if (current && (current->match(unresolvedPath) || (path != unresolvedPath && current->match(path)))) {
                     data.project = current->path();
                 } else {
@@ -669,7 +702,7 @@ bool Server::parse(IndexParseData &data,
 
         if (shouldIndex(source, data.project)) {
             source.compileCommandsFileId = compileCommandsFileId;
-            auto &list = data.sources[source.fileId];
+            auto &list                   = data.sources[source.fileId];
             if (!list.contains(source))
                 list.push_back(source);
             ret = true;
@@ -732,7 +765,9 @@ bool Server::shouldIndex(const Source &source, const Path &srcRoot) const
 
     if (Sandbox::hasRoot() && !srcRoot.empty() && !srcRoot.startsWith(Sandbox::root())) {
         error("Invalid project root for %s '%s', must be inside --sandbox-root '%s'",
-              sourceFile.constData(), srcRoot.constData(), Sandbox::root().constData());
+              sourceFile.constData(),
+              srcRoot.constData(),
+              Sandbox::root().constData());
         return false;
     }
 
@@ -789,9 +824,10 @@ List<std::shared_ptr<Project>> Server::projectsForQuery(const std::shared_ptr<Qu
     return projectsForMatches(query->flags(), matches);
 }
 
-enum class MatchState {
-    No = 0,
-    Yes = 1,
+enum class MatchState
+{
+    No      = 0,
+    Yes     = 1,
     Indexed = 2
 };
 
@@ -816,8 +852,8 @@ List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Fl
 {
     List<std::shared_ptr<Project>> ret;
     const std::shared_ptr<Project> cur = currentProject();
-    const MatchState currentMatch = ::match(matches, cur);
-    MatchState best = currentMatch;
+    const MatchState currentMatch      = ::match(matches, cur);
+    MatchState best                    = currentMatch;
     if (currentMatch != MatchState::No) {
         ret.push_back(cur);
     }
@@ -830,18 +866,18 @@ List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Fl
 
             const MatchState m = ::match(matches, project);
             switch (m) {
-            case MatchState::No:
-                break;
-            case MatchState::Indexed:
-            case MatchState::Yes:
-                if (m > best) {
-                    best = m;
-                    ret.insert(ret.begin(), project);
-                    setCurrentProject(project);
-                } else {
-                    ret.append(project);
-                }
-                break;
+                case MatchState::No:
+                    break;
+                case MatchState::Indexed:
+                case MatchState::Yes:
+                    if (m > best) {
+                        best = m;
+                        ret.insert(ret.begin(), project);
+                        setCurrentProject(project);
+                    } else {
+                        ret.append(project);
+                    }
+                    break;
             }
         }
     }
@@ -854,8 +890,8 @@ List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Fl
 void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
     const Match match = query->match();
-    auto it = mProjects.begin();
-    bool found = false;
+    auto it           = mProjects.begin();
+    bool found        = false;
     while (it != mProjects.end()) {
         auto pit = it->second.begin();
         while (pit != it->second.end()) {
@@ -927,15 +963,15 @@ bool Server::load()
             return true;
         }
         List<Path> projects = mOptions.dataDir.files(Path::Directory);
-        for (size_t i=0; i<projects.size(); ++i) {
+        for (size_t i = 0; i < projects.size(); ++i) {
             const Path &file = projects.at(i);
-            Path filePath = file.mid(mOptions.dataDir.size());
-            Path old = filePath;
+            Path filePath    = file.mid(mOptions.dataDir.size());
+            Path old         = filePath;
             if (filePath.endsWith('/'))
                 filePath.chop(1);
             RTags::decodePath(filePath);
-            bool remove = true;
-            char *end = nullptr;
+            bool remove     = true;
+            char *end       = nullptr;
             uint32_t fileId = strtoul(filePath.fileName(), &end, 10);
             if (!*end) {
                 filePath = filePath.parentDir();
@@ -955,7 +991,6 @@ bool Server::load()
                                 if (addProject(filePath.ensureTrailingSlash(), fileId)) {
                                     remove = false;
                                 }
-
                             }
                         } else {
                             error() << file << "has wrong format. Got" << version << "expected" << RTags::DatabaseVersion << "Removing";
@@ -975,32 +1010,33 @@ bool Server::load()
         error("Can't restore file ids: %s", fileIdsFile.error().constData());
     }
     Hash<Path, List<IndexParseData>> projects;
-    mOptions.dataDir.visit([&projects](const Path &path) {
-        if (path.isDir()) {
-            Path sources = path + "sources";
-            if (sources.exists()) {
-                Path parentDir = path.parentDir();
-                Path filePath = parentDir.fileName();
-                if (filePath.endsWith("/"))
-                    filePath.chop(1);
-                RTags::decodePath(filePath);
-                if (!filePath.empty()) {
-                    String err;
-                    IndexParseData data;
-                    if (!Project::readSources(sources, data, &err)) {
-                        error("Sources restore error %s: %s", path.constData(), err.constData());
-                    } else {
-                        char *end = nullptr;
-                        data.compileCommandsFileId = strtoul(parentDir.fileName(), &end, 10);
-                        if (!*end) {
-                            projects[filePath].push_back(std::move(data));
-                        }
-                    }
-                }
-            }
-        }
-        return Path::Continue;
-    });
+    mOptions.dataDir.visit([&projects](const Path &path)
+                           {
+                               if (path.isDir()) {
+                                   Path sources = path + "sources";
+                                   if (sources.exists()) {
+                                       Path parentDir = path.parentDir();
+                                       Path filePath  = parentDir.fileName();
+                                       if (filePath.endsWith("/"))
+                                           filePath.chop(1);
+                                       RTags::decodePath(filePath);
+                                       if (!filePath.empty()) {
+                                           String err;
+                                           IndexParseData data;
+                                           if (!Project::readSources(sources, data, &err)) {
+                                               error("Sources restore error %s: %s", path.constData(), err.constData());
+                                           } else {
+                                               char *end                  = nullptr;
+                                               data.compileCommandsFileId = strtoul(parentDir.fileName(), &end, 10);
+                                               if (!*end) {
+                                                   projects[filePath].push_back(std::move(data));
+                                               }
+                                           }
+                                       }
+                                   }
+                               }
+                               return Path::Continue;
+                           });
 
     clearProjects(Clear_KeepFileIds);
     if (!projects.empty()) {
@@ -1085,24 +1121,30 @@ class TestConnection
 {
 public:
     TestConnection(const Path &workingDirectory)
-        : mConnection(Connection::create(RClient::NumOptions)),
-          mIsFinished(false), mWorkingDirectory(workingDirectory)
+        : mConnection(Connection::create(RClient::NumOptions))
+        , mIsFinished(false)
+        , mWorkingDirectory(workingDirectory)
     {
-        mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message *message) {
-            if (message->messageId() == Message::FinishMessageId) {
-                mIsFinished = true;
-            } else if (message->messageId() == Message::ResponseId) {
-                String response = reinterpret_cast<const ResponseMessage *>(message)->data();
-                if (response.startsWith(mWorkingDirectory)) {
-                    response.remove(0, mWorkingDirectory.size());
-                }
-                mOutput.push_back(response);
-            }
-        });
+        mConnection->aboutToSend().connect([this](const std::shared_ptr<Connection> &, const Message *message)
+                                           {
+                                               if (message->messageId() == Message::FinishMessageId) {
+                                                   mIsFinished = true;
+                                               } else if (message->messageId() == Message::ResponseId) {
+                                                   String response = reinterpret_cast<const ResponseMessage *>(message)->data();
+                                                   if (response.startsWith(mWorkingDirectory)) {
+                                                       response.remove(0, mWorkingDirectory.size());
+                                                   }
+                                                   mOutput.push_back(response);
+                                               }
+                                           });
     }
+
     List<String> output() const { return mOutput; }
+
     bool isFinished() const { return mIsFinished; }
+
     std::shared_ptr<Connection> connection() const { return mConnection; }
+
 private:
     std::shared_ptr<Connection> mConnection;
     bool mIsFinished;
@@ -1113,15 +1155,16 @@ private:
 bool Server::runTests()
 {
     assert(!mOptions.tests.empty());
-    bool ret = true;
+    bool ret        = true;
     int sourceCount = 0;
-    mIndexDataMessageReceived.connect([&sourceCount]() {
-        // error() << "Got a finish" << sourceCount;
-        assert(sourceCount > 0);
-        if (!--sourceCount) {
-            EventLoop::eventLoop()->quit();
-        }
-    });
+    mIndexDataMessageReceived.connect([&sourceCount]()
+                                      {
+                                          // error() << "Got a finish" << sourceCount;
+                                          assert(sourceCount > 0);
+                                          if (!--sourceCount) {
+                                              EventLoop::eventLoop()->quit();
+                                          }
+                                      });
     for (const auto &file : mOptions.tests) {
         const String fileContents = file.readAll();
         if (fileContents.empty()) {
@@ -1129,7 +1172,7 @@ bool Server::runTests()
             ret = false;
             continue;
         }
-        bool ok = true;
+        bool ok           = true;
         const Value value = Value::fromJSON(fileContents, &ok);
         warning() << "parsed json" << value.type() << fileContents.size();
         if (!ok || !value.isMap()) {
@@ -1151,7 +1194,7 @@ bool Server::runTests()
         }
         warning() << sources.size() << "sources and" << tests.size() << "tests";
         const Path workingDirectory = file.parentDir();
-        const Path projectRoot = RTags::findProjectRoot(workingDirectory, RTags::SourceRoot);
+        const Path projectRoot      = RTags::findProjectRoot(workingDirectory, RTags::SourceRoot);
         if (projectRoot.empty()) {
             error() << "Can't find project root" << workingDirectory;
             ret = false;
@@ -1165,7 +1208,7 @@ bool Server::runTests()
                 ret = false;
                 continue;
             }
-            data.project = workingDirectory;
+            data.project    = workingDirectory;
             String commands = "clang " + source.convert<String>();
             if (!parse(data, std::move(commands), workingDirectory, 0)) {
                 error() << "Failed to index" << ("clang " + source.convert<String>()) << workingDirectory;
@@ -1178,13 +1221,13 @@ bool Server::runTests()
         if (sourceCount) {
             error() << "Timed out waiting for sources to compile";
             sourceCount = 0;
-            ret = false;
+            ret         = false;
             continue;
         }
 
-        int passes = 0;
+        int passes   = 0;
         int failures = 0;
-        int idx = -1;
+        int idx      = -1;
         for (const auto &test : tests) {
             ++idx;
             if (!test.isMap()) {
@@ -1263,7 +1306,7 @@ bool Server::runTests()
                 continue;
             }
             List<String> output;
-            for (auto it=out.listBegin(); it != out.listEnd(); ++it) {
+            for (auto it = out.listBegin(); it != out.listEnd(); ++it) {
                 if (!it->isString()) {
                     error() << "Invalid output";
                     ret = false;
@@ -1332,7 +1375,7 @@ void Server::filterBlockedArguments(Source &source)
     for (const String &blocked : mOptions.blockedArguments) {
         if (blocked.endsWith("=")) {
             size_t i = 0;
-            while (i<source.arguments.size()) {
+            while (i < source.arguments.size()) {
                 if (source.arguments.at(i).startsWith(blocked)) {
                     // error() << "Removing" << source.arguments.at(i);
                     source.arguments.remove(i, 1);
@@ -1349,4 +1392,3 @@ void Server::filterBlockedArguments(Source &source)
         }
     }
 }
-

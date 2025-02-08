@@ -16,51 +16,51 @@
 #include "Project.h"
 
 #include <Source.h>
+#include <algorithm>
+#include <initializer_list>
 #include <limits.h>
+#include <limits>
+#include <map>
 #include <math.h>
+#include <memory>
+#include <regex>
+#include <sstream>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <memory>
-#include <regex>
 #include <utility>
-#include <algorithm>
-#include <initializer_list>
-#include <limits>
-#include <map>
-#include <sstream>
-#include <vector>
 #include <variant>
+#include <vector>
 
+#include "CompilerManager.h"
 #include "Diagnostic.h"
 #include "FileManager.h"
-#include "CompilerManager.h"
+#include "FileMap.h"
+#include "FixIt.h"
 #include "IndexDataMessage.h"
 #include "JobScheduler.h"
+#include "Match.h"
+#include "RTags.h"
+#include "RTagsLogOutput.h"
+#include "RTagsVersion.h"
+#include "Sandbox.h"
+#include "Server.h"
+#include "Token.h"
+#include "rct/Connection.h"
 #include "rct/DataFile.h"
 #include "rct/Log.h"
 #include "rct/MemoryMonitor.h"
 #include "rct/Path.h"
 #include "rct/Rct.h"
-#include "rct/Value.h"
-#include "RTags.h"
-#include "RTagsLogOutput.h"
-#include "Server.h"
-#include "RTagsVersion.h"
-#include "FileMap.h"
-#include "FixIt.h"
-#include "Match.h"
-#include "Sandbox.h"
-#include "Token.h"
-#include "clang-c/Index.h"
-#include "rct/Connection.h"
 #include "rct/SignalSlot.h"
+#include "rct/Value.h"
+#include "clang-c/Index.h"
 
 enum
 {
     DirtyTimeout         = 100,
     CheckExplicitTimeout = 500,
-    CheckRetryTimeout    = 5  * 60 * 1000,
+    CheckRetryTimeout    = 5 * 60 * 1000,
     CheckPeriodicTimeout = 60 * 60 * 1000
 };
 
@@ -68,7 +68,8 @@ class Dirty
 {
 public:
     virtual ~Dirty() {}
-    virtual Set<uint32_t> dirtied() const = 0;
+
+    virtual Set<uint32_t> dirtied() const    = 0;
     virtual bool isDirty(const SourceList &) = 0;
 };
 
@@ -111,10 +112,12 @@ public:
     {
         return mDirty;
     }
+
     bool insertDirtyFile(uint32_t fileId)
     {
         return mDirty.insert(fileId);
     }
+
     inline uint64_t lastModified(uint32_t fileId)
     {
         uint64_t &time = mLastModified[fileId];
@@ -141,7 +144,8 @@ class IfModifiedDirty : public ComplexDirty
 {
 public:
     IfModifiedDirty(const std::shared_ptr<Project> &project, const Match &match = Match())
-        : mProject(project), mMatch(match)
+        : mProject(project)
+        , mMatch(match)
     {
     }
 
@@ -173,7 +177,6 @@ public:
     std::shared_ptr<Project> mProject;
     Match mMatch;
 };
-
 
 class WatcherDirty : public ComplexDirty
 {
@@ -213,18 +216,18 @@ static Project::DependencyMode modeForSymbol(const Symbol &symbol)
 {
     Project::DependencyMode mode = symbol.isDefinition() ? Project::ArgDependsOn : Project::DependsOnArg;
     switch (symbol.kind) {
-    case CXCursor_ClassDecl:
-    case CXCursor_ClassTemplate:
-    case CXCursor_StructDecl:
-    case CXCursor_FunctionDecl:
-        if (!symbol.isDefinition()) // forward declarations for global functions and classes/structs
-            mode = Project::All;
-        break;
-    case CXCursor_VarDecl:
-        if (symbol.kind == CXCursor_VarDecl && symbol.linkage == CXLinkage_External && !symbol.isDefinition())
-            mode = Project::All;
-    default:
-        break;
+        case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_StructDecl:
+        case CXCursor_FunctionDecl:
+            if (!symbol.isDefinition()) // forward declarations for global functions and classes/structs
+                mode = Project::All;
+            break;
+        case CXCursor_VarDecl:
+            if (symbol.kind == CXCursor_VarDecl && symbol.linkage == CXLinkage_External && !symbol.isDefinition())
+                mode = Project::All;
+        default:
+            break;
     }
 
     return mode;
@@ -234,14 +237,14 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
 {
     int size;
     file >> size;
-    for (int i=0; i<size; ++i) {
+    for (int i = 0; i < size; ++i) {
         uint32_t fileId;
         file >> fileId;
         if (!fileId)
             return false;
         dependencies[fileId] = new DependencyNode(fileId);
     }
-    for (int i=0; i<size; ++i) {
+    for (int i = 0; i < size; ++i) {
         int links;
         file >> links;
         if (links) {
@@ -330,20 +333,21 @@ bool Project::readSources(const Path &path, IndexParseData &data, String *err)
     file >> data;
 
     if (Sandbox::hasRoot()) {
-        forEachSource(data, [](Source &source) {
-            for (String &arg : source.arguments) {
-                Sandbox::decode(arg);
-            }
-            return Continue;
-        });
+        forEachSource(data, [](Source &source)
+                      {
+                          for (String &arg : source.arguments) {
+                              Sandbox::decode(arg);
+                          }
+                          return Continue;
+                      });
     }
     return true;
 }
 
 bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
 {
-    mPath = srcPath;
-    mProjectDataDir = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, srcPath, compileCommandsFileId);
+    mPath            = srcPath;
+    mProjectDataDir  = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, srcPath, compileCommandsFileId);
     mProjectFilePath = mProjectDataDir + "project";
     mSourcesFilePath = mProjectDataDir + "sources";
 
@@ -356,12 +360,23 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
     }
     if (!(options.options & Server::NoFileManager)) {
         mFileManager.reset(new FileManager(shared_from_this()));
-        mWatcher.removed().connect([this](const Path &path) { if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager) mFileManager->onFileRemoved(path); });
-        mWatcher.added().connect([this](const Path &path) { if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager) mFileManager->onFileAdded(path); });
+        mWatcher.removed().connect([this](const Path &path)
+                                   {
+                                       if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager)
+                                           mFileManager->onFileRemoved(path);
+                                   });
+        mWatcher.added().connect([this](const Path &path)
+                                 {
+                                     if (mWatchedPaths.value(path.parentDir()) & Watch_FileManager)
+                                         mFileManager->onFileAdded(path);
+                                 });
     }
 
     mDirtyTimer.timeout().connect(std::bind(&Project::onDirtyTimeout, this, std::placeholders::_1));
-    mCheckTimer.timeout().connect([this](Timer *) { check(Check_Explicit); });
+    mCheckTimer.timeout().connect([this](Timer *)
+                                  {
+                                      check(Check_Explicit);
+                                  });
 
     String err;
     if (!Project::readSources(mSourcesFilePath, mIndexParseData, &err)) {
@@ -373,17 +388,19 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
         return true;
     }
 
-    auto reindexAll = [this]() {
-        mProjectFilePath.visit([](const Path &path) {
-            if (strcmp(path.fileName(), "sources")) {
-                if (path.isDir()) {
-                    Path::rmdir(path);
-                } else {
-                    path.rm();
-                }
-            }
-            return Path::Continue;
-        });
+    auto reindexAll = [this]()
+    {
+        mProjectFilePath.visit([](const Path &path)
+                               {
+                                   if (strcmp(path.fileName(), "sources")) {
+                                       if (path.isDir()) {
+                                           Path::rmdir(path);
+                                       } else {
+                                           path.rm();
+                                       }
+                                   }
+                                   return Path::Continue;
+                               });
         auto parseData = std::move(mIndexParseData);
         processParseData(Project::ProcessParseData::Reindex, std::move(parseData));
     };
@@ -431,7 +448,7 @@ bool Project::check(CheckMode checkMode)
     }
 
     const Server::Options &options = Server::instance()->options();
-    bool needsSave = false;
+    bool needsSave                 = false;
     std::unique_ptr<ComplexDirty> dirty;
 
     if (Server::instance()->suspended()) {
@@ -443,7 +460,7 @@ bool Project::check(CheckMode checkMode)
     Set<uint32_t> missingFileMaps;
     {
         List<uint32_t> removed;
-        int idx = 0;
+        int idx          = 0;
         bool outputDirty = false;
         if (checkMode == Check_Init && mDependencies.size() >= 100) {
             logDirect(LogLevel::Error, String::format<128>("Restoring %s ", displayName().constData()), LogOutput::StdOut);
@@ -464,7 +481,7 @@ bool Project::check(CheckMode checkMode)
                 needsSave = true;
             } else {
                 String errorString;
-                if (!validate(it.first,  options.options & Server::ValidateFileMaps ? Validate : StatOnly, &errorString)) {
+                if (!validate(it.first, options.options & Server::ValidateFileMaps ? Validate : StatOnly, &errorString)) {
                     if (!errorString.empty()) {
                         if (checkMode == Check_Init && outputDirty) {
                             outputDirty = false;
@@ -493,19 +510,20 @@ bool Project::check(CheckMode checkMode)
         }
     }
 
-    forEachSourceList([&dirty, this, &needsSave](SourceList &src) -> VisitResult {
-        uint32_t fileId = src.fileId();
-        const Path sourceFile = Location::path(fileId);
-        if (!sourceFile.isFile()) {
-            warning() << sourceFile << "seems to have disappeared";
-            removeDependencies(fileId);
-            dirty.get()->insertDirtyFile(fileId);
-            needsSave = true;
-            return Remove;
-        }
-        watchFile(fileId);
-        return Continue;
-    });
+    forEachSourceList([&dirty, this, &needsSave](SourceList &src) -> VisitResult
+                      {
+                          uint32_t fileId       = src.fileId();
+                          const Path sourceFile = Location::path(fileId);
+                          if (!sourceFile.isFile()) {
+                              warning() << sourceFile << "seems to have disappeared";
+                              removeDependencies(fileId);
+                              dirty.get()->insertDirtyFile(fileId);
+                              needsSave = true;
+                              return Remove;
+                          }
+                          watchFile(fileId);
+                          return Continue;
+                      });
 
     if (!reloadCompileCommands(checkMode)) {
         return false;
@@ -513,7 +531,7 @@ bool Project::check(CheckMode checkMode)
 
     if (needsSave)
         save();
-    startDirtyJobs(dirty.get(), IndexerJob::Dirty|IndexerJob::NoAbort);
+    startDirtyJobs(dirty.get(), IndexerJob::Dirty | IndexerJob::NoAbort);
     // don't want to abort the jobs we just started from reloadCompileCommands
     if (!missingFileMaps.empty()) {
         SimpleDirty simple;
@@ -529,7 +547,7 @@ bool Project::match(const Match &match, bool *indexed) const
     if (indexed)
         *indexed = false;
 
-    Path path = match.pattern();
+    Path path         = match.pattern();
     const uint32_t id = Location::fileId(path);
     if (id && isIndexed(id)) {
         if (indexed)
@@ -583,15 +601,15 @@ String Project::displayName() const
 inline static const char *severityToString(Diagnostic::Flag type)
 {
     switch (type) {
-    case Diagnostic::None: return "none";
-    case Diagnostic::Warning: return "warning";
-    case Diagnostic::Fixit: return "fixit";
-    case Diagnostic::Error: return "error";
-    case Diagnostic::Note: return "note";
-    case Diagnostic::Skipped: return "skipped";
-    default:
-        error() << "bad boy" << type;
-        assert(0);
+        case Diagnostic::None: return "none";
+        case Diagnostic::Warning: return "warning";
+        case Diagnostic::Fixit: return "fixit";
+        case Diagnostic::Error: return "error";
+        case Diagnostic::Note: return "note";
+        case Diagnostic::Skipped: return "skipped";
+        default:
+            error() << "bad boy" << type;
+            assert(0);
     }
     return nullptr;
 }
@@ -617,32 +635,35 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
 
     // bool debug = false;
     switch (filterSize) {
-    case 0:
-        it = diagnostics.begin();
-        end = diagnostics.end();
-        break;
-    case 1: {
-        uint32_t fileId = *filter.begin();
-        it = diagnostics.lower_bound(Location(fileId, 0, 0));
-        end = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
-        // debug = (Location::path(fileId) == "/home/abakken/temp/compl1/main.cpp");
-        // error() << "THESE ARE THE ITERATORS" << (it == diagnostics.end() ? "end" : it->first.toString().constData())
-        //         << (end == diagnostics.end() ? "end" : end->first.toString().constData()) << diagnostics.keys();
-        break; }
-    default: {
-        it = diagnostics.lower_bound(Location(*filter.begin(), 0, 0));
-        auto e = filter.end();
-        --e;
-        end = diagnostics.lower_bound(Location(*e, 0, 0));
-        break; }
+        case 0:
+            it  = diagnostics.begin();
+            end = diagnostics.end();
+            break;
+        case 1: {
+            uint32_t fileId = *filter.begin();
+            it              = diagnostics.lower_bound(Location(fileId, 0, 0));
+            end             = diagnostics.lower_bound(Location(fileId + 1, 0, 0));
+            // debug = (Location::path(fileId) == "/home/abakken/temp/compl1/main.cpp");
+            // error() << "THESE ARE THE ITERATORS" << (it == diagnostics.end() ? "end" : it->first.toString().constData())
+            //         << (end == diagnostics.end() ? "end" : end->first.toString().constData()) << diagnostics.keys();
+            break;
+        }
+        default: {
+            it     = diagnostics.lower_bound(Location(*filter.begin(), 0, 0));
+            auto e = filter.end();
+            --e;
+            end = diagnostics.lower_bound(Location(*e, 0, 0));
+            break;
+        }
     }
 
     if (flags & QueryMessage::JSON) {
-        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue](uint32_t file, Location loc, const Diagnostic &diagnostic) {
+        std::function<Value(uint32_t, Location, const Diagnostic &)> toValue = [&toValue](uint32_t file, Location loc, const Diagnostic &diagnostic)
+        {
             Value value;
             if (loc.fileId() != file)
                 value["file"] = loc.path();
-            value["line"] = loc.line();
+            value["line"]   = loc.line();
             value["column"] = loc.column();
             if (diagnostic.length > 0)
                 value["length"] = diagnostic.length;
@@ -652,7 +673,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             if (!diagnostic.children.empty()) {
                 Value &children = value["children"];
                 for (const auto &c : diagnostic.children) {
-                    Value val =  toValue(file, c.first, c.second);
+                    Value val = toValue(file, c.first, c.second);
                     children.push_back(std::move(val));
                 }
             }
@@ -660,13 +681,13 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         };
 
         Value val;
-        Value &checkStyle = val["checkStyle"];
-        checkStyle = Value(Value::Type_Map);
-        Value *currentFile = nullptr;
-        uint32_t lastFileId = 0;
+        Value &checkStyle      = val["checkStyle"];
+        checkStyle             = Value(Value::Type_Map);
+        Value *currentFile     = nullptr;
+        uint32_t lastFileId    = 0;
         uint32_t ignoredFileId = 0;
         while (it != end) {
-            const auto &ref = it++;
+            const auto &ref  = it++;
             const uint32_t f = ref->first.fileId();
             if (f == ignoredFileId) {
                 continue;
@@ -681,7 +702,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
                 }
 
                 currentFile = &checkStyle[ref->first.path()];
-                lastFileId = f;
+                lastFileId  = f;
             }
             currentFile->push_back(toValue(lastFileId, ref->first, ref->second));
         }
@@ -711,15 +732,17 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         "\n  </checkstyle>",
         ")"
     };
-    std::function<String(Location , const Diagnostic &, uint32_t, size_t)> formatDiagnostic;
+    std::function<String(Location, const Diagnostic &, uint32_t, size_t)> formatDiagnostic;
 
-    enum DiagnosticsFormat {
+    enum DiagnosticsFormat
+    {
         Diagnostics_XML,
         Diagnostics_Elisp
     } const format = flags & QueryMessage::Elisp ? Diagnostics_Elisp : Diagnostics_XML;
 
     if (format == Diagnostics_XML) {
-        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t, size_t indent) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t, size_t indent)
+        {
             String tagEnd;
             String endTag;
             String children;
@@ -739,13 +762,19 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             }
             return String::format<1024>("\n%s<error %sline=\"%d\" column=\"%d\" %sseverity=\"%s\" message=\"%s\"%s%s%s",
                                         String((indent * 2) + 6, ' ').constData(),
-                                        file.constData(), loc.line(), loc.column(),
+                                        file.constData(),
+                                        loc.line(),
+                                        loc.column(),
                                         (diagnostic.length <= 0 ? "" : String::format<32>("length=\"%d\" ", diagnostic.length).constData()),
-                                        severityToString(diagnostic.type()), RTags::xmlEscape(diagnostic.message).constData(),
-                                        tagEnd.constData(), children.constData(), endTag.constData());
+                                        severityToString(diagnostic.type()),
+                                        RTags::xmlEscape(diagnostic.message).constData(),
+                                        tagEnd.constData(),
+                                        children.constData(),
+                                        endTag.constData());
         };
     } else {
-        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file, size_t indent) {
+        formatDiagnostic = [&formatDiagnostic](Location loc, const Diagnostic &diagnostic, uint32_t file, size_t indent)
+        {
             String children;
             if (!diagnostic.children.empty()) {
                 children = "(list";
@@ -770,13 +799,13 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
         };
     }
     String ret;
-    uint32_t lastFileId = 0;
+    uint32_t lastFileId    = 0;
     uint32_t ignoredFileId = 0;
-    bool first = true;
+    bool first             = true;
     while (it != end) {
         const auto &entry = *it++;
-        Location loc = entry.first;
-        const uint32_t f = loc.fileId();
+        Location loc      = entry.first;
+        const uint32_t f  = loc.fileId();
         if (f == ignoredFileId)
             continue;
         if (f != lastFileId) {
@@ -786,7 +815,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
             }
 
             if (first) {
-                ret = header[format];
+                ret   = header[format];
                 first = false;
             }
             if (lastFileId)
@@ -804,7 +833,7 @@ static String formatDiagnostics(const Diagnostics &diagnostics, Flags<QueryMessa
     for (uint32_t f : filter) {
         const Path path = Location::path(f);
         // error() << "empty diags for" << path;
-        first = true;
+        first           = true;
         ret << header[format]
             << String::format<256>(fileEmpty[format], path.constData())
             << endFile[format] << trailer[format];
@@ -830,7 +859,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     mBytesWritten += msg->bytesWritten();
     std::shared_ptr<IndexerJob> restart;
     const uint32_t fileId = job->sourceFileId();
-    auto j = mActiveJobs.take(fileId);
+    auto j                = mActiveJobs.take(fileId);
     if (!j) {
         error() << "Couldn't find JobData for" << Location::path(fileId) << msg->id() << job->id << job.get();
         return;
@@ -841,8 +870,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
     const bool success = job->flags & IndexerJob::Complete;
     assert(!(job->flags & IndexerJob::Aborted));
-    assert(((job->flags & (IndexerJob::Complete|IndexerJob::Crashed)) == IndexerJob::Complete)
-           || ((job->flags & (IndexerJob::Complete|IndexerJob::Crashed)) == IndexerJob::Crashed));
+    assert(((job->flags & (IndexerJob::Complete | IndexerJob::Crashed)) == IndexerJob::Complete) || ((job->flags & (IndexerJob::Complete | IndexerJob::Crashed)) == IndexerJob::Crashed));
     const auto &options = Server::instance()->options();
     if (!success || msg->flags() & IndexDataMessage::ParseFailure) {
         releaseFileIds(job->visited);
@@ -866,20 +894,22 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
     const int idx = mJobCounter - mActiveJobs.size();
     updateDiagnostics(fileId, msg->diagnostics());
     if (options.options & Server::Progress) {
-        log([&](const std::shared_ptr<LogOutput> &output) {
-            if (output->type() == LogOutput::Custom && output->testLog(RTags::DiagnosticsLevel)) {
-                const Flags<QueryMessage::Flag> queryFlags = ::queryFlags(output);
-                if (queryFlags & QueryMessage::Elisp) {
-                    std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
-                    output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
-                } else if (queryFlags & QueryMessage::XML) {
-                    output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
-                                 idx, mJobCounter);
-                } else if (queryFlags & QueryMessage::JSON) {
-                    output->vlog("{\"progress\":{\"index\":%d,\"total\":%d}}", idx, mJobCounter);
+        log([&](const std::shared_ptr<LogOutput> &output)
+            {
+                if (output->type() == LogOutput::Custom && output->testLog(RTags::DiagnosticsLevel)) {
+                    const Flags<QueryMessage::Flag> queryFlags = ::queryFlags(output);
+                    if (queryFlags & QueryMessage::Elisp) {
+                        std::shared_ptr<JobScheduler> scheduler = Server::instance()->jobScheduler();
+                        output->vlog("(list 'progress %d %d %zu)", idx, mJobCounter, scheduler->activeJobCount() + scheduler->pendingJobCount());
+                    } else if (queryFlags & QueryMessage::XML) {
+                        output->vlog("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<progress index=\"%d\" total=\"%d\"></progress>",
+                                     idx,
+                                     mJobCounter);
+                    } else if (queryFlags & QueryMessage::JSON) {
+                        output->vlog("{\"progress\":{\"index\":%d,\"total\":%d}}", idx, mJobCounter);
+                    }
                 }
-            }
-        });
+            });
     }
 
     Set<uint32_t> visited = msg->visitedFiles();
@@ -889,30 +919,22 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         if (mIndexParseData.sources.contains(fileId)) {
             mIndexParseData.sources[fileId].parsed = msg->parseTime();
         }
-        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)",
-                                                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                                                  String::formatTime(time(nullptr), String::Time).constData(),
-                                                  msg->message().constData(),
-                                                  String::format<16>("priority %d", job->priority()).constData()),
-                  LogOutput::StdOut|LogOutput::TrailingNewLine);
+        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s. (%s)", static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter, String::formatTime(time(nullptr), String::Time).constData(), msg->message().constData(), String::format<16>("priority %d", job->priority()).constData()), LogOutput::StdOut | LogOutput::TrailingNewLine);
     } else {
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
-        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.",
-                                                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                                                  String::formatTime(time(nullptr), String::Time).constData(),
-                                                  Location::path(fileId).toTilde().constData()),
-                  LogOutput::StdOut|LogOutput::TrailingNewLine);
+        logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.", static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter, String::formatTime(time(nullptr), String::Time).constData(), Location::path(fileId).toTilde().constData()), LogOutput::StdOut | LogOutput::TrailingNewLine);
     }
 
     if (mActiveJobs.empty()) {
         mLastIdleTime = time(nullptr);
         save();
-        double timerElapsed = (mTimer.elapsed() / 1000.0);
+        double timerElapsed         = (mTimer.elapsed() / 1000.0);
         const double averageJobTime = timerElapsed / mJobsStarted;
-        const String m = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
-                                              timerElapsed, mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
+        const String m              = String::format<1024>("Jobs took %.2fs%s. We're using %lldmb of memory. ",
+                                              timerElapsed,
+                                              mJobsStarted > 1 ? String::format(", (avg %.2fs)", averageJobTime).constData() : "",
                                               static_cast<unsigned long long>(MemoryMonitor::usage() / (1024 * 1024)));
-        Log(LogLevel::Error, LogOutput::StdOut|LogOutput::TrailingNewLine) << m;
+        Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << m;
         mJobsStarted = mJobCounter = 0;
 
         // error() << "Finished this
@@ -923,27 +945,29 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
 
 void Project::diagnose(uint32_t fileId)
 {
-    log([&](const std::shared_ptr<LogOutput> &output) {
-        if (output->testLog(RTags::DiagnosticsLevel)) {
-            Set<uint32_t> filter;
-            if (fileId)
-                filter.insert(fileId);
-            const String log = formatDiagnostics(mDiagnostics, queryFlags(output), std::move(filter));
-            if (!log.empty())
-                output->log(log);
-        }
-    });
+    log([&](const std::shared_ptr<LogOutput> &output)
+        {
+            if (output->testLog(RTags::DiagnosticsLevel)) {
+                Set<uint32_t> filter;
+                if (fileId)
+                    filter.insert(fileId);
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output), std::move(filter));
+                if (!log.empty())
+                    output->log(log);
+            }
+        });
 }
 
 void Project::diagnoseAll()
 {
-    log([&](const std::shared_ptr<LogOutput> &output) {
-        if (output->testLog(RTags::DiagnosticsLevel)) {
-            const String log = formatDiagnostics(mDiagnostics, queryFlags(output));
-            if (!log.empty())
-                output->log(log);
-        }
-    });
+    log([&](const std::shared_ptr<LogOutput> &output)
+        {
+            if (output->testLog(RTags::DiagnosticsLevel)) {
+                const String log = formatDiagnostics(mDiagnostics, queryFlags(output));
+                if (!log.empty())
+                    output->log(log);
+            }
+        });
 }
 
 String Project::diagnosticsToString(Flags<QueryMessage::Flag> flags, uint32_t fileId)
@@ -992,7 +1016,7 @@ bool Project::save()
 
 void Project::index(const std::shared_ptr<IndexerJob> &job)
 {
-    const Path sourceFile = job->sourceFile;
+    const Path sourceFile         = job->sourceFile;
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(job->sourceFile.constData(), fileFilter)) {
         error() << "Not indexing" << job->sourceFile.constData() << "because of file filter"
@@ -1105,7 +1129,8 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
         return ret;
     }
     ret.insert(fileId);
-    std::function<void(uint32_t)> fill = [&](uint32_t file) {
+    std::function<void(uint32_t)> fill = [&](uint32_t file)
+    {
         if (DependencyNode *node = mDependencies.value(file)) {
             const auto &nodes = (mode == ArgDependsOn ? node->includes : node->dependents);
             for (const auto &it : nodes) {
@@ -1121,7 +1146,8 @@ Set<uint32_t> Project::dependencies(uint32_t fileId, DependencyMode mode) const
 bool Project::dependsOn(uint32_t source, uint32_t header) const
 {
     Set<uint32_t> seen;
-    std::function<bool(DependencyNode *node)> dep = [&](DependencyNode *node) {
+    std::function<bool(DependencyNode * node)> dep = [&](DependencyNode *node)
+    {
         assert(node);
         if (!seen.insert(node->fileId))
             return false;
@@ -1177,7 +1203,7 @@ void Project::updateDependencies(uint32_t fileId, const std::shared_ptr<IndexDat
     for (auto it : msg->includes()) {
         assert(it.first);
         assert(it.second);
-        DependencyNode *&includer = mDependencies[it.first];
+        DependencyNode *&includer   = mDependencies[it.first];
         DependencyNode *&inclusiary = mDependencies[it.second];
         // error() << "adding include for" << Location::path(it.first) << Location::path(it.second);
         if (!includer)
@@ -1232,11 +1258,12 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
 {
     const JobScheduler::JobScope scope(Server::instance()->jobScheduler());
     Set<uint32_t> toIndex;
-    forEachSourceList([dirty, &toIndex](const SourceList &sourceList) -> VisitResult {
-        if (dirty->isDirty(sourceList))
-            toIndex.insert(sourceList.fileId());
-        return Continue;
-    });
+    forEachSourceList([dirty, &toIndex](const SourceList &sourceList) -> VisitResult
+                      {
+                          if (dirty->isDirty(sourceList))
+                              toIndex.insert(sourceList.fileId());
+                          return Continue;
+                      });
     const Set<uint32_t> dirtyFiles = dirty->dirtied();
 
     {
@@ -1265,12 +1292,13 @@ int Project::startDirtyJobs(Dirty *dirty, Flags<IndexerJob::Flag> flags,
 
         auto job = std::make_shared<IndexerJob>(sources(fileId), flags, shared_from_this(), unsavedFiles);
         if (wait) {
-            job->destroyed.connect([weakConn](IndexerJob *) {
-                // should arguably be refcounted but I don't know if anyone waits for multiple jobs
-                if (auto strong = weakConn.lock()) {
-                    strong->finish();
-                }
-            });
+            job->destroyed.connect([weakConn](IndexerJob *)
+                                   {
+                                       // should arguably be refcounted but I don't know if anyone waits for multiple jobs
+                                       if (auto strong = weakConn.lock()) {
+                                           strong->finish();
+                                       }
+                                   });
         }
         index(job);
     }
@@ -1336,8 +1364,8 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
     // }
     Set<uint32_t> files;
     {
-        auto it = mDiagnostics.begin();
-        const auto end = mDiagnostics.end();
+        auto it             = mDiagnostics.begin();
+        const auto end      = mDiagnostics.end();
         uint32_t lastFileId = 0;
         while (it != end) {
             if (it->second.sourceFileId == fileId) {
@@ -1380,14 +1408,15 @@ void Project::updateDiagnostics(uint32_t fileId, const Diagnostics &diagnostics)
             // if (debug) {
             //     error() << "got stuff" << files.size() << diagnostics.size() << mDiagnostics.size();
             // }
-            log([&](const std::shared_ptr<LogOutput> &output) {
-                if (output->testLog(RTags::DiagnosticsLevel)) {
-                    const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
-                    if (!log.empty()) {
-                        output->log(log);
+            log([&](const std::shared_ptr<LogOutput> &output)
+                {
+                    if (output->testLog(RTags::DiagnosticsLevel)) {
+                        const String log = formatDiagnostics(mDiagnostics, queryFlags(output), Set<uint32_t>(files));
+                        if (!log.empty()) {
+                            output->log(log);
+                        }
                     }
-                }
-            });
+                });
         }
     }
 }
@@ -1417,8 +1446,8 @@ void Project::findSymbols(const String &unencoded,
                           Flags<QueryMessage::Flag> queryFlags,
                           uint32_t fileFilter)
 {
-    const String string = Sandbox::encoded(unencoded);
-    const bool wildcard = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
+    const String string        = Sandbox::encoded(unencoded);
+    const bool wildcard        = queryFlags & QueryMessage::WildcardSymbolNames && (string.contains('*') || string.contains('?'));
     const bool caseInsensitive = queryFlags & QueryMessage::MatchCaseInsensitive;
     std::regex rx;
     const bool regex = queryFlags & QueryMessage::MatchRegex;
@@ -1434,7 +1463,7 @@ void Project::findSymbols(const String &unencoded,
     if (wildcard) {
         if (!caseInsensitive) {
             const size_t size = string.size();
-            for (size_t i=0; i<size; ++i) {
+            for (size_t i = 0; i < size; ++i) {
                 if (string.at(i) == '?' || string.at(i) == '*') {
                     lowerBound = string.left(i);
                     break;
@@ -1445,14 +1474,15 @@ void Project::findSymbols(const String &unencoded,
         lowerBound = string;
     }
 
-    auto processFile = [this, &lowerBound, &string, wildcard, regex, &rx, cs, &inserter](uint32_t file) {
+    auto processFile = [this, &lowerBound, &string, wildcard, regex, &rx, cs, &inserter](uint32_t file)
+    {
         auto symNames = openSymbolNames(file);
         if (!symNames)
             return;
         const int count = symNames->count();
         // error() << "Looking at" << count << Location::path(dep.first)
         //         << lowerBound << string;
-        uint32_t idx = 0;
+        uint32_t idx    = 0;
         if (!lowerBound.empty()) {
             idx = symNames->lowerBound(lowerBound);
             if (idx == std::numeric_limits<uint32_t>::max()) {
@@ -1460,8 +1490,8 @@ void Project::findSymbols(const String &unencoded,
             }
         }
 
-        for (int i=idx; i<count; ++i) {
-            const String entry = symNames->keyAt(i);
+        for (int i = idx; i < count; ++i) {
+            const String entry   = symNames->keyAt(i);
             // error() << i << count << entry;
             SymbolMatchType type = Exact;
             if (!string.empty()) {
@@ -1537,7 +1567,7 @@ void Project::watch(const Path &path, WatchMode mode)
 {
     if (!path.empty()) {
         const auto opts = Server::instance()->options().options;
-        if (opts & Server::WatchSourcesOnly && !(mode & (Watch_SourceFile|Watch_CompileCommands)))
+        if (opts & Server::WatchSourcesOnly && !(mode & (Watch_SourceFile | Watch_CompileCommands)))
             return;
         const auto it = mWatchedPaths.find(path);
         if (it != mWatchedPaths.end()) {
@@ -1593,22 +1623,17 @@ void Project::unwatch(const Path &dir, WatchMode mode)
 
 String Project::toCompileCommands() const
 {
-    const Flags<Source::CommandLineFlag> flags = (Source::IncludeCompiler
-                                                  | Source::IncludeSourceFile
-                                                  | Source::IncludeDefines
-                                                  | Source::IncludeIncludePaths
-                                                  | Source::IncludeOutputFilename
-                                                  | Source::QuoteDefines
-                                                  | Source::FilterBlacklist);
+    const Flags<Source::CommandLineFlag> flags = (Source::IncludeCompiler | Source::IncludeSourceFile | Source::IncludeDefines | Source::IncludeIncludePaths | Source::IncludeOutputFilename | Source::QuoteDefines | Source::FilterBlacklist);
     Value ret;
-    forEachSource([&ret, flags](const Source &source) -> VisitResult {
-        Value unit;
-        unit["directory"] = source.directory;
-        unit["file"] = source.sourceFile();
-        unit["command"] = String::join(source.toCommandLine(flags), " ").constData();
-        ret.push_back(unit);
-        return Continue;
-    });
+    forEachSource([&ret, flags](const Source &source) -> VisitResult
+                  {
+                      Value unit;
+                      unit["directory"] = source.directory;
+                      unit["file"]      = source.sourceFile();
+                      unit["command"]   = String::join(source.toCommandLine(flags), " ").constData();
+                      ret.push_back(unit);
+                      return Continue;
+                  });
 
     return ret.toJSON(true);
 }
@@ -1623,7 +1648,7 @@ Symbol Project::findSymbol(Location location, int *index)
     if (!symbols || !symbols->count())
         return Symbol();
 
-    bool exact = false;
+    bool exact   = false;
     uint32_t idx = symbols->lowerBound(location, &exact);
     if (exact) {
         if (index)
@@ -1631,20 +1656,18 @@ Symbol Project::findSymbol(Location location, int *index)
         return symbols->valueAt(idx);
     }
     switch (idx) {
-    case 0:
-        return Symbol();
-    case std::numeric_limits<uint32_t>::max():
-        idx = symbols->count() - 1;
-        break;
-    default:
-        --idx;
-        break;
+        case 0:
+            return Symbol();
+        case std::numeric_limits<uint32_t>::max():
+            idx = symbols->count() - 1;
+            break;
+        default:
+            --idx;
+            break;
     }
 
     const Symbol &ret = symbols->valueAt(idx);
-    if (ret.location.fileId() != location.fileId()
-        || ret.location.line() != location.line()
-        || (location.column() - ret.location.column() >= ret.symbolLength)) {
+    if (ret.location.fileId() != location.fileId() || ret.location.line() != location.line() || (location.column() - ret.location.column() >= ret.symbolLength)) {
         return Symbol();
     }
     if (index)
@@ -1657,7 +1680,8 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
     Set<Symbol> ret;
     if (symbol.isNull() || symbol.flags & Symbol::ImplicitDestruction)
         return ret;
-    auto sameKind = [&symbol](CXCursorKind kind) {
+    auto sameKind = [&symbol](CXCursorKind kind)
+    {
         if (kind == symbol.kind)
             return true;
         if (symbol.isClass())
@@ -1665,42 +1689,43 @@ Set<Symbol> Project::findTargets(const Symbol &symbol)
         return false;
     };
 
-    for (int i=0; i<2 && ret.empty(); ++i) {
+    for (int i = 0; i < 2 && ret.empty(); ++i) {
         switch (symbol.kind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_ClassTemplate:
-        case CXCursor_StructDecl:
-            if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
-                return ret;
-            [[fallthrough]];
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Destructor:
-        case CXCursor_Constructor:
-        case CXCursor_FieldDecl:
-        case CXCursor_VarDecl:
-        case CXCursor_FunctionTemplate: {
-            const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), i == 0 ? modeForSymbol(symbol) : Project::All);
-            for (const auto &c : symbols) {
-                if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
-                    ret.insert(c);
+            case CXCursor_ClassDecl:
+            case CXCursor_ClassTemplate:
+            case CXCursor_StructDecl:
+                if (symbol.isDefinition() && !(symbol.flags & Symbol::TemplateSpecialization))
+                    return ret;
+                [[fallthrough]];
+            case CXCursor_FunctionDecl:
+            case CXCursor_CXXMethod:
+            case CXCursor_Destructor:
+            case CXCursor_Constructor:
+            case CXCursor_FieldDecl:
+            case CXCursor_VarDecl:
+            case CXCursor_FunctionTemplate: {
+                const Set<Symbol> symbols = findByUsr(symbol.usr, symbol.location.fileId(), i == 0 ? modeForSymbol(symbol) : Project::All);
+                for (const auto &c : symbols) {
+                    if (sameKind(c.kind) && symbol.isDefinition() != c.isDefinition()) {
+                        ret.insert(c);
+                    }
                 }
-            }
 
-            if (!ret.empty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
-                break; }
-            [[fallthrough]];
-        default:
-            if (symbol.flags & Symbol::TemplateReference) {
-                for (const String &usr : findTargetUsrs(symbol)) {
-                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::DependsOnArg : Project::All));
-                }
-            } else {
-                for (const String &usr : findTargetUsrs(symbol)) {
-                    ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::ArgDependsOn : Project::All));
-                }
+                if (!ret.empty() || (symbol.kind != CXCursor_VarDecl && symbol.kind != CXCursor_FieldDecl))
+                    break;
             }
-            break;
+                [[fallthrough]];
+            default:
+                if (symbol.flags & Symbol::TemplateReference) {
+                    for (const String &usr : findTargetUsrs(symbol)) {
+                        ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::DependsOnArg : Project::All));
+                    }
+                } else {
+                    for (const String &usr : findTargetUsrs(symbol)) {
+                        ret.unite(findByUsr(usr, symbol.location.fileId(), i == 0 ? Project::ArgDependsOn : Project::All));
+                    }
+                }
+                break;
         }
     }
 
@@ -1747,12 +1772,13 @@ static Set<Symbol> findReferences(const Set<Symbol> &inputs,
     // const bool isClazz = s.isClass();
     for (const Symbol &input : inputs) {
         //warning() << "Calling findReferences" << input.location;
-        auto process = [&](uint32_t dep) {
+        auto process = [&](uint32_t dep)
+        {
             // error() << "Looking at file" << Location::path(dep) << "for input" << input.location;
             auto targets = project->openTargets(dep);
             if (targets) {
                 // SBROOT
-                const String tusr = Sandbox::encoded(input.usr);
+                const String tusr             = Sandbox::encoded(input.usr);
                 const Set<Location> locations = targets->value(tusr);
                 // error() << "Got locations for usr" << input.usr << locations;
                 for (const auto &loc : locations) {
@@ -1790,7 +1816,7 @@ static Set<Symbol> findReferences(const Symbol &in,
             if (target.kind != CXCursor_MacroExpansion) {
                 s = target;
             } else {
-                s = in;
+                s         = in;
                 auto usrs = project->findTargetUsrs(s.location);
                 if (!usrs.empty())
                     s.usr = *usrs.begin();
@@ -1806,32 +1832,32 @@ static Set<Symbol> findReferences(const Symbol &in,
 
     // error() << "findReferences" << s.location << in.location << s.kind;
     switch (s.kind) {
-    case CXCursor_CXXMethod:
-        if (s.flags & Symbol::VirtualMethod) {
-            inputs = project->findVirtuals(s);
+        case CXCursor_CXXMethod:
+            if (s.flags & Symbol::VirtualMethod) {
+                inputs = project->findVirtuals(s);
+                break;
+            }
+            [[fallthrough]];
+        case CXCursor_FunctionTemplate:
+        case CXCursor_FunctionDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_UnionDecl:
+        case CXCursor_VarDecl:
+        case CXCursor_TypedefDecl:
+        case CXCursor_Namespace:
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+        case CXCursor_ConversionFunction:
+        case CXCursor_NamespaceAlias:
+            inputs = project->findByUsr(s.usr, location.fileId(), modeForSymbol(s));
             break;
-        }
-        [[fallthrough]];
-    case CXCursor_FunctionTemplate:
-    case CXCursor_FunctionDecl:
-    case CXCursor_ClassTemplate:
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-    case CXCursor_UnionDecl:
-    case CXCursor_VarDecl:
-    case CXCursor_TypedefDecl:
-    case CXCursor_Namespace:
-    case CXCursor_Constructor:
-    case CXCursor_Destructor:
-    case CXCursor_ConversionFunction:
-    case CXCursor_NamespaceAlias:
-        inputs = project->findByUsr(s.usr, location.fileId(), modeForSymbol(s));
-        break;
-    default:
-        inputs.insert(s);
-        break;
-    case CXCursor_FirstInvalid:
-        return Set<Symbol>();
+        default:
+            inputs.insert(s);
+            break;
+        case CXCursor_FirstInvalid:
+            return Set<Symbol>();
     }
     if (inputsPtr)
         *inputsPtr = inputs;
@@ -1841,24 +1867,24 @@ static Set<Symbol> findReferences(const Symbol &in,
 Set<Symbol> Project::findCallers(const Symbol &symbol, int max)
 {
     const bool isClazz = symbol.isClass();
-    return ::findReferences(symbol, shared_from_this(), [isClazz, &max](const Symbol &input, const Symbol &ref) {
-        if (!max)
-            return false;
-        if (isClazz && (ref.isConstructorOrDestructor() || ref.kind == CXCursor_CallExpr))
-            return false;
-        if (ref.isReference()
-            || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
-            if (max != -1)
-                --max;
-            return true;
-        }
-        if (input.kind == CXCursor_ClassTemplate && ref.flags & Symbol::TemplateSpecialization) {
-            if (max != -1)
-                --max;
-            return true;
-        }
-        return false;
-    });
+    return ::findReferences(symbol, shared_from_this(), [isClazz, &max](const Symbol &input, const Symbol &ref)
+                            {
+                                if (!max)
+                                    return false;
+                                if (isClazz && (ref.isConstructorOrDestructor() || ref.kind == CXCursor_CallExpr))
+                                    return false;
+                                if (ref.isReference() || (input.kind == CXCursor_Constructor && (ref.kind == CXCursor_VarDecl || ref.kind == CXCursor_FieldDecl))) {
+                                    if (max != -1)
+                                        --max;
+                                    return true;
+                                }
+                                if (input.kind == CXCursor_ClassTemplate && ref.flags & Symbol::TemplateSpecialization) {
+                                    if (max != -1)
+                                        --max;
+                                    return true;
+                                }
+                                return false;
+                            });
 }
 
 Set<Symbol> Project::findAllReferences(const Symbol &symbol)
@@ -1872,9 +1898,14 @@ Set<Symbol> Project::findAllReferences(const Symbol &symbol)
     Set<Symbol> ret = inputs;
     for (const auto &input : inputs) {
         Set<Symbol> inputLocations;
-        ret.unite(::findReferences(input, shared_from_this(), [](const Symbol &, const Symbol &) {
-            return true;
-        }, &inputLocations));
+        ret.unite(::findReferences(
+            input,
+            shared_from_this(),
+            [](const Symbol &, const Symbol &)
+            {
+                return true;
+            },
+            &inputLocations));
         ret.unite(inputLocations);
     }
     return ret;
@@ -1885,7 +1916,8 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
     if (symbol.kind != CXCursor_CXXMethod || !(symbol.flags & Symbol::VirtualMethod))
         return Set<Symbol>();
 
-    Symbol parent = [this](const Symbol &sym) {
+    Symbol parent = [this](const Symbol &sym)
+    {
         for (const String &usr : findTargetUsrs(sym.location)) {
             const Set<Symbol> syms = findByUsr(usr, sym.location.fileId(), ArgDependsOn);
             for (const Symbol &s : syms) {
@@ -1907,13 +1939,14 @@ Set<Symbol> Project::findVirtuals(const Symbol &symbol)
 
     Set<Symbol> symSet;
     symSet.insert(parent);
-    Set<Symbol> ret = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref) {
-        // error() << "considering" << ref.location << ref.kindSpelling();
-        if (ref.kind == CXCursor_CXXMethod) {
-            return true;
-        }
-        return false;
-    });
+    Set<Symbol> ret = ::findReferences(symSet, shared_from_this(), [](const Symbol &, const Symbol &ref)
+                                       {
+                                           // error() << "considering" << ref.location << ref.kindSpelling();
+                                           if (ref.kind == CXCursor_CXXMethod) {
+                                               return true;
+                                           }
+                                           return false;
+                                       });
     ret.insert(parent);
     const Symbol target = findTarget(parent);
     if (!target.isNull())
@@ -1927,7 +1960,7 @@ Set<String> Project::findTargetUsrs(Location loc)
     auto targets = openTargets(loc.fileId());
     if (targets) {
         const int count = targets->count();
-        for (int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             if (targets->valueAt(i).contains(loc)) {
                 // SBROOT
                 usrs.insert(Sandbox::decoded(targets->keyAt(i)));
@@ -1948,7 +1981,7 @@ Set<String> Project::findTargetUsrs(const Symbol &symbol)
         auto targets = openTargets(fileId);
         if (targets) {
             const int count = targets->count();
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 if (targets->valueAt(i).contains(symbol.location)) {
                     // SBROOT
                     usrs.insert(Sandbox::decoded(targets->keyAt(i)));
@@ -1967,7 +2000,7 @@ Set<Symbol> Project::findSubclasses(const Symbol &symbol)
         auto symbols = openSymbols(dep);
         if (symbols) {
             const int count = symbols->count();
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 const Symbol s = symbols->valueAt(i);
                 if (s.baseClasses.contains(symbol.usr))
                     ret.insert(s);
@@ -2006,7 +2039,8 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
 {
     String ret;
 
-    auto dumpRaw = [&ret, flags](DependencyNode *n) {
+    auto dumpRaw = [&ret, flags](DependencyNode *n)
+    {
         if (!(flags & QueryMessage::Elisp)) {
             ret << Location::path(n->fileId) << "\n";
             for (const auto &inc : n->includes) {
@@ -2068,7 +2102,7 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
         }
 
         if (args.empty() || args.contains("tree-depends-on")) {
-            Set<DependencyNode*> seen;
+            Set<DependencyNode *> seen;
 
             DependencyNode *depNode = mDependencies.value(fileId);
             if (depNode) {
@@ -2078,7 +2112,8 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
                     ret += String::format<1024>("  %s include tree:\n", Location::path(fileId).constData());
                 }
 
-                std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth) {
+                std::function<void(DependencyNode *, int)> process = [&](DependencyNode *n, int depth)
+                {
                     ret += String::format<1024>("%s%s", String(depth * 2, ' ').constData(), Location::path(n->fileId).constData());
 
                     if (seen.insert(n) && !n->includes.empty()) {
@@ -2094,8 +2129,9 @@ String Project::dumpDependencies(uint32_t fileId, const List<String> &args, Flag
             }
         }
         if (args.size() == 1 && args.contains("raw")) {
-            Set<DependencyNode*> all;
-            std::function<void(DependencyNode *node)> add = [&](DependencyNode *depNode) {
+            Set<DependencyNode *> all;
+            std::function<void(DependencyNode * node)> add = [&](DependencyNode *depNode)
+            {
                 assert(depNode);
                 if (!all.insert(depNode))
                     return;
@@ -2163,7 +2199,7 @@ bool Project::validate(uint32_t fileId, ValidateMode mode, String *err) const
                 goto error;
         }
         return true;
-  error:
+error:
         if (err && mode == Validate)
             Log(err) << "Error during validation:" << Location::path(fileId) << error << path;
         return false;
@@ -2193,7 +2229,7 @@ static inline String toString(const T &t, size_t &max)
 template <>
 inline String toString(const String &str, size_t &max)
 {
-    max = std::max(max, str.size());
+    max        = std::max(max, str.size());
     String ret = str;
     ret.replace('\n', ' ');
     return ret;
@@ -2220,7 +2256,7 @@ static List<String> split(const String &value, size_t max)
 
         if (word.size() > max) {
             assert(ret.back().empty());
-            for (size_t j=0; j<word.size(); j += max) {
+            for (size_t j = 0; j < word.size(); j += max) {
                 if (j)
                     ret.push_back(String());
                 ret.back() = word.mid(j, max);
@@ -2236,8 +2272,23 @@ static List<String> split(const String &value, size_t max)
     return ret;
 }
 
-template <typename T> struct PreferComma { enum { value = 0 }; };
-template <typename T> struct PreferComma<Set<T>> { enum { value = 1 }; };
+template <typename T>
+struct PreferComma
+{
+    enum
+    {
+        value = 0
+    };
+};
+
+template <typename T>
+struct PreferComma<Set<T>>
+{
+    enum
+    {
+        value = 1
+    };
+};
 
 template <typename T>
 static List<String> formatField(const String &value, size_t max)
@@ -2250,7 +2301,7 @@ static List<String> formatField(const String &value, size_t max)
             ret = value.split(',', String::KeepSeparators);
 
         if (ret.size() > 1) {
-            for (size_t i=0; i<ret.size(); ++i) {
+            for (size_t i = 0; i < ret.size(); ++i) {
                 if (ret.at(i).size() > max) {
                     auto split = ::split(ret.at(i), max);
                     ret.remove(i, 1);
@@ -2266,40 +2317,41 @@ static List<String> formatField(const String &value, size_t max)
     }
     return ret;
 }
+
 template <typename Key, typename Value>
 static String formatTable(const String &name, const std::shared_ptr<FileMap<Key, Value>> &fileMap, size_t width)
 {
     width -= 7; // padding
     List<String> keys, values;
     const int count = fileMap->count();
-    size_t maxKey = 0;
+    size_t maxKey   = 0;
     size_t maxValue = 0;
-    for (int i=0; i<count; ++i) {
+    for (int i = 0; i < count; ++i) {
         keys << toString(fileMap->keyAt(i), maxKey);
         values << toString(fileMap->valueAt(i), maxValue);
     }
     if (maxKey + maxValue > width) {
         if (maxKey < maxValue) {
-            maxKey = std::min(maxKey, static_cast<size_t>(width * .4));
+            maxKey   = std::min(maxKey, static_cast<size_t>(width * .4));
             maxValue = std::min(maxValue, width - maxKey);
         } else {
             maxValue = std::min(maxValue, static_cast<size_t>(width * .4));
-            maxKey = std::min(maxKey, width - maxValue);
-
+            maxKey   = std::min(maxKey, width - maxValue);
         }
     }
 
     String ret;
     ret.reserve((count + 3) * (maxKey + maxValue + 7));
-    ret << name << '\n' << String(name.size(), '-') << '\n';
+    ret << name << '\n'
+        << String(name.size(), '-') << '\n';
     const String keyFill(maxKey, ' ');
     const String valueFill(maxValue, ' ');
-    for (int i=0; i<count; ++i) {
-        const List<String> key = formatField<Key>(keys.at(i), maxKey);
+    for (int i = 0; i < count; ++i) {
+        const List<String> key   = formatField<Key>(keys.at(i), maxKey);
         const List<String> value = formatField<Value>(values.at(i), maxValue);
-        const int c = std::max(key.size(), value.size());
-        char ch = '|';
-        for (int j=0; j<c; ++j) {
+        const int c              = std::max(key.size(), value.size());
+        char ch                  = '|';
+        for (int j = 0; j < c; ++j) {
             ret << ch << ' ' << key.value(j, keyFill) << ' ' << ch << ' ' << value.value(j, valueFill) << ' ' << ch << '\n';
             ch = '*';
         }
@@ -2452,9 +2504,9 @@ size_t estimateMemory(const T *t)
 template <typename T>
 size_t estimateMemory(const Set<T> &container)
 {
-    size_t ret = sizeof(Set<T>) + sizeof(void*);
+    size_t ret = sizeof(Set<T>) + sizeof(void *);
     for (const T &value : container) {
-        ret += estimateMemory(value) + (sizeof(void*) * 2); // might not be entirely fair to std::vector
+        ret += estimateMemory(value) + (sizeof(void *) * 2); // might not be entirely fair to std::vector
     }
     return ret;
 }
@@ -2462,7 +2514,7 @@ size_t estimateMemory(const Set<T> &container)
 template <typename T>
 size_t estimateMemory(const List<T> &container)
 {
-    size_t ret = sizeof(List<T>) + sizeof(void*);
+    size_t ret = sizeof(List<T>) + sizeof(void *);
     for (const T &value : container) {
         ret += estimateMemory(value);
     }
@@ -2472,9 +2524,9 @@ size_t estimateMemory(const List<T> &container)
 template <typename T>
 size_t estimateKeyValueContainer(const T &t)
 {
-    size_t ret = sizeof(T) + sizeof(void*);
+    size_t ret = sizeof(T) + sizeof(void *);
     for (const auto &pair : t) {
-        ret += estimateMemory(pair.first) + estimateMemory(pair.second) + (sizeof(void*) * 2);
+        ret += estimateMemory(pair.first) + estimateMemory(pair.second) + (sizeof(void *) * 2);
     }
     return ret;
 }
@@ -2495,7 +2547,8 @@ String Project::estimateMemory() const
 {
     List<String> ret;
     size_t total = 0;
-    auto add = [&ret, &total](const char *name, size_t size) {
+    auto add     = [&ret, &total](const char *name, size_t size)
+    {
         total += size;
         ret << String::format<128>("%s: %.2fmb", name, size / (1024.0 * 1024.0));
     };
@@ -2522,12 +2575,12 @@ bool Project::reloadCompileCommands(CheckMode mode)
         SourceCache cache;
         Hash<uint32_t, uint32_t> removed;
         IndexParseData data;
-        data.project = mPath;
+        data.project     = mPath;
         data.environment = mIndexParseData.environment;
-        bool found = false;
+        bool found       = false;
 
         if (mIndexParseData.compileCommandsFileId) {
-            const Path file = Location::path(mIndexParseData.compileCommandsFileId);
+            const Path file             = Location::path(mIndexParseData.compileCommandsFileId);
             const uint64_t lastModified = file.lastModifiedMs();
             if (!lastModified) {
                 if (mode == Check_Init) {
@@ -2535,8 +2588,7 @@ bool Project::reloadCompileCommands(CheckMode mode)
                     return false;
                 }
                 error() << "Can't load" << file;
-            } else if (lastModified != mIndexParseData.lastModifiedMs
-                && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
+            } else if (lastModified != mIndexParseData.lastModifiedMs && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
                 found = true;
             }
         }
@@ -2558,14 +2610,13 @@ uint32_t Project::fileMapOptions() const
 void Project::fixPCH(Source &source)
 {
     const bool enabled = Server::instance()->options().options & Server::PCHEnabled;
-    auto it = source.includePaths.begin();
+    auto it            = source.includePaths.begin();
     while (it != source.includePaths.end()) {
         auto &inc = *it;
         if (inc.type == Source::Include::Type_PCH) {
             if (enabled) {
                 const uint32_t fileId = Location::insertFile(inc.path);
-                inc.path = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath,
-                                                       mIndexParseData.compileCommandsFileId, fileId) + "pch.h";
+                inc.path              = RTags::encodeSourceFilePath(Server::instance()->options().dataDir, mPath, mIndexParseData.compileCommandsFileId, fileId) + "pch.h";
                 error() << "PREPARING" << inc.path;
             } else {
                 it = source.includePaths.erase(it);
@@ -2591,21 +2642,22 @@ void Project::includeCompletions(Flags<QueryMessage::Flag> flags, const std::sha
     for (const Source::Include &inc : source.includePaths) {
         Path root;
         switch (inc.type) {
-        case Source::Include::Type_Framework:
-        case Source::Include::Type_SystemFramework:
-            root = inc.path.ensureTrailingSlash() + "Headers/";
-            break;
-        default:
-            root = inc.path.ensureTrailingSlash();
-            break;
+            case Source::Include::Type_Framework:
+            case Source::Include::Type_SystemFramework:
+                root = inc.path.ensureTrailingSlash() + "Headers/";
+                break;
+            default:
+                root = inc.path.ensureTrailingSlash();
+                break;
         }
         if (!seen.insert(root))
             continue;
-        int depth = 0;
+        int depth    = 0;
         int maxDepth = Server::instance()->options().maxIncludeCompletionDepth;
         if (!maxDepth)
             maxDepth = INT_MAX;
-        std::function<Path::VisitResult(const Path &)> visitor = [&depth, flags, &conn, &visitor, &root, maxDepth](const Path &path) {
+        std::function<Path::VisitResult(const Path &)> visitor = [&depth, flags, &conn, &visitor, &root, maxDepth](const Path &path)
+        {
             if (path.isHeader()) {
                 const String p = path.mid(root.size());
                 if (flags & QueryMessage::Elisp) {
@@ -2645,10 +2697,10 @@ void Project::reindex(uint32_t fileId, Flags<IndexerJob::Flag> flags)
 const char *Project::processParseDataModeToString(ProcessParseData mode)
 {
     switch (mode) {
-    case ProcessParseData::IndexMessage: return "IndexMessage";
-    case ProcessParseData::Recover: return "Recover";
-    case ProcessParseData::ReloadCompileCommands: return "ReloadCompileCommands";
-    case ProcessParseData::Reindex: return "Reindex";
+        case ProcessParseData::IndexMessage: return "IndexMessage";
+        case ProcessParseData::Recover: return "Recover";
+        case ProcessParseData::ReloadCompileCommands: return "ReloadCompileCommands";
+        case ProcessParseData::Reindex: return "Reindex";
     }
     return "";
 }
@@ -2664,44 +2716,47 @@ void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
             index.insert(pair.first);
         }
     } else if (!mIndexParseData.compileCommandsFileId) {
-        forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult {
-            const uint32_t fileId = source.fileId;
-            SourceList &ref = mIndexParseData.sources[fileId];
-            if (!ref.contains(source)) {
-                ref.push_back(source);
-                ref.parsed = 0;
-                index.insert(source.fileId);
-            }
-            return Continue;
-        });
+        forEachSource(data.sources, [this, &index](const Source &source) -> VisitResult
+                      {
+                          const uint32_t fileId = source.fileId;
+                          SourceList &ref       = mIndexParseData.sources[fileId];
+                          if (!ref.contains(source)) {
+                              ref.push_back(source);
+                              ref.parsed = 0;
+                              index.insert(source.fileId);
+                          }
+                          return Continue;
+                      });
     } else {
         List<uint32_t> removed;
-        bool needSave = false;
+        bool needSave              = false;
         const Path compileCommands = Location::path(mIndexParseData.compileCommandsFileId);
-        forEachSource(mIndexParseData.sources, [&needSave, &removed, &data, &compileCommands](const Source &source) -> VisitResult {
-            if (!data.sources.contains(source.fileId)) {
-                error() << Location::path(source.fileId) << "is no longer in" << compileCommands << "removing";
-                removed += source.fileId;
-                needSave = true;
-                return Remove;
-            }
-            return Continue;
-        });
+        forEachSource(mIndexParseData.sources, [&needSave, &removed, &data, &compileCommands](const Source &source) -> VisitResult
+                      {
+                          if (!data.sources.contains(source.fileId)) {
+                              error() << Location::path(source.fileId) << "is no longer in" << compileCommands << "removing";
+                              removed += source.fileId;
+                              needSave = true;
+                              return Remove;
+                          }
+                          return Continue;
+                      });
         const bool watching = !(Server::instance()->options().options & Server::NoFileSystemWatch);
-        forEachSourceList(data.sources, [&needSave, this, &index, watching](const SourceList &sourceList) -> VisitResult {
-            const uint32_t fileId = sourceList.fileId();
-            SourceList &ref = mIndexParseData.sources[fileId];
-            if (ref != sourceList) {
-                error() << Location::path(fileId) << "has different builds. Reindexing";
-                needSave = true;
-                ref = sourceList;
-                assert(ref.parsed == 0);
-                if (watching) {
-                    index.insert(fileId);
-                }
-            }
-            return Continue;
-        });
+        forEachSourceList(data.sources, [&needSave, this, &index, watching](const SourceList &sourceList) -> VisitResult
+                          {
+                              const uint32_t fileId = sourceList.fileId();
+                              SourceList &ref       = mIndexParseData.sources[fileId];
+                              if (ref != sourceList) {
+                                  error() << Location::path(fileId) << "has different builds. Reindexing";
+                                  needSave = true;
+                                  ref      = sourceList;
+                                  assert(ref.parsed == 0);
+                                  if (watching) {
+                                      index.insert(fileId);
+                                  }
+                              }
+                              return Continue;
+                          });
         for (uint32_t fileId : removed) {
             removeSource(fileId);
         }
@@ -2721,21 +2776,23 @@ void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
 
 void Project::forEachSourceList(const IndexParseData &data, std::function<VisitResult(const SourceList &)> cb)
 {
-    forEachSourceList(data.sources, [&cb](const SourceList &list) {
-        auto ret = cb(list);
-        assert(ret != Remove);
-        return ret;
-    });
+    forEachSourceList(data.sources, [&cb](const SourceList &list)
+                      {
+                          auto ret = cb(list);
+                          assert(ret != Remove);
+                          return ret;
+                      });
 }
 
 void Project::forEachSourceList(IndexParseData &data, std::function<VisitResult(SourceList &)> cb)
 {
-    forEachSourceList(data.sources, [&cb](SourceList &list) {
-        return cb(list);
-    });
+    forEachSourceList(data.sources, [&cb](SourceList &list)
+                      {
+                          return cb(list);
+                      });
 }
 
-void Project::forEachSourceList(Sources &sources, const std::function<VisitResult(SourceList &source)>& cb)
+void Project::forEachSourceList(Sources &sources, const std::function<VisitResult(SourceList &source)> &cb)
 {
     auto it = sources.begin();
     while (it != sources.end()) {
@@ -2750,7 +2807,7 @@ void Project::forEachSourceList(Sources &sources, const std::function<VisitResul
     }
 }
 
-void Project::forEachSourceList(const Sources &sources, const std::function<VisitResult(const SourceList &sourceList)>& cb)
+void Project::forEachSourceList(const Sources &sources, const std::function<VisitResult(const SourceList &sourceList)> &cb)
 {
     auto it = sources.begin();
     while (it != sources.end()) {
@@ -2764,7 +2821,7 @@ void Project::forEachSourceList(const Sources &sources, const std::function<Visi
     }
 }
 
-void Project::forEachSource(const Sources &sources, const std::function<VisitResult(const Source &source)>& cb)
+void Project::forEachSource(const Sources &sources, const std::function<VisitResult(const Source &source)> &cb)
 {
     for (auto &src : sources) {
         for (const Source &s : src.second) {
@@ -2776,13 +2833,13 @@ void Project::forEachSource(const Sources &sources, const std::function<VisitRes
     }
 }
 
-void Project::forEachSource(Sources &sources, const std::function<VisitResult(Source &source)>& cb)
+void Project::forEachSource(Sources &sources, const std::function<VisitResult(Source &source)> &cb)
 {
     Sources::iterator sit = sources.begin();
     while (sit != sources.end()) {
-        SourceList &list = sit->second;
+        SourceList &list        = sit->second;
         SourceList::iterator it = list.begin();
-        bool done = false;
+        bool done               = false;
         while (it != list.end()) {
             const auto ret = cb(*it);
             if (ret == Remove) {
@@ -2807,20 +2864,22 @@ void Project::forEachSource(Sources &sources, const std::function<VisitResult(So
 void Project::forEachSource(const IndexParseData &data, std::function<VisitResult(const Source &source)> cb)
 {
     bool stop = false;
-    forEachSource(data.sources, [&stop, &cb](const Source &src) {
-        const auto ret = cb(src);
-        assert(ret != Remove);
-        if (ret == Stop)
-            stop = true;
-        return ret;
-    });
+    forEachSource(data.sources, [&stop, &cb](const Source &src)
+                  {
+                      const auto ret = cb(src);
+                      assert(ret != Remove);
+                      if (ret == Stop)
+                          stop = true;
+                      return ret;
+                  });
 }
 
 void Project::forEachSource(IndexParseData &data, std::function<VisitResult(Source &source)> cb)
 {
-    forEachSource(data.sources, [&cb](Source &src) {
-        return cb(src);
-    });
+    forEachSource(data.sources, [&cb](Source &src)
+                  {
+                      return cb(src);
+                  });
 }
 
 void Project::removeSource(uint32_t fileId)
@@ -2858,20 +2917,16 @@ void Project::validateAll()
 Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
 {
     Map<Symbol, size_t> ret;
-    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = nullptr) {
+    auto processFile = [this, &ret](uint32_t file, Set<String> *seen = nullptr)
+    {
         auto symbols = openSymbols(file);
         if (!symbols)
             return;
 
         const int count = symbols->count();
-        for (int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             Symbol s = symbols->valueAt(i);
-            if (RTags::isFunction(s.kind)
-                && s.kind != CXCursor_Destructor
-                && s.kind != CXCursor_LambdaExpr
-                && !s.symbolName.startsWith("int main(")
-                && !s.symbolName.startsWith("void main(")
-                && (!seen || seen->insert(s.usr))) {
+            if (RTags::isFunction(s.kind) && s.kind != CXCursor_Destructor && s.kind != CXCursor_LambdaExpr && !s.symbolName.startsWith("int main(") && !s.symbolName.startsWith("void main(") && (!seen || seen->insert(s.usr))) {
                 const size_t callers = findCallers(s, 2).size();
                 if (callers < 2) {
                     ret[std::move(s)] = callers;

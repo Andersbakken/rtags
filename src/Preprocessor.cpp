@@ -16,28 +16,22 @@
 #include "Preprocessor.h"
 
 #include <assert.h>
-#include <sys/types.h>
 #include <functional>
+#include <sys/types.h>
 
 #include "Server.h"
 #include "rct/Connection.h"
-#include "rct/Process.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
 #include "rct/Path.h"
+#include "rct/Process.h"
 #include "rct/SignalSlot.h"
 
-const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile
-                                                    | Source::IncludeExtraCompiler
-                                                    | Source::ExcludeDefaultArguments
-                                                    | Source::FilterBlacklist
-                                                    | Source::ExcludeDefaultIncludePaths
-                                                    | Source::ExcludeDefaultDefines
-                                                    | Source::IncludeIncludePaths
-                                                    | Source::IncludeDefines);
+const Flags<Source::CommandLineFlag> SourceFlags = (Source::IncludeSourceFile | Source::IncludeExtraCompiler | Source::ExcludeDefaultArguments | Source::FilterBlacklist | Source::ExcludeDefaultIncludePaths | Source::ExcludeDefaultDefines | Source::IncludeIncludePaths | Source::IncludeDefines);
 
 Preprocessor::Preprocessor(Mode mode, const Source &source, const std::shared_ptr<Connection> &connection)
-    : mSource(source), mConnection(connection)
+    : mSource(source)
+    , mConnection(connection)
 {
     Server::instance()->filterBlockedArguments(mSource);
     mArgs = mSource.toCommandLine(SourceFlags);

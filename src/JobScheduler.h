@@ -17,16 +17,16 @@
 #define JobScheduler_h
 
 #include <assert.h>
-#include <stdint.h>
-#include <memory>
 #include <ctime>
+#include <memory>
+#include <stdint.h>
 
-#include "rct/EmbeddedLinkedList.h"
-#include "rct/Set.h"
-#include "rct/Hash.h"
-#include "rct/String.h"
-#include "Source.h"
 #include "IndexerJob.h"
+#include "Source.h"
+#include "rct/EmbeddedLinkedList.h"
+#include "rct/Hash.h"
+#include "rct/Set.h"
+#include "rct/String.h"
 
 class Connection;
 class IndexDataMessage;
@@ -43,7 +43,8 @@ public:
 
     bool start();
 
-    struct JobScope {
+    struct JobScope
+    {
         JobScope(const std::shared_ptr<JobScheduler> &scheduler)
             : mScheduler(scheduler)
         {
@@ -67,9 +68,13 @@ public:
     void dumpDaemons(const std::shared_ptr<Connection> &conn);
     void abort(const std::shared_ptr<IndexerJob> &job);
     void startJobs();
+
     size_t pendingJobCount() const { return mPendingJobs.size(); }
+
     size_t activeJobCount() const { return mActiveById.size(); }
+
     void sort();
+
 private:
     bool initDaemons();
     void onProcessReadyReadStdErr(Process *process);
@@ -77,7 +82,9 @@ private:
     void onProcessFinished(Process *process, pid_t pid);
     void connectProcess(Process *process);
     void jobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &message);
-    struct Node {
+
+    struct Node
+    {
         unsigned long long started { 0 };
         std::shared_ptr<IndexerJob> job;
         Process *process { nullptr };
@@ -88,10 +95,13 @@ private:
 
     int mProcrastination;
     bool mStopped;
-    struct DaemonData {
+
+    struct DaemonData
+    {
         uint64_t touched { 0 };
         SourceList cache;
     };
+
     Hash<Process *, DaemonData> mDaemons;
     EmbeddedLinkedList<std::shared_ptr<Node>> mPendingJobs;
     Hash<Process *, std::shared_ptr<Node>> mActiveByProcess, mActiveDaemonsByProcess;

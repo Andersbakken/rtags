@@ -23,7 +23,8 @@
 #include "rct/String.h"
 
 namespace Filter {
-enum Result {
+enum Result
+{
     Filtered,
     File,
     Source,
@@ -33,7 +34,7 @@ enum Result {
 static inline Result filter(const Path &path, const List<String> &filters = List<String>())
 {
     const int size = filters.size();
-    for (int i=0; i<size; ++i) {
+    for (int i = 0; i < size; ++i) {
         const String &filter = filters.at(i);
         if (!fnmatch(filter.constData(), path.constData(), 0) || path.contains(filter))
             return Filtered;
@@ -47,6 +48,6 @@ static inline Result filter(const Path &path, const List<String> &filters = List
         return Source;
     return File;
 }
-}
+} //namespace Filter
 
 #endif
