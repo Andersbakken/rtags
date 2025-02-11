@@ -71,8 +71,8 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
             (forward-line 1))
           (let (done)
             (while (not done)
-              (push (cons (buffer-substring-no-properties (point-at-bol) (point-at-eol)) (point-at-bol)) ret)
-              (if (= (point-at-eol) (point-max))
+              (push (cons (buffer-substring-no-properties (line-beginning-position) (line-end-position)) (line-beginning-position)) ret)
+              (if (= (line-end-position) (point-max))
                   (setq done t)
                 (forward-line 1)))))))
     (nreverse ret)))
@@ -96,10 +96,10 @@ Each element of the alist is a cons-cell of the form (DESCRIPTION . FUNCTION)."
   (with-current-buffer (get-buffer rtags-buffer-name)
     (goto-char candidate)
     (buffer-substring-no-properties (save-excursion
-                                      (goto-char (point-at-bol))
+                                      (goto-char (line-beginning-position))
                                       (skip-chars-forward " ")
                                       (point))
-                                    (point-at-eol))))
+                                    (line-end-position))))
 
 (defun helm-rtags-select-persistent (candidate)
   "Goto CANDIDATE (Helm persistent action)."
