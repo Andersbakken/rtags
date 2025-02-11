@@ -336,7 +336,7 @@ if (NOT RTAGS_NO_ELISP_FILES)
                     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                     COMMENT "Creating native-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}oauth")
-                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}o)
+                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
             endif()
 
         endif ()
