@@ -2152,7 +2152,8 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
         }
     }
 
-    c.mangledName = RTags::eatString(clang_Cursor_getMangling(cursor));
+    // ### crashes in clang 18, maybe other versions
+    // c.mangledName = RTags::eatString(clang_Cursor_getMangling(cursor));
 
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
