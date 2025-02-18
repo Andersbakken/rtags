@@ -17,14 +17,14 @@
 
 #include <functional>
 
-#include "FileMap.h"
 #include "Project.h"
 #include "QueryMessage.h"
+#include "rct/Log.h"
 #include "RTags.h"
+#include "FileMap.h"
 #include "Symbol.h"
 #include "Token.h"
 #include "rct/Flags.h"
-#include "rct/Log.h"
 #include "rct/String.h"
 
 TokensJob::TokensJob(const std::shared_ptr<QueryMessage> &query,
@@ -32,10 +32,7 @@ TokensJob::TokensJob(const std::shared_ptr<QueryMessage> &query,
                      uint32_t from,
                      uint32_t to,
                      List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects))
-    , mFileId(fileId)
-    , mFrom(from)
-    , mTo(to)
+    : QueryJob(query, std::move(projects)), mFileId(fileId), mFrom(from), mTo(to)
 {
 }
 
@@ -49,7 +46,7 @@ int TokensJob::execute()
         return 2;
 
     const uint32_t count = map->count();
-    uint32_t i           = 0;
+    uint32_t i = 0;
     if (mFrom != 0) {
         i = map->lowerBound(mFrom);
         if (i > 0 && i < count) {
@@ -64,12 +61,9 @@ int TokensJob::execute()
         const char *elispFormat = "(cons %d (list (cons 'length %d) (cons 'kind \"%s\") (cons 'spelling \"%s\")))";
         write("(list");
         if (queryFlags() & QueryMessage::TokensIncludeSymbols) {
-            writeToken = [this, &proj, elispFormat](const Token &token)
-            {
-                String out       = String::format<1024>(elispFormat,
-                                                  token.offset,
-                                                  token.length,
-                                                  RTags::tokenKindSpelling(token.kind),
+            writeToken = [this, &proj, elispFormat](const Token &token) {
+                String out = String::format<1024>(elispFormat,
+                                                  token.offset, token.length, RTags::tokenKindSpelling(token.kind),
                                                   RTags::elispEscape(token.spelling).constData());
                 const Symbol sym = proj->findSymbol(token.location);
                 if (!sym.isNull()) {
@@ -85,18 +79,14 @@ int TokensJob::execute()
             };
 
         } else {
-            writeToken = [this, elispFormat](const Token &token)
-            {
+            writeToken = [this, elispFormat](const Token &token) {
                 return write<1024>(elispFormat,
-                                   token.offset,
-                                   token.length,
-                                   RTags::tokenKindSpelling(token.kind),
+                                   token.offset, token.length, RTags::tokenKindSpelling(token.kind),
                                    RTags::elispEscape(token.spelling).constData());
             };
         }
     } else {
-        writeToken = [this](const Token &token)
-        {
+        writeToken = [this](const Token &token) {
             return write(token.toString());
         };
     }

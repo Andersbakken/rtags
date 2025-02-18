@@ -16,8 +16,8 @@
 #ifndef TokenssJob_h
 #define TokenssJob_h
 
-#include <memory>
 #include <stdint.h>
+#include <memory>
 
 #include "QueryJob.h"
 #include "rct/String.h"
@@ -31,10 +31,8 @@ public:
     TokensJob(const std::shared_ptr<QueryMessage> &query,
               uint32_t fileId, uint32_t from, uint32_t to,
               List<std::shared_ptr<Project>> &&project);
-
 protected:
     virtual int execute() override;
-
 private:
     const uint32_t mFileId, mFrom, mTo;
 };

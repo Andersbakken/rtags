@@ -18,50 +18,34 @@
 
 #include "Diagnostic.h"
 #include "IndexerJob.h"
-#include "RTagsMessage.h"
 #include "rct/Flags.h"
 #include "rct/Serializer.h"
 #include "rct/String.h"
+#include "RTagsMessage.h"
 
 class IndexDataMessage : public RTagsMessage
 {
 public:
-    enum
-    {
-        MessageId = IndexDataMessageId
-    };
+    enum { MessageId = IndexDataMessageId };
 
     IndexDataMessage(const std::shared_ptr<IndexerJob> &job)
-        : RTagsMessage(MessageId)
-        , mParseTime(0)
-        , mId(0)
-        , mIndexerJobFlags(job->flags)
-        , mBytesWritten(0)
-    {
-    }
+        : RTagsMessage(MessageId), mParseTime(0), mId(0), mIndexerJobFlags(job->flags), mBytesWritten(0)
+    {}
 
     IndexDataMessage()
-        : RTagsMessage(MessageId)
-        , mParseTime(0)
-        , mId(0)
-        , mBytesWritten(0)
-    {
-    }
+        : RTagsMessage(MessageId), mParseTime(0), mId(0), mBytesWritten(0)
+    {}
 
     void encode(Serializer &serializer) const override;
     void decode(Deserializer &deserializer) override;
 
-    enum Flag
-    {
-        None         = 0x0,
+    enum Flag {
+        None = 0x0,
         ParseFailure = 0x1,
-        UsedPCH      = 0x2
+        UsedPCH = 0x2
     };
-
     Flags<Flag> flags() const { return mFlags; }
-
     void setFlags(Flags<Flag> f) { mFlags = f; }
-
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
 
     Set<uint32_t> visitedFiles() const
@@ -85,48 +69,35 @@ public:
     }
 
     const Path &project() const { return mProject; }
-
     void setProject(const Path &p) { mProject = p; }
 
     uint64_t id() const { return mId; }
-
     void setId(uint64_t i) { mId = i; }
 
     // uint32_t compileCommandsFileId() const { return mCompileCommandsFileId; }
     // void setCompileCommandsFileId(uint32_t id) { mCompileCommandsFileId = id; }
 
     uint64_t parseTime() const { return mParseTime; }
-
     void setParseTime(uint64_t time) { mParseTime = time; }
 
     Flags<IndexerJob::Flag> indexerJobFlags() const { return mIndexerJobFlags; }
-
     void setIndexerJobFlags(Flags<IndexerJob::Flag> flags) { mIndexerJobFlags = flags; }
 
     const String &message() const { return mMessage; }
-
     void setMessage(const String &msg) { mMessage = msg; }
-
     void setMessage(String &&msg) { mMessage = std::move(msg); }
 
     FixIts &fixIts() { return mFixIts; }
-
     Diagnostics &diagnostics() { return mDiagnostics; }
-
     Includes &includes() { return mIncludes; }
-
-    enum FileFlag
-    {
+    enum FileFlag {
         NoFileFlag = 0x0,
-        Visited    = 0x1
+        Visited = 0x1
     };
-
     Hash<uint32_t, Flags<FileFlag>> &files() { return mFiles; }
-
     const Hash<uint32_t, Flags<FileFlag>> &files() const { return mFiles; }
 
     size_t bytesWritten() const { return mBytesWritten; }
-
     void setBytesWritten(size_t bytes) { mBytesWritten = bytes; }
 
     void clear()
@@ -134,7 +105,7 @@ public:
         clearCache();
         mProject.clear();
         mParseTime = 0;
-        mId        = 0;
+        mId = 0;
         mIndexerJobFlags.clear();
         mMessage.clear();
         mFixIts.clear();
@@ -144,12 +115,11 @@ public:
         mFlags.clear();
         mBytesWritten = 0;
     }
-
 private:
     Path mProject;
     uint64_t mParseTime, mId;
     Flags<IndexerJob::Flag> mIndexerJobFlags; // indexerjobflags
-    String mMessage;                          // used as output for dump when flags & Dump
+    String mMessage; // used as output for dump when flags & Dump
     FixIts mFixIts;
     Diagnostics mDiagnostics;
     Includes mIncludes;
@@ -169,7 +139,8 @@ inline void IndexDataMessage::encode(Serializer &serializer) const
 
 inline void IndexDataMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mProject >> mParseTime >> mId >> mIndexerJobFlags >> mMessage >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
+    deserializer >> mProject >> mParseTime >> mId >> mIndexerJobFlags >> mMessage
+                 >> mFixIts >> mIncludes >> mDiagnostics >> mFiles >> mFlags >> mBytesWritten;
 }
 
 #endif

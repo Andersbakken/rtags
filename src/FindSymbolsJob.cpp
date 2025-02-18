@@ -30,27 +30,25 @@ class Location;
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
     return (queryFlags & QueryMessage::Elisp
-                ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput | QueryJob::QuietJob)
-                : Flags<QueryJob::JobFlag>(QueryJob::QuietJob));
+            ? Flags<QueryJob::JobFlag>(QueryJob::QuoteOutput|QueryJob::QuietJob)
+            : Flags<QueryJob::JobFlag>(QueryJob::QuietJob));
 }
 
 FindSymbolsJob::FindSymbolsJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects), ::jobFlags(query->flags()))
-    , string(query->query())
+    : QueryJob(query, std::move(projects), ::jobFlags(query->flags())), string(query->query())
 {
 }
 
 int FindSymbolsJob::execute()
 {
     const bool stripParentheses = queryFlags() & QueryMessage::StripParentheses;
-    int ret                     = 2;
+    int ret = 2;
     Set<Symbol> symbols;
     std::shared_ptr<Project> best;
     for (const auto &proj : projects()) {
         auto inserter = [proj, this, stripParentheses, &symbols](Project::SymbolMatchType type,
                                                                  const String &symbolName,
-                                                                 const Set<Location> &locations)
-        {
+                                                                 const Set<Location> &locations) {
             if (type == Project::StartsWith) {
                 const size_t paren = symbolName.indexOf('(');
                 if (paren == String::npos || paren != string.size() || RTags::isFunctionVariable(symbolName))
@@ -76,10 +74,10 @@ int FindSymbolsJob::execute()
     if (!symbols.empty()) {
         assert(best);
         const List<RTags::SortedSymbol> sorted = best->sort(symbols, queryFlags());
-        const Flags<WriteFlag> writeFlags      = fileFilter() ? Unfiltered : NoWriteFlags;
-        const int count                        = sorted.size();
-        ret                                    = count ? 0 : 1;
-        for (int i = 0; i < count; ++i) {
+        const Flags<WriteFlag> writeFlags = fileFilter() ? Unfiltered : NoWriteFlags;
+        const int count = sorted.size();
+        ret = count ? 0 : 1;
+        for (int i=0; i<count; ++i) {
             write(sorted.at(i).location, writeFlags);
         }
     }

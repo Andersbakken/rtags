@@ -19,8 +19,8 @@
 #include <memory>
 
 #include "QueryJob.h"
-#include "rct/Set.h"
 #include "rct/String.h"
+#include "rct/Set.h"
 
 template <typename T>
 class List;
@@ -32,12 +32,10 @@ class ListSymbolsJob : public QueryJob
 {
 public:
     ListSymbolsJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
-
 protected:
     virtual int execute() override;
     Set<String> listSymbolsWithPathFilter(const std::shared_ptr<Project> &project, const List<Path> &paths) const;
     Set<String> listSymbols(const std::shared_ptr<Project> &project) const;
-
 private:
     String string;
 };

@@ -21,26 +21,18 @@
 class VisitFileResponseMessage : public RTagsMessage
 {
 public:
-    enum
-    {
-        MessageId = VisitFileResponseId
-    };
+    enum { MessageId = VisitFileResponseId };
 
     VisitFileResponseMessage(uint32_t fileId = 0, bool visit = false)
-        : RTagsMessage(MessageId)
-        , mFileId(fileId)
-        , mVisit(visit)
+        : RTagsMessage(MessageId), mFileId(fileId), mVisit(visit)
     {
     }
 
     uint32_t fileId() const { return mFileId; }
-
     bool visit() const { return mVisit; }
 
     void encode(Serializer &serializer) const override { serializer << mFileId << mVisit; }
-
     void decode(Deserializer &deserializer) override { deserializer >> mFileId >> mVisit; }
-
 private:
     uint32_t mFileId;
     bool mVisit;

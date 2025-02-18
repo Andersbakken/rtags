@@ -24,13 +24,9 @@
 struct FixIt
 {
     inline FixIt(uint32_t l = 0, uint32_t c = 0, uint32_t len = 0, const String &t = String())
-        : line(l)
-        , column(c)
-        , length(len)
-        , text(t)
+        : line(l), column(c), length(len), text(t)
     {
     }
-
     inline bool operator<(const FixIt &other) const
     {
         if (line < other.line)
@@ -43,7 +39,6 @@ struct FixIt
             return false;
         return length < other.length;
     }
-
     inline bool operator==(const FixIt &other) const
     {
         return (line == other.line && column == other.column && length == other.length && text == other.text);
@@ -53,15 +48,13 @@ struct FixIt
     String text;
 };
 
-template <>
-inline Serializer &operator<<(Serializer &s, const FixIt &f)
+template <> inline Serializer &operator<<(Serializer &s, const FixIt &f)
 {
     s << f.line << f.column << f.length << f.text;
     return s;
 }
 
-template <>
-inline Deserializer &operator>>(Deserializer &s, FixIt &f)
+template <> inline Deserializer &operator>>(Deserializer &s, FixIt &f)
 {
     s >> f.line >> f.column >> f.length >> f.text;
     return s;

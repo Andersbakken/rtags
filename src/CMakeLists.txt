@@ -136,7 +136,7 @@ if (EXISTS ${CLANG_COMPILATION_INCLUDE})
     add_definitions(-DHAVE_CXCOMPILATIONDATABASE)
 endif ()
 
-set(RCT_RTTI_ENABLED 1)
+# set(RCT_RTTI_ENABLED 1)
 set(RCT_NO_INSTALL 1)
 set(RCT_STATIC 1)
 set(RCT_NO_LIBRARY 0)
@@ -336,7 +336,7 @@ if (NOT RTAGS_NO_ELISP_FILES)
                     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
                     COMMENT "Creating native-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}oauth")
-                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
+                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}o)
             endif()
 
         endif ()

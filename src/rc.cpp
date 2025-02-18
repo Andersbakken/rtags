@@ -15,23 +15,23 @@
 
 #include <stdio.h>
 
-#include "CommandLineParser.h"
 #include "RClient.h"
+#include "CommandLineParser.h"
 #include "rct/String.h"
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     RClient rc;
     const CommandLineParser::ParseStatus status = rc.parse(argc, argv);
     switch (status.status) {
-        case CommandLineParser::Parse_Ok:
-            break;
-        case CommandLineParser::Parse_Error:
-            fprintf(stderr, "%s\n", status.error.constData());
-            break;
-        case CommandLineParser::Parse_Exec:
-            rc.exec();
-            break;
+    case CommandLineParser::Parse_Ok:
+        break;
+    case CommandLineParser::Parse_Error:
+        fprintf(stderr, "%s\n", status.error.constData());
+        break;
+    case CommandLineParser::Parse_Exec:
+        rc.exec();
+        break;
     }
     return rc.exitCode();
 }

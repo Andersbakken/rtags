@@ -16,16 +16,16 @@
 #ifndef Source_h
 #define Source_h
 
-#include <algorithm>
 #include <cstdint>
+#include <algorithm>
 #include <memory>
 
 #include "Location.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
-#include "rct/Log.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"
+#include "rct/Log.h"
 #include "rct/Set.h"
 #include "rct/String.h"
 
@@ -39,9 +39,7 @@ struct Source
     uint32_t fileId, compilerId, buildRootId, compileCommandsFileId;
     Path extraCompiler;
     uint64_t includePathHash;
-
-    enum Language
-    {
+    enum Language {
         NoLanguage,
         C,
         CPlusPlus,
@@ -55,42 +53,36 @@ struct Source
 
     static const char *languageName(Language language);
 
-    enum Flag
-    {
+    enum Flag {
         NoFlag = 0x0,
         NoRtti = 0x1,
-        M32    = 0x2,
-        M64    = 0x4
+        M32 = 0x2,
+        M64 = 0x4
     };
-
     Flags<Flag> flags;
 
-    enum CommandLineFlag
-    {
-        IncludeExtraCompiler       = 0x0001,
-        IncludeCompiler            = 0x0002 | IncludeExtraCompiler,
-        IncludeSourceFile          = 0x0004,
-        IncludeDefines             = 0x0008,
-        IncludeIncludePaths        = 0x0010,
-        QuoteDefines               = 0x0020,
-        FilterBlacklist            = 0x0040,
-        ExcludeDefaultArguments    = 0x0080,
+    enum CommandLineFlag {
+        IncludeExtraCompiler = 0x0001,
+        IncludeCompiler = 0x0002|IncludeExtraCompiler,
+        IncludeSourceFile = 0x0004,
+        IncludeDefines = 0x0008,
+        IncludeIncludePaths = 0x0010,
+        QuoteDefines = 0x0020,
+        FilterBlacklist = 0x0040,
+        ExcludeDefaultArguments = 0x0080,
         ExcludeDefaultIncludePaths = 0x0100,
-        ExcludeDefaultDefines      = 0x0200,
-        IncludeRTagsConfig         = 0x0400,
-        PCHEnabled                 = 0x0800,
-        IncludeOutputFilename      = 0x1000,
-        Default                    = IncludeDefines | IncludeIncludePaths | FilterBlacklist | IncludeRTagsConfig | IncludeOutputFilename,
+        ExcludeDefaultDefines = 0x0200,
+        IncludeRTagsConfig = 0x0400,
+        PCHEnabled = 0x0800,
+        IncludeOutputFilename = 0x1000,
+        Default = IncludeDefines|IncludeIncludePaths|FilterBlacklist|IncludeRTagsConfig|IncludeOutputFilename,
     };
 
-    struct Define
-    {
-        enum Flag
-        {
-            None    = 0x0,
+    struct Define {
+        enum Flag {
+            None = 0x0,
             NoValue = 0x1
         };
-
         inline Define(const String &def = String(), const String &val = String(), Flags<Flag> f = NullFlags);
         String define;
         String value;
@@ -98,15 +90,10 @@ struct Source
         Flags<Flag> flags;
 
         inline String toString(Flags<CommandLineFlag> flags = Flags<CommandLineFlag>()) const;
-
         inline bool operator==(const Define &other) const { return !compare(other); }
-
         inline bool operator!=(const Define &other) const { return compare(other) != 0; }
-
         inline bool operator<(const Define &other) const { return compare(other) < 0; }
-
         inline bool operator>(const Define &other) const { return compare(other) > 0; }
-
         inline int compare(const Source::Define &other) const
         {
             if (flags != other.flags)
@@ -119,24 +106,17 @@ struct Source
     };
 
     Set<Define> defines;
-
-    struct Include
-    {
-        enum Type
-        {
+    struct Include {
+        enum Type {
             Type_None
 #define DECLARE_INCLUDE_TYPE(type, arg, space) , type
 #include "IncludeTypesInternal.h"
 
 #undef DECLARE_INCLUDE_TYPE
         };
-
         Include(Type t = Type_None, const Path &p = Path())
-            : type(t)
-            , path(p)
-        {
-        }
-
+            : type(t), path(p)
+        {}
         bool isPch() const;
 
         Type type;
@@ -145,13 +125,11 @@ struct Source
         inline String toString() const
         {
             switch (type) {
-#define DECLARE_INCLUDE_TYPE(type, arg, space) \
-    case type:                                 \
-        return String::format<128>("%s%s%s", #arg, space, path.constData());
+#define DECLARE_INCLUDE_TYPE(type, arg, space) case type: return String::format<128>("%s%s%s", #arg, space, path.constData());
 #include "IncludeTypesInternal.h"
 
 #undef DECLARE_INCLUDE_TYPE
-                case Type_None: break;
+            case Type_None: break;
             }
             return String();
         }
@@ -164,42 +142,19 @@ struct Source
             return path.compare(other.path);
         }
 
-        inline bool operator==(const Include &other) const
-        {
-            return !compare(other);
-        }
-
-        inline bool operator!=(const Include &other) const
-        {
-            return compare(other) != 0;
-        }
-
-        inline bool operator<(const Include &other) const
-        {
-            return compare(other) < 0;
-        }
-
-        inline bool operator>(const Include &other) const
-        {
-            return compare(other) > 0;
-        }
+        inline bool operator==(const Include &other) const { return !compare(other); }
+        inline bool operator!=(const Include &other) const { return compare(other) != 0; }
+        inline bool operator<(const Include &other) const { return compare(other) < 0; }
+        inline bool operator>(const Include &other) const { return compare(other) > 0; }
     };
-
     List<Include> includePaths;
     List<String> arguments;
     // int32_t sysRootIndex;
     Path directory;
     Path outputFilename;
 
-    bool isValid() const
-    {
-        return fileId;
-    }
-
-    bool isNull() const
-    {
-        return !fileId;
-    }
+    bool isValid() const { return fileId; }
+    bool isNull() const  { return !fileId; }
 
     int compare(const Source &other) const;
     bool compareArguments(const Source &other) const;
@@ -223,14 +178,11 @@ struct Source
                             const Path &pwd,
                             const List<String> &environment,
                             List<Path> *unresolvedInputLocation = nullptr,
-                            SourceCache *cache                  = nullptr);
-
-    enum EncodeMode
-    {
+                            SourceCache *cache = nullptr);
+    enum EncodeMode {
         IgnoreSandbox,
         EncodeSandbox
     };
-
     void encode(Serializer &serializer, EncodeMode mode) const;
     void decode(Deserializer &deserializer, EncodeMode mode);
 };
@@ -240,26 +192,23 @@ RCT_FLAGS(Source::CommandLineFlag);
 RCT_FLAGS(Source::Define::Flag);
 
 inline Source::Source()
-    : fileId(0)
-    , compilerId(0)
-    , buildRootId(0)
-    , includePathHash(0)
-    , language(NoLanguage)
+    : fileId(0), compilerId(0), buildRootId(0), includePathHash(0),
+      language(NoLanguage)
 {
 }
 
 inline const char *Source::languageName(Language language)
 {
     switch (language) {
-        case NoLanguage: return "NoLanguage";
-        case C: return "C";
-        case CPlusPlus: return "CPlusPlus";
-        case CPlusPlus11: return "CPlusPlus11";
-        case CHeader: return "CHeader";
-        case CPlusPlusHeader: return "CPlusPlusHeader";
-        case CPlusPlus11Header: return "CPlusPlus11Header";
-        case ObjectiveC: return "ObjectiveC";
-        case ObjectiveCPlusPlus: return "ObjectiveCPlusPlus";
+    case NoLanguage: return "NoLanguage";
+    case C: return "C";
+    case CPlusPlus: return "CPlusPlus";
+    case CPlusPlus11: return "CPlusPlus11";
+    case CHeader: return "CHeader";
+    case CPlusPlusHeader: return "CPlusPlusHeader";
+    case CPlusPlus11Header: return "CPlusPlus11Header";
+    case ObjectiveC: return "ObjectiveC";
+    case ObjectiveCPlusPlus: return "ObjectiveCPlusPlus";
     }
     return "";
 }
@@ -272,17 +221,17 @@ inline bool Source::isIndexable() const
 inline bool Source::isIndexable(Language lang)
 {
     switch (lang) {
-        case C:
-        case CPlusPlus:
-        case CPlusPlus11:
-        case ObjectiveC:
-        case ObjectiveCPlusPlus:
-        case CPlusPlus11Header:
-        case CPlusPlusHeader:
-        case CHeader:
-            return true;
-        default:
-            break;
+    case C:
+    case CPlusPlus:
+    case CPlusPlus11:
+    case ObjectiveC:
+    case ObjectiveCPlusPlus:
+    case CPlusPlus11Header:
+    case CPlusPlusHeader:
+    case CHeader:
+        return true;
+    default:
+        break;
     }
     return false;
 }
@@ -343,35 +292,29 @@ inline bool Source::operator>(const Source &other) const
 }
 
 inline Source::Define::Define(const String &def, const String &val, Flags<Flag> f)
-    : define(def)
-    , value(val)
-    , flags(f)
+    : define(def), value(val), flags(f)
 {
 }
 
-template <>
-inline Serializer &operator<<(Serializer &s, const Source::Define &d)
+template <> inline Serializer &operator<<(Serializer &s, const Source::Define &d)
 {
     s << d.define << d.value << d.flags;
     return s;
 }
 
-template <>
-inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
+template <> inline Deserializer &operator>>(Deserializer &s, Source::Define &d)
 {
     s >> d.define >> d.value >> d.flags;
     return s;
 }
 
-template <>
-inline Serializer &operator<<(Serializer &s, const Source::Include &d)
+template <> inline Serializer &operator<<(Serializer &s, const Source::Include &d)
 {
     s << static_cast<uint8_t>(d.type) << d.path;
     return s;
 }
 
-template <>
-inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
+template <> inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
 {
     uint8_t type;
     s >> type >> d.path;
@@ -379,15 +322,13 @@ inline Deserializer &operator>>(Deserializer &s, Source::Include &d)
     return s;
 }
 
-template <>
-inline Serializer &operator<<(Serializer &s, const Source &b)
+template <> inline Serializer &operator<<(Serializer &s, const Source &b)
 {
     b.encode(s, Source::EncodeSandbox);
     return s;
 }
 
-template <>
-inline Deserializer &operator>>(Deserializer &s, Source &b)
+template <> inline Deserializer &operator>>(Deserializer &s, Source &b)
 {
     b.decode(s, Source::EncodeSandbox);
     return s;

@@ -15,23 +15,23 @@
 
 #include "IncludeFileJob.h"
 
-#include <algorithm>
 #include <stdint.h>
 #include <string.h>
+#include <algorithm>
 #include <utility>
 #include <vector>
 
-#include "Location.h"
 #include "Project.h"
-#include "QueryMessage.h"
 #include "RTags.h"
+#include "Location.h"
+#include "QueryMessage.h"
 #include "Symbol.h"
+#include "clang-c/Index.h"
 #include "rct/Hash.h"
 #include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/Rct.h"
 #include "rct/Set.h"
-#include "clang-c/Index.h"
 
 IncludeFileJob::IncludeFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projs)
     : QueryJob(query, std::move(projs))
@@ -84,56 +84,54 @@ int IncludeFileJob::execute()
     int matches = 0;
     Set<String> all;
     const std::shared_ptr<Project> project = projects().value(0);
-    auto process                           = [&directory, this, &all, &project](const Set<Location> &locations)
-    {
+    auto process = [&directory, this, &all, &project](const Set<Location> &locations) {
         for (Location loc : locations) {
             bool first = true;
             for (const Path &path : headersForSymbol(project, loc)) {
-                bool found       = false;
+                bool found = false;
                 const Symbol sym = project->findSymbol(loc);
                 switch (sym.kind) {
-                    case CXCursor_ClassDecl:
-                    case CXCursor_StructDecl:
-                    case CXCursor_ClassTemplate:
-                    case CXCursor_TypedefDecl:
-                        if (!sym.isDefinition())
-                            break;
-                        [[fallthrough]];
-                    case CXCursor_FunctionDecl:
-                    case CXCursor_FunctionTemplate: {
-                        List<String> alternatives;
-                        if (path.startsWith(directory))
-                            alternatives << String::format<256>("#include \"%s\"", path.mid(directory.size()).constData());
-                        for (const Source::Include &inc : mSource.includePaths) {
-                            const Path p = inc.path.ensureTrailingSlash();
-                            if (path.startsWith(p)) {
-                                const String str = String::format<256>("#include <%s>", path.mid(p.size()).constData());
-                                alternatives << str;
-                            }
+                case CXCursor_ClassDecl:
+                case CXCursor_StructDecl:
+                case CXCursor_ClassTemplate:
+                case CXCursor_TypedefDecl:
+                    if (!sym.isDefinition())
+                        break;
+                    [[fallthrough]];
+                case CXCursor_FunctionDecl:
+                case CXCursor_FunctionTemplate: {
+                    List<String> alternatives;
+                    if (path.startsWith(directory))
+                        alternatives << String::format<256>("#include \"%s\"", path.mid(directory.size()).constData());
+                    for (const Source::Include &inc : mSource.includePaths) {
+                        const Path p = inc.path.ensureTrailingSlash();
+                        if (path.startsWith(p)) {
+                            const String str = String::format<256>("#include <%s>", path.mid(p.size()).constData());
+                            alternatives << str;
                         }
-                        const int tail                  = strlen(path.fileName()) + 1;
-                        List<String>::const_iterator it = alternatives.begin();
-                        while (it != alternatives.end()) {
-                            bool drop = false;
-                            for (List<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
-                                if (it2->size() < it->size()) {
-                                    if (!strncmp(it2->constData() + 9, it->constData() + 9, it2->size() - tail - 9)) {
-                                        drop = true;
-                                        break;
-                                    }
+                    }
+                    const int tail = strlen(path.fileName()) + 1;
+                    List<String>::const_iterator it = alternatives.begin();
+                    while (it != alternatives.end()) {
+                        bool drop = false;
+                        for (List<String>::const_iterator it2 = it + 1; it2 != alternatives.end(); ++it2) {
+                            if (it2->size() < it->size()) {
+                                if (!strncmp(it2->constData() + 9, it->constData() + 9, it2->size() - tail - 9)) {
+                                    drop = true;
+                                    break;
                                 }
                             }
-                            if (!drop) {
-                                found = true;
-                                all.insert(*it);
-                            }
-                            ++it;
                         }
-
-                        break;
+                        if (!drop) {
+                            found = true;
+                            all.insert(*it);
+                        }
+                        ++it;
                     }
-                    default:
-                        break;
+
+                    break; }
+                default:
+                    break;
                 }
                 if (first) {
                     if (found)
@@ -143,34 +141,29 @@ int IncludeFileJob::execute()
             }
         }
     };
-    project->findSymbols(
-        mSymbol,
-        [&](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations)
-        {
-            ++matches;
-            bool fuzzy = false;
-            if (type == Project::StartsWith) {
-                fuzzy              = true;
-                const size_t paren = symbolName.indexOf('(');
-                if (paren == mSymbol.size() && !RTags::isFunctionVariable(symbolName))
-                    fuzzy = false;
-            }
+    project->findSymbols(mSymbol, [&](Project::SymbolMatchType type, const String &symbolName, const Set<Location> &locations) {
+        ++matches;
+        bool fuzzy = false;
+        if (type == Project::StartsWith) {
+            fuzzy = true;
+            const size_t paren = symbolName.indexOf('(');
+            if (paren == mSymbol.size() && !RTags::isFunctionVariable(symbolName))
+                fuzzy = false;
+        }
 
-            if (!fuzzy) {
-                process(locations);
-            } else if (matches == 1) {
-                last = locations;
-            }
-        },
-        queryFlags());
+        if (!fuzzy) {
+            process(locations);
+        } else if (matches == 1) {
+            last = locations;
+        }
+    }, queryFlags());
     if (matches == 1 && !last.empty()) {
         process(last);
     }
     List<String> alternatives = all.toList();
-    std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b)
-              {
-                  return a.size() < b.size();
-              });
+    std::sort(alternatives.begin(), alternatives.end(), [](const String &a, const String &b) {
+        return a.size() < b.size();
+    });
     for (const auto &a : alternatives) {
         write(a);
     }

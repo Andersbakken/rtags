@@ -19,8 +19,8 @@
 #include <memory>
 
 #include "QueryJob.h"
-#include "Source.h"
 #include "rct/String.h"
+#include "Source.h"
 
 class Project;
 class QueryMessage;
@@ -29,10 +29,8 @@ class IncludeFileJob : public QueryJob
 {
 public:
     IncludeFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
-
 protected:
     virtual int execute() override;
-
 private:
     String mSymbol;
     Source mSource;

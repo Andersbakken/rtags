@@ -16,34 +16,30 @@
 #ifndef ClangIndexer_h
 #define ClangIndexer_h
 
-#include "Token.h"
 #include <sys/stat.h>
+#include "Token.h"
 
 #include "IndexDataMessage.h"
-#include "RTags.h"
-#include "Server.h"
-#include "Symbol.h"
 #include "rct/Hash.h"
 #include "rct/Path.h"
 #include "rct/StopWatch.h"
+#include "RTags.h"
+#include "Server.h"
+#include "Symbol.h"
 #include <unordered_set>
 
 struct Unit;
-
 class ClangIndexer : public RTags::DiagnosticsProvider
 {
 public:
-    enum Mode
-    {
+    enum Mode {
         Normal,
         Daemon
     };
-
     ClangIndexer(Mode mode);
     ~ClangIndexer();
 
-    enum State
-    {
+    enum State {
         NotStarted,
         Stopped,
         Running
@@ -60,13 +56,9 @@ public:
         std::unique_lock<std::mutex> lock(sStateMutex);
         return sState;
     }
-
     Path sourceFile() const { return mSourceFile; }
-
     bool exec(const String &data);
-
     static Flags<Server::Option> serverOpts() { return sServerOpts; }
-
 private:
     bool diagnose();
     bool visit();
@@ -85,12 +77,10 @@ private:
     using RTags::DiagnosticsProvider::createLocation;
     virtual Location createLocation(const Path &file, unsigned int line, unsigned int col, bool *blocked = nullptr) override;
     virtual CXTranslationUnit unit(size_t u) const override;
-
     virtual size_t unitCount() const override
     {
         return mTranslationUnits.size();
     }
-
     virtual size_t diagnosticCount(size_t unit) const override
     {
         if (CXTranslationUnit u = mTranslationUnits[unit]->unit) {
@@ -98,7 +88,6 @@ private:
         }
         return 0;
     }
-
     virtual CXDiagnostic diagnostic(size_t unit, size_t idx) const override
     {
         assert(mTranslationUnits[unit]->unit);
@@ -106,7 +95,6 @@ private:
     }
 
     virtual uint32_t sourceFileId() const override { return mSources.front().fileId; }
-
     virtual IndexDataMessage &indexDataMessage() override { return mIndexDataMessage; }
 
     String addNamePermutations(const CXCursor &cursor,
@@ -128,14 +116,12 @@ private:
                                                   Location location, const CXCursor &ref,
                                                   Symbol **cursorPtr = nullptr);
     void handleMakeSharedOrMakeUnique(const CXCursor &cursor, Map<String, uint16_t> &targets);
-
     void visit(CXCursor cursor)
     {
         mParents.push_back(cursor);
         clang_visitChildren(cursor, visitorHelper, this);
         mParents.removeLast();
     }
-
     CXChildVisitResult indexVisitor(CXCursor cursor);
     static CXChildVisitResult visitorHelper(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
@@ -143,8 +129,7 @@ private:
 
     void onMessage(const std::shared_ptr<Message> &msg, const std::shared_ptr<Connection> &conn);
 
-    struct Unit
-    {
+    struct Unit {
         Map<Location, Symbol> symbols;
         Map<Location, Map<String, uint16_t>> targets;
         Map<String, Set<Location>> usrs;
@@ -160,30 +145,23 @@ private:
         }
         return unit;
     }
-
     std::shared_ptr<Unit> unit(Location loc) { return unit(loc.fileId()); }
 
-    enum FindResult
-    {
+    enum FindResult {
         Found,
         NotIndexed,
         NotFound
     };
-
     Symbol findSymbol(Location location, FindResult *result) const;
 
-    struct MacroLocationData
-    {
+    struct MacroLocationData {
         Set<size_t> arguments;
         List<Location> locations;
     };
-
-    struct MacroData
-    {
+    struct MacroData {
         List<String> arguments;
         Map<String, MacroLocationData> data;
     };
-
     Map<Location, MacroData> mMacroTokens;
 
     Hash<uint32_t, std::shared_ptr<Unit>> mUnits;
@@ -215,28 +193,22 @@ private:
     bool mUnionRecursion;
     bool mFromCache;
 
-    struct Scope
-    {
-        enum ScopeType
-        {
+    struct Scope {
+        enum ScopeType {
             FunctionDefinition,
             FunctionDeclaration,
             Other
         };
-
         ScopeType type;
         Symbol *symbol;
         Location start, end;
     };
-
     List<Scope> mScopeStack;
 
-    struct Loop
-    { // or switch
+    struct Loop { // or switch
         CXCursorKind kind;
         Location start, end;
     };
-
     List<Loop> mLoopStack;
 
     List<CXCursor> mParents;

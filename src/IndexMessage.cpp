@@ -20,8 +20,7 @@
 #include "rct/Serializer.h"
 
 IndexMessage::IndexMessage()
-    : RTagsMessage(MessageId)
-    , mFlags(None)
+    : RTagsMessage(MessageId), mFlags(None)
 {
 }
 
@@ -33,5 +32,6 @@ void IndexMessage::encode(Serializer &serializer) const
 
 void IndexMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mCommandLine >> mWorkingDirectory >> mProjectRoot >> mCompileCommands >> mArgs >> mFlags >> mEnvironment;
+    deserializer >> mCommandLine >> mWorkingDirectory >> mProjectRoot
+                 >> mCompileCommands >> mArgs >> mFlags >> mEnvironment;
 }

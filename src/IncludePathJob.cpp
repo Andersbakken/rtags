@@ -15,25 +15,24 @@
 
 #include "IncludePathJob.h"
 
+#include <stddef.h>
 #include <cstdint>
 #include <functional>
-#include <stddef.h>
 #include <utility>
 
-#include "FileMap.h"
 #include "Project.h"
-#include "QueryMessage.h"
 #include "RTags.h"
+#include "FileMap.h"
+#include "QueryMessage.h"
 #include "Symbol.h"
+#include "clang-c/Index.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/String.h"
-#include "clang-c/Index.h"
 
 IncludePathJob::IncludePathJob(const Location loc, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects), QuietJob)
-    , location(loc)
+    : QueryJob(query, std::move(projects), QuietJob), location(loc)
 {
 }
 
@@ -52,7 +51,10 @@ int IncludePathJob::execute()
             if (!symbols || !symbols->count())
                 return 1;
             const Symbol prev = symbols->valueAt(idx - 1);
-            if (prev.kind == CXCursor_MemberRefExpr && prev.location.column() == symbol.location.column() - 1 && prev.location.line() == symbol.location.line() && prev.symbolName.contains("~")) {
+            if (prev.kind == CXCursor_MemberRefExpr
+                && prev.location.column() == symbol.location.column() - 1
+                && prev.location.line() == symbol.location.line()
+                && prev.symbolName.contains("~")) {
                 symbol = prev;
             }
         }
@@ -63,15 +65,14 @@ int IncludePathJob::execute()
         int maxDepth = queryMessage()->maxDepth();
         if (maxDepth == -1)
             maxDepth = 8;
-        const bool absolute    = queryFlags() & QueryMessage::AbsolutePath;
+        const bool absolute = queryFlags() & QueryMessage::AbsolutePath;
         const Path projectPath = project->path();
         for (const auto &target : targets) {
             DependencyNode *depNode = project->dependencyNode(location.fileId());
             if (depNode) {
                 List<uint32_t> paths;
-                bool done                                     = false;
-                std::function<void(DependencyNode *)> process = [&](DependencyNode *n)
-                {
+                bool done = false;
+                std::function<void(DependencyNode *)> process = [&](DependencyNode *n) {
                     if (done || !paths.contains(n->fileId)) {
                         paths.append(n->fileId);
                         if (n->fileId == target.location.fileId()) {

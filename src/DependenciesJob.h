@@ -16,8 +16,8 @@
 #ifndef DependenciesJob_h
 #define DependenciesJob_h
 
-#include <memory>
 #include <stdint.h>
+#include <memory>
 
 #include "QueryJob.h"
 #include "rct/List.h"
@@ -30,10 +30,8 @@ class DependenciesJob : public QueryJob
 {
 public:
     DependenciesJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects);
-
 protected:
     virtual int execute() override;
-
 private:
     uint32_t mFileId;
     List<String> mArgs;

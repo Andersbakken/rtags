@@ -16,38 +16,33 @@
 #include "IndexerJob.h"
 
 #include <limits.h>
-#include <map>
 #include <string.h>
+#include <map>
 #include <unordered_map>
 #include <utility>
 
 #include "CompilerManager.h"
-#include "Location.h"
 #include "Project.h"
 #include "RTags.h"
-#include "RTagsVersion.h"
 #include "Server.h"
+#include "RTagsVersion.h"
+#include "Location.h"
 #include "rct/List.h"
 #include "rct/Serializer.h"
 
 uint64_t IndexerJob::sNextId = 1;
-
 IndexerJob::IndexerJob(const SourceList &s,
                        Flags<Flag> f,
                        const std::shared_ptr<Project> &p,
                        const UnsavedFiles &u)
-    : id(0)
-    , flags(f)
-    , project(p)
-    , unsavedFiles(u)
-    , crashCount(0)
-    , mCachedPriority(INT_MIN)
+    : id(0), flags(f),
+      project(p), unsavedFiles(u), crashCount(0), mCachedPriority(INT_MIN)
 {
     sources.push_back(s.front());
-    for (size_t i = 1; i < s.size(); ++i) {
+    for (size_t i=1; i<s.size(); ++i) {
         const Source &src = s.at(i);
-        bool found        = false;
-        for (size_t j = 0; j < sources.size(); ++j) {
+        bool found = false;
+        for (size_t j=0; j<sources.size(); ++j) {
             if (src.compareArguments(sources.at(j))) {
                 found = true;
                 break;
@@ -76,8 +71,8 @@ void IndexerJob::acquireId()
 int IndexerJob::priority() const
 {
     if (mCachedPriority == INT_MIN) {
-        int ret         = 0;
-        Server *server  = Server::instance();
+        int ret = 0;
+        Server *server = Server::instance();
         uint32_t fileId = sources.begin()->fileId;
         assert(server);
         if (flags & Dirty) {
@@ -86,28 +81,29 @@ int IndexerJob::priority() const
             ret += 4;
         }
         switch (server->activeBufferType(fileId)) {
-            case Server::Active:
-                ret += 8;
-                break;
-            case Server::Open:
-                ret += 3;
-                break;
-            case Server::Inactive:
-                if (DependencyNode *node = project->dependencyNode(fileId)) {
-                    Set<DependencyNode *> seen;
-                    seen.insert(node);
-                    std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n)
-                    {
-                        for (const auto &inc : n->includes) {
-                            if (seen.insert(inc.second) && !Location::path(n->fileId).isSystem() && (server->activeBufferType(n->fileId) != Server::Inactive || func(inc.second))) {
-                                return true;
-                            }
+        case Server::Active:
+            ret += 8;
+            break;
+        case Server::Open:
+            ret += 3;
+            break;
+        case Server::Inactive:
+            if (DependencyNode *node = project->dependencyNode(fileId)) {
+                Set<DependencyNode*> seen;
+                seen.insert(node);
+                std::function<bool(const DependencyNode *node)> func = [&seen, server, &func](const DependencyNode *n) {
+                    for (const auto &inc : n->includes) {
+                        if (seen.insert(inc.second)
+                            && !Location::path(n->fileId).isSystem()
+                            && (server->activeBufferType(n->fileId) != Server::Inactive || func(inc.second))) {
+                            return true;
                         }
-                        return false;
-                    };
-                    if (func(node))
-                        ret += 2;
-                }
+                    }
+                    return false;
+                };
+                if (func(node))
+                    ret += 2;
+            }
         }
 
         if (project && server->currentProject() == project)

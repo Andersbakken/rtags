@@ -28,33 +28,23 @@
 class Match
 {
 public:
-    enum Flag
-    {
-        Flag_None            = 0x0,
-        Flag_StringMatch     = 0x1,
-        Flag_Regex           = 0x2,
+    enum Flag {
+        Flag_None = 0x0,
+        Flag_StringMatch = 0x1,
+        Flag_Regex = 0x2,
         Flag_CaseInsensitive = 0x4
     };
 
     inline Match()
-    {
-    }
+    {}
 
     inline Match(const String &pattern, Flags<Flag> f = Flag_StringMatch);
-
     inline Match(Match &&other) noexcept
-        : mRegex(std::move(other.mRegex))
-        , mPattern(std::move(other.mPattern))
-        , mFlags(other.mFlags)
-    {
-    }
-
+        : mRegex(std::move(other.mRegex)), mPattern(std::move(other.mPattern)), mFlags(other.mFlags)
+    {}
     inline Match(const Match &other)
-        : mRegex(other.mRegex)
-        , mPattern(other.mPattern)
-        , mFlags(other.mFlags)
-    {
-    }
+        : mRegex(other.mRegex), mPattern(other.mPattern), mFlags(other.mFlags)
+    {}
 
     Flags<Flag> flags() const { return mFlags; }
 
@@ -85,18 +75,15 @@ public:
     {
         return mPattern;
     }
-
     uint32_t fileId() const
     {
         return Location::fileId(mPattern);
     }
-
 private:
     std::regex mRegex;
     String mPattern;
     Flags<Flag> mFlags;
 };
-
 RCT_FLAGS(Match::Flag);
 
 inline Log operator<<(Log log, const Match &match)
@@ -128,5 +115,8 @@ inline Match::Match(const String &pattern, Flags<Flag> f)
     }
     mPattern = pattern;
 }
+
+
+
 
 #endif

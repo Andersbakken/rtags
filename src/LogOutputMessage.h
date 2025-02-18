@@ -16,26 +16,20 @@
 #ifndef OutputMessage_h
 #define OutputMessage_h
 
-#include "QueryMessage.h"
 #include "RTagsMessage.h"
+#include "QueryMessage.h"
 
 class LogOutputMessage : public RTagsMessage
 {
 public:
-    enum
-    {
-        MessageId = LogOutputId
-    };
+    enum { MessageId = LogOutputId };
 
     LogOutputMessage(LogLevel level = LogLevel::Error, Flags<QueryMessage::Flag> flags = NullFlags)
-        : RTagsMessage(MessageId)
-        , mLevel(level)
-        , mFlags(flags)
+        : RTagsMessage(MessageId), mLevel(level), mFlags(flags)
     {
     }
 
     LogLevel level() const { return mLevel; }
-
     Flags<QueryMessage::Flag> flags() const { return mFlags; }
 
     void encode(Serializer &serializer) const override
@@ -47,7 +41,6 @@ public:
     {
         deserializer >> mCommandLine >> mLevel >> mFlags;
     }
-
 private:
     LogLevel mLevel;
     Flags<QueryMessage::Flag> mFlags;

@@ -20,8 +20,7 @@
 
 bool IndexParseData::write(const std::function<bool(const String &)> &write, const Match &match) const
 {
-    auto process = [&write, &match](const String &str, const Sources &sss)
-    {
+    auto process = [&write, &match](const String &str, const Sources &sss) {
         if (!sss.empty()) {
             if (!write(str + ":"))
                 return false;

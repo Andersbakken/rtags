@@ -20,7 +20,7 @@ static void printCursor(CXCursor cursor)
     unsigned int off, line, col;
     CXSourceLocation location = clang_getCursorLocation(cursor);
     clang_getSpellingLocation(location, &file, &line, &col, &off);
-    CXString fileName        = clang_getFileName(file);
+    CXString fileName = clang_getFileName(file);
     const char *fileNameCStr = clang_getCString(fileName);
     if (fileNameCStr) {
         CXSourceRange range = clang_getCursorExtent(cursor);
@@ -41,15 +41,15 @@ static void printCursor(CXCursor cursor)
 static enum CXChildVisitResult visit(CXCursor cursor, CXCursor parent, CXClientData userData)
 {
     (void)parent;
-    int indent = *(int *)userData;
+    int indent = *(int*)userData;
     int i;
-    for (i = 0; i < indent; ++i) {
+    for (i=0; i<indent; ++i) {
         printf("  ");
     }
     printCursor(cursor);
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (!clang_isInvalid(clang_getCursorKind(ref)) && !clang_equalCursors(ref, cursor)) {
-        for (i = 0; i < indent; ++i) {
+        for (i=0; i<indent; ++i) {
             printf("  ");
         }
         printf("-> ");
@@ -64,10 +64,10 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
         return 1;
-    CXIndex index           = clang_createIndex(1, 1);
-    CXTranslationUnit unit  = nullptr;
-    const char *const *args = nullptr;
-    const char *saved       = "/tmp/unit";
+    CXIndex index = clang_createIndex(1, 1);
+    CXTranslationUnit unit = nullptr;
+    const char * const *args = nullptr;
+    const char *saved = "/tmp/unit";
     if (argc > 2) {
         if (!strcmp("--load", argv[2])) {
             int error = clang_createTranslationUnit2(index, saved, &unit);
@@ -87,7 +87,9 @@ int main(int argc, char **argv)
     }
 
     if (!unit) {
-        unit = clang_parseTranslationUnit(index, nullptr, args, argc - 2, nullptr, 0, clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord | CXTranslationUnit_ForSerialization);
+        unit = clang_parseTranslationUnit(index, nullptr, args, argc - 2,
+                                          nullptr, 0,
+                                          clang_defaultEditingTranslationUnitOptions() | CXTranslationUnit_DetailedPreprocessingRecord | CXTranslationUnit_ForSerialization );
         // FILE *f = fopen(argv[1], "a");
         // fprintf(f, " "); //namespace { int shitty() { return 0; } }\n");
         // fclose(f);
@@ -104,16 +106,16 @@ int main(int argc, char **argv)
 
         const unsigned int diagnosticCount = clang_getNumDiagnostics(unit);
         unsigned int i;
-        for (i = 0; i < diagnosticCount; ++i) {
-            CXDiagnostic diagnostic              = clang_getDiagnostic(unit, i);
-            const unsigned int diagnosticOptions = (CXDiagnostic_DisplaySourceLocation |
-                                                    CXDiagnostic_DisplayColumn |
-                                                    CXDiagnostic_DisplaySourceRanges |
-                                                    CXDiagnostic_DisplayOption |
-                                                    CXDiagnostic_DisplayCategoryId |
+        for (i=0; i<diagnosticCount; ++i) {
+            CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
+            const unsigned int diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
+                                                    CXDiagnostic_DisplayColumn|
+                                                    CXDiagnostic_DisplaySourceRanges|
+                                                    CXDiagnostic_DisplayOption|
+                                                    CXDiagnostic_DisplayCategoryId|
                                                     CXDiagnostic_DisplayCategoryName);
-            CXString diagnosticText              = clang_formatDiagnostic(diagnostic, diagnosticOptions);
-            const char *cstr                     = clang_getCString(diagnosticText);
+            CXString diagnosticText = clang_formatDiagnostic(diagnostic, diagnosticOptions);
+            const char *cstr = clang_getCString(diagnosticText);
             if (cstr)
                 printf("%s\n", cstr);
             clang_disposeString(diagnosticText);

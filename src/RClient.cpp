@@ -15,41 +15,41 @@
 
 #include "RClient.h"
 
+#include <stdio.h>
+#include <sys/ioctl.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <functional>
-#include <initializer_list>
 #include <limits.h>
-#include <regex>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/ioctl.h>
-#include <type_traits>
 #include <unistd.h>
+#include <functional>
+#include <initializer_list>
+#include <regex>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
 #include "IndexMessage.h"
-#include "Location.h"
 #include "LogOutputMessage.h"
-#include "RTags.h"
 #include "rct/Connection.h"
 #include "rct/EventLoop.h"
-#include "rct/Hash.h"
 #include "rct/Log.h"
-#include "rct/Map.h"
-#include "rct/Message.h"
-#include "rct/OnDestruction.h"
 #include "rct/QuitMessage.h"
 #include "rct/Rct.h"
+#include "rct/OnDestruction.h"
+#include "RTags.h"
+#include "Location.h"
+#include "clang-c/Index.h"
+#include "rct/Hash.h"
+#include "rct/Map.h"
+#include "rct/Message.h"
 #include "rct/ResponseMessage.h"
 #include "rct/Serializer.h"
 #include "rct/SignalSlot.h"
 #include "rct/SocketClient.h"
-#include "clang-c/Index.h"
 
 #define DEFAULT_CONNECT_TIMEOUT 1000
 #define XSTR(s) #s
@@ -68,7 +68,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType>> opts = {
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Rdm:" },
     { RClient::QuitRdm, "quit-rdm", 'q', CommandLineParser::NoValue, "Tell server to shut down with optional exit code as argument." },
-    { RClient::ConnectTimeout, "connect-timeout", 0, CommandLineParser::Required, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT) ")." },
+    { RClient::ConnectTimeout, "connect-timeout", 0, CommandLineParser::Required, "Timeout for connecting to rdm in ms (default " STR(DEFAULT_CONNECT_TIMEOUT)  ")." },
 
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Project management:" },
@@ -170,29 +170,11 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType>> opts = {
     { RClient::CursorKind, "cursor-kind", 0, CommandLineParser::NoValue, "Include cursor kind in --find-symbols output." },
     { RClient::DisplayName, "display-name", 0, CommandLineParser::NoValue, "Include display name in --find-symbols output." },
     { RClient::CurrentFile, "current-file", 0, CommandLineParser::Required, "Pass along which file is being edited to give rdm a better chance at picking the right project." },
-    {
-        RClient::DeclarationOnly,
-        "declaration-only",
-        'G',
-        CommandLineParser::NoValue,
-        "Filter out definitions (unless inline).",
-    },
-    {
-        RClient::DefinitionOnly,
-        "definition-only",
-        0,
-        CommandLineParser::NoValue,
-        "Filter out declarations (unless inline).",
-    },
-    {
-        RClient::KindFilter,
-        "kind-filter",
-        0,
-        CommandLineParser::Required,
-        "Only return results matching this kind.",
-    },
-    { RClient::ContainingFunction, "containing-function", 'o', CommandLineParser::NoValue, "Include name of containing function in output." },
-    { RClient::ContainingFunctionLocation, "containing-function-location", 0, CommandLineParser::NoValue, "Include location of containing function in output." },
+    { RClient::DeclarationOnly, "declaration-only", 'G', CommandLineParser::NoValue, "Filter out definitions (unless inline).", },
+    { RClient::DefinitionOnly, "definition-only", 0, CommandLineParser::NoValue, "Filter out declarations (unless inline).", },
+    { RClient::KindFilter, "kind-filter", 0, CommandLineParser::Required, "Only return results matching this kind.", },
+    { RClient::ContainingFunction, "containing-function", 'o', CommandLineParser::NoValue, "Include name of containing function in output."},
+    { RClient::ContainingFunctionLocation, "containing-function-location", 0, CommandLineParser::NoValue, "Include location of containing function in output."},
     { RClient::BuildIndex, "build-index", 0, CommandLineParser::Required, "For sources with multiple builds, use the arg'th." },
     { RClient::CompilationFlagsOnly, "compilation-flags-only", 0, CommandLineParser::NoValue, "For --source, only print compilation flags." },
     { RClient::CompilationFlagsSplitLine, "compilation-flags-split-line", 0, CommandLineParser::NoValue, "For --source, print one compilation flag per line." },
@@ -225,22 +207,17 @@ class RCCommand
 {
 public:
     RCCommand() {}
-
     virtual ~RCCommand() {}
-
     virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) = 0;
-    virtual String description() const                                                       = 0;
+    virtual String description() const = 0;
 };
 
 class QueryCommand : public RCCommand
 {
 public:
     QueryCommand(QueryMessage::Type t, String &&q)
-        : RCCommand()
-        , type(t)
-        , query(std::move(q))
-    {
-    }
+        : RCCommand(), type(t), query(std::move(q))
+    {}
 
     const QueryMessage::Type type;
     String query;
@@ -281,22 +258,18 @@ class QuitCommand : public RCCommand
 {
 public:
     QuitCommand(int exit)
-        : RCCommand()
-        , mExitCode(exit)
-    {
-    }
+        : RCCommand(), mExitCode(exit)
+    {}
 
     virtual RTags::ExitCode exec(RClient *, const std::shared_ptr<Connection> &connection) override
     {
         const QuitMessage msg(mExitCode);
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
-
     virtual String description() const override
     {
         return String::format<32>("QuitMessage(%d)", mExitCode);
     }
-
 private:
     const int mExitCode;
 };
@@ -307,28 +280,24 @@ public:
     static const LogLevel Default;
 
     RdmLogCommand(LogLevel level)
-        : RCCommand()
-        , mLevel(level)
+        : RCCommand(), mLevel(level)
     {
     }
-
     virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
-        const LogLevel level            = mLevel == Default ? rc->logLevel() : mLevel;
+        const LogLevel level = mLevel == Default ? rc->logLevel() : mLevel;
         Flags<QueryMessage::Flag> flags = rc->queryFlags();
-        if (!(rc->queryFlags() & (QueryMessage::Elisp | QueryMessage::XML | QueryMessage::JSON)))
+        if (!(rc->queryFlags() & (QueryMessage::Elisp|QueryMessage::XML|QueryMessage::JSON)))
             flags |= QueryMessage::XML;
 
         LogOutputMessage msg(level, flags);
         msg.setCommandLine(rc->commandLine());
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
-
     virtual String description() const override
     {
         return "RdmLogCommand";
     }
-
     const LogLevel mLevel;
 };
 
@@ -338,22 +307,15 @@ class CompileCommand : public RCCommand
 {
 public:
     CompileCommand(String &&a, const Path &c)
-        : RCCommand()
-        , args(std::move(a))
-        , cwd(c)
-    {
-    }
-
+        : RCCommand(), args(std::move(a)), cwd(c)
+    {}
     CompileCommand(Path &&path)
-        : RCCommand()
-        , compileCommands(std::move(path))
-    {
-    }
+        : RCCommand(), compileCommands(std::move(path))
+    {}
 
     String args;
     Path cwd;
     Path compileCommands;
-
     virtual RTags::ExitCode exec(RClient *rc, const std::shared_ptr<Connection> &connection) override
     {
         IndexMessage msg;
@@ -368,7 +330,6 @@ public:
 
         return connection->send(msg) ? RTags::Success : RTags::NetworkFailure;
     }
-
     virtual String description() const override
     {
         return ("IndexMessage " + cwd);
@@ -376,18 +337,10 @@ public:
 };
 
 RClient::RClient()
-    : mMax(-1)
-    , mMaxDepth(-1)
-    , mTimeout(-1)
-    , mMinOffset(-1)
-    , mMaxOffset(-1)
-    , mConnectTimeout(DEFAULT_CONNECT_TIMEOUT)
-    , mBuildIndex(0)
-    , mLogLevel(LogLevel::Error)
-    , mTcpPort(0)
-    , mGuessFlags(false)
-    , mTerminalWidth(-1)
-    , mExitCode(RTags::ArgumentParseError)
+    : mMax(-1), mMaxDepth(-1), mTimeout(-1), mMinOffset(-1), mMaxOffset(-1),
+      mConnectTimeout(DEFAULT_CONNECT_TIMEOUT), mBuildIndex(0),
+      mLogLevel(LogLevel::Error), mTcpPort(0), mGuessFlags(false),
+      mTerminalWidth(-1), mExitCode(RTags::ArgumentParseError)
 {
     struct winsize w;
     ioctl(0, TIOCGWINSZ, &w);
@@ -403,7 +356,7 @@ RClient::~RClient()
 
 void RClient::addQuery(QueryMessage::Type type, String &&query, Flags<QueryMessage::Flag> extraQueryFlags)
 {
-    auto cmd             = std::make_shared<QueryCommand>(type, std::move(query));
+    auto cmd = std::make_shared<QueryCommand>(type, std::move(query));
     cmd->extraQueryFlags = extraQueryFlags;
     mCommands.push_back(cmd);
 }
@@ -432,24 +385,16 @@ void RClient::addCompile(Path &&path)
 void RClient::exec()
 {
     RTags::initMessages();
-    OnDestruction onDestruction([]()
-                                {
-                                    Message::cleanup();
-                                });
+    OnDestruction onDestruction([]() { Message::cleanup(); });
     std::shared_ptr<EventLoop> loop(new EventLoop);
     loop->init(EventLoop::MainEventLoop);
 
-    const int commandCount                 = mCommands.size();
+    const int commandCount = mCommands.size();
     std::shared_ptr<Connection> connection = Connection::create(NumOptions);
-    connection->newMessage().connect(std::bind(&RClient::onNewMessage, this, std::placeholders::_1, std::placeholders::_2));
-    connection->finished().connect(std::bind([]()
-                                             {
-                                                 EventLoop::eventLoop()->quit();
-                                             }));
-    connection->disconnected().connect(std::bind([]()
-                                                 {
-                                                     EventLoop::eventLoop()->quit();
-                                                 }));
+    connection->newMessage().connect(std::bind(&RClient::onNewMessage, this,
+                                               std::placeholders::_1, std::placeholders::_2));
+    connection->finished().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
+    connection->disconnected().connect(std::bind([](){ EventLoop::eventLoop()->quit(); }));
     if (mTcpPort) {
         if (!connection->connectTcp(mTcpHost, mTcpPort, mConnectTimeout)) {
             if (mLogLevel >= LogLevel::Error)
@@ -477,7 +422,7 @@ void RClient::exec()
         return;
     }
 
-    for (int i = 0; i < commandCount; ++i) {
+    for (int i=0; i<commandCount; ++i) {
         const std::shared_ptr<RCCommand> &cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
         mExitCode = cmd->exec(this, connection);
@@ -515,991 +460,880 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
     }
 
     std::function<CommandLineParser::ParseStatus(RClient::OptionType type,
-                                                 String && value,
-                                                 size_t & idx,
-                                                 const List<String> &args)>
-        cb;
-    cb = [this, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus
-    {
+                                                 String &&value,
+                                                 size_t &idx,
+                                                 const List<String> &args)> cb;
+    cb = [this, &projectCommands, &logFile](RClient::OptionType type, String &&value, size_t &idx, const List<String> &arguments) -> CommandLineParser::ParseStatus {
         switch (type) {
-            case None:
-            case NumOptions: {
+        case None:
+        case NumOptions: {
+            assert(0);
+            break; }
+        case Noop: {
+            break; }
+        case NoRealPath: {
+            Path::setRealPathEnabled(false);
+            break; }
+        case Help: {
+            CommandLineParser::help(stdout, "rc", opts);
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok } ; }
+        case SocketFile: {
+            mSocketFile = std::move(value);
+            break; }
+        case SocketAddress: {
+            mTcpHost = std::move(value);
+            const int colon = mTcpHost.lastIndexOf(':');
+            if (colon == -1) {
+                return { String::format<1024>("invalid --socket-address %s\n", mTcpHost.constData()), CommandLineParser::Parse_Error };
+            }
+            mTcpPort = atoi(mTcpHost.constData() + colon + 1);
+            if (!mTcpPort) {
+                return { String::format<1024>("invalid --socket-address %s", mTcpHost.constData()), CommandLineParser::Parse_Error };
+            }
+            mTcpHost.truncate(colon);
+            break; }
+        case GuessFlags: {
+            mGuessFlags = true;
+            break; }
+        case Wait: {
+            mQueryFlags |= QueryMessage::Wait;
+            break; }
+        case NoSpellCheckinging: {
+            mQueryFlags |= QueryMessage::NoSpellChecking;
+            break; }
+        case CodeCompleteIncludeMacros: {
+            mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
+            break; }
+        case CodeCompletePrefix: {
+            mCodeCompletePrefix = std::move(value);
+            break; }
+        case CodeCompleteIncludes: {
+            mQueryFlags |= QueryMessage::CodeCompleteIncludes;
+            break; }
+        case CodeCompleteNoWait: {
+            mQueryFlags |= QueryMessage::CodeCompleteNoWait;
+            break; }
+        case CodeCompletionEnabled: {
+            mQueryFlags |= QueryMessage::CodeCompletionEnabled;
+            break; }
+        case CompilationFlagsOnly: {
+            mQueryFlags |= QueryMessage::CompilationFlagsOnly;
+            break; }
+        case CompilationFlagsPwd: {
+            mQueryFlags |= QueryMessage::CompilationFlagsPwd;
+            break; }
+        case CompilationFlagsSplitLine: {
+            mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
+            break; }
+        case ContainingFunction: {
+            mQueryFlags |= QueryMessage::ContainingFunction;
+            break; }
+        case ContainingFunctionLocation: {
+            mQueryFlags |= QueryMessage::ContainingFunctionLocation;
+            break; }
+        case DeclarationOnly: {
+            mQueryFlags |= QueryMessage::DeclarationOnly;
+            break; }
+        case DefinitionOnly: {
+            mQueryFlags |= QueryMessage::DefinitionOnly;
+            break; }
+        case FindVirtuals: {
+            mQueryFlags |= QueryMessage::FindVirtuals;
+            break; }
+        case FindFilePreferExact: {
+            mQueryFlags |= QueryMessage::FindFilePreferExact;
+            break; }
+        case SymbolInfoIncludeParents: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
+            break; }
+        case SymbolInfoIncludeTargets: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
+            break; }
+        case SymbolInfoIncludeReferences: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
+            break; }
+        case SymbolInfoIncludeBaseClasses: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeBaseClasses;
+            break; }
+        case SymbolInfoIncludeSourceCode: {
+            mQueryFlags |= QueryMessage::SymbolInfoIncludeSourceCode;
+            break; }
+        case CursorKind: {
+            mQueryFlags |= QueryMessage::CursorKind;
+            break; }
+        case SynchronousCompletions: {
+            mQueryFlags |= QueryMessage::SynchronousCompletions;
+            break; }
+        case SynchronousDiagnostics: {
+            mQueryFlags |= QueryMessage::SynchronousDiagnostics;
+            break; }
+        case DisplayName: {
+            mQueryFlags |= QueryMessage::DisplayName;
+            break; }
+        case AllReferences: {
+            mQueryFlags |= QueryMessage::AllReferences;
+            break; }
+        case AllTargets: {
+            mQueryFlags |= QueryMessage::AllTargets;
+            break; }
+        case TargetUsrs: {
+            mQueryFlags |= QueryMessage::TargetUsrs;
+            break; }
+        case MatchCaseInsensitive: {
+            mQueryFlags |= QueryMessage::MatchCaseInsensitive;
+            break; }
+        case MatchRegex: {
+            mQueryFlags |= QueryMessage::MatchRegex;
+            break; }
+        case MultiProject: {
+            mQueryFlags |= QueryMessage::MultiProject;
+            break; }
+        case AbsolutePath: {
+            mQueryFlags |= QueryMessage::AbsolutePath;
+            break; }
+        case ReverseSort: {
+            mQueryFlags |= QueryMessage::ReverseSort;
+            break; }
+        case Rename: {
+            mQueryFlags |= QueryMessage::Rename;
+            break; }
+        case Elisp: {
+            mQueryFlags |= QueryMessage::Elisp;
+            break; }
+        case JSON: {
+            mQueryFlags |= QueryMessage::JSON;
+            break; }
+        case JSONDiagnosticsIncludeSkipped: {
+            mQueryFlags |= QueryMessage::JSONDiagnosticsIncludeSkipped;
+            break; }
+        case XML: {
+            mQueryFlags |= QueryMessage::XML;
+            break; }
+        case FilterSystemHeaders: {
+            mQueryFlags |= QueryMessage::FilterSystemIncludes;
+            break; }
+        case NoColor: {
+            mQueryFlags |= QueryMessage::NoColor;
+            break; }
+        case NoContext: {
+            mQueryFlags |= QueryMessage::NoContext;
+            break; }
+        case PathFilter: {
+            mPathFilters.insert({ Path::resolved(value), QueryMessage::PathFilter::Self });
+            break; }
+        case DependencyFilter: {
+            Path p = std::move(value);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s doesn't seem to be a file", p.constData()), CommandLineParser::Parse_Error };
+            }
+            mPathFilters.insert({ Path::resolved(p), QueryMessage::PathFilter::Dependency });
+            break; }
+        case KindFilter: {
+            mKindFilters.insert(value);
+            break; }
+        case WildcardSymbolNames: {
+            mQueryFlags |= QueryMessage::WildcardSymbolNames;
+            break; }
+        case RangeFilter: {
+            char *end;
+            mMinOffset = strtoul(value.constData(), &end, 10);
+            if (*end != '-') {
+                return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
+            }
+            mMaxOffset = strtoul(end + 1, &end, 10);
+            if (*end) {
+                return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
+            }
+            if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
+                return { String::format<1024>("Invalid range (%d-%d), must be uint-uint. E.g. 1-123", mMinOffset, mMaxOffset),
+                         CommandLineParser::Parse_Error };
+            }
+            break; }
+        case Validate: {
+            addQuery(QueryMessage::Validate);
+            break; }
+        case Version: {
+            fprintf(stdout, "%s\n", RTags::versionString().constData());
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case VerifyVersion: {
+            const int version = strtoul(value.constData(), nullptr, 10);
+            if (version != NumOptions) {
+                fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, NumOptions);
+                mExitCode = RTags::ProtocolFailure;
+                return { String(), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case Verbose: {
+            ++mLogLevel;
+            break; }
+        case CodeCompleteAt: {
+            String encoded = Location::encode(value);
+            if (encoded.empty()) {
+                return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+
+            addQuery(QueryMessage::CodeCompleteAt, std::move(encoded), QueryMessage::HasLocation);
+            break; }
+        case Silent: {
+            mLogLevel = LogLevel::None;
+            break; }
+        case LogFile: {
+            logFile = std::move(value);
+            break; }
+        case StripParen: {
+            mQueryFlags |= QueryMessage::StripParentheses;
+            break; }
+        case DumpIncludeHeaders: {
+            mQueryFlags |= QueryMessage::DumpIncludeHeaders;
+            break; }
+        case SilentQuery: {
+            mQueryFlags |= QueryMessage::SilentQuery;
+            break; }
+        case BuildIndex: {
+            bool ok;
+            mBuildIndex = String(value).toULongLong(&ok);
+            if (!ok) {
+                return { String::format<1024>("--build-index [arg] must be >= 0"), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case ConnectTimeout: {
+            mConnectTimeout = atoi(value.constData());
+            if (mConnectTimeout < 0) {
+                return { String::format<1024>("--connect-timeout [arg] must be >= 0"), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case Max: {
+            bool ok;
+            mMax = value.toULongLong(&ok);
+            if (!ok) {
+                return { String::format<1024>("-M [arg] must be >= 0"), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case Timeout: {
+            mTimeout = atoi(value.constData());
+            if (!mTimeout) {
+                mTimeout = -1;
+            } else if (mTimeout < 0) {
+                return { String::format<1024>("-y [arg] must be >= 0"), CommandLineParser::Parse_Error };
+            }
+            break; }
+        case UnsavedFile: {
+            const size_t colon = value.lastIndexOf(':');
+            if (colon == String::npos || colon + 1 == value.size()) {
+                return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
+            }
+            const Path path = value.left(colon);
+            if (!path.isFile()) {
+                return { String::format<1024>("Can't open [%s] for reading", path.c_str()), CommandLineParser::Parse_Error };
+            }
+
+            FILE *f;
+            Path unlinkFile;
+            int bytes;
+            if (std::isdigit(value.at(colon + 1))) {
+                bytes = atoi(value.constData() + colon + 1);
+                if (!bytes) {
+                    return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
+                }
+                f = stdin;
+            } else {
+                unlinkFile = value.mid(colon + 1);
+                f = fopen(value.constData() + colon + 1, "r");
+                if (!f) {
+                    return { String::format<1024>("Can't open %s for reading", unlinkFile.constData()), CommandLineParser::Parse_Error };
+                }
+                bytes = Rct::fileSize(f);
+            }
+
+            String contents(bytes, '\0');
+            const int r = fread(contents.data(), 1, bytes, f);
+            if (!unlinkFile.empty())
+                Path::rm(unlinkFile);
+            if (r != bytes) {
+                return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
+            }
+            mUnsavedFiles[path] = std::move(contents);
+            break; }
+        case FollowLocation:
+        case ClassHierarchy:
+        case ReferenceLocation: {
+            String encoded = Location::encode(value);
+            if (encoded.empty()) {
+                return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            QueryMessage::Type queryType = QueryMessage::Invalid;
+            switch (type) {
+            case FollowLocation:
+                queryType = QueryMessage::FollowLocation;
+                break;
+            case ReferenceLocation:
+                queryType = QueryMessage::ReferencesLocation;
+                break;
+            case ClassHierarchy:
+                queryType = QueryMessage::ClassHierarchy;
+                break;
+            default:
                 assert(0);
                 break;
             }
-            case Noop: {
-                break;
-            }
-            case NoRealPath: {
-                Path::setRealPathEnabled(false);
-                break;
-            }
-            case Help: {
-                CommandLineParser::help(stdout, "rc", opts);
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case SocketFile: {
-                mSocketFile = std::move(value);
-                break;
-            }
-            case SocketAddress: {
-                mTcpHost        = std::move(value);
-                const int colon = mTcpHost.lastIndexOf(':');
-                if (colon == -1) {
-                    return { String::format<1024>("invalid --socket-address %s\n", mTcpHost.constData()), CommandLineParser::Parse_Error };
+            addQuery(queryType, std::move(encoded), QueryMessage::HasLocation);
+            break; }
+        case SymbolInfo: {
+            std::cmatch match;
+            std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::extended);
+            Path path;
+            List<String> kinds;
+            uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
+            if (std::regex_match(value.constData(), match, rx)) {
+                path.assign(value.constData(), match.length(1));
+                line = atoi(value.constData() + match.position(2));
+                col = atoi(value.constData() + match.position(3));
+                line2 = atoi(value.constData() + match.position(4));
+                col2 = atoi(value.constData() + match.position(5));
+                if (match.length(6) > 1)
+                    kinds = String(value.constData() + match.position(6) + 1, match.length(6) - 1).split(",");
+                if (!line || !col || !line2 || !col2 || !path.resolve(Path::MakeAbsolute)) {
+                    return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                 }
-                mTcpPort = atoi(mTcpHost.constData() + colon + 1);
-                if (!mTcpPort) {
-                    return { String::format<1024>("invalid --socket-address %s", mTcpHost.constData()), CommandLineParser::Parse_Error };
-                }
-                mTcpHost.truncate(colon);
-                break;
-            }
-            case GuessFlags: {
-                mGuessFlags = true;
-                break;
-            }
-            case Wait: {
-                mQueryFlags |= QueryMessage::Wait;
-                break;
-            }
-            case NoSpellCheckinging: {
-                mQueryFlags |= QueryMessage::NoSpellChecking;
-                break;
-            }
-            case CodeCompleteIncludeMacros: {
-                mQueryFlags |= QueryMessage::CodeCompleteIncludeMacros;
-                break;
-            }
-            case CodeCompletePrefix: {
-                mCodeCompletePrefix = std::move(value);
-                break;
-            }
-            case CodeCompleteIncludes: {
-                mQueryFlags |= QueryMessage::CodeCompleteIncludes;
-                break;
-            }
-            case CodeCompleteNoWait: {
-                mQueryFlags |= QueryMessage::CodeCompleteNoWait;
-                break;
-            }
-            case CodeCompletionEnabled: {
-                mQueryFlags |= QueryMessage::CodeCompletionEnabled;
-                break;
-            }
-            case CompilationFlagsOnly: {
-                mQueryFlags |= QueryMessage::CompilationFlagsOnly;
-                break;
-            }
-            case CompilationFlagsPwd: {
-                mQueryFlags |= QueryMessage::CompilationFlagsPwd;
-                break;
-            }
-            case CompilationFlagsSplitLine: {
-                mQueryFlags |= QueryMessage::CompilationFlagsSplitLine;
-                break;
-            }
-            case ContainingFunction: {
-                mQueryFlags |= QueryMessage::ContainingFunction;
-                break;
-            }
-            case ContainingFunctionLocation: {
-                mQueryFlags |= QueryMessage::ContainingFunctionLocation;
-                break;
-            }
-            case DeclarationOnly: {
-                mQueryFlags |= QueryMessage::DeclarationOnly;
-                break;
-            }
-            case DefinitionOnly: {
-                mQueryFlags |= QueryMessage::DefinitionOnly;
-                break;
-            }
-            case FindVirtuals: {
-                mQueryFlags |= QueryMessage::FindVirtuals;
-                break;
-            }
-            case FindFilePreferExact: {
-                mQueryFlags |= QueryMessage::FindFilePreferExact;
-                break;
-            }
-            case SymbolInfoIncludeParents: {
-                mQueryFlags |= QueryMessage::SymbolInfoIncludeParents;
-                break;
-            }
-            case SymbolInfoIncludeTargets: {
-                mQueryFlags |= QueryMessage::SymbolInfoIncludeTargets;
-                break;
-            }
-            case SymbolInfoIncludeReferences: {
-                mQueryFlags |= QueryMessage::SymbolInfoIncludeReferences;
-                break;
-            }
-            case SymbolInfoIncludeBaseClasses: {
-                mQueryFlags |= QueryMessage::SymbolInfoIncludeBaseClasses;
-                break;
-            }
-            case SymbolInfoIncludeSourceCode: {
-                mQueryFlags |= QueryMessage::SymbolInfoIncludeSourceCode;
-                break;
-            }
-            case CursorKind: {
-                mQueryFlags |= QueryMessage::CursorKind;
-                break;
-            }
-            case SynchronousCompletions: {
-                mQueryFlags |= QueryMessage::SynchronousCompletions;
-                break;
-            }
-            case SynchronousDiagnostics: {
-                mQueryFlags |= QueryMessage::SynchronousDiagnostics;
-                break;
-            }
-            case DisplayName: {
-                mQueryFlags |= QueryMessage::DisplayName;
-                break;
-            }
-            case AllReferences: {
-                mQueryFlags |= QueryMessage::AllReferences;
-                break;
-            }
-            case AllTargets: {
-                mQueryFlags |= QueryMessage::AllTargets;
-                break;
-            }
-            case TargetUsrs: {
-                mQueryFlags |= QueryMessage::TargetUsrs;
-                break;
-            }
-            case MatchCaseInsensitive: {
-                mQueryFlags |= QueryMessage::MatchCaseInsensitive;
-                break;
-            }
-            case MatchRegex: {
-                mQueryFlags |= QueryMessage::MatchRegex;
-                break;
-            }
-            case MultiProject: {
-                mQueryFlags |= QueryMessage::MultiProject;
-                break;
-            }
-            case AbsolutePath: {
-                mQueryFlags |= QueryMessage::AbsolutePath;
-                break;
-            }
-            case ReverseSort: {
-                mQueryFlags |= QueryMessage::ReverseSort;
-                break;
-            }
-            case Rename: {
-                mQueryFlags |= QueryMessage::Rename;
-                break;
-            }
-            case Elisp: {
-                mQueryFlags |= QueryMessage::Elisp;
-                break;
-            }
-            case JSON: {
-                mQueryFlags |= QueryMessage::JSON;
-                break;
-            }
-            case JSONDiagnosticsIncludeSkipped: {
-                mQueryFlags |= QueryMessage::JSONDiagnosticsIncludeSkipped;
-                break;
-            }
-            case XML: {
-                mQueryFlags |= QueryMessage::XML;
-                break;
-            }
-            case FilterSystemHeaders: {
-                mQueryFlags |= QueryMessage::FilterSystemIncludes;
-                break;
-            }
-            case NoColor: {
-                mQueryFlags |= QueryMessage::NoColor;
-                break;
-            }
-            case NoContext: {
-                mQueryFlags |= QueryMessage::NoContext;
-                break;
-            }
-            case PathFilter: {
-                mPathFilters.insert({ Path::resolved(value), QueryMessage::PathFilter::Self });
-                break;
-            }
-            case DependencyFilter: {
-                Path p = std::move(value);
-                if (!p.isFile()) {
-                    return { String::format<1024>("%s doesn't seem to be a file", p.constData()), CommandLineParser::Parse_Error };
-                }
-                mPathFilters.insert({ Path::resolved(p), QueryMessage::PathFilter::Dependency });
-                break;
-            }
-            case KindFilter: {
-                mKindFilters.insert(value);
-                break;
-            }
-            case WildcardSymbolNames: {
-                mQueryFlags |= QueryMessage::WildcardSymbolNames;
-                break;
-            }
-            case RangeFilter: {
-                char *end;
-                mMinOffset = strtoul(value.constData(), &end, 10);
-                if (*end != '-') {
-                    return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
-                }
-                mMaxOffset = strtoul(end + 1, &end, 10);
-                if (*end) {
-                    return { String::format<1024>("Can't parse range, must be uint-uint. E.g. 1-123"), CommandLineParser::Parse_Error };
-                }
-                if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
-                    return { String::format<1024>("Invalid range (%d-%d), must be uint-uint. E.g. 1-123", mMinOffset, mMaxOffset),
-                             CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case Validate: {
-                addQuery(QueryMessage::Validate);
-                break;
-            }
-            case Version: {
-                fprintf(stdout, "%s\n", RTags::versionString().constData());
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case VerifyVersion: {
-                const int version = strtoul(value.constData(), nullptr, 10);
-                if (version != NumOptions) {
-                    fprintf(stdout, "Protocol version mismatch got: %d expected: %d \n", version, NumOptions);
-                    mExitCode = RTags::ProtocolFailure;
-                    return { String(), CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case Verbose: {
-                ++mLogLevel;
-                break;
-            }
-            case CodeCompleteAt: {
-                String encoded = Location::encode(value);
-                if (encoded.empty()) {
-                    return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
-                }
-
-                addQuery(QueryMessage::CodeCompleteAt, std::move(encoded), QueryMessage::HasLocation);
-                break;
-            }
-            case Silent: {
-                mLogLevel = LogLevel::None;
-                break;
-            }
-            case LogFile: {
-                logFile = std::move(value);
-                break;
-            }
-            case StripParen: {
-                mQueryFlags |= QueryMessage::StripParentheses;
-                break;
-            }
-            case DumpIncludeHeaders: {
-                mQueryFlags |= QueryMessage::DumpIncludeHeaders;
-                break;
-            }
-            case SilentQuery: {
-                mQueryFlags |= QueryMessage::SilentQuery;
-                break;
-            }
-            case BuildIndex: {
-                bool ok;
-                mBuildIndex = String(value).toULongLong(&ok);
-                if (!ok) {
-                    return { String::format<1024>("--build-index [arg] must be >= 0"), CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case ConnectTimeout: {
-                mConnectTimeout = atoi(value.constData());
-                if (mConnectTimeout < 0) {
-                    return { String::format<1024>("--connect-timeout [arg] must be >= 0"), CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case Max: {
-                bool ok;
-                mMax = value.toULongLong(&ok);
-                if (!ok) {
-                    return { String::format<1024>("-M [arg] must be >= 0"), CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case Timeout: {
-                mTimeout = atoi(value.constData());
-                if (!mTimeout) {
-                    mTimeout = -1;
-                } else if (mTimeout < 0) {
-                    return { String::format<1024>("-y [arg] must be >= 0"), CommandLineParser::Parse_Error };
-                }
-                break;
-            }
-            case UnsavedFile: {
-                const size_t colon = value.lastIndexOf(':');
-                if (colon == String::npos || colon + 1 == value.size()) {
-                    return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
-                }
-                const Path path = value.left(colon);
-                if (!path.isFile()) {
-                    return { String::format<1024>("Can't open [%s] for reading", path.c_str()), CommandLineParser::Parse_Error };
-                }
-
-                FILE *f;
-                Path unlinkFile;
-                int bytes;
-                if (std::isdigit(value.at(colon + 1))) {
-                    bytes = atoi(value.constData() + colon + 1);
-                    if (!bytes) {
-                        return { String::format<1024>("Can't parse -u [%s]", value.constData()), CommandLineParser::Parse_Error };
-                    }
-                    f = stdin;
-                } else {
-                    unlinkFile = value.mid(colon + 1);
-                    f          = fopen(value.constData() + colon + 1, "r");
-                    if (!f) {
-                        return { String::format<1024>("Can't open %s for reading", unlinkFile.constData()), CommandLineParser::Parse_Error };
-                    }
-                    bytes = Rct::fileSize(f);
-                }
-
-                String contents(bytes, '\0');
-                const int r = fread(contents.data(), 1, bytes, f);
-                if (!unlinkFile.empty())
-                    Path::rm(unlinkFile);
-                if (r != bytes) {
-                    return { String::format<1024>("Read error %d (%s). Got %d, expected %d", errno, Rct::strerror(errno).constData(), r, bytes), CommandLineParser::Parse_Error };
-                }
-                mUnsavedFiles[path] = std::move(contents);
-                break;
-            }
-            case FollowLocation:
-            case ClassHierarchy:
-            case ReferenceLocation: {
-                String encoded = Location::encode(value);
-                if (encoded.empty()) {
-                    return { String::format<1024>("Can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
-                }
-                QueryMessage::Type queryType = QueryMessage::Invalid;
-                switch (type) {
-                    case FollowLocation:
-                        queryType = QueryMessage::FollowLocation;
-                        break;
-                    case ReferenceLocation:
-                        queryType = QueryMessage::ReferencesLocation;
-                        break;
-                    case ClassHierarchy:
-                        queryType = QueryMessage::ClassHierarchy;
-                        break;
-                    default:
-                        assert(0);
-                        break;
-                }
-                addQuery(queryType, std::move(encoded), QueryMessage::HasLocation);
-                break;
-            }
-            case SymbolInfo: {
-                std::cmatch match;
-                std::regex rx("^(.*):([0-9]+):([0-9]+):?-:?([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::extended);
-                Path path;
-                List<String> kinds;
-                uint32_t line = 0, col = 0, line2 = 0, col2 = 0;
-                if (std::regex_match(value.constData(), match, rx)) {
+            } else {
+                std::regex rx2("^(.*):([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::basic);
+                if (std::regex_match(value.constData(), match, rx2)) {
                     path.assign(value.constData(), match.length(1));
-                    line  = atoi(value.constData() + match.position(2));
-                    col   = atoi(value.constData() + match.position(3));
-                    line2 = atoi(value.constData() + match.position(4));
-                    col2  = atoi(value.constData() + match.position(5));
-                    if (match.length(6) > 1)
-                        kinds = String(value.constData() + match.position(6) + 1, match.length(6) - 1).split(",");
-                    if (!line || !col || !line2 || !col2 || !path.resolve(Path::MakeAbsolute)) {
+                    line = atoi(value.constData() + match.position(2));
+                    col = atoi(value.constData() + match.position(3));
+                    if (match.length(4) > 1)
+                        kinds = String(value.constData() + match.position(4) + 1, match.length(4) - 1).split(",");
+                    if (!line || !col || !path.resolve(Path::MakeAbsolute)) {
                         return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                     }
-                } else {
-                    std::regex rx2("^(.*):([0-9]+):([0-9]+):?(@[A-Za-z,]+)?", std::regex_constants::basic);
-                    if (std::regex_match(value.constData(), match, rx2)) {
-                        path.assign(value.constData(), match.length(1));
-                        line = atoi(value.constData() + match.position(2));
-                        col  = atoi(value.constData() + match.position(3));
-                        if (match.length(4) > 1)
-                            kinds = String(value.constData() + match.position(4) + 1, match.length(4) - 1).split(",");
-                        if (!line || !col || !path.resolve(Path::MakeAbsolute)) {
-                            return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
-                        }
-                    } else if (!Location::parse(value, Path(), Path::MakeAbsolute, &path, &line, &col)) {
-                        return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
-                    }
+                } else if (!Location::parse(value, Path(), Path::MakeAbsolute, &path, &line, &col)) {
+                    return { String::format<1024>("Can't parse range %s", value.constData()), CommandLineParser::Parse_Error };
                 }
-                for (String &k : kinds) {
-                    k.lowerCase();
+            }
+            for (String &k : kinds) {
+                k.lowerCase();
+            }
+            String query;
+            Serializer serializer(query);
+            serializer << path << line << col << line2 << col2 << kinds;
+            addQuery(QueryMessage::SymbolInfo, std::move(query));
+            break; }
+        case CurrentFile: {
+            mCurrentFile = Path(value).resolved();
+            break; }
+        case ReloadFileManager: {
+            addQuery(QueryMessage::ReloadFileManager);
+            break; }
+        case DumpCompletions: {
+            addQuery(QueryMessage::DumpCompletions);
+            break; }
+        case DumpCompileCommands: {
+            addQuery(QueryMessage::DumpCompileCommands);
+            break; }
+        case Clear: {
+            addQuery(QueryMessage::ClearProjects);
+            break; }
+        case RdmLog: {
+            addLog(RdmLogCommand::Default);
+            break; }
+        case Diagnostics: {
+            addLog(RTags::DiagnosticsLevel);
+            break; }
+        case QuitRdm: {
+            String arg;
+            if (!value.empty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
+            }
+            int exit = 0;
+            if (!arg.empty()) {
+                bool ok;
+                exit = String(arg).toLongLong(&ok);
+                if (!ok) {
+                    return { String::format<1024>("Invalid argument to -q"), CommandLineParser::Parse_Error };
                 }
-                String query;
-                Serializer serializer(query);
-                serializer << path << line << col << line2 << col2 << kinds;
-                addQuery(QueryMessage::SymbolInfo, std::move(query));
-                break;
             }
-            case CurrentFile: {
-                mCurrentFile = Path(value).resolved();
-                break;
+            addQuitCommand(exit);
+            break; }
+        case DeleteProject: {
+            addQuery(QueryMessage::DeleteProject, std::move(value));
+            break; }
+        case DebugLocations: {
+            String arg;
+            if (!value.empty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
-            case ReloadFileManager: {
-                addQuery(QueryMessage::ReloadFileManager);
-                break;
+            addQuery(QueryMessage::DebugLocations, std::move(arg));
+            break; }
+        case SendDiagnostics: {
+            addQuery(QueryMessage::SendDiagnostics, std::move(value));
+            break; }
+        case FindProjectRoot: {
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::SourceRoot).constData());
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case FindProjectBuildRoot: {
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
+            printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::BuildRoot).constData());
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case RTagsConfig: {
+            const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
+            Map<String, String> config = RTags::rtagsConfig(p);
+            printf("rtags-config: %s:\n", p.constData());
+            for (const auto &it : config) {
+                printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
             }
-            case DumpCompletions: {
-                addQuery(QueryMessage::DumpCompletions);
-                break;
-            }
-            case DumpCompileCommands: {
-                addQuery(QueryMessage::DumpCompileCommands);
-                break;
-            }
-            case Clear: {
-                addQuery(QueryMessage::ClearProjects);
-                break;
-            }
-            case RdmLog: {
-                addLog(RdmLogCommand::Default);
-                break;
-            }
-            case Diagnostics: {
-                addLog(RTags::DiagnosticsLevel);
-                break;
-            }
-            case QuitRdm: {
-                String arg;
-                if (!value.empty()) {
-                    arg = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    arg = arguments[idx++];
-                }
-                int exit = 0;
-                if (!arg.empty()) {
-                    bool ok;
-                    exit = String(arg).toLongLong(&ok);
-                    if (!ok) {
-                        return { String::format<1024>("Invalid argument to -q"), CommandLineParser::Parse_Error };
-                    }
-                }
-                addQuitCommand(exit);
-                break;
-            }
-            case DeleteProject: {
-                addQuery(QueryMessage::DeleteProject, std::move(value));
-                break;
-            }
-            case DebugLocations: {
-                String arg;
-                if (!value.empty()) {
-                    arg = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    arg = arguments[idx++];
-                }
-                addQuery(QueryMessage::DebugLocations, std::move(arg));
-                break;
-            }
-            case SendDiagnostics: {
-                addQuery(QueryMessage::SendDiagnostics, std::move(value));
-                break;
-            }
-            case FindProjectRoot: {
-                const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
-                printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::SourceRoot).constData());
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case FindProjectBuildRoot: {
-                const Path p = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
-                printf("findProjectRoot [%s] => [%s]\n", p.constData(), RTags::findProjectRoot(p, RTags::BuildRoot).constData());
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case RTagsConfig: {
-                const Path p               = Path::resolved(value); // this won't work correctly with --no-realpath unless --no-realpath is passed first
-                Map<String, String> config = RTags::rtagsConfig(p);
-                printf("rtags-config: %s:\n", p.constData());
-                for (const auto &it : config) {
-                    printf("%s: \"%s\"\n", it.first.constData(), it.second.constData());
-                }
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case CurrentProject: {
-                addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
-                break;
-            }
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case CurrentProject: {
+            addQuery(QueryMessage::Project, String(), QueryMessage::CurrentProjectOnly);
+            break; }
+        case CheckReindex:
+        case Reindex:
+        case Project:
+        case IsIndexing:
+        case FindFile:
+        case ListSymbols:
+        case FindSymbols:
+        case Sources:
+        case IncludeFile:
+        case JobCount:
+        case Status: {
+            QueryMessage::Type queryType = QueryMessage::Invalid;
+            bool resolve = true;
+
+            switch (type) {
             case CheckReindex:
+                queryType = QueryMessage::CheckReindex;
+                break;
             case Reindex:
+                queryType = QueryMessage::Reindex;
+                break;
             case Project:
+                queryType = QueryMessage::Project;
+                break;
             case IsIndexing:
+                queryType = QueryMessage::IsIndexing;
+                break;
             case FindFile:
-            case ListSymbols:
-            case FindSymbols:
+                queryType = QueryMessage::FindFile;
+                resolve = false;
+                break;
             case Sources:
+                queryType = QueryMessage::Sources;
+                break;
             case IncludeFile:
+                queryType = QueryMessage::IncludeFile;
+                resolve = false;
+                break;
+            case Status:
+                queryType = QueryMessage::Status;
+                break;
+            case ListSymbols:
+                queryType = QueryMessage::ListSymbols;
+                break;
+            case FindSymbols:
+                queryType = QueryMessage::FindSymbols;
+                break;
             case JobCount:
-            case Status: {
-                QueryMessage::Type queryType = QueryMessage::Invalid;
-                bool resolve                 = true;
+                queryType = QueryMessage::JobCount;
+                break;
+            default:
+                assert(0);
+                break;
+            }
 
-                switch (type) {
-                    case CheckReindex:
-                        queryType = QueryMessage::CheckReindex;
-                        break;
-                    case Reindex:
-                        queryType = QueryMessage::Reindex;
-                        break;
-                    case Project:
-                        queryType = QueryMessage::Project;
-                        break;
-                    case IsIndexing:
-                        queryType = QueryMessage::IsIndexing;
-                        break;
-                    case FindFile:
-                        queryType = QueryMessage::FindFile;
-                        resolve   = false;
-                        break;
-                    case Sources:
-                        queryType = QueryMessage::Sources;
-                        break;
-                    case IncludeFile:
-                        queryType = QueryMessage::IncludeFile;
-                        resolve   = false;
-                        break;
-                    case Status:
-                        queryType = QueryMessage::Status;
-                        break;
-                    case ListSymbols:
-                        queryType = QueryMessage::ListSymbols;
-                        break;
-                    case FindSymbols:
-                        queryType = QueryMessage::FindSymbols;
-                        break;
-                    case JobCount:
-                        queryType = QueryMessage::JobCount;
-                        break;
-                    default:
-                        assert(0);
-                        break;
-                }
-
-                String arg;
-                if (!value.empty()) {
-                    arg = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    arg = arguments[idx++];
-                }
-                if (!arg.empty()) {
-                    Path p(arg);
-                    if (resolve && p.exists()) {
-                        p.resolve();
-                    }
-                    if (resolve) {
-                        addQuery(queryType, std::move(p));
-                    } else {
-                        addQuery(queryType, std::move(arg));
-                    }
-                } else {
-                    addQuery(queryType, String());
-                }
-                assert(!mCommands.empty());
-                if (queryType == QueryMessage::Project)
-                    projectCommands.push_back(std::static_pointer_cast<QueryCommand>(mCommands.back()));
-                break;
+            String arg;
+            if (!value.empty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                arg = arguments[idx++];
             }
-            case ListBuffers: {
-                addQuery(QueryMessage::SetBuffers);
-                break;
-            }
-            case ListCursorKinds: {
-                auto print = [](CXCursorKind from, CXCursorKind to)
-                {
-                    for (int i = from; i <= to; ++i) {
-                        const CXCursorKind kind = static_cast<CXCursorKind>(i);
-                        String spelling         = RTags::eatString(clang_getCursorKindSpelling(kind));
-                        spelling.remove(' ');
-                        Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << spelling;
-                    }
-                };
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Declarations:";
-                print(CXCursor_FirstDecl, CXCursor_LastDecl);
-                print(CXCursor_FirstExtraDecl, CXCursor_LastExtraDecl);
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "References:";
-                print(CXCursor_FirstRef, CXCursor_LastRef);
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Expressions:";
-                print(CXCursor_FirstExpr, CXCursor_LastExpr);
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Statements:";
-                print(CXCursor_FirstStmt, CXCursor_LastStmt);
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Attributes:";
-                print(CXCursor_FirstAttr, CXCursor_LastAttr);
-                Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Preprocessing:";
-                print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
-                mExitCode = RTags::Success;
-                return { String(), CommandLineParser::Parse_Ok };
-            }
-            case SetBuffers:
-            case AddBuffers:
-            case RemoveBuffers: {
-                String arg;
-                if (!value.empty()) {
-                    arg = std::move(value);
-                } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
-                    arg = arguments[idx++];
-                }
-                String encoded;
-                if (!arg.empty()) {
-                    Hash<Path, bool> paths;
-                    auto addBuffer = [&paths](const String &p)
-                    {
-                        if (p.empty())
-                            return;
-                        bool active = true;
-                        Path path;
-                        if (p.startsWith("\\")) {
-                            path = p.mid(1);
-                        } else if (p.startsWith("+")) {
-                            path = p.mid(1);
-                        } else if (p.startsWith("-")) {
-                            path   = p.mid(1);
-                            active = false;
-                        } else {
-                            path = p;
-                        }
-                        if (path.resolve() && path.isFile()) {
-                            paths[path] = active;
-                        } else {
-                            fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
-                        }
-                    };
-
-                    if (arg == "-") {
-                        char buf[1024];
-                        while (fgets(buf, sizeof(buf), stdin)) {
-                            String a(buf);
-                            if (a.endsWith('\n'))
-                                a.chop(1);
-                            addBuffer(a);
-                        }
-                    } else {
-                        for (const String &buffer : arg.split(';')) {
-                            addBuffer(buffer);
-                        }
-                    }
-                    Serializer serializer(encoded);
-                    serializer << '1'; // version marker to not crash with older versions of rc
-                    switch (type) {
-                        case AddBuffers: serializer << 1; break;
-                        case SetBuffers: serializer << 0; break;
-                        case RemoveBuffers: serializer << -1; break;
-                        default: assert(0); break;
-                    }
-                    serializer << paths;
-                }
-                addQuery(QueryMessage::SetBuffers, std::move(encoded));
-                break;
-            }
-            case LoadCompileCommands: {
-                Path path;
-                if (!value.empty()) {
-                    path = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    path = arguments[idx++];
-                } else {
-                    path = Path::pwd();
-                }
-                path.resolve(Path::MakeAbsolute);
-                if (!path.exists()) {
-                    return { String::format<1024>("%s does not seem to exist", path.constData()), CommandLineParser::Parse_Error };
-                } else if (path.isDir()) {
-                    path = path.ensureTrailingSlash() + "compile_commands.json";
-                } else if (!path.endsWith("/compile_commands.json")) {
-                    return { "The file has to be called compile_commands.json", CommandLineParser::Parse_Error };
-                }
-                if (!path.exists()) {
-                    return { String::format<1024>("no compile_commands.json file in %s", path.constData()), CommandLineParser::Parse_Error };
-                }
-
-                addCompile(std::move(path));
-                break;
-            }
-            case HasFileManager: {
-                Path p;
-                if (!value.empty()) {
-                    p = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    p = arguments[idx++];
-                } else {
-                    p = ".";
-                }
-                p.resolve(Path::MakeAbsolute);
-                if (!p.exists()) {
-                    return { String::format<1024>("%s does not seem to exist", p.constData()), CommandLineParser::Parse_Error };
-                }
-                if (p.isDir() && !p.endsWith('/'))
-                    p.append('/');
-                addQuery(QueryMessage::HasFileManager, std::move(p), QueryMessage::HasMatch);
-                break;
-            }
-            case ProjectRoot: {
-                Path p = std::move(value);
-                if (!p.isDir()) {
-                    return { String::format<1024>("%s does not seem to be a directory", p.constData()), CommandLineParser::Parse_Error };
-                }
-
-                p.resolve(Path::MakeAbsolute);
-                mProjectRoot = p.ensureTrailingSlash();
-                break;
-            }
-            case Suspend: {
-                Path p;
-                if (!value.empty()) {
-                    p = std::move(value);
-                } else if (idx < arguments.size() && arguments[idx][0] != '-') {
-                    p = arguments[idx++];
-                }
-                String change;
-                if (!p.empty() && p != "clear" && p != "all") {
-                    p.resolve(Path::MakeAbsolute);
-                    if (!p.isFile()) {
-                        return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-                    }
-                    if (idx + 1 < arguments.size()) {
-                        if (arguments[idx + 1] == "on" || arguments[idx + 1] == "off") {
-                            change = std::move(arguments[++idx]);
-                        } else if (arguments[idx + 1] == "toggle") {
-                            ++idx;
-                        }
-                    }
-                }
-                String data;
-                Serializer serializer(data);
-                serializer << p << change;
-                addQuery(QueryMessage::Suspend, std::move(data));
-                break;
-            }
-            case Compile: {
-                auto quote = [](const String &str) -> String
-                {
-                    if (str.contains(' ')) {
-                        String ret = str;
-                        ret.replace("\"", "\\\"");
-                        ret.insert(0, "\"");
-                        ret.push_back("\"");
-                        return ret;
-                    }
-                    return str;
-                };
-                String args;
-                if (idx + 1 < arguments.size()) {
-                    args = quote(std::move(value));
-                    while (++idx < arguments.size()) {
-                        if (!args.empty())
-                            args.append(' ');
-                        args.push_back(quote(arguments[idx]));
-                    }
-                } else {
-                    args = std::move(value);
-                }
-                if (args == "-" || args.empty()) {
-                    String pending;
-                    char buf[16384];
-                    while (fgets(buf, sizeof(buf), stdin)) {
-                        pending += buf;
-                        if (!pending.endsWith("\\\n")) {
-                            addCompile(std::move(pending), Path::pwd());
-                        } else {
-                            memset(pending.data() + pending.size() - 2, ' ', 2);
-                        }
-                    }
-                    if (!pending.empty()) {
-                        addCompile(std::move(pending), Path::pwd());
-                    }
-                } else {
-                    addCompile(std::move(args), Path::pwd());
-                }
-                break;
-            }
-            case LastIndexed: {
-                addQuery(QueryMessage::LastIndexed);
-                break;
-            }
-            case NoSortReferencesByInput: {
-                mQueryFlags |= QueryMessage::NoSortReferencesByInput;
-                break;
-            }
-            case DiagnoseAll: {
-                addQuery(QueryMessage::Diagnose, String());
-                break;
-            }
-            case IsIndexed:
-            case DumpFile:
-            case CheckIncludes:
-            case GenerateTest:
-            case Diagnose:
-            case DeadFunctions:
-            case FixIts: {
-                Path p = std::move(value);
-                if (!p.exists() && (!p.empty() || type != DeadFunctions)) {
-                    return { String::format<1024>("%s does not exist", p.constData()), CommandLineParser::Parse_Error };
-                }
-
-                if (!p.isAbsolute() && !p.empty())
-                    p.prepend(Path::pwd());
-
-                if (p.isDir()) {
-                    if (type != IsIndexed) {
-                        return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-                    } else if (!p.endsWith('/')) {
-                        p.append('/');
-                    }
-                }
-                Flags<QueryMessage::Flag> extraQueryFlags;
-                if (!p.empty()) {
+            if (!arg.empty()) {
+                Path p(arg);
+                if (resolve && p.exists()) {
                     p.resolve();
-                    extraQueryFlags |= QueryMessage::HasMatch;
                 }
-                QueryMessage::Type queryType = QueryMessage::Invalid;
-                switch (type) {
-                    case GenerateTest:
-                        queryType = QueryMessage::GenerateTest;
-                        break;
-                    case FixIts:
-                        queryType = QueryMessage::FixIts;
-                        break;
-                    case DumpFile:
-                        queryType = QueryMessage::DumpFile;
-                        break;
-                    case DeadFunctions:
-                        queryType = QueryMessage::DeadFunctions;
-                        break;
-                    case CheckIncludes:
-                        queryType = QueryMessage::DumpFile;
-                        extraQueryFlags |= QueryMessage::DumpCheckIncludes;
-                        break;
-                    case Diagnose:
-                        queryType = QueryMessage::Diagnose;
-                        break;
-                    case IsIndexed:
-                        queryType = QueryMessage::IsIndexed;
-                        break;
-                    default:
-                        assert(0);
-                        break;
+                if (resolve) {
+                    addQuery(queryType, std::move(p));
+                } else {
+                    addQuery(queryType, std::move(arg));
                 }
-
-                addQuery(queryType, std::move(p), extraQueryFlags);
-                break;
+            } else {
+                addQuery(queryType, String());
             }
-            case AllDependencies: {
-                String encoded;
-                List<String> args;
-                while (idx < arguments.size() && arguments[idx][0] != '-') {
-                    args.push_back(arguments[idx++]);
+            assert(!mCommands.empty());
+            if (queryType == QueryMessage::Project)
+                projectCommands.push_back(std::static_pointer_cast<QueryCommand>(mCommands.back()));
+            break; }
+        case ListBuffers: {
+            addQuery(QueryMessage::SetBuffers);
+            break; }
+        case ListCursorKinds: {
+            auto print = [](CXCursorKind from, CXCursorKind to) {
+                for (int i = from; i <= to; ++i) {
+                    const CXCursorKind kind = static_cast<CXCursorKind>(i);
+                    String spelling = RTags::eatString(clang_getCursorKindSpelling(kind));
+                    spelling.remove(' ');
+                    Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << spelling;
                 }
-                Serializer s(encoded);
-                s << Path() << args;
-                addQuery(QueryMessage::Dependencies, std::move(encoded));
-                break;
+            };
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Declarations:";
+            print(CXCursor_FirstDecl, CXCursor_LastDecl);
+            print(CXCursor_FirstExtraDecl, CXCursor_LastExtraDecl);
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "References:";
+            print(CXCursor_FirstRef, CXCursor_LastRef);
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Expressions:";
+            print(CXCursor_FirstExpr, CXCursor_LastExpr);
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Statements:";
+            print(CXCursor_FirstStmt, CXCursor_LastStmt);
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Attributes:";
+            print(CXCursor_FirstAttr, CXCursor_LastAttr);
+            Log(LogLevel::Error, LogOutput::StdOut | LogOutput::TrailingNewLine) << "Preprocessing:";
+            print(CXCursor_FirstPreprocessing, CXCursor_LastPreprocessing);
+            mExitCode = RTags::Success;
+            return { String(), CommandLineParser::Parse_Ok }; }
+        case SetBuffers:
+        case AddBuffers:
+        case RemoveBuffers: {
+            String arg;
+            if (!value.empty()) {
+                arg = std::move(value);
+            } else if (idx < arguments.size() && (arguments[idx][0] != '-' || arguments[idx] == "-")) {
+                arg = arguments[idx++];
             }
-            case DumpFileMaps:
-            case Dependencies: {
-                Path p = std::move(value);
-                if (!p.isFile()) {
-                    return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
-                }
-                p.resolve();
-                List<String> args;
-                while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
-                    args.push_back(arguments[++idx]);
-                }
-
-                String encoded;
-                Serializer s(encoded);
-                s << p << args;
-                addQuery(type == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, std::move(encoded));
-                break;
-            }
-            case Tokens: {
-                char path[PATH_MAX];
-                uint32_t from, to;
-                if (sscanf(value.constData(), "%[^':']:%u-%u", path, &from, &to) != 3) {
-                    if (sscanf(value.constData(), "%[^':']:%u-", path, &from) == 2) {
-                        to = UINT_MAX;
-                    } else if (sscanf(value.constData(), "%[^':']:-%u", path, &to) == 2) {
-                        from = 0;
+            String encoded;
+            if (!arg.empty()) {
+                Hash<Path, bool> paths;
+                auto addBuffer = [&paths](const String &p) {
+                    if (p.empty())
+                        return;
+                    bool active = true;
+                    Path path;
+                    if (p.startsWith("\\")) {
+                        path = p.mid(1);
+                    } else if (p.startsWith("+")) {
+                        path = p.mid(1);
+                    } else if (p.startsWith("-")) {
+                        path = p.mid(1);
+                        active = false;
                     } else {
-                        strncpy(path, value.constData(), value.size());
-                        from = 0;
-                        to   = UINT_MAX;
+                        path = p;
+                    }
+                    if (path.resolve() && path.isFile()) {
+                        paths[path] = active;
+                    } else {
+                        fprintf(stderr, "\"%s\" doesn't seem to be a file.\n", p.constData());
+                    }
+                };
+
+                if (arg == "-") {
+                    char buf[1024];
+                    while (fgets(buf, sizeof(buf), stdin)) {
+                        String a(buf);
+                        if (a.endsWith('\n'))
+                            a.chop(1);
+                        addBuffer(a);
+                    }
+                } else {
+                    for (const String &buffer : arg.split(';')) {
+                        addBuffer(buffer);
                     }
                 }
+                Serializer serializer(encoded);
+                serializer << '1'; // version marker to not crash with older versions of rc
+                switch (type) {
+                case AddBuffers: serializer << 1; break;
+                case SetBuffers: serializer << 0; break;
+                case RemoveBuffers: serializer << -1; break;
+                default: assert(0); break;
+                }
+                serializer << paths;
+            }
+            addQuery(QueryMessage::SetBuffers, std::move(encoded));
+            break; }
+        case LoadCompileCommands: {
+            Path path;
+            if (!value.empty()) {
+                path = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                path = arguments[idx++];
+            } else {
+                path = Path::pwd();
+            }
+            path.resolve(Path::MakeAbsolute);
+            if (!path.exists()) {
+                return { String::format<1024>("%s does not seem to exist", path.constData()), CommandLineParser::Parse_Error };
+            } else if (path.isDir()) {
+                path = path.ensureTrailingSlash() + "compile_commands.json";
+            } else if (!path.endsWith("/compile_commands.json")) {
+                return { "The file has to be called compile_commands.json", CommandLineParser::Parse_Error };
+            }
+            if (!path.exists()) {
+                return { String::format<1024>("no compile_commands.json file in %s", path.constData()), CommandLineParser::Parse_Error };
+            }
 
-                const Path p = Path::resolved(path);
-                if (!p.isFile()) {
-                    return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
-                }
-                if (from >= to) {
-                    return { String::format<1024>("Invalid range: %s", value.constData()), CommandLineParser::Parse_Error };
-                }
-                String data;
-                Serializer s(data);
-                s << p << from << to;
-                addQuery(QueryMessage::Tokens, std::move(data));
-                break;
+            addCompile(std::move(path));
+            break; }
+        case HasFileManager: {
+            Path p;
+            if (!value.empty()) {
+                p = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
+            } else {
+                p = ".";
             }
-            case TokensIncludeSymbols: {
-                mQueryFlags |= QueryMessage::TokensIncludeSymbols;
-                break;
+            p.resolve(Path::MakeAbsolute);
+            if (!p.exists()) {
+                return { String::format<1024>("%s does not seem to exist", p.constData()), CommandLineParser::Parse_Error };
             }
-            case PreprocessFile: {
-                Path p = std::move(value);
+            if (p.isDir() && !p.endsWith('/'))
+                p.append('/');
+            addQuery(QueryMessage::HasFileManager, std::move(p), QueryMessage::HasMatch);
+            break; }
+        case ProjectRoot: {
+            Path p = std::move(value);
+            if (!p.isDir()) {
+                return { String::format<1024>("%s does not seem to be a directory", p.constData()), CommandLineParser::Parse_Error };
+            }
+
+            p.resolve(Path::MakeAbsolute);
+            mProjectRoot = p.ensureTrailingSlash();
+            break; }
+        case Suspend: {
+            Path p;
+            if (!value.empty()) {
+                p = std::move(value);
+            } else if (idx < arguments.size() && arguments[idx][0] != '-') {
+                p = arguments[idx++];
+            }
+            String change;
+            if (!p.empty() && p != "clear" && p != "all") {
                 p.resolve(Path::MakeAbsolute);
                 if (!p.isFile()) {
                     return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
                 }
-                addQuery(QueryMessage::PreprocessFile, std::move(p), QueryMessage::HasMatch);
-                break;
+                if (idx + 1 < arguments.size()) {
+                    if (arguments[idx + 1] == "on" || arguments[idx + 1] == "off") {
+                        change = std::move(arguments[++idx]);
+                    } else if (arguments[idx + 1] == "toggle") {
+                        ++idx;
+                    }
+                }
             }
-            case AsmFile: {
-                Path p = std::move(value);
-                p.resolve(Path::MakeAbsolute);
-                if (!p.isFile()) {
+            String data;
+            Serializer serializer(data);
+            serializer << p << change;
+            addQuery(QueryMessage::Suspend, std::move(data));
+            break; }
+        case Compile: {
+            auto quote = [](const String &str) -> String {
+                if (str.contains(' ')) {
+                    String ret = str;
+                    ret.replace("\"", "\\\"");
+                    ret.insert(0, "\"");
+                    ret.push_back("\"");
+                    return ret;
+                }
+                return str;
+            };
+            String args;
+            if (idx + 1 < arguments.size()) {
+                args = quote(std::move(value));
+                while (++idx < arguments.size()) {
+                    if (!args.empty())
+                        args.append(' ');
+                    args.push_back(quote(arguments[idx]));
+                }
+            } else {
+                args = std::move(value);
+            }
+            if (args == "-" || args.empty()) {
+                String pending;
+                char buf[16384];
+                while (fgets(buf, sizeof(buf), stdin)) {
+                    pending += buf;
+                    if (!pending.endsWith("\\\n")) {
+                        addCompile(std::move(pending), Path::pwd());
+                    } else {
+                        memset(pending.data() + pending.size() - 2, ' ', 2);
+                    }
+                }
+                if (!pending.empty()) {
+                    addCompile(std::move(pending), Path::pwd());
+                }
+            } else {
+                addCompile(std::move(args), Path::pwd());
+            }
+            break; }
+        case LastIndexed: {
+            addQuery(QueryMessage::LastIndexed);
+            break; }
+        case NoSortReferencesByInput: {
+            mQueryFlags |= QueryMessage::NoSortReferencesByInput;
+            break; }
+        case DiagnoseAll: {
+            addQuery(QueryMessage::Diagnose, String());
+            break; }
+        case IsIndexed:
+        case DumpFile:
+        case CheckIncludes:
+        case GenerateTest:
+        case Diagnose:
+        case DeadFunctions:
+        case FixIts: {
+            Path p = std::move(value);
+            if (!p.exists() && (!p.empty() || type != DeadFunctions)) {
+                return { String::format<1024>("%s does not exist", p.constData()), CommandLineParser::Parse_Error };
+            }
+
+            if (!p.isAbsolute() && !p.empty())
+                p.prepend(Path::pwd());
+
+            if (p.isDir()) {
+                if (type != IsIndexed) {
                     return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
+                } else if (!p.endsWith('/')) {
+                    p.append('/');
                 }
-                addQuery(QueryMessage::AsmFile, std::move(p), QueryMessage::HasMatch);
+            }
+            Flags<QueryMessage::Flag> extraQueryFlags;
+            if (!p.empty()) {
+                p.resolve();
+                extraQueryFlags |= QueryMessage::HasMatch;
+            }
+            QueryMessage::Type queryType = QueryMessage::Invalid;
+            switch (type) {
+            case GenerateTest:
+                queryType = QueryMessage::GenerateTest;
+                break;
+            case FixIts:
+                queryType = QueryMessage::FixIts;
+                break;
+            case DumpFile:
+                queryType = QueryMessage::DumpFile;
+                break;
+            case DeadFunctions:
+                queryType = QueryMessage::DeadFunctions;
+                break;
+            case CheckIncludes:
+                queryType = QueryMessage::DumpFile;
+                extraQueryFlags |= QueryMessage::DumpCheckIncludes;
+                break;
+            case Diagnose:
+                queryType = QueryMessage::Diagnose;
+                break;
+            case IsIndexed:
+                queryType = QueryMessage::IsIndexed;
+                break;
+            default:
+                assert(0);
                 break;
             }
-            case ReferenceName: {
-                addQuery(QueryMessage::ReferencesName, std::move(value));
-                break;
-            }
-            case IncludePath: {
-                String encoded = Location::encode(value);
-                if (encoded.empty()) {
-                    return { String::format<1024>("include path can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
-                }
 
-                addQuery(QueryMessage::IncludePath, std::move(encoded), QueryMessage::HasLocation);
-                break;
+            addQuery(queryType, std::move(p), extraQueryFlags);
+            break; }
+        case AllDependencies: {
+            String encoded;
+            List<String> args;
+            while (idx < arguments.size() && arguments[idx][0] != '-') {
+                args.push_back(arguments[idx++]);
             }
-            case MaxDepth: {
-                const int depth = atoi(value.constData());
-                if (depth <= 0) {
-                    return { String::format<1024>("Invalid depth %s", value.constData()), CommandLineParser::Parse_Error };
-                }
+            Serializer s(encoded);
+            s << Path() << args;
+            addQuery(QueryMessage::Dependencies, std::move(encoded));
+            break; }
+        case DumpFileMaps:
+        case Dependencies: {
+            Path p = std::move(value);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
+            }
+            p.resolve();
+            List<String> args;
+            while (idx + 1 < arguments.size() && arguments[idx + 1][0] != '-') {
+                args.push_back(arguments[++idx]);
+            }
 
-                mMaxDepth = depth;
-                break;
+            String encoded;
+            Serializer s(encoded);
+            s << p << args;
+            addQuery(type == DumpFileMaps ? QueryMessage::DumpFileMaps : QueryMessage::Dependencies, std::move(encoded));
+            break; }
+        case Tokens: {
+            char path[PATH_MAX];
+            uint32_t from, to;
+            if (sscanf(value.constData(), "%[^':']:%u-%u", path, &from, &to) != 3) {
+                if (sscanf(value.constData(), "%[^':']:%u-", path, &from) == 2) {
+                    to = UINT_MAX;
+                } else if (sscanf(value.constData(), "%[^':']:-%u", path, &to) == 2) {
+                    from = 0;
+                } else {
+                    strncpy(path, value.constData(), value.size());
+                    from = 0;
+                    to = UINT_MAX;
+                }
             }
+
+            const Path p = Path::resolved(path);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", value.constData()), CommandLineParser::Parse_Error };
+            }
+            if (from >= to) {
+                return { String::format<1024>("Invalid range: %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+            String data;
+            Serializer s(data);
+            s << p << from << to;
+            addQuery(QueryMessage::Tokens, std::move(data));
+            break; }
+        case TokensIncludeSymbols: {
+            mQueryFlags |= QueryMessage::TokensIncludeSymbols;
+            break; }
+        case PreprocessFile: {
+            Path p = std::move(value);
+            p.resolve(Path::MakeAbsolute);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
+            }
+            addQuery(QueryMessage::PreprocessFile, std::move(p), QueryMessage::HasMatch);
+            break; }
+        case AsmFile: {
+            Path p = std::move(value);
+            p.resolve(Path::MakeAbsolute);
+            if (!p.isFile()) {
+                return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
+            }
+            addQuery(QueryMessage::AsmFile, std::move(p), QueryMessage::HasMatch);
+            break; }
+        case ReferenceName: {
+            addQuery(QueryMessage::ReferencesName, std::move(value));
+            break; }
+        case IncludePath: {
+            String encoded = Location::encode(value);
+            if (encoded.empty()) {
+                return { String::format<1024>("include path can't resolve argument %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+
+            addQuery(QueryMessage::IncludePath, std::move(encoded), QueryMessage::HasLocation);
+            break; }
+        case MaxDepth: {
+            const int depth = atoi(value.constData());
+            if (depth <= 0) {
+                return { String::format<1024>("Invalid depth %s", value.constData()), CommandLineParser::Parse_Error };
+            }
+
+            mMaxDepth = depth;
+            break; }
+
         }
         return { String(), CommandLineParser::Parse_Exec };
     };

@@ -16,18 +16,16 @@
 #ifndef RTagsLogOutput_h
 #define RTagsLogOutput_h
 
-#include "QueryMessage.h"
 #include "rct/Connection.h"
 #include "rct/Log.h"
 #include "rct/String.h"
+#include "QueryMessage.h"
 
 class RTagsLogOutput : public LogOutput
 {
 public:
     RTagsLogOutput(LogLevel level, Flags<QueryMessage::Flag> flags, const std::shared_ptr<Connection> &conn = std::shared_ptr<Connection>())
-        : LogOutput(Custom, level)
-        , mQueryFlags(flags)
-        , mConnection(conn)
+        : LogOutput(Custom, level), mQueryFlags(flags), mConnection(conn)
     {
         if (conn) {
             conn->disconnected().connect(std::bind(&RTagsLogOutput::remove, this));
@@ -45,7 +43,6 @@ public:
             return level == logLevel();
         return LogOutput::testLog(level);
     }
-
     virtual void log(Flags<LogFlag>, const char *msg, int len) override
     {
         if (mConnection) {
@@ -53,14 +50,12 @@ public:
             if (EventLoop::eventLoop() == main) {
                 mConnection->write(String(msg, len));
             } else {
-                EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message &&)) & Connection::send, mConnection, std::placeholders::_1),
+                EventLoop::mainEventLoop()->callLaterMove(std::bind((bool(Connection::*)(Message&&))&Connection::send, mConnection, std::placeholders::_1),
                                                           ResponseMessage(String(msg, len)));
             }
         }
     }
-
     std::shared_ptr<Connection> connection() const { return mConnection; }
-
 private:
     const Flags<QueryMessage::Flag> mQueryFlags;
     std::shared_ptr<Connection> mConnection;

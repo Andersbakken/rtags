@@ -24,8 +24,7 @@
 class QueryMessage;
 class Project;
 class String;
-template <typename T>
-class Set;
+template <typename T> class Set;
 
 class SymbolInfoJob : public QueryJob
 {
@@ -35,10 +34,8 @@ public:
                   Set<String> &&pieceFilters,
                   const std::shared_ptr<QueryMessage> &query,
                   List<std::shared_ptr<Project>> &&proj);
-
 protected:
     virtual int execute() override;
-
 private:
     const Location start, end;
 };

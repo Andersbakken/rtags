@@ -24,8 +24,7 @@
 class RTagsMessage : public Message
 {
 public:
-    enum
-    {
+    enum {
         CompletionId = 32,
         QueryId,
         CompileId,
@@ -42,15 +41,10 @@ public:
         ExitMessageId
     };
 
-    RTagsMessage(uint8_t id)
-        : Message(id)
-    {
-    }
+    RTagsMessage(uint8_t id) : Message(id) {}
 
     inline void setCommandLine(const String &cmd) { mCommandLine = cmd; }
-
     inline String commandLine() const { return mCommandLine; }
-
 protected:
     String mCommandLine;
 };

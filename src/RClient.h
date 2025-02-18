@@ -16,21 +16,21 @@
 #ifndef RClient_h
 #define RClient_h
 
-#include <memory>
 #include <stddef.h>
 #include <stdint.h>
+#include <memory>
 
-#include "CommandLineParser.h"
 #include "QueryMessage.h"
-#include "RTags.h"
-#include "rct/Flags.h"
 #include "rct/List.h"
-#include "rct/Log.h"
 #include "rct/Message.h"
 #include "rct/Path.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "CommandLineParser.h"
 #include "rct/rct-config.h"
+#include "RTags.h"
+#include "rct/Flags.h"
+#include "rct/Log.h"
 
 class RCCommand;
 class QueryCommand;
@@ -40,8 +40,7 @@ class Message;
 class RClient
 {
 public:
-    enum OptionType
-    {
+    enum OptionType {
         None = 0,
         AbsolutePath,
         AddBuffers,
@@ -176,25 +175,17 @@ public:
     RClient();
     ~RClient();
     void exec();
-
     int exitCode() const { return mExitCode; }
-
     CommandLineParser::ParseStatus parse(size_t argc, char **argv);
 
     int max() const { return mMax; }
-
     int maxDepth() const { return mMaxDepth; }
-
     LogLevel logLevel() const { return mLogLevel; }
-
     int timeout() const { return mTimeout; }
-
     int buildIndex() const { return mBuildIndex; }
 
     const Set<QueryMessage::PathFilter> &pathFilters() const { return mPathFilters; }
-
     int minOffset() const { return mMinOffset; }
-
     int maxOffset() const { return mMaxOffset; }
 
     const QueryMessage::KindFilters &kindFilters() const { return mKindFilters; }
@@ -202,28 +193,19 @@ public:
     const UnsavedFiles &unsavedFiles() const { return mUnsavedFiles; }
 
     const List<String> &rdmArgs() const { return mRdmArgs; }
-
     const Path &currentFile() const { return mCurrentFile; }
 
     String socketFile() const { return mSocketFile; }
-
     String tcpHost() const { return mTcpHost; }
-
     uint16_t tcpPort() const { return mTcpPort; }
-
     Path projectRoot() const { return mProjectRoot; }
-
     Flags<QueryMessage::Flag> queryFlags() const { return mQueryFlags; }
-
     int terminalWidth() const { return mTerminalWidth; }
 
     String commandLine() const { return mCommandLine; }
-
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &);
     List<String> environment() const;
-
     String codeCompletePrefix() const { return mCodeCompletePrefix; }
-
 private:
     void addQuery(QueryMessage::Type t, String &&query = String(),
                   Flags<QueryMessage::Flag> extraQueryFlags = Flags<QueryMessage::Flag>());

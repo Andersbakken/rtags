@@ -16,8 +16,8 @@
 #ifndef FindFileJob_h
 #define FindFileJob_h
 
-#include <memory>
 #include <regex>
+#include <memory>
 
 #include "QueryJob.h"
 #include "rct/String.h"
@@ -29,10 +29,8 @@ class FindFileJob : public QueryJob
 {
 public:
     FindFileJob(const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&project);
-
 protected:
     virtual int execute() override;
-
 private:
     String mPattern;
     std::regex mRegex;

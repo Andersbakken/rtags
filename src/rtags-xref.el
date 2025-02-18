@@ -125,7 +125,7 @@
   "Return completion function."
   #'rtags-symbolname-complete)
 
-(defun rtags-xref-backend () "Return \\='rtags." 'rtags)
+(defun rtags-xref-backend () "Return 'rtags." 'rtags)
 
 (defun rtags-xref-enable ()
   "Use rtags as xref backend."

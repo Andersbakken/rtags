@@ -17,26 +17,26 @@
 #define CompletionThread_h
 
 #include <clang-c/Index.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <stddef.h>
-#include <stdint.h>
 #include <utility>
 
 #include "Location.h"
-#include "RTags.h"
-#include "Source.h"
 #include "rct/Connection.h"
 #include "rct/EmbeddedLinkedList.h"
 #include "rct/Flags.h"
-#include "rct/Hash.h"
 #include "rct/LinkedList.h"
-#include "rct/List.h"
 #include "rct/Map.h"
+#include "rct/Thread.h"
+#include "Source.h"
+#include "RTags.h"
+#include "rct/Hash.h"
+#include "rct/List.h"
 #include "rct/Set.h"
 #include "rct/String.h"
-#include "rct/Thread.h"
 #include "rct/Value.h"
 
 struct MatchResult;
@@ -49,19 +49,16 @@ public:
     ~CompletionThread();
 
     virtual void run() override;
-
-    enum Flag
-    {
-        None          = 0x00,
-        Elisp         = 0x01,
-        XML           = 0x02,
-        JSON          = 0x04,
+    enum Flag {
+        None = 0x00,
+        Elisp = 0x01,
+        XML = 0x02,
+        JSON = 0x04,
         IncludeMacros = 0x08,
-        WarmUp        = 0x10,
-        NoWait        = 0x20,
-        Diagnose      = 0x40
+        WarmUp = 0x10,
+        NoWait = 0x20,
+        Diagnose = 0x40
     };
-
     bool isCached(const std::shared_ptr<Project> &project, uint32_t fileId) const;
     void completeAt(Source &&source, Location location, Flags<Flag> flags, int max,
                     const UnsavedFiles &unsavedFiles, const String &prefix,
@@ -71,7 +68,6 @@ public:
     void reparse(const std::shared_ptr<Project> &project, uint32_t fileId);
     void stop();
     String dump();
-
 private:
     struct Request;
 
@@ -81,15 +77,12 @@ private:
     Set<uint32_t> mWatched;
     bool mShutdown;
     const size_t mCacheSize;
-
-    struct Request
-    {
+    struct Request {
         ~Request()
         {
             if (conn)
                 conn->finish();
         }
-
         String toString() const;
         Source source;
         Location location;
@@ -99,60 +92,39 @@ private:
         String prefix;
         std::shared_ptr<Connection> conn;
     };
-
-    LinkedList<Request *> mPending;
-
-    struct Dump
-    {
+    LinkedList<Request*> mPending;
+    struct Dump {
         bool done;
         std::mutex mutex;
         std::condition_variable cond;
         String string;
-    } * mDump;
+    } *mDump;
 
-    struct Completions
-    {
-        Completions(Location loc)
-            : location(loc)
-            , next(nullptr)
-            , prev(nullptr)
-        {
-        }
-
-        struct Candidate
-        {
+    struct Completions {
+        Completions(Location loc) : location(loc), next(nullptr), prev(nullptr) {}
+        struct Candidate {
             String completion, signature, annotation, parent, briefComment;
             int priority = 0;
 #ifdef RTAGS_COMPLETION_TOKENS_ENABLED
             int distance = 0;
 #endif
             CXCursorKind cursorKind;
-
-            struct Chunk
-            {
+            struct Chunk {
                 Chunk()
                     : kind(CXCompletionChunk_Optional)
-                {
-                }
-
+                {}
                 Chunk(String &&t, CXCompletionChunkKind k)
-                    : text(std::forward<String>(t))
-                    , kind(k)
-                {
-                }
-
+                    : text(std::forward<String>(t)), kind(k)
+                {}
                 String text;
                 CXCompletionChunkKind kind;
             };
-
             List<Chunk> chunks;
 
-            enum Flag
-            {
-                Flag_None          = 0x0,
+            enum Flag {
+                Flag_None = 0x0,
                 Flag_IncludeChunks = 0x1
             };
-
             Value toValue(unsigned int flags) const;
         };
 
@@ -166,19 +138,10 @@ private:
     static bool compareCompletionCandidates(const Completions::Candidate *l,
                                             const Completions::Candidate *r);
 
-    struct SourceFile
-    {
+    struct SourceFile {
         SourceFile()
-            : lastModified(0)
-            , parseTime(0)
-            , reparseTime(0)
-            , codeCompleteTime(0)
-            , completions(0)
-            , next(nullptr)
-            , prev(nullptr)
-        {
-        }
-
+            : lastModified(0), parseTime(0), reparseTime(0), codeCompleteTime(0), completions(0), next(nullptr), prev(nullptr)
+        {}
         std::shared_ptr<RTags::TranslationUnit> translationUnit;
         UnsavedFiles unsavedFiles;
         uint64_t lastModified;
@@ -192,16 +155,13 @@ private:
     struct Token
     {
         Token(const char *bytes = 0, int size = 0)
-            : data(bytes)
-            , length(size)
-        {
-        }
+            : data(bytes), length(size)
+        {}
 
         inline bool operator==(const Token &other) const
         {
             return length == other.length && !strncmp(data, other.data, length);
         }
-
         inline bool operator<(const Token &other) const
         {
             if (!data)
@@ -209,7 +169,7 @@ private:
             if (!other.data)
                 return 1;
             const int minLength = std::min(length, other.length);
-            int ret             = memcmp(data, other.data, minLength);
+            int ret = memcmp(data, other.data, minLength);
             if (!ret) {
                 if (length < other.length) {
                     ret = -1;
@@ -227,7 +187,7 @@ private:
         {
             Map<Token, int> tokens;
             int tokenEnd = -1;
-            for (int i = size - 1; i >= 0; --i) {
+            for (int i=size - 1; i>=0; --i) {
                 if (RTags::isSymbol(data[i])) {
                     if (tokenEnd == -1)
                         tokenEnd = i;
@@ -240,7 +200,6 @@ private:
                 addToken(data, 0, tokenEnd + 1, tokens);
             return tokens;
         }
-
     private:
         static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
         {
@@ -251,8 +210,8 @@ private:
     };
 #endif
 
-    Hash<uint32_t, SourceFile *> mCacheMap;
-    EmbeddedLinkedList<SourceFile *> mCacheList;
+    Hash<uint32_t, SourceFile*> mCacheMap;
+    EmbeddedLinkedList<SourceFile*> mCacheList;
 
     mutable std::mutex mMutex;
     std::condition_variable mCondition;

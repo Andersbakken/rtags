@@ -14,18 +14,19 @@
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
 #include <assert.h>
+#include <stdint.h>
+#include <string.h>
 #include <functional>
 #include <limits>
 #include <memory>
-#include <stdint.h>
-#include <string.h>
 #include <string>
 
-#include "FileMap.h"
-#include "Location.h"
-#include "Project.h"
 #include "RTags.h"
 #include "Symbol.h"
+#include "Project.h"
+#include "FileMap.h"
+#include "Location.h"
+#include "clang-c/Index.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Log.h"
@@ -33,7 +34,6 @@
 #include "rct/Set.h"
 #include "rct/String.h"
 #include "rct/Value.h"
-#include "clang-c/Index.h"
 
 uint16_t Symbol::targetsValue() const
 {
@@ -43,11 +43,11 @@ uint16_t Symbol::targetsValue() const
 static inline const char *linkageSpelling(CXLinkageKind kind)
 {
     switch (kind) {
-        case CXLinkage_Invalid: return "";
-        case CXLinkage_NoLinkage: return "Linkage: No Linkage";
-        case CXLinkage_Internal: return "Linkage: Internal";
-        case CXLinkage_UniqueExternal: return "Linkage: Unique External";
-        case CXLinkage_External: return "Linkage: External";
+    case CXLinkage_Invalid: return "";
+    case CXLinkage_NoLinkage: return "Linkage: No Linkage";
+    case CXLinkage_Internal: return "Linkage: Internal";
+    case CXLinkage_UniqueExternal: return "Linkage: Unique External";
+    case CXLinkage_External: return "Linkage: External";
     }
     return "";
 }
@@ -84,12 +84,8 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
                         Flags<Location::ToStringFlag> locationToStringFlags,
                         const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name)
-    {
-        return pieceFilters.empty() || pieceFilters.contains(name);
-    };
-    auto properties = [this, &filterPiece]() -> String
-    {
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
+    auto properties = [this, &filterPiece]() -> String {
         List<String> ret;
         if (isDefinition() && filterPiece("definition"))
             ret << "Definition";
@@ -165,8 +161,7 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
     }
 
     String ret;
-    auto writePiece = [&ret, &filterPiece](const char *key, const char *filter, const String &piece)
-    {
+    auto writePiece = [&ret, &filterPiece](const char *key, const char *filter, const String &piece) {
         if (piece.empty())
             return;
         if (!filterPiece(filter))
@@ -192,7 +187,8 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
 
 #if CINDEX_VERSION_MINOR > 1
     if (kind == CXCursor_EnumConstantDecl)
-        writePiece("Enum Value", "enumvalue", String::format<32>("%lld/0x%0llx", static_cast<long long>(enumValue), static_cast<long long>(enumValue)));
+        writePiece("Enum Value", "enumvalue",
+                   String::format<32>("%lld/0x%0llx", static_cast<long long>(enumValue), static_cast<long long>(enumValue)));
 
     if (isDefinition() && RTags::isFunction(kind))
         writePiece("Stack cost", "stackcost", std::to_string(stackCost));
@@ -203,7 +199,8 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
     if (size)
         writePiece("sizeof", "sizeof", std::to_string(size));
     if (fieldOffset >= 0)
-        writePiece("Field offset (bits/bytes)", "fieldoffset", String::format<32>("%d/%d", fieldOffset, fieldOffset / 8));
+        writePiece("Field offset (bits/bytes)", "fieldoffset",
+                   String::format<32>("%d/%d", fieldOffset, fieldOffset / 8));
     if (alignment >= 0)
         writePiece("Alignment", "alignment", std::to_string(alignment));
     if (!args.empty())
@@ -214,9 +211,11 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
     writePiece("Brief comment", "briefcomment", briefComment);
     writePiece("XML comment", "xmlcomment", xmlComment);
 
-    if ((cursorInfoFlags & IncludeParents && filterPiece("parent")) || (cursorInfoFlags & (IncludeContainingFunction) && filterPiece("cf")) || (cursorInfoFlags & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
+    if ((cursorInfoFlags & IncludeParents && filterPiece("parent"))
+        || (cursorInfoFlags & (IncludeContainingFunction) && filterPiece("cf"))
+        || (cursorInfoFlags & (IncludeContainingFunctionLocation) && filterPiece("cfl"))) {
         for (const auto &project : projects) {
-            auto syms    = project->openSymbols(location.fileId());
+            auto syms = project->openSymbols(location.fileId());
             uint32_t idx = -1;
             if (syms) {
                 idx = syms->lowerBound(location);
@@ -224,12 +223,15 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
                     idx = syms->count() - 1;
                 }
             }
-            const unsigned int line   = location.line();
+            const unsigned int line = location.line();
             const unsigned int column = location.column();
-            bool done                 = false;
+            bool done = false;
             while (idx-- > 0) {
                 const Symbol s = syms->valueAt(idx);
-                if (s.isDefinition() && s.isContainer() && comparePosition(line, column, s.startLine, s.startColumn) >= 0 && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                if (s.isDefinition()
+                    && s.isContainer()
+                    && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                    && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
                     if (cursorInfoFlags & IncludeContainingFunctionLocation)
                         writePiece("Containing function location", "cfl", s.location.toString(locationToStringFlags));
                     if (cursorInfoFlags & IncludeContainingFunction)
@@ -277,14 +279,11 @@ String Symbol::toString(const List<std::shared_ptr<Project>> &projects,
 
     if (cursorInfoFlags & IncludeSourceCode && (endLine > startLine || (endLine == startLine && endColumn > startColumn))) {
         const Path path = location.path();
-        String source   = sourceCode(path, startLine, startColumn, endLine, endColumn);
+        String source = sourceCode(path, startLine, startColumn, endLine, endColumn);
         if (!source.empty()) {
             ret.push_back(String::format<1024>("\nSource code: %s:%d:%d-%d:%d\n",
-                                               path.constData(),
-                                               startLine,
-                                               startColumn,
-                                               endLine,
-                                               endColumn));
+                                            path.constData(), startLine, startColumn,
+                                            endLine, endColumn));
             ret.push_back(source);
             ret.append('\n');
         }
@@ -301,18 +300,17 @@ String Symbol::kindSpelling(uint16_t kind)
 String Symbol::displayName() const
 {
     switch (kind) {
-        case CXCursor_FunctionTemplate:
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Destructor:
-        case CXCursor_Constructor: {
-            const int end = symbolName.indexOf('(');
-            if (end != -1)
-                return symbolName.left(end);
-            break;
-        }
-        default:
-            break;
+    case CXCursor_FunctionTemplate:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor: {
+        const int end = symbolName.indexOf('(');
+        if (end != -1)
+            return symbolName.left(end);
+        break; }
+    default:
+        break;
     }
     return symbolName;
 }
@@ -332,15 +330,13 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                       Flags<Location::ToStringFlag> locationToStringFlags,
                       const Set<String> &pieceFilters) const
 {
-    auto filterPiece = [&pieceFilters](const char *name)
-    {
-        return pieceFilters.empty() || pieceFilters.contains(name);
-    };
-    std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f)
-    {
+    auto filterPiece = [&pieceFilters](const char *name) { return pieceFilters.empty() || pieceFilters.contains(name); };
+    std::function<Value(const Symbol &, Flags<ToStringFlag>)> toValue = [&](const Symbol &symbol, Flags<ToStringFlag> f) {
         Value ret;
-        auto formatLocation = [locationToStringFlags, &filterPiece, &ret](Location loc, const char *key, const char *ctxKey, const char *keyFilter = nullptr, const char *ctxKeyFilter = nullptr, Value *val = nullptr)
-        {
+        auto formatLocation = [locationToStringFlags,&filterPiece, &ret](Location loc, const char *key, const char *ctxKey,
+                                                                         const char *keyFilter = nullptr,
+                                                                         const char *ctxKeyFilter = nullptr,
+                                                                         Value *val = nullptr) {
             if (!val)
                 val = &ret;
             if (filterPiece(keyFilter ? keyFilter : key))
@@ -357,7 +353,8 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                 formatLocation(symbol.argumentUsage.invocation, "invocation", "invocationContext", nullptr, "invocationcontext");
                 if (filterPiece("invokedfunction"))
                     ret["invokedFunction"] = symbol.argumentUsage.invokedFunction.toString(locationToStringFlags);
-                formatLocation(symbol.argumentUsage.argument.location, "functionArgumentLocation", "functionArgumentLocationContext", "functionargumentlocation", "functionargumentlocationcontext");
+                formatLocation(symbol.argumentUsage.argument.location, "functionArgumentLocation", "functionArgumentLocationContext",
+                               "functionargumentlocation", "functionargumentlocationcontext");
                 if (filterPiece("functionargumentcursor"))
                     ret["functionArgumentCursor"] = symbol.argumentUsage.argument.cursor.toString(locationToStringFlags);
                 if (filterPiece("functionargumentlength"))
@@ -412,10 +409,10 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
             if (!symbol.xmlComment.empty() && filterPiece("xmlcomment"))
                 ret["xmlComment"] = symbol.xmlComment;
             if (filterPiece("range")) {
-                ret["startLine"]   = symbol.startLine;
+                ret["startLine"] = symbol.startLine;
                 ret["startColumn"] = symbol.startColumn;
-                ret["endLine"]     = symbol.endLine;
-                ret["endColumn"]   = symbol.endColumn;
+                ret["endLine"] = symbol.endLine;
+                ret["endColumn"] = symbol.endColumn;
             }
             if (symbol.size && filterPiece("sizeof"))
                 ret["sizeof"] = symbol.size;
@@ -498,9 +495,11 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                 }
             }
 
-            if ((f & IncludeParents && filterPiece("parent")) || (f & (IncludeContainingFunction) && filterPiece("cf")) || (f & (IncludeContainingFunctionLocation) && (filterPiece("cfl") || filterPiece("cflcontext")))) {
+            if ((f & IncludeParents && filterPiece("parent"))
+                || (f & (IncludeContainingFunction) && filterPiece("cf"))
+                || (f & (IncludeContainingFunctionLocation) && (filterPiece("cfl") || filterPiece("cflcontext")))) {
                 for (const auto &project : projects) {
-                    auto syms    = project->openSymbols(symbol.location.fileId());
+                    auto syms = project->openSymbols(symbol.location.fileId());
                     uint32_t idx = -1;
                     if (syms) {
                         idx = syms->lowerBound(symbol.location);
@@ -508,12 +507,15 @@ Value Symbol::toValue(const List<std::shared_ptr<Project>> &projects,
                             idx = syms->count() - 1;
                         }
                     }
-                    const unsigned int line   = symbol.location.line();
+                    const unsigned int line = symbol.location.line();
                     const unsigned int column = symbol.location.column();
-                    bool done                 = false;
+                    bool done = false;
                     while (idx-- > 0) {
                         const Symbol s = syms->valueAt(idx);
-                        if (s.isDefinition() && s.isContainer() && comparePosition(line, column, s.startLine, s.startColumn) >= 0 && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
+                        if (s.isDefinition()
+                            && s.isContainer()
+                            && comparePosition(line, column, s.startLine, s.startColumn) >= 0
+                            && comparePosition(line, column, s.endLine, s.endColumn) <= 0) {
                             if (f & IncludeContainingFunctionLocation) {
                                 formatLocation(s.location, "cfl", "cflcontext");
                             }

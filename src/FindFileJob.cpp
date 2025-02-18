@@ -25,8 +25,8 @@
 
 #include "FileManager.h"
 #include "Project.h"
-#include "QueryMessage.h"
 #include "RTags.h"
+#include "QueryMessage.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Path.h"
@@ -69,8 +69,7 @@ int FindFileJob::execute()
     const Path srcRoot = proj->path();
     assert(srcRoot.endsWith('/'));
 
-    enum Mode
-    {
+    enum Mode {
         All,
         FilePath,
         Regex,
@@ -91,20 +90,19 @@ int FindFileJob::execute()
     const bool absolutePath = queryFlags() & QueryMessage::AbsolutePath;
     if (absolutePath)
         out.push_back(srcRoot);
-    const Files &dirs = proj->files();
+    const Files& dirs = proj->files();
     assert(proj->fileManager());
     if (dirs.empty())
         proj->fileManager()->load(FileManager::Synchronous);
     Files::const_iterator dirit = dirs.begin();
-    bool foundExact             = false;
-    const int patternSize       = mPattern.size();
+    bool foundExact = false;
+    const int patternSize = mPattern.size();
     List<String> matches;
     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
-    int ret                = 1;
-    bool firstElisp        = queryFlags() & QueryMessage::Elisp;
+    int ret = 1;
+    bool firstElisp = queryFlags() & QueryMessage::Elisp;
 
-    auto writeFile = [this, &firstElisp](const Path &path)
-    {
+    auto writeFile = [this, &firstElisp](const Path &path) {
         if (firstElisp) {
             firstElisp = false;
             if (!write("(list", DontQuote))
@@ -126,38 +124,38 @@ int FindFileJob::execute()
             out.push_back(key);
             bool ok = false;
             switch (mode) {
-                case All:
-                    ok = true;
-                    break;
-                case Regex:
-                    ok = Rct::contains(out, mRegex);
-                    break;
-                case FilePath:
-                case Pattern:
-                    if (!preferExact) {
-                        ok = out.contains(mPattern, cs);
-                    } else {
-                        const int outSize = out.size();
-                        const bool exact  = (outSize > patternSize && out.endsWith(mPattern) && out.at(outSize - (patternSize + 1)) == '/');
-                        if (exact) {
-                            ok = true;
-                            if (!foundExact) {
-                                matches.clear();
-                                foundExact = true;
-                            }
-                        } else {
-                            ok = !foundExact && out.contains(mPattern, cs);
+            case All:
+                ok = true;
+                break;
+            case Regex:
+                ok = Rct::contains(out, mRegex);
+                break;
+            case FilePath:
+            case Pattern:
+                if (!preferExact) {
+                    ok = out.contains(mPattern, cs);
+                } else {
+                    const int outSize = out.size();
+                    const bool exact = (outSize > patternSize && out.endsWith(mPattern) && out.at(outSize - (patternSize + 1)) == '/');
+                    if (exact) {
+                        ok = true;
+                        if (!foundExact) {
+                            matches.clear();
+                            foundExact = true;
                         }
+                    } else {
+                        ok = !foundExact && out.contains(mPattern, cs);
                     }
-                    if (!ok && mode == FilePath) {
-                        Path p(out);
-                        if (!absolutePath)
-                            p.prepend(srcRoot);
-                        p.resolve();
-                        if (p == mPattern)
-                            ok = true;
-                    }
-                    break;
+                }
+                if (!ok && mode == FilePath) {
+                    Path p(out);
+                    if (!absolutePath)
+                        p.prepend(srcRoot);
+                    p.resolve();
+                    if (p == mPattern)
+                        ok = true;
+                }
+                break;
             }
             if (ok) {
                 ret = 0;
