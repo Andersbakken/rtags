@@ -2135,8 +2135,10 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
             }
         }
     }
-
+#if CLANG_VERSION_MINOR >= 17 && CLANG_VERSION_MINOR <= 18
+    // this crashes for certain cursors in at least clang 17 and 18
     c.mangledName = RTags::eatString(clang_Cursor_getMangling(cursor));
+#endif
 
     if (RTags::isFunction(c.kind)) {
         const bool definition = c.flags & Symbol::Definition;
