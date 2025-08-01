@@ -168,8 +168,8 @@ PREFIX, is prefix type."
 (defun company-rtags--meta (candidate insert)
   "Get candidate meta property.
 
-CANDIDATE is the company candidate.  When INSERT is non-nill get 'meta-insert
-property from candidate, otherwise 'meta."
+CANDIDATE is the company candidate.  When INSERT is non-nill get \\='meta-insert
+property from candidate, otherwise \\='meta."
   (get-text-property 0 (if insert 'meta-insert 'meta) candidate))
 
 (defun company-rtags--doc-buffer (candidate)
@@ -182,8 +182,8 @@ property from candidate, otherwise 'meta."
 
 (defun company-rtags--annotation (candidate insert)
   "Company RTags annoation function.
-When INSERT is non-nill get 'meta-insert property of CANDIDATE,
-otherwise 'meta property. See also `company-rtags--meta'."
+When INSERT is non-nill get \\='meta-insert property of CANDIDATE,
+otherwise \\='meta property. See also `company-rtags--meta'."
   (let ((meta (company-rtags--meta candidate insert)))
     (cond
      ((null meta) nil)
