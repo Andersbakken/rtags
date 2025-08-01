@@ -209,6 +209,7 @@ enum OptionType {
 #endif
     NoFileManager,
     NoFileLock,
+    NoUnsuspendCheck,
     PchEnabled,
     NoFilesystemWatcher,
     ArgTransform,
@@ -370,6 +371,7 @@ int main(int argc, char** argv)
 #endif
         { NoFileManager, "no-filemanager", 0, CommandLineParser::NoValue, "Don't scan project directory for files. (rc -P won't work)." },
         { NoFileLock, "no-file-lock", 0, CommandLineParser::NoValue, "Disable file locking. Not entirely safe but might improve performance on certain systems." },
+        { NoUnsuspendCheck, "no-unsuspend-check", 0, CommandLineParser::NoValue, "Don't check after clearing --suspend=all." },
         { PchEnabled, "pch-enabled", 0, CommandLineParser::NoValue, "Enable PCH (experimental)." },
         { NoFilesystemWatcher, "no-filesystem-watcher", 'B', CommandLineParser::NoValue, "Disable file system watching altogether. Reindexing has to be triggered manually." },
         { ArgTransform, "arg-transform", 'V', CommandLineParser::Required, "Use arg to transform arguments. [arg] should be executable with (execv(3))." },
@@ -671,6 +673,9 @@ int main(int argc, char** argv)
             break; }
         case NoFileLock: {
             serverOpts.options |= Server::NoFileLock;
+            break; }
+        case NoUnsuspendCheck: {
+            serverOpts.options |= Server::NoUnsuspendCheck;
             break; }
         case PchEnabled: {
             serverOpts.options |= Server::PCHEnabled;

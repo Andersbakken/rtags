@@ -96,16 +96,17 @@ public:
         CompletionsNoFilter = (1ull << 22),
         WatchSourcesOnly = (1ull << 23),
         NoFileLock = (1ull << 24),
-        PCHEnabled = (1ull << 25),
-        NoFileManager = (1ull << 26),
-        ValidateFileMaps = (1ull << 27),
-        CompletionLogs = (1ull << 28),
-        AllowWErrorAndWFatalErrors = (1ull << 29),
-        NoRealPath = (1ull << 30),
-        Separate32BitAnd64Bit = (1ull << 31),
-        SourceIgnoreIncludePathDifferencesInUsr = (1ull << 32),
-        NoLibClangIncludePath = (1ull << 33),
-        CompletionDiagnostics = (1ull << 34)
+        NoUnsuspendCheck = (1ull << 25),
+        PCHEnabled = (1ull << 26),
+        NoFileManager = (1ull << 27),
+        ValidateFileMaps = (1ull << 28),
+        CompletionLogs = (1ull << 29),
+        AllowWErrorAndWFatalErrors = (1ull << 30),
+        NoRealPath = (1ull << 31),
+        Separate32BitAnd64Bit = (1ull << 32),
+        SourceIgnoreIncludePathDifferencesInUsr = (1ull << 33),
+        NoLibClangIncludePath = (1ull << 34),
+        CompletionDiagnostics = (1ull << 35)
     };
     struct Options {
         Options()

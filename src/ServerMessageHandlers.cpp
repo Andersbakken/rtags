@@ -1375,8 +1375,16 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     }
     conn->finish();
 
-    if (old && !mSuspended)
+    if (old && !mSuspended) {
+        if (!(Server::instance()->options().options & Server::NoUnsuspendCheck)) {
+            for (const auto &pp : mProjects) {
+                for (const auto &proj : pp.second) {
+                    proj->check(Project::Check_Explicit);
+                }
+            }
+        }
         mJobScheduler->startJobs();
+    }
 }
 
 void Server::setBuffers(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
