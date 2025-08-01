@@ -397,7 +397,7 @@ appropriate format string for error. For example,
 
 (defun my-rtags-error-message-function (type)
   \"Customize messages produced by RTags\"
-  (cond ((eq type 'rtags-rdm-not-running)
+  (cond ((eq type \='rtags-rdm-not-running)
          \"Unable to connect to the RTags server. See BLAH to start it\")
         (t
          (rtags-error-message-default type))))"
@@ -424,12 +424,12 @@ appropriate format string for error. For example,
   :safe 'booleanp)
 
 (defcustom rtags-display-current-error-as-tooltip rtags-popup-available
-  "Display error under cursor using `popup-tip' (requires 'popup)."
+  "Display error under cursor using `popup-tip\\=' (requires \\='popup)."
   :type 'boolean
   :safe 'booleanp)
 
 (defcustom rtags-display-summary-as-tooltip rtags-popup-available
-  "Display help / summary text using `popup-tip' (requires 'popup)."
+  "Display help / summary text using `popup-tip\\=' (requires \\='popup)."
   :type 'boolean
   :safe 'booleanp)
 
@@ -601,15 +601,16 @@ return t if RTags is allowed to modify this file."
   :type 'function)
 
 (defcustom rtags-buffer-follows-sandbox-id-match 'ask
-  "Tells the way current buffer follows sandbox-id in case match fails at a query to rc/rdm backend.
+  "Tells the way current buffer follows sandbox-id in case match
+ fails at a query to rc/rdm backend.
 
-`nil' perform current query without updating diagnostics buffer.
+`nil\\=' perform current query without updating diagnostics buffer.
       Diagnostics will be away from current context.
-`ask' ask the user if sandbox should be changed. After 'yes',
+`ask\\=' ask the user if sandbox should be changed. After \\='yes\\=',
       perform the command once more.
-`t'   change the sandbox and do the command.
+`t\\='   change the sandbox and do the command.
 
-Note: If *RTags Diagnostics* is not running, then the 'match check'
+Note: If *RTags Diagnostics* is not running, then the \\='match check\\='
       is not performed, because sandbox tracking is not needed then.
 Note: It is recommended to run each sandbox is separate Emacs process."
   :type '(choice
