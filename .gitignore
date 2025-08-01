@@ -64,3 +64,4 @@ gr
 /bin/vast
 /src/vast/*.cmake
 /src/vast/vast_autogen/
+/.ninja_lock
