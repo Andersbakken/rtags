@@ -37,15 +37,16 @@
   :link '(url-link :tag "Website" "https://github.com/Andersbakken/rtags"))
 
 
-(require 'cl-lib)
+(require 'asm-mode)
 (require 'bookmark)
 (require 'cc-mode)
-(require 'asm-mode)
-(require 'tramp)
-(require 'simple)
+(require 'cl-lib)
 (require 'compile)
-(require 'thingatpt)
+(require 'facemenu)
 (require 'repeat)
+(require 'simple)
+(require 'thingatpt)
+(require 'tramp)
 
 ;; Make the byte-compiler happy.
 (declare-function flycheck-buffer "ext:flycheck")
@@ -409,7 +410,8 @@ appropriate format string for error. For example,
   :type 'stringp)
 
 (defcustom rtags-track-container nil
-  "When on continually update current container (function/class/namespace) on intervals."
+  "When on continually update current container (function/class/namespace)
+ on intervals."
   :type 'boolean
   :safe 'booleanp)
 
@@ -1135,8 +1137,8 @@ to case differences."
 
 (defun rtags-get-sandbox-id (path)
   "Returns vector to uniquely define sandbox the path belongs to.
-Each host, the emacs is currently connected can be understood as separate sandbox.
-nil identifies the local (non-tramp)"
+Each host, the emacs is currently connected can be understood as
+separate sandbox.  nil identifies the local (non-tramp)"
   (when (file-remote-p path)
     (with-parsed-tramp-file-name path nil
       (format "%s@%s" user host))))
@@ -1144,8 +1146,9 @@ nil identifies the local (non-tramp)"
 (defun rtags-sandbox-id-matches ()
   "Returns true if current buffer is within *current* sandbox.
 *RTags Diagnostics* buffer's sandbox is the *current* sandbox.
-If *RTags Diagnostics* does not exist, then t is returned (ie. match for everyone)
-Additionally for debugging purposes this method handles `rtags-tramp-enabled` fuse"
+If *RTags Diagnostics* does not exist, then t is
+returned (ie. match for everyone) Additionally for debugging
+purposes this method handles `rtags-tramp-enabled` fuse"
   (let (sandbox-match)
     (if (and (tramp-tramp-file-p default-directory) (not rtags-tramp-enabled))
         (message "RTags @ remote site functionality disabled")
@@ -2419,7 +2422,8 @@ instead of file from `current-buffer'.
       (rtags-trampify location))))
 
 (defun rtags-goto-location (location &optional nobookmark other-window skip-trampification)
-  "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
+  "Go to a location passed in. It can be either: file,12 or
+ file:13:14 or plain file"
   ;; (message (format "rtags-goto-location \"%s\"" location))
   (setq location (rtags-absolutify location skip-trampification))
 
@@ -2490,12 +2494,15 @@ See `rtags-current-location' for loc-arg format."
 
 ;;;###autoload
 (defun rtags-location-stack-filter (path/lambda/rx)
-  (interactive "Mregex or path: ")
   "Filter out undesired entries from rtags-location-stack.
 The argument can either be:
-- An absolute path which gets compared against the path component of each location,
-- A string which is used as a regex to match the whole location
-- A defun which gets passed a single argument of the whole location and which should return non-nil to filter the location out"
+- An absolute path which gets compared against the path component
+  of each location,
+- A string which is used as a regex to match
+  the whole location
+- A defun which gets passed a single argument of the whole location
+  and which should return non-nil to filter the location out"
+  (interactive "Mregex or path: ")
   (let ((old (length rtags-location-stack)))
     (setq rtags-location-stack (cl-remove-if (cond ((functionp path/lambda/rx) path/lambda/rx)
                                                    ((file-name-absolute-p path/lambda/rx)
@@ -2727,7 +2734,8 @@ of PREFIX or not, if doesn't contain one, one will be added."
               (t (buffer-substring-no-properties (point-min) (- (point-max) 1))))))))
 
 (defun rtags-target-declaration-first ()
-  "First try to find the declaration of the item (using --declaration-only), then try
+  "First try to find the declaration of the item (using
+ --declaration-only), then try
 to find anything about the item."
   (let ((target (or (rtags-target nil t nil t)
                     (rtags-target nil nil nil t))))
@@ -2738,10 +2746,16 @@ to find anything about the item."
 ;;;###autoload
 
 (defun rtags-find-symbol-at-point (&optional prefix)
-  "Find the natural target for the symbol under the cursor and moves to that location.
-For references this means to jump to the definition/declaration of the referenced symbol (it jumps to the definition if it is indexed).
-For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
-If called with prefix, open first match in other window"
+  "Find the natural target for the symbol under the cursor and
+ moves to that location.
+
+For references this means to jump to the definition/declaration
+of the referenced symbol (it jumps to the definition if it is
+indexed).
+
+For definitions it jumps to the declaration (if there is only
+one) For declarations it jumps to the definition.  If called with
+prefix, open first match in other window"
   (interactive "P")
   (let ((otherwindow (and prefix (listp prefix)))
         (pathfilter (and (numberp prefix) (rtags-buffer-file-name))))
@@ -2935,7 +2949,8 @@ of the form (filename line column)."
 
 
 (defun rtags--should-rename-with-mc (locations)
-  "Return non-nil if renaming symbols at LOCATIONS should be done with multiple-cursors."
+  "Return non-nil if renaming symbols at LOCATIONS should be done
+ with multiple-cursors."
   (let ((first-file (caar locations)))
     (and rtags-use-multiple-cursors
          (require 'multiple-cursors nil t)
@@ -4434,11 +4449,12 @@ which can be overridden by specifying DEFAULT-FILE"
 ;;;###autoload
 (defun rtags-show-target-in-other-window (&optional dest-window center-window
                                                     try-declaration-first)
-  "DEST-WINDOW : destination window. Can be nil; in this case the current window is split
+  "DEST-WINDOW : destination window. Can be nil; in this case the
+ current window is split
 according to `rtags-other-window-window-size-percentage'.
 CENTER-WINDOW : if true the target window is centered.
-TRY-DECLARATION-FIRST : first try to find the declaration of the item, then the
-definition."
+TRY-DECLARATION-FIRST : first try to find the declaration of the
+item, then the definition."
   (interactive)
   (when (or (not (rtags-called-interactively-p)) (rtags-sandbox-id-matches))
     (let ((target (if try-declaration-first
@@ -4893,9 +4909,9 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
 (defun rtags-get-summary-text (&optional max-num-lines)
   "Return a text describing the item at point.
 
-For functions it is the declaration, including the parameters names, if available
-or the first MAX-NUM-LINES (default 5) lines of the definition; for variables is
-the definition, etc.
+For functions it is the declaration, including the parameters
+names, if available or the first MAX-NUM-LINES (default 5) lines
+of the definition; for variables is the definition, etc.
 
 Return nil if it can't get any info about the item."
   ;; try first with --declaration-only
