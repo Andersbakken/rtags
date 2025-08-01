@@ -74,7 +74,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
   "Check for prefix."
   (let ((symbol (company-grab-symbol)))
     (if symbol
-        (cond ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (point-at-bol)) (match-string 1))
+        (cond ((looking-back "# *include *[<\"]\\([A-Za-z0-9-_./\\]*\\)" (pos-bol)) (match-string 1))
               ((company-in-string-or-comment) nil)
               ((and company-rtags-begin-after-member-access
                     (save-excursion
@@ -94,7 +94,7 @@ and `c-electric-colon', for automatic completion right after \">\" and
     (when symbol
       (save-excursion
         (forward-char (- (length symbol)))
-        (cond ((looking-back "# *include *\\([<\"]\\)[A-Za-z0-9-_./\\]*" (point-at-bol)) (if (string= (match-string 1) "\"") 'company-rtags-include-quote : 'company-rtags-include))
+        (cond ((looking-back "# *include *\\([<\"]\\)[A-Za-z0-9-_./\\]*" (pos-bol)) (if (string= (match-string 1) "\"") 'company-rtags-include-quote : 'company-rtags-include))
               ((and (not string-or-comment) (looking-back "\\." (1- (point)))) 'company-rtags-dot)
               ((and (not string-or-comment) (looking-back "\\->" (- (point) 2))) 'company-rtags-arrow)
               ((and (not string-or-comment) (looking-back "\\::" (- (point) 2))) 'company-rtags-colons)
@@ -193,7 +193,7 @@ otherwise 'meta property. See also `company-rtags--meta'."
 
 (defun company-rtags-completions-calculate-maxwidth ()
   "Calculate the maximal width for completion candidates."
-  (setq company-rtags-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (point-at-bol))))))
+  (setq company-rtags-completions-maxwidth (max 10 (- (window-width) (- (rtags-calculate-completion-point) (pos-bol))))))
 
 (defun company-rtags--make-candidates ()
   "Make company candidates."
@@ -259,10 +259,10 @@ otherwise 'meta property. See also `company-rtags--meta'."
      (company-doc-buffer (company-rtags--doc-buffer arg)))
     (post-completion
      (cond ((eq company-rtags-last-completion-prefix-type 'company-rtags-include)
-            (unless (search-forward ">" (point-at-eol) t)
+            (unless (search-forward ">" (pos-eol) t)
               (insert ">")))
            ((eq company-rtags-last-completion-prefix-type 'company-rtags-include-quote)
-            (unless (search-forward "\"" (point-at-eol) t)
+            (unless (search-forward "\"" (pos-eol) t)
               (insert "\"")))
            (t
             (let ((anno (company-rtags--annotation arg t)))
