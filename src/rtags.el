@@ -2626,7 +2626,9 @@ of PREFIX or not, if doesn't contain one, one will be added."
   (define-key map (kbd (concat prefix "a")) 'rtags-expand-auto)
   (define-key map (kbd (concat prefix "A")) 'rtags-find-functions-called-by-this-function)
   (define-key map (kbd (concat prefix "l")) 'rtags-list-results)
-  (define-key map (kbd (concat prefix "Z")) 'rtags-location-stack-visualize))
+  (define-key map (kbd (concat prefix "Z")) 'rtags-location-stack-visualize)
+  (define-key map (kbd (concat prefix "`")) 'rtags-next-match)
+  (define-key map (kbd (concat prefix "~")) 'rtags-prev-match))
 
 
 ;; XXX - would be nice to rename functions to match menu prompts and
