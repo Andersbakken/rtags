@@ -945,11 +945,11 @@ to case differences."
 (defvar rtags-current-line-overlay nil)
 (defun rtags-update-current-line ()
   (when (overlayp rtags-current-line-overlay)
-    (move-overlay rtags-current-line-overlay (point-at-bol) (point-at-eol))))
+    (move-overlay rtags-current-line-overlay (pos-bol) (pos-eol))))
 
 (defun rtags-init-current-line-overlay ()
   (when rtags-highlight-current-line
-    (let ((overlay (make-overlay (point-at-bol) (point-at-eol) (current-buffer))))
+    (let ((overlay (make-overlay (pos-bol) (pos-eol) (current-buffer))))
       (overlay-put overlay 'face 'rtags-current-line)
       (set (make-local-variable 'rtags-current-line-overlay) overlay))))
 
@@ -1043,9 +1043,9 @@ to case differences."
         (while (not (eq by 0))
           (let ((match (save-excursion
                          (if next
-                             (and (goto-char (point-at-eol))
+                             (and (goto-char (pos-eol))
                                   (re-search-forward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))
-                           (and (goto-char (point-at-bol))
+                           (and (goto-char (pos-bol))
                                 (re-search-backward "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\)" nil t))))))
             (when (cond (match (goto-char match))
                         ((and rtags-wrap-results next)
@@ -1080,16 +1080,16 @@ to case differences."
         (select-window win))
       (set-buffer rtags-diagnostics-buffer-name)
       (when (not (= (point-max) (point-min)))
-        (cond ((and (= (point-at-bol) (point-min)) (not next))
+        (cond ((and (= (pos-bol) (point-min)) (not next))
                (setq target (- (point-max) 1))
                (message "*RTags Diagnostics* Wrapped"))
-              ((and (>= (+ (point-at-eol) 1) (point-max)) next)
+              ((and (>= (+ (pos-eol) 1) (point-max)) next)
                (setq target (point-min))
                (message "*RTags Diagnostics* Wrapped"))
               (next
-               (setq target (point-at-bol 2)))
+               (setq target (pos-bol 2)))
               (t
-               (setq target (point-at-bol 0))))
+               (setq target (pos-bol 0))))
         (goto-char target)
         (beginning-of-line)
         (if win
@@ -1452,7 +1452,7 @@ It uses the stored compile command from the RTags database for preprocessing."
                   (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line)))))
               (when (and start end)
                 (goto-char (point-min))
-                (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1))))))
+                (narrow-to-region (pos-bol (+ start 1)) (pos-bol (+ end 1))))))
           (rtags-preprocess-mode))
         (display-buffer preprocess-buffer)))))
 
@@ -1533,7 +1533,7 @@ Uses `completing-read' to ask for the project."
       (rtags-call-rc :path t "-w")
       (goto-char (point-min))
       (while (not (eobp))
-        (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+        (let ((line (buffer-substring-no-properties (pos-bol) (pos-eol))))
           (cond ((string-match "^[0-9]+: \\(.+\\) <=$" line)
                  (let ((name (match-string-no-properties 1 line)))
                    (push name projects)
@@ -1743,7 +1743,7 @@ instead of file from `current-buffer'.
 (defvar rtags-dependency-tree-matched-decoration " <--")
 (defun rtags-dependency-tree-current-file ()
   (save-excursion
-    (goto-char (point-at-bol))
+    (goto-char (pos-bol))
     (when (looking-at (concat "^\\( *\\)\\(.*?\\)\\( ([0-9]*)\\)?\\(" rtags-dependency-tree-matched-decoration "\\)?$"))
       (cons (match-string 2) (/ (length (match-string 1)) rtags-tree-indent)))))
 
@@ -1816,8 +1816,8 @@ instead of file from `current-buffer'.
           (cl-incf idx)
           (setq chain (cdr chain)))
         (re-search-forward (concat "^" (rtags-tree-indent idx) (regexp-quote (car chain)) "\\( ([0-9]*)\\)?$"))
-        (unless (and first (< first (point-at-bol)))
-          (setq first (point-at-bol)))
+        (unless (and first (< first (pos-bol)))
+          (setq first (pos-bol)))
         (unless (eq (char-before) ?*)
           (insert rtags-dependency-tree-matched-decoration)))
       (setq chains (cdr chains)))
@@ -1834,8 +1834,8 @@ instead of file from `current-buffer'.
           (rtags--error 'rtags-no-file-here))
         (unless (eq on (null (rtags-dependency-tree-current-is-expanded)))
           (rtags--error 'rtags-line-is-already (if on "expanded" "collapsed")))
-        (set-text-properties (point-at-bol) (point-at-eol) (and on (list 'rtags-is-expanded (length children))))
-        (goto-char (point-at-eol))
+        (set-text-properties (pos-bol) (pos-eol) (and on (list 'rtags-is-expanded (length children))))
+        (goto-char (pos-eol))
         (if on
             (progn
               (while children
@@ -1868,7 +1868,7 @@ instead of file from `current-buffer'.
     (rtags-dependency-tree-set-expanded t)))
 
 (defun rtags-dependency-tree-current-is-expanded ()
-  (get-text-property (point-at-bol) 'rtags-is-expanded))
+  (get-text-property (pos-bol) 'rtags-is-expanded))
 
 (defun rtags-dependency-tree (&optional all)
   (interactive "P")
@@ -1910,12 +1910,12 @@ instead of file from `current-buffer'.
 
 (defun rtags-references-tree-current-location ()
   (save-excursion
-    (goto-char (point-at-bol))
+    (goto-char (pos-bol))
     (skip-chars-forward " ")
     (let ((prop (get-text-property (point) 'rtags-ref-location)))
       (and prop
            (cons (format "%s:%d:%d:" (car prop) (cadr prop) (cl-caddr prop))
-                 (/ (- (point) (point-at-bol)) rtags-tree-indent))))))
+                 (/ (- (point) (pos-bol)) rtags-tree-indent))))))
 
 (defun rtags-references-tree-collapse-all ()
   (interactive)
@@ -1923,7 +1923,7 @@ instead of file from `current-buffer'.
   (save-excursion
     (while (not (eobp))
       (rtags-references-tree-collapse-current)
-      (if (= (point-at-eol) (point-max))
+      (if (= (pos-eol) (point-max))
           (goto-char (point-max))
         (forward-line 1)))))
 
@@ -1937,7 +1937,7 @@ instead of file from `current-buffer'.
     (save-excursion
       (while (not (eobp))
         (puthash (car (rtags-references-tree-current-location)) t seen)
-        (if (= (point-at-eol) (point-max))
+        (if (= (pos-eol) (point-max))
             (goto-char (point-max))
           (forward-line 1))))
     (save-excursion
@@ -1953,7 +1953,7 @@ instead of file from `current-buffer'.
                    (puthash (car loc) t seen)
                    (rtags-references-tree-expand-current)))
                 (t)))
-        (if (= (point-at-eol) (point-max))
+        (if (= (pos-eol) (point-max))
             (goto-char (point-max))
           (forward-line 1))))
     (message "Expand all: 100%% %d/%d" done roots)))
@@ -1977,12 +1977,12 @@ instead of file from `current-buffer'.
     (let ((was buffer-read-only))
       (setq buffer-read-only nil)
       (let ((current (rtags-references-tree-current-location))
-            (containing-function (get-text-property (point-at-bol) 'rtags-ref-containing-function-location)))
+            (containing-function (get-text-property (pos-bol) 'rtags-ref-containing-function-location)))
         (unless (and current containing-function)
           (rtags--error 'rtags-no-file-here))
         (unless (eq on (null (rtags-references-tree-current-is-expanded)))
           (rtags--error 'rtags-line-is-already (if on "expanded" "collapsed")))
-        (goto-char (point-at-eol))
+        (goto-char (pos-eol))
         (if on
             (let ((refs)
                   (loc (concat rtags-current-project containing-function)))
@@ -2095,11 +2095,11 @@ instead of file from `current-buffer'.
                        'rtags-ref-location components))
           (pos (point)))
       (when bookmark-idx
-        (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (point-at-bol))))))
+        (setq props (append props (list 'rtags-bookmark-index (cons bookmark-idx (pos-bol))))))
       (when cf
         (insert " <= " (rtags-elide-text cf (truncate (* (frame-width) .25)) 'right)))
 
-      (set-text-properties (point-at-bol) (point-at-eol) props)
+      (set-text-properties (pos-bol) (pos-eol) props)
       (when cf
         (set-text-properties pos (point) (append props (list 'rtags-ref-cf t)))))))
 
@@ -2111,20 +2111,20 @@ instead of file from `current-buffer'.
             (max)
             (cfs))
         (while (not (eobp))
-          (goto-char (point-at-eol))
-          (cond ((not (search-backward " <= " (point-at-bol) t))
+          (goto-char (pos-eol))
+          (cond ((not (search-backward " <= " (pos-bol) t))
                  (push nil cfs))
                 ((not (get-text-property (1+ (point)) 'rtags-ref-cf))
                  (push nil cfs))
-                (t (push (buffer-substring (point) (point-at-eol)) cfs)
-                   (delete-region (point) (point-at-eol))
+                (t (push (buffer-substring (point) (pos-eol)) cfs)
+                   (delete-region (point) (pos-eol))
                    (delete-horizontal-space)))
           (setq longest (max longest (current-column)))
           (or (eobp) (forward-char 1)))
         (goto-char (point-min))
         (setq max (- (frame-width) 2 longest))
         (mapc (lambda (cf)
-                (goto-char (point-at-eol))
+                (goto-char (pos-eol))
                 (when cf
                   (when (> (length cf) max)
                     ;; (message "truncating %s %d vs %d to " cf (length cf) max (substring cf 0 max))
@@ -2371,7 +2371,7 @@ instead of file from `current-buffer'.
 (defun rtags-current-location (&optional offset truename)
   (let ((fn (rtags-buffer-file-name)))
     (and fn (format "%s:%d:%d:" (if truename (file-truename fn) fn)
-                    (line-number-at-pos offset) (1+ (- (or offset (point)) (point-at-bol)))))))
+                    (line-number-at-pos offset) (1+ (- (or offset (point)) (pos-bol)))))))
 
 (defun rtags-log (log)
   (with-current-buffer (rtags-get-buffer-create-no-undo "*RTags Log*")
@@ -2437,12 +2437,12 @@ instead of file from `current-buffer'.
       (cond ((string-match "\\(.*\\) includes /.*" path-segment)
              (rtags-find-file-or-buffer (match-string-no-properties 1 path-segment) other-window))
             ((and (string-match "[^ ]* should include /" path-segment)
-                  (string= (buffer-substring-no-properties (point-at-bol) (+ (point-at-bol) (length path-segment)))
+                  (string= (buffer-substring-no-properties (pos-bol) (+ (pos-bol) (length path-segment)))
                            path-segment))
              (save-excursion
-               (if (search-backward-regexp "[ (]" (point-at-bol) t)
+               (if (search-backward-regexp "[ (]" (pos-bol) t)
                    (forward-char 1)
-                 (goto-char (point-at-bol)))
+                 (goto-char (pos-bol)))
                (let ((pos (point)))
                  (search-forward-regexp " ")
                  (rtags-goto-location (buffer-substring-no-properties pos (1- (point))) nobookmark other-window))))
@@ -2896,7 +2896,7 @@ If NO-SCOPE is true do not include scopes \"::\""
             (insert (cdr (assoc 'contents confirm)))
             (setq lastline line)
             (setq lastfile file))
-          (push (point-at-bol) offsets)))
+          (push (pos-bol) offsets)))
       (setq offsets (nreverse offsets))
       (dolist (confirm confirms)
         (goto-char (+ (car offsets) (cdr (assoc 'col confirm)) -1))
@@ -3005,7 +3005,7 @@ of the form (filename line column)."
                   (push (list (cons 'filename filename)
                               (cons 'line line)
                               (cons 'col col)
-                              (cons 'contents (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+                              (cons 'contents (buffer-substring-no-properties (pos-bol) (pos-eol))))
                         confirms))
                 (push (cons (current-buffer) (point)) replacements))))))
       (unless no-confirm
@@ -3108,7 +3108,7 @@ can be specified with a prefix argument."
             (goto-char (point-min))
             (while (not (eobp))
               (if (looking-at rx)
-                  (delete-char (- (1+ (point-at-eol)) (point)))
+                  (delete-char (- (1+ (pos-eol)) (point)))
                 (forward-line))))
           (setq buffer-read-only t))))))
 
@@ -3200,7 +3200,7 @@ of diagnostics count"
                                (when (looking-at "[a-zA-Z_~][a-zA-Z_0-9]*")
                                  (match-end 0))))))
                         (t (1+ start))))
-        (when (looking-back "#" (point-at-bol))
+        (when (looking-back "#" (pos-bol))
           (cl-decf start))
         (let ((overlay (make-overlay start (if (= start end)
                                                (min (1+ start) (point-max))
@@ -3361,7 +3361,7 @@ of diagnostics count"
          (msg (rtags-elide-text (overlay-get overlay 'rtags-error-message) maxwidth 'middle))
          (bol (save-excursion
                 (goto-char point)
-                (point-at-bol)))
+                (pos-bol)))
          (used (length msg))
          (children (and msg (overlay-get overlay 'rtags-error-children))))
     (when (> (length msg) 0)
@@ -3749,7 +3749,7 @@ of diagnostics count"
   "Create a bookmark for each match and format the buffer."
   (let ((startpos))
     (goto-char (point-max))
-    (when (= (point-at-bol) (point-max))
+    (when (= (pos-bol) (point-max))
       (delete-char -1))
     (goto-char (point-min))
     (when (looking-at "Functions called from:")
@@ -3758,8 +3758,8 @@ of diagnostics count"
     (while (not (eobp))
       (when (looking-at "^\\(.*?\\):\\([0-9]+\\):\\([0-9]+\\):?[ \t]*\\(.*\\)$")
         ;; (message "matched at %d:%d" (point) rtags-buffer-bookmarks)
-        (let* ((start (point-at-bol))
-               (end (min (point-max) (1+ (point-at-eol))))
+        (let* ((start (pos-bol))
+               (end (min (point-max) (1+ (pos-eol))))
                (buffer (and rtags-use-bookmarks (get-file-buffer (rtags-absolutify (match-string-no-properties 1)))))
                (line (and buffer (string-to-number (match-string-no-properties 2))))
                (bookmark-idx)
@@ -3845,7 +3845,7 @@ other window instead of the current one."
       (goto-char (point-min))
       (if (equal "" string)
           (while (not (eobp))
-            (intern (buffer-substring-no-properties (point-at-bol) (point-at-eol)) complete-list)
+            (intern (buffer-substring-no-properties (pos-bol) (pos-eol)) complete-list)
             (forward-line))
         (let ((match-string-no-properties (format  ".*\\(%s.*\\)" string)))
           (while (not (eobp))
@@ -3913,7 +3913,7 @@ other window instead of the current one."
         ;; (message (buffer-string))
         (unless (= (point-min) (point-max))
           (while (not (eobp))
-            (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+            (let ((line (buffer-substring-no-properties (pos-bol) (pos-eol))))
               (when (string-match "^\\(.*:\\)\\([0-9]+\\)\\(:[0-9]+:\\)\t\\(.*\\)\t\\(.*\\)$" line)
                 (let ((loc-start (match-string-no-properties 1 line))
                       (linenum (match-string-no-properties 2 line))
@@ -3983,7 +3983,7 @@ other window instead of the current one."
              (rtags-close-taglist)))
           ((rtags-is-class-hierarchy-buffer)
            (save-excursion
-             (goto-char (point-at-bol))
+             (goto-char (pos-bol))
              (let ((loc (and (looking-at "^[^\t]*\t\\(.*:[0-9]+:[0-9]+:\\)\t") (match-string 1))))
                (when loc
                  (rtags-goto-location loc nil other-window)))))
@@ -3994,14 +3994,14 @@ other window instead of the current one."
           ((string= (buffer-name) "*RTags Include Path*")
            (let (start path)
              (save-excursion
-               (setq start (if (search-backward " " (point-at-bol) t)
+               (setq start (if (search-backward " " (pos-bol) t)
                                (1+ (point))
-                             (point-at-bol))))
+                             (pos-bol))))
              (save-excursion
                (setq path (buffer-substring-no-properties start
-                                                          (if (search-forward " " (point-at-eol) t)
+                                                          (if (search-forward " " (pos-eol) t)
                                                               (1- (point))
-                                                            (point-at-eol)))))
+                                                            (pos-eol)))))
              (unless (string= "->" path)
                (rtags-goto-location path))))
           ((string= (buffer-name) "*RTags Location Stack*")
@@ -4026,10 +4026,10 @@ other window instead of the current one."
              (if refloc
                  (rtags-goto-location refloc nil other-window)
                (rtags-goto-location (buffer-substring-no-properties (save-excursion
-                                                                      (goto-char (point-at-bol))
+                                                                      (goto-char (pos-bol))
                                                                       (skip-chars-forward " ")
                                                                       (point))
-                                                                    (point-at-eol)) nil other-window)))
+                                                                    (pos-eol)) nil other-window)))
            (when bookmark
              (bookmark-set bookmark))))
     (if remove
@@ -4051,7 +4051,7 @@ other window instead of the current one."
                      (match-string 1)))))
     (when file
       (save-excursion
-        (goto-char (point-at-bol))
+        (goto-char (pos-bol))
         (when (looking-at ".*called from - .*?:\\([0-9]+\\):\\([0-9]+\\):")
           (rtags-goto-location (concat file ":" (match-string 1) ":" (match-string 2)) (not not-other-window)))))))
 
@@ -4158,8 +4158,8 @@ other window instead of the current one."
 
 (defun rtags-append (txt)
   (goto-char (point-min))
-  (while (< (point-at-eol) (point-max))
-    (goto-char (point-at-eol))
+  (while (< (pos-eol) (point-max))
+    (goto-char (pos-eol))
     (insert txt)
     (forward-line)))
 
@@ -4248,7 +4248,7 @@ which can be overridden by specifying DEFAULT-FILE"
           ;; (message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
           (goto-char (point-min))
           (cond ((= (point-min) (point-max)) t)
-                ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+                ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring-no-properties (pos-bol) (pos-eol))))
                 (t (rtags-switch-to-buffer rtags-buffer-name t)
                    (shrink-window-if-larger-than-buffer)
                    (rtags-mode))))))))
@@ -4282,7 +4282,7 @@ which can be overridden by specifying DEFAULT-FILE"
           (rtags-call-rc :path path "--fixits" path)
           (goto-char (point-min))
           (while (not (eobp))
-            (let ((line (buffer-substring-no-properties (point-at-bol) (point-at-eol))))
+            (let ((line (buffer-substring-no-properties (pos-bol) (pos-eol))))
               (when (string-match "^\\([0-9]+\\):\\([0-9]+\\) \\([0-9]+\\) \\(.*\\)$" line)
                 (let ((line (string-to-number (match-string-no-properties 1 line)))
                       (col (string-to-number (match-string-no-properties 2 line)))
@@ -4342,7 +4342,7 @@ which can be overridden by specifying DEFAULT-FILE"
       (widen)
       (let ((done)
             (line (line-number-at-pos))
-            (col (1+ (- (point) (point-at-bol))))
+            (col (1+ (- (point) (pos-bol))))
             (max 16)
             (container))
         (while (and (> (point) (point-min))
@@ -4720,7 +4720,7 @@ definition."
 (defconst rtags-symbol-chars "ABCDEFGHIKLMNOPQRSTUVWXYZabcdefghiklmnopqrstuvwxyz0123456789_")
 (defun rtags-calculate-completion-point ()
   (save-excursion
-    (when (cond ((= (point) (point-at-eol)))
+    (when (cond ((= (point) (pos-eol)))
                 ((looking-at "[\\n A-Za-z0-9_)]"))
                 ((looking-back "[\\n ,.:>A-Za-z0-9_(]" 1 t))
                 (t nil))
@@ -4853,7 +4853,7 @@ force means do it regardless of rtags-enable-unsaved-reparsing "
                   (forward-char length)
                 (rtags-goto-line-col endLine (or endColumn 1))
                 (unless endColumn
-                  (goto-char (point-at-eol))))
+                  (goto-char (pos-eol))))
               (let ((ret (buffer-substring-no-properties start (point))))
                 (when (and ret maxlines)
                   (let ((split (split-string ret "\n")))
@@ -5154,11 +5154,11 @@ With optional PREFIX insert include at point."
 
 (defun rtags-find-member-function ()
   (save-excursion
-    (let ((start (point-at-bol))
+    (let ((start (pos-bol))
           (valid (list "CXXMethod" "CXXConstructor" "CXXDestructor" "FunctionTemplate"))
           (sym (rtags-symbol-info-internal :silent t :parents t)))
       (unless (and sym (member (cdr (assoc 'kind sym)) valid))
-        (goto-char (point-at-eol))
+        (goto-char (pos-eol))
         (while (and (not sym) (>= (point) start))
           (setq sym (rtags-symbol-info-internal :silent t))
           (unless (and sym (member (cdr (assoc 'kind sym)) valid))
