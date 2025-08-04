@@ -1047,7 +1047,7 @@ void Project::onFileAddedOrModified(const Path &file, uint32_t fileId)
         return;
     }
 
-    if (Server::instance()->suspended() || mSuspendedFiles.contains(fileId)) {
+    if (Server::instance()->suspended() || mSuspended || mSuspendedFiles.contains(fileId)) {
         warning() << file << "is suspended. Ignoring modification";
         return;
     }
@@ -1290,6 +1290,7 @@ const Set<uint32_t> &Project::suspendedFiles() const
 
 void Project::clearSuspendedFiles()
 {
+    mSuspended = false;
     mSuspendedFiles.clear();
 }
 
@@ -1314,6 +1315,11 @@ void Project::setSuspended(uint32_t file, bool suspended)
 bool Project::isSuspended(uint32_t file) const
 {
     return mSuspendedFiles.contains(file);
+}
+
+void Project::suspendAll()
+{
+    mSuspended = true;
 }
 
 void Project::updateFixIts(const Set<uint32_t> &visited, FixIts &fixIts)

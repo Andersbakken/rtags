@@ -202,6 +202,7 @@ public:
     void setSuspended(uint32_t file, bool suspended);
     bool isSuspended(uint32_t file) const;
     void clearSuspendedFiles();
+    void suspendAll();
 
     bool isIndexed(uint32_t fileId) const;
 
@@ -491,6 +492,7 @@ private:
 
     Hash<uint32_t, DependencyNode*> mDependencies;
     Set<uint32_t> mSuspendedFiles;
+    bool mSuspended { false };
 
     size_t mBytesWritten { 0 };
     bool mSaveDirty { false };

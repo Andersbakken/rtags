@@ -1287,35 +1287,44 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     const String pattern = query->match().pattern();
     Deserializer deserializer(pattern);
     deserializer >> p >> modeString;
-    enum Mode {
+    enum class Mode {
         ListFiles,
         All,
+        Project,
         Clear,
+        ClearProject,
         FileToggle,
         FileOn,
         FileOff
-    } mode = ListFiles;
+    } mode = Mode::ListFiles;
     if (p == "clear") {
-        mode = Clear;
+        mode = Mode::Clear;
         assert(modeString.empty());
     } else if (p == "all") {
-        mode = All;
+        mode = Mode::All;
         assert(modeString.empty());
-    } else if (!p.empty()) {
+    } else if (p == "project") {
+        assert(modeString.empty());
+        mode = Mode::Project;
+    } else if (p == "clear-project") {
+        assert(modeString.empty());
+        mode = Mode::ClearProject;
+   } else if (!p.empty()) {
         if (modeString == "on") {
-            mode = FileOn;
+            mode = Mode::FileOn;
         } else if (modeString == "off") {
-            mode = FileOff;
+            mode = Mode::FileOff;
         } else {
-            mode = FileToggle;
+            mode = Mode::FileToggle;
         }
     }
 
     List<Match> matches;
     if (!query->currentFile().empty())
         matches.push_back(query->currentFile());
-    if (mode == FileOn || mode == FileOff || mode == FileToggle)
+    if (mode != Mode::All && mode != Mode::Clear) {
         matches.push_back(p);
+    }
     std::shared_ptr<Project> project;
     if (matches.empty()) {
         project = currentProject();
@@ -1325,17 +1334,19 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
 
     const bool old = mSuspended;
     switch (mode) {
-    case All:
+    case Mode::All:
         mSuspended = true;
         conn->write("All files are suspended.");
         break;
-    case Clear:
+
+    case Mode::Clear:
         mSuspended = false;
         if (project)
             project->clearSuspendedFiles();
         conn->write("No files suspended.");
         break;
-    case ListFiles:
+
+    case Mode::ListFiles:
         if (mSuspended)
             conn->write("All files are suspended.");
         if (project) {
@@ -1348,9 +1359,22 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             }
         }
         break;
-    case FileOn:
-    case FileOff:
-    case FileToggle:
+
+    case Mode::Project:
+    case Mode::ClearProject:
+        if (!project) {
+            conn->write("No project");
+        } else if (mode == Mode::Project) {
+            project->suspendAll();
+        } else {
+            project->clearSuspendedFiles();
+            conn->write<512>("Cleared suspended files for project %s", project->path().constData());
+        }
+        break;
+
+    case Mode::FileOn:
+    case Mode::FileOff:
+    case Mode::FileToggle:
         if (!project) {
             conn->write("No project");
         } else if (!p.isFile()) {
@@ -1360,9 +1384,9 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             if (fileId) {
                 bool suspended = false;
                 switch (mode) {
-                case FileToggle: suspended = project->toggleSuspendFile(fileId); break;
-                case FileOff: suspended = false; project->setSuspended(fileId, false); break;
-                case FileOn: suspended = true; project->setSuspended(fileId, true); break;
+                case Mode::FileToggle: suspended = project->toggleSuspendFile(fileId); break;
+                case Mode::FileOff: suspended = false; project->setSuspended(fileId, false); break;
+                case Mode::FileOn: suspended = true; project->setSuspended(fileId, true); break;
                 default: assert(0);
                 }
                 conn->write<512>("%s is no%s suspended", p.constData(),
@@ -1384,6 +1408,8 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             }
         }
         mJobScheduler->startJobs();
+    } else if (mode == Mode::ClearProject && project && !(Server::instance()->options().options & Server::NoUnsuspendCheck)) {
+        project->check(Project::Check_Explicit);
     }
 }
 

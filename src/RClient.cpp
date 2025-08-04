@@ -82,7 +82,7 @@ std::initializer_list<CommandLineParser::Option<RClient::OptionType>> opts = {
     { RClient::Compile, "compile", 'c', CommandLineParser::Optional, "Pass compilation arguments to rdm." },
     { RClient::GuessFlags, "guess-flags", 0, CommandLineParser::NoValue, "Guess compile flags (used with -c)." },
     { RClient::LoadCompileCommands, "load-compile-commands", 'J', CommandLineParser::Optional, "Load compile_commands.json from directory" },
-    { RClient::Suspend, "suspend", 'X', CommandLineParser::Optional, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg." },
+    { RClient::Suspend, "suspend", 'X', CommandLineParser::Optional, "Dump suspended files (don't track changes in these files) with no arg. Otherwise toggle suspension for arg (all, clear, project, clear-project)." },
 
     { RClient::None, String(), 0, CommandLineParser::NoValue, "" },
     { RClient::None, String(), 0, CommandLineParser::NoValue, "Query commands:" },
@@ -1116,7 +1116,7 @@ CommandLineParser::ParseStatus RClient::parse(size_t argc, char **argv)
                 p = arguments[idx++];
             }
             String change;
-            if (!p.empty() && p != "clear" && p != "all") {
+            if (!p.empty() && p != "clear" && p != "all" && p != "project" && p != "clear-project") {
                 p.resolve(Path::MakeAbsolute);
                 if (!p.isFile()) {
                     return { String::format<1024>("%s is not a file", p.constData()), CommandLineParser::Parse_Error };
