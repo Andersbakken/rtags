@@ -226,7 +226,7 @@ otherwise \\='meta property. See also `company-rtags--meta'."
     (when (memq status '(exit signal closed failed))
       (kill-buffer (process-buffer process)))))
 
-(defun company-rtags (command &optional arg &rest ignored)
+(defun company-rtags (command &optional arg &rest _)
   "`company-mode' completion back-end for RTags."
   (interactive (list 'interactive))
   ;; (message "company-rtags %s %s" (symbol-name command) arg)
