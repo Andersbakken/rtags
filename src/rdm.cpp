@@ -27,6 +27,7 @@
 #include <initializer_list>
 #include <memory>
 #include <utility>
+#include <vector>
 #ifdef OS_Darwin
 #include <sys/resource.h>
 #endif
@@ -435,9 +436,16 @@ int main(int argc, char** argv)
             break; }
         case CrashDumpFile: {
             strncpy(crashDumpFilePath, value.constData(), sizeof(crashDumpFilePath) - 1);
+            crashDumpFilePath[sizeof(crashDumpFilePath) - 1] = '\0';
             break; }
         case SetEnv: {
-            putenv(&value[0]);
+            char *eq = strchr(value.data(), '=');
+            if (!eq) {
+                setenv(value.constData(), "", 1);
+            } else {
+                *eq = '\0';
+                setenv(value.constData(), eq + 1, 1);
+            }
             break; }
         case NoWall: {
             serverOpts.options &= ~Server::Wall;
