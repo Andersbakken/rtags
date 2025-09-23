@@ -237,8 +237,14 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
     for (int i=0; i<size; ++i) {
         uint32_t fileId;
         file >> fileId;
-        if (!fileId)
+        if (!fileId) {
+            // Clean up already allocated nodes on error
+            for (auto& pair : dependencies) {
+                delete pair.second;
+            }
+            dependencies.clear();
             return false;
+        }
         dependencies[fileId] = new DependencyNode(fileId);
     }
     for (int i=0; i<size; ++i) {
@@ -249,6 +255,11 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
             file >> dependee;
             DependencyNode *ee = dependencies[dependee];
             if (!ee) {
+                // Clean up already allocated nodes on error
+                for (auto& pair : dependencies) {
+                    delete pair.second;
+                }
+                dependencies.clear();
                 return false;
             }
             while (links--) {
@@ -256,6 +267,11 @@ static bool loadDependencies(DataFile &file, Dependencies &dependencies)
                 file >> dependent;
                 DependencyNode *ent = dependencies[dependent];
                 if (!ent) {
+                    // Clean up already allocated nodes on error
+                    for (auto& pair : dependencies) {
+                        delete pair.second;
+                    }
+                    dependencies.clear();
                     return false;
                 }
                 ent->include(ee);
