@@ -572,11 +572,11 @@ SourceList Source::parse(const String &cmdLine,
     uint64_t includePathHash = 0;
     bool validCompiler = false;
 
-    const int s = split.size();
+    const size_t s = split.size();
     String arg;
     Path extraCompiler;
     bool verbose = testLog(LogLevel::Debug);
-    for (int i=0; i<s; ++i) {
+    for (size_t i=0; i<s; ++i) {
         arg = split.at(i);
         if (verbose)
             debug() << "parsing argument" << i << arg;
@@ -595,7 +595,7 @@ SourceList Source::parse(const String &cmdLine,
                 if (arg.size() == 2) {
                     if (++i >= split.size()) {
                         error("Missing argument for -x option");
-                        return false;
+                        return SourceList();
                     }
                     a = split.value(i);
                 } else {
@@ -631,7 +631,7 @@ SourceList Source::parse(const String &cmdLine,
                 if (arg.size() == 2) {
                     if (++i >= split.size()) {
                         error("Missing argument for -D option");
-                        return false;
+                        return SourceList();
                     }
                     def = split.value(i);
                     a = arg + def;
@@ -666,7 +666,7 @@ SourceList Source::parse(const String &cmdLine,
                     arguments.push_back(arg);
                     if (++i >= split.size()) {
                         error("Missing argument for -arch option");
-                        return false;
+                        return SourceList();
                     }
                     arguments.push_back(split.value(i));
                 } else {
@@ -708,7 +708,7 @@ SourceList Source::parse(const String &cmdLine,
                 } else if (i + 1 < s) {
                     if (++i >= split.size()) {
                         error("Missing argument for stdlib option");
-                        return false;
+                        return SourceList();
                     }
                     p = split.value(i);
                 }
@@ -736,8 +736,8 @@ SourceList Source::parse(const String &cmdLine,
                 Path p;                                                 \
                 if (arg.size() == argLen) {                             \
                     if (++i >= split.size()) {                          \
-                        error("Missing argument for " #argument);      \
-                        return false;                                   \
+                        error("Missing argument for " #argument);       \
+                        return SourceList();                            \
                     }                                                   \
                     p = Path::resolved(split.value(i), Path::MakeAbsolute, path); \
                 } else {                                                \
@@ -755,7 +755,7 @@ SourceList Source::parse(const String &cmdLine,
                 if (hasValue(arg)) {
                     if (++i >= split.size()) {
                         error("Missing argument for option: %s", arg.constData());
-                        return false;
+                        return SourceList();
                     }
                     arguments.push_back(Path::resolved(split.value(i), Path::MakeAbsolute, path));
                 }
