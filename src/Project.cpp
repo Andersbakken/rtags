@@ -422,7 +422,6 @@ bool Project::init(const Path &srcPath, uint32_t compileCommandsFileId)
     }
 
     if (!loadDependencies(file, mDependencies)) {
-        mDependencies.deleteAll();
         mVisitedFiles.clear();
         mDiagnostics.clear();
         error("Restore error %s: Failed to load dependencies.", mPath.constData());
