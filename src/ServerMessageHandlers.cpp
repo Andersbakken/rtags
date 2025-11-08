@@ -36,6 +36,18 @@
 
 void Server::onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &connection)
 {
+    if (!mShuttingDown) {
+        mThreadPool->enqueue([this, message, connection]() {
+            processMessage(message, connection);
+        });
+    }
+}
+
+void Server::processMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &connection)
+{
+    if (mShuttingDown)
+        return;
+
     switch (message->messageId()) {
     case IndexMessage::MessageId:
         handleIndexMessage(std::static_pointer_cast<IndexMessage>(message), connection);

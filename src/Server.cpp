@@ -81,10 +81,20 @@ Server::Server()
 {
     assert(!sInstance);
     sInstance = this;
+
+    const int numThreads = std::max(4, static_cast<int>(std::thread::hardware_concurrency()));
+    mThreadPool = std::make_unique<TaskThreadPool>(numThreads);
 }
 
 Server::~Server()
 {
+    mShuttingDown = true;
+
+    if (mThreadPool) {
+        mThreadPool->shutdown();
+        mThreadPool.reset();
+    }
+
     if (mPollTimer >= 0)
         EventLoop::eventLoop()->unregisterTimer(mPollTimer);
 
@@ -409,6 +419,7 @@ void Server::updateTrailers(const List<std::shared_ptr<Project>> &projects)
 
 std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCommandsFileId)
 {
+    std::unique_lock<std::shared_mutex> lock(mProjectsMutex);
     List<std::shared_ptr<Project>> &projects = mProjects[path];
     for (const auto &project : projects) {
         if (project->compileCommandsFileId() == compileCommandsFileId) {
@@ -682,6 +693,7 @@ bool Server::parse(IndexParseData &data,
 
 void Server::clearProjects(ClearMode mode)
 {
+    std::unique_lock<std::shared_mutex> lock(mProjectsMutex);
     Path::rmdir(mOptions.dataDir);
     setCurrentProject(std::shared_ptr<Project>());
     for (const auto &p : mProjects) {
@@ -696,6 +708,7 @@ void Server::clearProjects(ClearMode mode)
 
 std::shared_ptr<Project> Server::findProject(uint32_t fileId)
 {
+    std::shared_lock<std::shared_mutex> lock(mProjectsMutex);
     if (currentProject() && currentProject()->isIndexed(fileId)) {
         return currentProject();
     }
@@ -814,6 +827,7 @@ static MatchState match(const List<Match> &matches, const std::shared_ptr<Projec
 
 List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Flag> queryFlags, const List<Match> &matches)
 {
+    std::shared_lock<std::shared_mutex> lock(mProjectsMutex);
     List<std::shared_ptr<Project>> ret;
     const std::shared_ptr<Project> cur = currentProject();
     const MatchState currentMatch = ::match(matches, cur);
@@ -853,6 +867,7 @@ List<std::shared_ptr<Project>> Server::projectsForMatches(Flags<QueryMessage::Fl
 
 void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std::shared_ptr<Connection> &conn)
 {
+    std::unique_lock<std::shared_mutex> lock(mProjectsMutex);
     const Match match = query->match();
     auto it = mProjects.begin();
     bool found = false;

@@ -36,6 +36,9 @@
 #include "Source.h"
 #include "QueryMessage.h"
 #include "RTags.h"
+#include "TaskThreadPool.h"
+#include <shared_mutex>
+#include <atomic>
 
 class IndexMessage;
 class SocketServer;
@@ -270,6 +273,13 @@ private:
     Signal<std::function<void()>> mIndexDataMessageReceived;
     size_t mDefaultJobCount { 0 };
     List<size_t> mJobCountStack;
+
+    std::unique_ptr<TaskThreadPool> mThreadPool;
+    mutable std::shared_mutex mProjectsMutex;
+    std::atomic<bool> mShuttingDown{false};
+
+    void processMessage(const std::shared_ptr<Message> &msg,
+                        const std::shared_ptr<Connection> &conn);
 };
 RCT_FLAGS(Server::Option);
 RCT_FLAGS(Server::FileIdsFileFlag);

@@ -48,6 +48,7 @@
 #include "rct/Map.h"
 #include "rct/Rct.h"
 #include "rct/Set.h"
+#include "RWLock.h"
 #include "rct/String.h"
 
 class Connection;
@@ -498,6 +499,7 @@ private:
     bool mSaveDirty { false };
 
     mutable std::mutex mMutex;
+    mutable RWLock mRWLock;
 };
 
 RCT_FLAGS(Project::WatchMode);
