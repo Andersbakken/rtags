@@ -1322,7 +1322,8 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
     List<Match> matches;
     if (!query->currentFile().empty())
         matches.push_back(query->currentFile());
-    if (mode != Mode::All && mode != Mode::Clear) {
+    // Don't add "project" or "clear-project" strings to matches - they're mode indicators, not file paths
+    if (mode != Mode::All && mode != Mode::Clear && mode != Mode::Project && mode != Mode::ClearProject) {
         matches.push_back(p);
     }
     std::shared_ptr<Project> project;
@@ -1366,6 +1367,7 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
             conn->write("No project");
         } else if (mode == Mode::Project) {
             project->suspendAll();
+            conn->write<512>("Suspended all files for project %s", project->path().constData());
         } else {
             project->clearSuspendedFiles();
             conn->write<512>("Cleared suspended files for project %s", project->path().constData());
@@ -1409,6 +1411,8 @@ void Server::suspend(const std::shared_ptr<QueryMessage> &query, const std::shar
         }
         mJobScheduler->startJobs();
     } else if (mode == Mode::ClearProject && project && !(Server::instance()->options().options & Server::NoUnsuspendCheck)) {
+        // After clearing project suspension, check for any files that were modified
+        // while suspended. Files with restored timestamps will not be marked dirty.
         project->check(Project::Check_Explicit);
     }
 }
