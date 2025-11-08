@@ -65,3 +65,10 @@ gr
 /src/vast/*.cmake
 /src/vast/vast_autogen/
 /.ninja_lock
+/src/ac-rtags.el.eln-stamp
+/src/company-rtags.el.eln-stamp
+/src/flycheck-rtags.el.eln-stamp
+/src/helm-rtags.el.eln-stamp
+/src/ivy-rtags.el.eln-stamp
+/src/rtags-xref.el.eln-stamp
+/src/rtags.el.eln-stamp

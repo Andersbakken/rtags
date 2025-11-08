@@ -330,13 +330,14 @@ if (NOT RTAGS_NO_ELISP_FILES)
             add_custom_target(emacs_byte_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}c)
 
             if (EMACS_NATIVE_COMPILE)
-                add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}o
+                add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/${el}.eln-stamp
                     COMMAND ${EMACS_EXECUTABLE} -batch -l ${CMAKE_CURRENT_SOURCE_DIR}/compile-shim.elisp -l ${CMAKE_CURRENT_SOURCE_DIR}/rtags.el -f batch-native-compile
                     ${CMAKE_CURRENT_BINARY_DIR}/${el}
+                    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/${el}.eln-stamp
                     DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}
                     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                    COMMENT "Creating native-compiled Emacs lisp ${CMAKE_CURRENT_BINARY_DIR}/${el}oauth")
-                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}o)
+                    COMMENT "Creating native-compiled Emacs lisp for ${el}")
+                add_custom_target(emacs_native_compile_${el} ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${el}.eln-stamp)
             endif()
 
         endif ()
