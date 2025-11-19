@@ -40,14 +40,14 @@ int main(int argc, char **argv)
     }
 
     std::unique_ptr<TranslationUnit> translationUnit;
-    QProgressDialog dialog("Parsing translation unit...", "&Abort", 0, 0);
+    std::unique_ptr<QProgressDialog> dialog = std::make_unique<QProgressDialog>("Parsing translation unit...", "&Abort", 0, 0);
     std::thread t([&dialog, &translationUnit, argc, argv, flags]() {
         translationUnit = TranslationUnit::create(argv, argc, flags);
-        QMetaObject::invokeMethod(&dialog, "accept");
+        QMetaObject::invokeMethod(dialog.get(), "accept");
     });
-    dialog.exec();
+    dialog->exec();
     t.join();
-    if (dialog.wasCanceled())
+    if (dialog->wasCanceled())
         return 0;
     if (!translationUnit) {
         fprintf(stderr, "Failed to parse translation unit:\n");
