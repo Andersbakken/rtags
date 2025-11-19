@@ -205,7 +205,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             source.arguments.push_back("-fno-modules");
         }
     }
-    source.flags |= (compiler.isEmscripten ? Source::IsEmscripten : 0);
+    source.flags |= (compiler.isEmscripten ? Source::IsEmscripten : Source::NoFlag);
 }
 
 } // namespace CompilerManager
