@@ -176,7 +176,7 @@ void Window::showPreferences()
     if (dialog.exec()) {
         settings.setValue("showDefines", showDefines->isChecked());
         settings.setValue("showIncludes", showIncludes->isChecked());
-        settings.setValue("showTypeDefs", showTypedefs->isChecked());
+        settings.setValue("showTypedefs", showTypedefs->isChecked());
         unsigned int flags = 0;
         if (showDefines->isChecked())
             flags |= TranslationUnit::ShowDefines;
