@@ -151,7 +151,18 @@ String IndexerJob::encode() const
             }
 
             Server::instance()->filterBlockedArguments(copy);
-            copy.includePaths.insert(copy.includePaths.begin(), options.includePaths.begin(), options.includePaths.end());
+            if (copy.flags & Source::IsEmscripten) {
+                debug() << "[IndexerJob] Skipping libclang include for Emscripten source:" << copy.fileId;
+                List<Source::Include> filteredPaths;
+                for (const auto &inc : options.includePaths) {
+                    if (!inc.path.contains("/clang/")) {
+                        filteredPaths.push_back(inc);
+                    }
+                }
+                copy.includePaths.insert(copy.includePaths.begin(), filteredPaths.begin(), filteredPaths.end());
+            } else {
+                copy.includePaths.insert(copy.includePaths.begin(), options.includePaths.begin(), options.includePaths.end());
+            }
             project->fixPCH(copy);
 
             copy.defines << options.defines;

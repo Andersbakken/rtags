@@ -31,9 +31,10 @@
 static std::mutex sMutex;
 struct Compiler {
     Compiler()
-        : inited(false)
+        : inited(false), isEmscripten(false)
     {}
     bool inited;
+    bool isEmscripten;
 
     // There are three include-path-limiting options:
     //   1. -nostdinc      -- disables all default system include paths
@@ -135,6 +136,10 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                     def.value = line.mid(space + 1);
                 }
                 compiler.defines.insert(def);
+                if (def.define == "EMSCRIPTEN" || def.define == "__EMSCRIPTEN__") {
+                    compiler.isEmscripten = true;
+                    debug() << "[CompilerManager] Detected Emscripten compiler:" << cpath;
+                }
             }
         }
 
@@ -200,6 +205,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             source.arguments.push_back("-fno-modules");
         }
     }
+    source.flags |= (compiler.isEmscripten ? Source::IsEmscripten : 0);
 }
 
 } // namespace CompilerManager
