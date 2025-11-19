@@ -17,6 +17,17 @@ int main(int argc, char **argv)
     a.setApplicationName("vast");
     a.setOrganizationName("rtags");
 
+    for (int i=1; i<argc; ++i) {
+        if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h")) {
+            printf("Usage:\n"
+                   "vast <compile_commands.json> <source-file-pattern>\n"
+                   "vast <clang-arguments>...\n");
+            printf("Options:\n");
+            printf("  --help, -h               Show this help message\n");
+            return 0;
+        }
+    }
+
     unsigned int flags = 0;
     {
         QSettings settings;
