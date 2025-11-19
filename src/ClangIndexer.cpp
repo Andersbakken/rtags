@@ -1051,8 +1051,10 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
             mTemplateSpecializations.insert(originalRef);
         }
 
-        if (refKind == CXCursor_FunctionDecl)
+        if (refKind == CXCursor_FunctionDecl) {
+            refKind = clang_getCursorKind(ref);
             break;
+        }
         if (refKind == CXCursor_Constructor || refKind == CXCursor_Destructor) {
             if (isImplicit(ref)) {
                 return false;
@@ -1070,6 +1072,24 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                 }
             }
         }
+        refKind = clang_getCursorKind(ref);
+        break; }
+    case CXCursor_TypedefDecl: {
+        CXType underlyingType = clang_getTypedefDeclUnderlyingType(ref);
+        CXCursor decl = clang_getTypeDeclaration(underlyingType);
+
+        if (clang_getCursorKind(decl) == CXCursor_NoDeclFound) {
+            break;
+        }
+
+        // If the underlying declaration is a definition, prefer it over the typedef
+        CXCursor definition = clang_getCursorDefinition(decl);
+        if (!clang_Cursor_isNull(definition) && !clang_equalCursors(decl, definition)) {
+            ref = definition;
+        } else {
+            ref = decl;
+        }
+
         refKind = clang_getCursorKind(ref);
         break; }
     default:
