@@ -60,6 +60,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    dialog.reset();
     Window window(std::move(translationUnit));
     window.show();
     return a.exec();
