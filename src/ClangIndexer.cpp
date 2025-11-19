@@ -1016,7 +1016,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     if (cursorPtr)
         *cursorPtr = nullptr;
     // error() << "handleReference" << cursor << kind << location << ref;
-    const CXCursorKind refKind = clang_getCursorKind(ref);
+    CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind)) {
         return superclassTemplateMemberFunctionUgleHack(cursor, kind, location, ref, cursorPtr);
     }
@@ -1039,17 +1039,6 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         return false;
     }
 
-    Location refLoc = createLocation(ref, refKind);
-    if (!refLoc.isValid()) {
-        // ### THIS IS NOT SOLVED
-        // if (kind == CXCursor_ObjCMessageExpr) {
-        //    mIndexDataMessage.mPendingReferenceMap[RTags::eatString(clang_getCursorUSR(clang_getCanonicalCursor(ref)))].insert(location);
-        //     // insert it, we'll hook up the target and references later
-        //     return handleCursor(cursor, kind, location, cursorPtr);
-        // }
-        return false;
-    }
-
     switch (refKind) {
     case CXCursor_Constructor:
     case CXCursor_CXXMethod:
@@ -1057,7 +1046,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     case CXCursor_Destructor:
     case CXCursor_FunctionTemplate: {
         bool visitReference = false;
-        ref = resolveTemplate(ref, refLoc, &visitReference);
+        ref = resolveTemplate(ref, Location(), &visitReference);
         if (visitReference && (kind == CXCursor_DeclRefExpr || kind == CXCursor_MemberRefExpr)) {
             mTemplateSpecializations.insert(originalRef);
         }
@@ -1081,14 +1070,21 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
                 }
             }
         }
+        refKind = clang_getCursorKind(ref);
         break; }
     default:
         ref = resolveTemplateUsr(ref);
+        refKind = clang_getCursorKind(ref);
         break;
     }
 
     const String refUsr = RTags::usr(ref);
     if (refUsr.empty()) {
+        return false;
+    }
+
+    const Location refLoc = createLocation(ref, refKind);
+    if (!refLoc.isValid()) {
         return false;
     }
 
