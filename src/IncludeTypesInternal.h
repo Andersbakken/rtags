@@ -13,6 +13,7 @@
    You should have received a copy of the GNU General Public License
    along with RTags.  If not, see <https://www.gnu.org/licenses/>. */
 
+DECLARE_INCLUDE_TYPE(Type_CxxSystem, "-cxx-isystem", " ")
 DECLARE_INCLUDE_TYPE(Type_DirAfter, "-idirafter", " ")
 DECLARE_INCLUDE_TYPE(Type_File, "-include", " ")
 DECLARE_INCLUDE_TYPE(Type_Framework, "-F", "")
