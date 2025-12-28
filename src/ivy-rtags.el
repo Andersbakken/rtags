@@ -106,8 +106,8 @@ The logic for this function is almost entirely taken from `ivy-call'."
                                (unwind-protect
                                    (progn
                                      (goto-char (cdr x))
-                                     (rtags-select nil nil)))
-                               (ivy-recursive-restore)))
+                                     (rtags-select nil nil))
+                                 (ivy-recursive-restore))))
                       (unless (or (eq ivy-exit 'done)
                                   (equal (selected-window)
                                          (active-minibuffer-window))

@@ -407,7 +407,7 @@ appropriate format string for error. For example,
 (defcustom rtags-find-file-prompt "Find files"
   "What prompt to use for `rtags-find-file'."
   :type 'string
-  :type 'stringp)
+  :safe 'stringp)
 
 (defcustom rtags-track-container nil
   "When on continually update current container (function/class/namespace)
@@ -651,7 +651,6 @@ Note: It is recommended to run each sandbox is separate Emacs process."
           (const :tag "RTags (default)" default)
           (const :tag "Helm" helm)
           (const :tag "Ivy" ivy))
-  :type 'symbol
   :risky t)
 
 (defcustom rtags-imenu-kind-filter "-references,-vardecl,-parmdecl,-inclusiondirective,-*literal*,-enumconstantdecl,-classdecl-,-structdecl-,-classtemplate-,-statements,-lambdaexpr"
@@ -1522,7 +1521,6 @@ It uses the stored compile command from the RTags database for assembling."
           (const :tag "insert default" insert-default)
           (const :tag "default when empty" helm)
           (const :tag "insert default marked" insert-default-marked))
-  :type 'symbol
   :risky t)
 
 ;;;###autoload
@@ -2260,7 +2258,7 @@ instead of file from `current-buffer'.
                     "\n"))
           (setq calls (cdr calls)))
         (goto-char (point-max))
-        (backward-delete-char 1)
+        (delete-char -1)
         (goto-char (point-min))
         (insert "Functions called from: " (cdr (assoc 'location container)) " " (cdr (assoc 'symbolName container)) "\n")
         (goto-char (point-min))
