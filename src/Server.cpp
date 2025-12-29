@@ -888,6 +888,20 @@ void Server::removeProject(const std::shared_ptr<QueryMessage> &query, const std
     conn->finish();
 }
 
+bool Server::isProjectValid(const std::shared_ptr<Project> &project) const
+{
+    if (!project)
+        return false;
+    auto it = mProjects.find(project->path());
+    if (it == mProjects.end())
+        return false;
+    for (const auto &p : it->second) {
+        if (p == project)
+            return true;
+    }
+    return false;
+}
+
 bool Server::load()
 {
     DataFile fileIdsFile(mOptions.dataDir + "fileids", RTags::DatabaseVersion);

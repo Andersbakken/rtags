@@ -168,6 +168,7 @@ public:
     int exitCode() const { return mExitCode; }
     std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     const Map<Path, List<std::shared_ptr<Project>>> &projects() const { return mProjects; }
+    bool isProjectValid(const std::shared_ptr<Project> &project) const;
     void onNewMessage(const std::shared_ptr<Message> &message, const std::shared_ptr<Connection> &conn);
     bool saveFileIds();
     bool loadCompileCommands(IndexParseData &data, Path compileCommands, const List<String> &environment, SourceCache *cache) const;

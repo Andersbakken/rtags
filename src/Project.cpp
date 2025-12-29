@@ -313,6 +313,17 @@ Project::~Project()
     mCheckTimer.stop();
 }
 
+void Project::destroy()
+{
+    mSaveDirty = false;
+    for (const auto &job : mActiveJobs) {
+        if (job.second) {
+            Server::instance()->jobScheduler()->abort(job.second);
+        }
+    }
+    mActiveJobs.clear();
+}
+
 static bool hasSourceDependency(const DependencyNode *node, const std::shared_ptr<Project> &project, Set<uint32_t> &seen)
 {
     const Path path = Location::path(node->fileId);

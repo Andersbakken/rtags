@@ -257,6 +257,12 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
     if (!project)
         return;
 
+    // Check if the project has been removed (e.g., via rc -W)
+    if (!Server::instance()->isProjectValid(project)) {
+        debug() << "job finished but project was removed" << job->id << job->sourceFileId() << job.get();
+        return;
+    }
+
     job->flags &= ~IndexerJob::Running;
     if (!(job->flags & IndexerJob::Crashed)) {
         job->flags |= IndexerJob::Complete;
@@ -267,7 +273,7 @@ void JobScheduler::jobFinished(const std::shared_ptr<IndexerJob> &job, const std
         if (job->crashCount < options.maxCrashCount) {
             project->releaseFileIds(job->visited);
             EventLoop::eventLoop()->registerTimer([job, this](int) {
-                if (!(job->flags & IndexerJob::Aborted)) {
+                if (!(job->flags & IndexerJob::Aborted) && Server::instance()->isProjectValid(job->project)) {
                     job->flags &= ~IndexerJob::Crashed;
                     job->acquireId();
                     add(job);
