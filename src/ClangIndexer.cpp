@@ -1047,6 +1047,7 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     case CXCursor_FunctionTemplate: {
         bool visitReference = false;
         ref = resolveTemplate(ref, Location(), &visitReference);
+        ref = resolveTemplateUsr(ref);
         if (visitReference && (kind == CXCursor_DeclRefExpr || kind == CXCursor_MemberRefExpr)) {
             mTemplateSpecializations.insert(originalRef);
         }
