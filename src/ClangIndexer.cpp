@@ -2396,20 +2396,20 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location>>::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
+        if (!(w = FileMap<String, Set<Location>>::write(unitRoot + "/usrs", unit->second->usrs, fileMapOpts))) {
             error = "Failed to write usrs";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<String, Set<Location>>::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
+        if (!(w = FileMap<String, Set<Location>>::write(unitRoot + "/symnames", unit->second->symbolNames, fileMapOpts))) {
             error = "Failed to write symbolNames";
             return false;
         }
         bytesWritten += w;
 
-        if (!(w += FileMap<uint32_t, Token>::write(unitRoot + "/tokens", unit->second->tokens, fileMapOpts))) {
-            error = "Failed to write symbolNames";
+        if (!(w = FileMap<uint32_t, Token>::write(unitRoot + "/tokens", unit->second->tokens, fileMapOpts))) {
+            error = "Failed to write tokens";
             return false;
         }
         bytesWritten += w;
