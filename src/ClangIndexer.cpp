@@ -2416,10 +2416,16 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
         return true;
     };
 
-    List<std::shared_ptr<Unit>> templateSpecializationTargets;
+    List<std::shared_ptr<Unit>> unvisitedWithTargets;
     auto self = mUnits.end();
     for (auto it = mUnits.begin(); it != mUnits.end(); ++it) {
         if (!(mIndexDataMessage.files().value(it->first) & IndexDataMessage::Visited)) {
+            if (!it->second->targets.empty()) {
+                // Collect targets from unvisited units (e.g. blocked headers
+                // that accumulated template specialization target data)
+                // to merge into the source file's unit so they aren't lost.
+                unvisitedWithTargets.push_back(it->second);
+            }
             ::error() << "Wanting to write something for"
                       << it->first << Location::path(it->first)
                       << "but we didn't visit it" << mSourceFile
@@ -2438,7 +2444,7 @@ bool ClangIndexer::writeFiles(const Path &root, String &error)
     }
 
     if (self != mUnits.end()) {
-        for (const std::shared_ptr<Unit> &t : templateSpecializationTargets) {
+        for (const std::shared_ptr<Unit> &t : unvisitedWithTargets) {
             self->second->targets.unite(t->targets);
         }
         if (!process(self)) {
