@@ -786,8 +786,31 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
     Location loc = createLocation(cursor, kind, &blocked);
     if (blocked) {
         ++mBlocked;
+        if (type == RTags::Type_Reference) {
+            const CXCursor ref = clang_getCursorReferenced(cursor);
+            const CXCursorKind refKind = clang_getCursorKind(ref);
+            if (!clang_isInvalid(refKind)) {
+                switch (refKind) {
+                case CXCursor_Constructor:
+                case CXCursor_CXXMethod:
+                case CXCursor_FunctionDecl:
+                case CXCursor_Destructor:
+                case CXCursor_FunctionTemplate: {
+                    bool specialized = false;
+                    resolveTemplate(ref, Location(), &specialized);
+                    if (specialized)
+                        mTemplateSpecializations.insert(ref);
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
         return CXChildVisit_Continue;
-    } else if (loc.isNull()) {
+    }
+
+    if (loc.isNull()) {
         // error() << "Got null" << cursor;
         return CXChildVisit_Recurse;
     }
