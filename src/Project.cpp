@@ -2914,7 +2914,8 @@ Map<Symbol, size_t> Project::findDeadFunctions(uint32_t fileId)
     };
     if (!fileId) {
         Set<String> seenUsrs;
-        for (uint32_t id : mVisitedFiles) {
+        const Set<uint32_t> files = visitedFiles();
+        for (uint32_t id : files) {
             processFile(id, &seenUsrs);
         }
     } else {
