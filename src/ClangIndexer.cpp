@@ -81,7 +81,7 @@ ClangIndexer::ClangIndexer(Mode mode)
       mAllowed(0), mIndexed(1), mVisitFileTimeout(0), mIndexDataMessageTimeout(0),
       mFileIdsQueried(0), mFileIdsQueriedTime(0), mCursorsVisited(0), mLogFile(nullptr),
       mConnection(Connection::create(RClient::NumOptions)), mUnionRecursion(false),
-      mFromCache(false), mInTemplateFunction(0)
+      mFromCache(false), mVerifyUsr(!!getenv("RTAGS_VERIFY_USR")), mInTemplateFunction(0)
 {
     mConnection->newMessage().connect(std::bind(&ClangIndexer::onMessage, this,
                                                 std::placeholders::_1, std::placeholders::_2));
@@ -1125,6 +1125,17 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
     const String refUsr = RTags::usr(ref);
     if (refUsr.empty()) {
         return false;
+    }
+
+    if (mVerifyUsr) {
+        const String directUsr = RTags::usr(originalRef);
+        if (!directUsr.empty() && directUsr != refUsr) {
+            warning() << "USR mismatch at" << location
+                      << "resolved:" << refUsr
+                      << "direct:" << directUsr
+                      << "ref:" << RTags::cursorToString(ref)
+                      << "original:" << RTags::cursorToString(originalRef);
+        }
     }
 
     const Location refLoc = createLocation(ref, refKind);
