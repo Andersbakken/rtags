@@ -2070,6 +2070,16 @@ CXChildVisitResult ClangIndexer::handleCursor(const CXCursor &cursor, CXCursorKi
     // cursor's usr allows us to join them. Check JSClassRelease in
     // JavaScriptCore for an example.
     unit(location)->usrs[c.usr].insert(location);
+    {
+        const CXCursor general = clang_getSpecializedCursorTemplate(cursor);
+        if (!clang_Cursor_isNull(general)) {
+            const CXCursor resolved = resolveTemplateUsr(resolveTemplate(cursor));
+            const String resolvedUsr = RTags::usr(resolved);
+            if (!resolvedUsr.empty() && resolvedUsr != c.usr) {
+                unit(location)->usrs[resolvedUsr].insert(location);
+            }
+        }
+    }
     if (c.linkage == CXLinkage_External && !c.isDefinition()) {
         switch (c.kind) {
         case CXCursor_FunctionDecl:
