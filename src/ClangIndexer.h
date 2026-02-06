@@ -192,6 +192,7 @@ private:
     String mTrailer;
     bool mUnionRecursion;
     bool mFromCache;
+    bool mVerifyUsr;
 
     struct Scope {
         enum ScopeType {
