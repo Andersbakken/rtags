@@ -239,7 +239,14 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${RTAGS_BINARY_ROOT_DIR}/bin)
 
 # RCT_LIBRARIES and stdc++ library must be at the end
-set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES} rct)
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    # libc++ is already linked via -stdlib=libc++, and pthread is part of libSystem
+    set(_rct_libs ${RCT_LIBRARIES})
+    list(REMOVE_ITEM _rct_libs pthread)
+    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} ${_rct_libs} rct)
+else ()
+    set(RTAGS_LIBRARIES ${RTAGS_LIBRARIES} -lstdc++ ${RCT_LIBRARIES} rct)
+endif ()
 add_executable(rc rc.cpp)
 target_link_libraries(rc ${RTAGS_LIBRARIES})
 
