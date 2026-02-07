@@ -19,11 +19,14 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcppunit-dev llvm-dev libclang-dev clang python3-pip emacs-nox
-          pip3 install --user pytest
+          sudo apt-get install -y libcppunit-dev llvm-dev libclang-dev clang emacs-nox
 
       - name: Configure
         run: |
@@ -36,8 +39,18 @@ jobs:
       - name: Build
         run: make -C build -j$(nproc) VERBOSE=1
 
-      - name: Test
+      - name: Install test dependencies
+        run: cd tests/automated && npm ci
+
+      - name: Unit tests
         run: cd build && ctest --output-on-failure --verbose
+
+      - name: Integration tests
+        run: |
+          cd tests/automated
+          RTAGS_BINARY_DIR=${{ github.workspace }}/build/bin npx vitest run
+        env:
+          GITHUB_ACTIONS: true
 
   build-macos:
     runs-on: macos-latest
@@ -50,10 +63,12 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install dependencies
-        run: |
-          brew install llvm cppunit
-          pip3 install --user --break-system-packages pytest
+        run: brew install llvm cppunit
 
       - name: Configure
         run: |
@@ -68,8 +83,18 @@ jobs:
       - name: Build
         run: make -C build -j$(sysctl -n hw.ncpu) VERBOSE=1
 
-      - name: Test
+      - name: Install test dependencies
+        run: cd tests/automated && npm ci
+
+      - name: Unit tests
         run: cd build && ctest --output-on-failure --verbose -E elisp
+
+      - name: Integration tests
+        run: |
+          cd tests/automated
+          RTAGS_BINARY_DIR=${{ github.workspace }}/build/bin npx vitest run
+        env:
+          GITHUB_ACTIONS: true
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')

@@ -38,7 +38,10 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
         "\\\\.travis.yml$"
         "\\\\.github/"
         "^${PROJECT_SOURCE_DIR}/.dir-locals.el"
-        "^${PROJECT_SOURCE_DIR}/build/"
+        "^${PROJECT_SOURCE_DIR}/build"
+        "/node_modules/"
+        "/_CPack_Packages/"
+        "/\\\\.rtags/"
         )
 
     include(CPack)
