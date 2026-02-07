@@ -40,7 +40,7 @@ jobs:
         run: make -C build -j$(nproc) VERBOSE=1
 
       - name: Install test dependencies
-        run: cd tests/automated && npm install
+        run: cd tests/automated && rm -rf node_modules package-lock.json && npm install
 
       - name: Integration tests
         run: |
@@ -81,7 +81,7 @@ jobs:
         run: make -C build -j$(sysctl -n hw.ncpu) VERBOSE=1
 
       - name: Install test dependencies
-        run: cd tests/automated && npm install
+        run: cd tests/automated && rm -rf node_modules package-lock.json && npm install
 
       - name: Integration tests
         run: |
