@@ -43,7 +43,7 @@ jobs:
         run: cd tests/automated && npm ci
 
       - name: Unit tests
-        run: cd build && ctest --output-on-failure --verbose
+        run: cd build && ctest --output-on-failure --verbose -E unittests
 
       - name: Integration tests
         run: |
@@ -87,7 +87,7 @@ jobs:
         run: cd tests/automated && npm ci
 
       - name: Unit tests
-        run: cd build && ctest --output-on-failure --verbose -E elisp
+        run: cd build && ctest --output-on-failure --verbose -E "elisp|unittests"
 
       - name: Integration tests
         run: |
