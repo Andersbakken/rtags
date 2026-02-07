@@ -44,6 +44,7 @@ if (RTAGS_ENABLE_DEV_OPTIONS)
     include(CPack)
 else ()
     set(WITH_TESTS 0 CACHE BOOL "Build testing files; requires cppunit.")
+    set(WITH_MANUAL_TESTS 0 CACHE BOOL "Build manual test programs.")
 
     set(RCT_WITH_TESTS ${WITH_TESTS})
 
@@ -115,6 +116,10 @@ else ()
         else()
             message(WARNING "No suitable Emacs version found! Skipping elisp tests.")
         endif ()
+    endif ()
+
+    if (WITH_MANUAL_TESTS)
+        add_subdirectory(tests/manual)
     endif ()
 
     feature_summary(INCLUDE_QUIET_PACKAGES WHAT ALL)
