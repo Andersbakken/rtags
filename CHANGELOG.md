@@ -1,5 +1,29 @@
 # RTags Changelog
 
+## 2.43
+- Add Vitest integration test suite (59 tests) replacing the old
+  Python/pytest tests. Tests cover follow-location, find-references,
+  code completion, templates, namespaces, enums, macros, overloads,
+  multi-TU indexing, inheritance, typedefs, operators, and more.
+- Add GitHub Actions CI replacing Travis CI. Builds and tests on
+  Linux (gcc) and macOS (clang) in both Debug and Release. Releases
+  with source tarballs are created automatically on tag push.
+- Fix synchronous `Process::exec()` hanging indefinitely.
+  `ProcessThread` failed to call `finish()` for sync processes because
+  the event loop was null, leaving the caller's `select()` blocked
+  forever. This caused rdm to hang on startup when `isCompiler()` ran
+  a trivial compile test.
+- Fix `Process` destructor asserting when child is still running;
+  kill the child instead.
+- Make `bump-version.sh` and `gen-man-pages.sh` work with macOS BSD
+  sed (no longer requires `gsed`)
+- Fix `readlink -f` portability in `bump-version.sh`
+- Replace deprecated `exec_program()` with `execute_process()` in
+  rct CMake
+- Fix CPack source tarball excluding `node_modules` and build
+  directories
+- Clean up `.gitignore`
+
 ## 2.42
 
 ### Core / Indexing
