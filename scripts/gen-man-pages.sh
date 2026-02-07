@@ -27,13 +27,17 @@ if [ $# -lt 1 ]; then
 fi
 
 SED=$(command -v sed)
-if [ "$(uname)" == "Darwin" ]; then
-    SED=$(command -v gsed)
-fi
 
 if [ ! -x "$SED" ]; then
-    echo "You need sed installed (and on Mac it needs to be gsed) to run ${BASH_SOURCE[0]}"
+    echo "You need sed installed to run ${BASH_SOURCE[0]}"
     exit 1
+fi
+
+# BSD sed (macOS) requires a separate argument after -i, GNU sed does not.
+if $SED --version >/dev/null 2>&1; then
+    SED_INPLACE=("$SED" -i"")
+else
+    SED_INPLACE=("$SED" -i "")
 fi
 
 MAN_BASE="$BASE_DIR/man/man7"
@@ -91,7 +95,7 @@ rc(7)
 ") "$1/rdm" > "$MAN_BASE/rdm.7"
 
 # Fix-ups
-"$SED" -ri                                         \
+"${SED_INPLACE[@]}" -E                                 \
     -e '/^(rdm|rc) options...$/d'               \
     -e 's/^Options:$/.SH OPTIONS/'              \
     -e 's/^(Path to rp) \(default.*\).$/\1./'   \
