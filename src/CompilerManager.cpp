@@ -194,8 +194,23 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         source.defines << compiler.defines;
     if (flags & IncludeIncludePaths) {
         if (!source.arguments.contains("-nostdinc")) {
-            if (!source.arguments.contains("-nostdinc++"))
+            if (!source.arguments.contains("-nostdinc++")) {
                 source.includePaths << compiler.stdincxxPaths;
+                // When the project's compiler provides its own C++ stdlib
+                // paths that differ from the system's (e.g. a cross-compiler
+                // or custom GCC), add -nostdinc++ to prevent libclang's
+                // driver from also discovering the system GCC's C++ stdlib
+                // paths. Without this, both sets of headers get included,
+                // causing redefinition errors (e.g. chrono.h).
+                // Only do this when the stdlib paths are non-standard
+                // (outside /usr/) to avoid affecting system compiler projects.
+                for (const auto &inc : compiler.stdincxxPaths) {
+                    if (!inc.path.startsWith("/usr/")) {
+                        source.arguments.push_back("-nostdinc++");
+                        break;
+                    }
+                }
+            }
             if (!source.arguments.contains("-nobuiltininc"))
                 source.includePaths << compiler.builtinPaths;
             source.includePaths << compiler.includePaths;
