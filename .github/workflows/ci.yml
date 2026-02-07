@@ -40,10 +40,10 @@ jobs:
         run: make -C build -j$(nproc) VERBOSE=1
 
       - name: Install test dependencies
-        run: cd tests/automated && npm ci
+        run: cd tests/automated && npm install
 
       - name: Unit tests
-        run: cd build && ctest --output-on-failure --verbose -E unittests
+        run: cd build && ctest --output-on-failure --verbose
 
       - name: Integration tests
         run: |
@@ -84,10 +84,10 @@ jobs:
         run: make -C build -j$(sysctl -n hw.ncpu) VERBOSE=1
 
       - name: Install test dependencies
-        run: cd tests/automated && npm ci
+        run: cd tests/automated && npm install
 
       - name: Unit tests
-        run: cd build && ctest --output-on-failure --verbose -E "elisp|unittests"
+        run: cd build && ctest --output-on-failure --verbose -E elisp
 
       - name: Integration tests
         run: |
