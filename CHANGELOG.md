@@ -1,5 +1,17 @@
 # RTags Changelog
 
+## 2.44
+- Fix `FindLibClang.cmake` regex to match define values with `=` and
+  digits (e.g. `-D_FILE_OFFSET_BITS=64`), fixing build failure on
+  Debian with LLVM 18 (PR #1439)
+- Blacklist additional ARM code generation flags (`-fconserve-stack`,
+  `-fno-allow-store-data-races`, `-fno-ipa-sra`, `-mno-fdpic`,
+  `-ftrivial-auto-var-init=`) that don't affect parsing (PR #1440)
+- Fix code completion over TRAMP with unsaved buffers by creating temp
+  files on the remote host with `make-nearby-temp-file` (PR #1441)
+- Bump `cmake_minimum_required` to 3.5 in remaining CMakeLists files
+  for CMake 4.0 compatibility (PR #1443)
+
 ## 2.43
 - Add Vitest integration test suite (59 tests) replacing the old
   Python/pytest tests. Tests cover follow-location, find-references,
