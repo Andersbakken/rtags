@@ -49,7 +49,6 @@ install_manifest.txt
 
 # Node
 node_modules/
-package-lock.json
 
 # Test artifacts
 /tests/186/
