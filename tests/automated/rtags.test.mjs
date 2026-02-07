@@ -62,9 +62,8 @@ describe("MultipleTU (ported)", () => {
 
     it("find_references: across translation units", () => {
         const out = lines(stripDir(rt.references(f("multi_tu_header.hpp"), 3, 6)));
-        // Should find references in at least both TUs
-        expect(out.length).toBeGreaterThanOrEqual(2);
         expect(out.some((l) => l.includes("multi_tu_a.cpp"))).toBe(true);
+        expect(out.some((l) => l.includes("multi_tu_b.cpp"))).toBe(true);
     });
 });
 

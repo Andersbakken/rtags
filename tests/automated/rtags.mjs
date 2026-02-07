@@ -106,6 +106,11 @@ export class RTags {
         const ccPath = join(dir, "compile_commands.json");
         writeFileSync(ccPath, JSON.stringify(commands, null, 2));
         this.rc("--project-root", dir, "-J", dir, "--wait");
+
+        // Wait for each source file to be indexed and ready
+        for (const f of srcFiles) {
+            this.rc("--is-indexed", join(dir, f));
+        }
     }
 
     followLocation(file, line, col, ...extra) {
