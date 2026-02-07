@@ -106,7 +106,10 @@ public:
         Separate32BitAnd64Bit = (1ull << 32),
         SourceIgnoreIncludePathDifferencesInUsr = (1ull << 33),
         NoLibClangIncludePath = (1ull << 34),
-        CompletionDiagnostics = (1ull << 35)
+        CompletionDiagnostics = (1ull << 35),
+#ifdef OS_Linux
+        NoForceLimitsInclude = (1ull << 36),
+#endif
     };
     struct Options {
         Options()

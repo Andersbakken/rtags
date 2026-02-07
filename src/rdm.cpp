@@ -231,6 +231,9 @@ enum OptionType {
     SandboxRoot,
     PollTimer,
     NoRealPath,
+#ifdef OS_Linux
+    NoForceLimitsInclude,
+#endif
     Noop
 };
 
@@ -393,6 +396,9 @@ int main(int argc, char** argv)
         { SandboxRoot, "sandbox-root",  0, CommandLineParser::Required, "Create index using relative paths by stripping dir (enables copying of tag index db files without need to reindex)." },
         { PollTimer, "poll-timer", 0, CommandLineParser::Required, "Poll the database of the current project every <arg> seconds. " },
         { NoRealPath, "no-realpath", 0, CommandLineParser::NoValue, "Don't use realpath(3) for files" },
+#ifdef OS_Linux
+        { NoForceLimitsInclude, "no-force-limits-include", 0, CommandLineParser::NoValue, "Don't force-include <limits.h>. By default rdm adds -include limits.h on Linux to provide PATH_MAX which GCC headers include transitively but clang does not." },
+#endif
         { Noop, "config", 'c', CommandLineParser::Required, "Use this file (instead of ~/.rdmrc)." },
         { Noop, "no-rc", 'N', CommandLineParser::NoValue, "Don't load any rc files." }
     };
@@ -682,6 +688,11 @@ int main(int argc, char** argv)
         case NoFileLock: {
             serverOpts.options |= Server::NoFileLock;
             break; }
+#ifdef OS_Linux
+        case NoForceLimitsInclude: {
+            serverOpts.options |= Server::NoForceLimitsInclude;
+            break; }
+#endif
         case NoUnsuspendCheck: {
             serverOpts.options |= Server::NoUnsuspendCheck;
             break; }

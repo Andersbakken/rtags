@@ -121,6 +121,15 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.push_back("-Wno-unknown-warning-option");
 
     mOptions.defines << Source::Define("RTAGS", String(), Source::Define::NoValue);
+#ifdef OS_Linux
+    if (!(mOptions.options & NoForceLimitsInclude)) {
+        // GCC's header chain transitively includes <linux/limits.h> which
+        // provides PATH_MAX, but clang's does not. Many projects rely on
+        // PATH_MAX being available without explicitly including limits.h.
+        // Force-include it so PATH_MAX is always available during indexing.
+        mOptions.defaultArguments << "-include" << "limits.h";
+    }
+#endif
 
     if (mOptions.options & EnableCompilerManager) {
 #ifndef OS_Darwin   // this causes problems on MacOS+clang
