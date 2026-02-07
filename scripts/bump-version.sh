@@ -1,7 +1,6 @@
 #!/bin/bash -e
 
-SCRIPT="$(readlink -f ${BASH_SOURCE[0]})"
-DIR="$(dirname $SCRIPT)"
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 MAJOR=$(echo $1 | awk -F. '{print $1}')
 MINOR=$(echo $1 | awk -F. '{print $2}')
@@ -15,20 +14,23 @@ fi
 
 JOBS=$(getconf _NPROCESSORS_ONLN)
 
-if [ "$(uname)" == "Darwin" ]; then
-    SED=$(command -v gsed)
-else
-    SED=$(command -v sed)
-fi
+SED=$(command -v sed)
 
 if [ ! -x "$SED" ]; then
-    echo "You need sed installed (and on Mac it needs to be gsed) to run ${BASH_SOURCE[0]}"
+    echo "You need sed installed to run ${BASH_SOURCE[0]}"
     exit 1
+fi
+
+# BSD sed (macOS) requires a separate argument after -i, GNU sed does not.
+if $SED --version >/dev/null 2>&1; then
+    SED_INPLACE=("$SED" -i"")
+else
+    SED_INPLACE=("$SED" -i "")
 fi
 
 cd $DIR/..
 
-if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
+if ! echo "$1" | grep -qE "^[0-9]+\.[0-9]+\.[0-9]+$"; then
     echo "Bad argument: \"$1\""
     CURRENT_MAJOR=$(grep -o "^set(RTAGS_VERSION_MAJOR [0-9]*" CMakeLists.txt | awk '{print $2}')
     CURRENT_MINOR=$(grep -o "^set(RTAGS_VERSION_MINOR [0-9]*" CMakeLists.txt | awk '{print $2}')
@@ -37,14 +39,14 @@ if ! echo "$1" | grep -q "^[0-9]\+\.[0-9]\+\.[0-9]\+$"; then
     exit 1
 fi
 
-$SED -i""                                                                               \
-     -e "s,^set(RTAGS_VERSION_MAJOR [0-9]\+),set(RTAGS_VERSION_MAJOR $MAJOR),"          \
-     -e "s,^set(RTAGS_VERSION_MINOR [0-9]\+),set(RTAGS_VERSION_MINOR $MINOR),"          \
-     -e "s,^set(RTAGS_VERSION_DATABASE [0-9]\+),set(RTAGS_VERSION_DATABASE $DATABASE)," \
+"${SED_INPLACE[@]}" -E                                                                  \
+     -e "s,^set\(RTAGS_VERSION_MAJOR [0-9]+\),set(RTAGS_VERSION_MAJOR $MAJOR),"         \
+     -e "s,^set\(RTAGS_VERSION_MINOR [0-9]+\),set(RTAGS_VERSION_MINOR $MINOR),"         \
+     -e "s,^set\(RTAGS_VERSION_DATABASE [0-9]+\),set(RTAGS_VERSION_DATABASE $DATABASE)," \
      CMakeLists.txt
-$SED -i""                                                                                                                       \
-     -e "s,^(defconst rtags-package-version \"[0-9]\+\.[0-9]\+\"),(defconst rtags-package-version \"${MAJOR}.${MINOR}\"),"      \
-     -e "s,^;; Version: [0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?,;; Version: ${MAJOR}.${MINOR}.${DATABASE},"                             \
+"${SED_INPLACE[@]}" -E                                                                                                         \
+     -e "s,^\(defconst rtags-package-version \"[0-9]+\.[0-9]+\"\),\(defconst rtags-package-version \"${MAJOR}.${MINOR}\"\),"   \
+     -e "s,^;; Version: [0-9]+\.[0-9]+(\.[0-9]+)?,;; Version: ${MAJOR}.${MINOR}.${DATABASE},"                                  \
      src/rtags.el
 
 echo "Generating manpages"
