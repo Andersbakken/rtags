@@ -221,6 +221,10 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         }
     }
     source.flags |= (compiler.isEmscripten ? Source::IsEmscripten : Source::NoFlag);
+    if (compiler.isEmscripten && !source.arguments.contains("--target=wasm32-unknown-emscripten")) {
+        source.arguments.push_back("--target=wasm32-unknown-emscripten");
+        debug() << "[CompilerManager] Added --target=wasm32-unknown-emscripten for Emscripten source";
+    }
 }
 
 } // namespace CompilerManager
