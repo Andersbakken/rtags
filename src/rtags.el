@@ -3029,16 +3029,22 @@ of the form (filename line column)."
         (unless (y-or-n-p (format "RTags: Confirm %d renames? " (length replacements)))
           (setq replacements nil))
         (kill-buffer (current-buffer)))
-      (dolist (value replacements)
-        (with-current-buffer (car value)
-          (when (run-hook-with-args-until-failure 'rtags-edit-hook)
-            (cl-incf modifications)
-            (goto-char (cdr value))
-            ;; (message "about to insert at %s" (rtags-current-location))
-            (delete-char (or len (length (rtags-current-token t))))
-            (insert replacewith)
-            (basic-save-buffer))))
-      (message (format "Opened %d new files and made %d modifications" filesopened modifications)))))
+      (let ((filesmodified))
+        (dolist (value replacements)
+          (with-current-buffer (car value)
+            (when (run-hook-with-args-until-failure 'rtags-edit-hook)
+              (cl-incf modifications)
+              (goto-char (cdr value))
+              ;; (message "about to insert at %s" (rtags-current-location))
+              (delete-char (or len (length (rtags-current-token t))))
+              (insert replacewith)
+              (cl-pushnew (current-buffer) filesmodified))))
+
+        (dolist (buf filesmodified)
+          (with-current-buffer buf
+            (basic-save-buffer)))
+
+        (message (format "Opened %d new files and made %d modifications in %d files" filesopened modifications (length filesmodified)))))))
 
 ;;;###autoload
 (defun rtags-rename-symbol (&optional no-confirm)
