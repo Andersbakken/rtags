@@ -107,8 +107,7 @@ static inline Log operator<<(Log dbg, const Diagnostic &diagnostic)
     case Diagnostic::Note: type = "note"; break;
     case Diagnostic::Skipped: type = "skipped"; break;
     default:
-        assert(0 && "Impossible impossibility");
-        break;
+        abort();
     }
 
     dbg << String::format<1024>("Diagnostic(type: %s message: \"%s\" length: %d sourceFile: \"%s\"\nranges: ",
