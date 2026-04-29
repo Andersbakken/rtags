@@ -2568,9 +2568,17 @@ bool Project::reloadCompileCommands(CheckMode mode)
                     return false;
                 }
                 error() << "Can't load" << file;
-            } else if (lastModified != mIndexParseData.lastModifiedMs
-                && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
-                found = true;
+            } else {
+                // Check_Explicit comes from a watcher event, which already
+                // confirmed the file changed. Trust it and skip the mtime
+                // gate -- mtime can match a previous reload after a same-ms
+                // rewrite (e.g. cmake regenerating twice quickly).
+                const bool changed = (mode == Check_Explicit)
+                    || lastModified != mIndexParseData.lastModifiedMs;
+                if (changed
+                    && Server::instance()->loadCompileCommands(data, file, mIndexParseData.environment, &cache)) {
+                    found = true;
+                }
             }
         }
         // removeSources(removed);
@@ -2744,7 +2752,9 @@ void Project::processParseData(ProcessParseData mode, IndexParseData &&data)
     }
 
     if (mIndexParseData.compileCommandsFileId) {
-        watch(Location::path(mIndexParseData.compileCommandsFileId), Watch_CompileCommands);
+        // Watch the parent dir: writers (cmake) replace the file via
+        // rename(), which detaches a file-level inotify watch.
+        watch(Location::path(mIndexParseData.compileCommandsFileId).parentDir(), Watch_CompileCommands);
     }
 
     for (uint32_t fileId : index) {
