@@ -1330,7 +1330,8 @@ bool ClangIndexer::handleReference(const CXCursor &cursor, CXCursorKind kind, Lo
         }
     }
 
-    if (refKind == CXCursor_FunctionDecl && (c->symbolName == "make_shared" || c->symbolName == "make_unique")) {
+    if ((refKind == CXCursor_FunctionDecl || refKind == CXCursor_FunctionTemplate)
+        && (c->symbolName == "make_shared" || c->symbolName == "make_unique")) {
         handleMakeSharedOrMakeUnique(cursor, targets);
     }
 
