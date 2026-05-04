@@ -128,7 +128,8 @@
   :safe 'booleanp)
 
 (defcustom rtags-mouse-enabled nil
-  "Set to t if you want clicking on links in the various rtags buffers to jump to the location."
+  "Set to t if you want clicking on links in the various rtags buffers
+ to jump to the location."
   :type 'boolean
   :safe 'booleanp)
 
