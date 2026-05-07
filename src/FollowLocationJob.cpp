@@ -15,21 +15,22 @@
 
 #include "FollowLocationJob.h"
 
-#include "Project.h"
-#include "RTags.h"
 #include "FileMap.h"
+#include "Project.h"
 #include "QueryMessage.h"
+#include "RTags.h"
 #include "Symbol.h"
-#include "clang-c/Index.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "clang-c/Index.h"
 
 FollowLocationJob::FollowLocationJob(Location loc,
                                      const std::shared_ptr<QueryMessage> &query,
                                      List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects)), location(loc)
+    : QueryJob(query, std::move(projects))
+    , location(loc)
 {
 }
 
@@ -47,10 +48,7 @@ int FollowLocationJob::execute()
                 if (!symbols || !symbols->count())
                     return 1;
                 const Symbol prev = symbols->valueAt(idx - 1);
-                if (prev.kind == CXCursor_MemberRefExpr
-                    && prev.location.column() == symbol.location.column() - 1
-                    && prev.location.line() == symbol.location.line()
-                    && prev.symbolName.contains("~")) {
+                if (prev.kind == CXCursor_MemberRefExpr && prev.location.column() == symbol.location.column() - 1 && prev.location.line() == symbol.location.line() && prev.symbolName.contains("~")) {
                     symbol = prev;
                 }
             }
@@ -78,10 +76,10 @@ int FollowLocationJob::execute()
     }
     List<Symbol> targets = RTags::sortTargets(t);
 
-
     int rank = -1;
     Set<Location> seen;
-    auto writeTarget = [&rank, this, &seen](const Symbol &target) {
+    auto writeTarget = [&rank, this, &seen](const Symbol &target)
+    {
         if (seen.insert(target.location)) {
             write(target.location);
             rank = RTags::targetRank(target.kind);
@@ -104,7 +102,7 @@ int FollowLocationJob::execute()
                 o += project->findTargets(target);
             }
             const auto others = RTags::sortTargets(o);
-            bool found = false;
+            bool found        = false;
             for (auto other : others) {
                 if (!other.isNull() && other.usr == target.usr) {
                     found = true;

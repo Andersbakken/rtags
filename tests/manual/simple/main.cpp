@@ -1,6 +1,5 @@
 void foo()
 {
-
 }
 
 int main()

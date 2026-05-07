@@ -1,7 +1,9 @@
 void foo()
 {
-    union {
-        union {
+    union
+    {
+        union
+        {
             int a;
         }
     };

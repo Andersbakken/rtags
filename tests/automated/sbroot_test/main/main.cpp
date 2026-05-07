@@ -3,7 +3,7 @@
 
 int main(void)
 {
-    int v=SUB1MOD::Csub1::sub1(1);
+    int v = SUB1MOD::Csub1::sub1(1);
 
     return SUB1MOD::fcn1(v);
 }

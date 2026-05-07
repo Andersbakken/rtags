@@ -15,20 +15,20 @@
 
 #include "StatusJob.h"
 
+#include <map>
 #include <stdint.h>
 #include <strings.h>
-#include <map>
 #include <unordered_map>
 #include <utility>
 
 #include "CompilerManager.h"
-#include "Project.h"
-#include "RTags.h"
-#include "Server.h"
 #include "FileMap.h"
 #include "IndexParseData.h"
 #include "Location.h"
+#include "Project.h"
 #include "QueryMessage.h"
+#include "RTags.h"
+#include "Server.h"
 #include "Source.h"
 #include "Symbol.h"
 #include "rct/Flags.h"
@@ -39,17 +39,20 @@
 #include "rct/Set.h"
 
 const char *StatusJob::delimiter = "*********************************";
+
 StatusJob::StatusJob(const std::shared_ptr<QueryMessage> &q, List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(q, std::move(projects), WriteUnfiltered|QuietJob), query(q->query())
+    : QueryJob(q, std::move(projects), WriteUnfiltered | QuietJob)
+    , query(q->query())
 {
 }
 
 int StatusJob::execute()
 {
-    auto match = [this](const char *name) {
+    auto match = [this](const char *name)
+    {
         return !strncasecmp(query.constData(), name, query.size());
     };
-    bool matched = false;
+    bool matched             = false;
     const char *alternatives = "fileids|watchedpaths|dependencies|cursors|symbols|targets|symbolnames|sources|jobs|daemon|info|compilers|memory|project";
 
     if (match("fileids")) {
@@ -118,7 +121,8 @@ int StatusJob::execute()
         if (!write(delimiter) || !write("watchedpaths") || !write(delimiter))
             return 1;
         Hash<Path, Flags<Project::WatchMode>> watched = proj->watchedPaths();
-        auto watchModeToString = [](Flags<Project::WatchMode> mode) {
+        auto watchModeToString                        = [](Flags<Project::WatchMode> mode)
+        {
             List<String> ret;
             if (mode & Project::Watch_FileManager)
                 ret << "filemanager";
@@ -176,7 +180,7 @@ int StatusJob::execute()
             if (!symbols)
                 continue;
             const int count = symbols->count();
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 const Symbol c = symbols->valueAt(i);
                 write(c);
                 write("------------------------");
@@ -196,12 +200,11 @@ int StatusJob::execute()
             if (!targets)
                 continue;
             const int count = targets->count();
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 const String usr = targets->keyAt(i);
                 write<128>("  %s", usr.constData());
                 for (const auto &t : proj->findByUsr(usr, dep.first, Project::ArgDependsOn)) {
-                    write<1024>("      %s\t%s", t.location.toString(locationToStringFlags()).constData(),
-                                t.kindSpelling().constData());
+                    write<1024>("      %s\t%s", t.location.toString(locationToStringFlags()).constData(), t.kindSpelling().constData());
                 }
                 for (const auto &location : targets->valueAt(i)) {
                     write<1024>("    %s", location.toString(locationToStringFlags()).constData());
@@ -223,7 +226,7 @@ int StatusJob::execute()
             if (!symNames)
                 continue;
             const int count = symNames->count();
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 write<128>("  %s", symNames->keyAt(i).constData());
                 for (Location loc : symNames->valueAt(i)) {
                     write<1024>("    %s", loc.toString().constData());
@@ -239,7 +242,10 @@ int StatusJob::execute()
         matched = true;
         if (!write(delimiter) || !write("sources") || !write(delimiter))
             return 1;
-        proj->indexParseData().write([this](const String &str) { return write(str); });
+        proj->indexParseData().write([this](const String &str)
+                                     {
+                                         return write(str);
+                                     });
     }
 
     if (query.empty() || match("compilers")) {
@@ -251,7 +257,7 @@ int StatusJob::execute()
             source.compilerId = Location::insertFile(compiler);
             source.defines.clear();
             source.includePaths.clear();
-            CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths|CompilerManager::IncludeDefines);
+            CompilerManager::applyToSource(source, CompilerManager::IncludeIncludePaths | CompilerManager::IncludeDefines);
             write(compiler);
             write("  Defines:");
             for (const auto &it : source.defines)
@@ -284,7 +290,6 @@ int StatusJob::execute()
                                        String::formatTime(indexParseData.lastModifiedMs / 1000).constData(),
                                        static_cast<unsigned long long>(indexParseData.lastModifiedMs),
                                        proj->bytesWritten()));
-
         }
         matched = true;
     }

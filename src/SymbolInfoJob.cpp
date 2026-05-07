@@ -16,13 +16,13 @@
 #include "SymbolInfoJob.h"
 
 #include <assert.h>
-#include <stdint.h>
 #include <limits>
+#include <stdint.h>
 #include <utility>
 
+#include "FileMap.h"
 #include "Project.h"
 #include "QueryMessage.h"
-#include "FileMap.h"
 #include "Symbol.h"
 #include "rct/Flags.h"
 #include "rct/Set.h"
@@ -32,7 +32,9 @@ SymbolInfoJob::SymbolInfoJob(Location s, Location e,
                              Set<String> &&pieceFilters,
                              const std::shared_ptr<QueryMessage> &query,
                              List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects)), start(s), end(e)
+    : QueryJob(query, std::move(projects))
+    , start(s)
+    , end(e)
 {
     setPieceFilters(std::move(pieceFilters));
 }
@@ -59,7 +61,7 @@ int SymbolInfoJob::execute()
     for (const auto &project : projects()) {
         auto symbols = project->openSymbols(start.fileId());
         if (symbols && symbols->count()) {
-            bool exact = false;
+            bool exact   = false;
             uint32_t idx = symbols->lowerBound(start, &exact);
             if (exact) {
                 if (queryFlags() & QueryMessage::Elisp)
@@ -68,14 +70,14 @@ int SymbolInfoJob::execute()
                 ret = 0;
             } else {
                 switch (idx) {
-                case 0:
-                    break;
-                case std::numeric_limits<uint32_t>::max():
-                    idx = symbols->count() - 1;
-                    break;
-                default:
-                    --idx;
-                    break;
+                    case 0:
+                        break;
+                    case std::numeric_limits<uint32_t>::max():
+                        idx = symbols->count() - 1;
+                        break;
+                    default:
+                        --idx;
+                        break;
                 }
             }
             const uint32_t count = symbols->count();
@@ -97,6 +99,6 @@ int SymbolInfoJob::execute()
                        // if we'd already written it and process all projects
             }
         }
-}
+    }
     return ret;
 }

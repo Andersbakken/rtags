@@ -3,9 +3,7 @@
 
 static inline void func()
 {
-
 }
-
 
 static inline void func2()
 {

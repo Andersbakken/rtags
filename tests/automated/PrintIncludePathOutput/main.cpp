@@ -1,5 +1,6 @@
 #include "a.hpp"
 
-void foo() {
+void foo()
+{
     bar();
 }

@@ -4,6 +4,6 @@
 #ifdef __cplusplus
 extern "C"
 #endif
-void foo();
+    void foo();
 
 #endif

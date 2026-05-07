@@ -1,7 +1,7 @@
 #include "a.hpp"
 
-void foo() {
+void foo()
+{
     free_function();
     free_function();
 }
-

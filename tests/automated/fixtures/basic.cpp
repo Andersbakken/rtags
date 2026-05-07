@@ -1,6 +1,9 @@
-void free_function() {}
+void free_function()
+{
+}
 
-void caller() {
+void caller()
+{
     free_function();
     free_function();
 }

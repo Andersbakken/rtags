@@ -28,49 +28,59 @@
 #include <stdlib.h>
 
 namespace CommandLineParser {
-enum ValueType {
+enum ValueType
+{
     Required,
     Optional,
     NoValue
 };
+
 template <typename T>
-struct Option {
+struct Option
+{
     const T option;
     const String longOpt;
     const char shortOpt;
     ValueType valueType;
     const String description;
 };
-enum Status {
+
+enum Status
+{
     Parse_Exec,
     Parse_Ok,
     Parse_Error
 };
 
-struct ParseStatus {
+struct ParseStatus
+{
     String error;
     Status status;
 };
-enum Flag {
-    NoFlag = 0x0,
+
+enum Flag
+{
+    NoFlag        = 0x0,
     IgnoreUnknown = 0x1
 };
 
-enum ConfigOptionType {
+enum ConfigOptionType
+{
     ConfigNone = 0,
     Config,
     NoRc
 };
 
 RCT_FLAGS(Flag);
+
 template <typename T>
 ParseStatus parse(int argc, char **argv,
                   std::initializer_list<Option<T>> optsList,
                   Flags<Flag> flags,
                   const std::function<ParseStatus(T, String &&value, size_t &idx, const List<String> &args)> &handler,
-                  const String &app = String(),
+                  const String &app                                          = String(),
                   std::initializer_list<Option<ConfigOptionType>> configOpts = std::initializer_list<Option<ConfigOptionType>>(),
-                  String *cmdLine = nullptr)
+                  String *cmdLine                                            = nullptr)
 {
     Hash<String, const Option<T> *> longOpts;
     Hash<char, const Option<T> *> shortOpts;
@@ -82,7 +92,7 @@ ParseStatus parse(int argc, char **argv,
     }
     if (getenv("RTAGS_DUMP_UNUSED")) {
         String unused;
-        for (int i=0; i<26; ++i) {
+        for (int i = 0; i < 26; ++i) {
             if (!shortOpts.contains('a' + i))
                 unused.append('a' + i);
             if (!shortOpts.contains('A' + i))
@@ -103,27 +113,30 @@ ParseStatus parse(int argc, char **argv,
 
     List<String> args;
     if (configOpts.size() && !app.empty()) {
-        bool norc = false;
+        bool norc   = false;
         Path rcfile = Path::home() + "." + app + "rc";
         if (!rcfile.exists()) {
-            const char * configPath = getenv("XDG_CONFIG_HOME");
-            rcfile = configPath ? configPath : Path::home() + ".config";
+            const char *configPath = getenv("XDG_CONFIG_HOME");
+            rcfile                 = configPath ? configPath : Path::home() + ".config";
             rcfile += "/rtags/";
             rcfile.mkdir(Path::Recursive);
             rcfile += app + "rc";
         }
-        parse<ConfigOptionType>(argc, argv, configOpts,
-                                IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type, String &&value, size_t &, const List<String> &) -> ParseStatus {
+        parse<ConfigOptionType>(argc, argv, configOpts, IgnoreUnknown, [&norc, &rcfile](ConfigOptionType type, String &&value, size_t &, const List<String> &) -> ParseStatus
+                                {
                                     switch (type) {
-                                    case ConfigNone: {
-                                        assert(0);
-                                        break; }
-                                    case Config: {
-                                        rcfile = std::move(value);
-                                        break; }
-                                    case NoRc: {
-                                        norc = true;
-                                        break; }
+                                        case ConfigNone: {
+                                            assert(0);
+                                            break;
+                                        }
+                                        case Config: {
+                                            rcfile = std::move(value);
+                                            break;
+                                        }
+                                        case NoRc: {
+                                            norc = true;
+                                            break;
+                                        }
                                     }
                                     return { String(), Parse_Exec };
                                 });
@@ -139,23 +152,22 @@ ParseStatus parse(int argc, char **argv,
             if (!rcfile.empty()) {
                 rc = rcfile.readAll();
                 if (!rc.empty()) {
-                    for (const String& s : rc.split('\n')) {
+                    for (const String &s : rc.split('\n')) {
                         if (!s.empty() && !s.startsWith('#'))
                             args += s.split(' ');
                     }
                 }
             }
-            for (int i=1; i<argc; ++i)
+            for (int i = 1; i < argc; ++i)
                 args.push_back(argv[i]);
         }
     }
     if (args.empty()) {
         args.resize(argc);
-        for (int i=0; i<argc; ++i) {
+        for (int i = 0; i < argc; ++i) {
             args[i] = argv[i];
         }
     }
-
 
     if (cmdLine) {
         bool first = true;
@@ -175,11 +187,12 @@ ParseStatus parse(int argc, char **argv,
     }
 
     ParseStatus status = { String(), Parse_Exec };
-    for (size_t i=1; i<args.size(); ++i) {
+    for (size_t i = 1; i < args.size(); ++i) {
         const String &arg = args.at(i);
         List<const Option<T> *> opts;
         String value;
-        auto addArg = [&arg, &opts, &status, flags](const Option<T> *opt) -> bool {
+        auto addArg = [&arg, &opts, &status, flags](const Option<T> *opt) -> bool
+        {
             if (opt) {
                 opts.push_back(opt);
                 return true;
@@ -198,12 +211,12 @@ ParseStatus parse(int argc, char **argv,
             if (eq == String::npos) {
                 a = arg.mid(2);
             } else {
-                a = arg.mid(2, eq - 2);
+                a     = arg.mid(2, eq - 2);
                 value = arg.mid(eq + 1);
             }
             addArg(longOpts.value(a));
         } else if (arg.startsWith("-")) {
-            for (size_t j=1; j<arg.size(); ++j) {
+            for (size_t j = 1; j < arg.size(); ++j) {
                 if (j > 1 && !opts.empty() && opts.back()->valueType != NoValue) {
                     if (arg.at(j) == '=')
                         ++j;
@@ -219,19 +232,19 @@ ParseStatus parse(int argc, char **argv,
 
         for (const Option<T> *opt : opts) {
             switch (opt->valueType) {
-            case Required:
-                if (value.empty() && i + 1 < args.size())
-                    value = args.at(++i);
-                status = handler(opt->option, std::move(value), i, args);
-                break;
-            case Optional:
-                if (value.empty() && i + 1 < args.size() && (!args.at(i + 1).startsWith('-') || args.at(i + 1).size() == 1))
-                    value = args.at(++i);
-                status = handler(opt->option, std::move(value), i, args);
-                break;
-            case NoValue:
-                status = handler(opt->option, String(), i, args);
-                break;
+                case Required:
+                    if (value.empty() && i + 1 < args.size())
+                        value = args.at(++i);
+                    status = handler(opt->option, std::move(value), i, args);
+                    break;
+                case Optional:
+                    if (value.empty() && i + 1 < args.size() && (!args.at(i + 1).startsWith('-') || args.at(i + 1).size() == 1))
+                        value = args.at(++i);
+                    status = handler(opt->option, std::move(value), i, args);
+                    break;
+                case NoValue:
+                    status = handler(opt->option, String(), i, args);
+                    break;
             }
             if (status.status != Parse_Exec)
                 break;
@@ -255,22 +268,20 @@ static void help(FILE *f, const char *app, std::initializer_list<Option<T>> opts
                                              (opt.longOpt.empty() ? String() : ("--" + opt.longOpt)).constData(),
                                              !opt.longOpt.empty() && opt.shortOpt ? "|" : "",
                                              opt.shortOpt ? String::format<2>("-%c", opt.shortOpt).constData() : "",
-                                             opt.valueType == Required ? " [arg] "
-                                             : opt.valueType == Optional ? " [optional] " : ""));
+                                             opt.valueType == Required       ? " [arg] "
+                                                 : opt.valueType == Optional ? " [optional] "
+                                                                             : ""));
             longest = std::max<size_t>(out.back().size(), longest);
         }
     }
     fprintf(f, "%s options...\n", app);
     const Option<T> *opts = optsList.begin();
-    const size_t c = out.size();
-    for (size_t i=0; i<c; ++i) {
+    const size_t c        = out.size();
+    for (size_t i = 0; i < c; ++i) {
         if (out.at(i).empty()) {
             fprintf(f, "%s\n", opts[i].description.constData());
         } else {
-            fprintf(f, "%s%s %s\n",
-                    out.at(i).constData(),
-                    String(longest - out.at(i).size(), ' ').constData(),
-                    opts[i].description.constData());
+            fprintf(f, "%s%s %s\n", out.at(i).constData(), String(longest - out.at(i).size(), ' ').constData(), opts[i].description.constData());
         }
     }
 }

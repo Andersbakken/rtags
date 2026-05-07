@@ -18,13 +18,20 @@
 #include <assert.h>
 #include <unordered_map>
 
-#include "rct/Serializer.h"
 #include "Symbol.h"
-#include "clang-c/Index.h"
 #include "rct/Rct.h"
+#include "rct/Serializer.h"
+#include "clang-c/Index.h"
 
 QueryMessage::QueryMessage(Type type)
-    : RTagsMessage(MessageId), mType(type), mMax(-1), mMaxDepth(-1), mMinLine(-1), mMaxLine(-1), mBuildIndex(0), mTerminalWidth(-1)
+    : RTagsMessage(MessageId)
+    , mType(type)
+    , mMax(-1)
+    , mMaxDepth(-1)
+    , mMinLine(-1)
+    , mMaxLine(-1)
+    , mBuildIndex(0)
+    , mTerminalWidth(-1)
 {
 }
 
@@ -37,9 +44,7 @@ void QueryMessage::encode(Serializer &serializer) const
 
 void QueryMessage::decode(Deserializer &deserializer)
 {
-    deserializer >> mCommandLine >> mQuery >> mCodeCompletePrefix >> mType >> mFlags >> mMax
-                 >> mMaxDepth >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters
-                 >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth;
+    deserializer >> mCommandLine >> mQuery >> mCodeCompletePrefix >> mType >> mFlags >> mMax >> mMaxDepth >> mMinLine >> mMaxLine >> mBuildIndex >> mPathFilters >> mKindFilters >> mCurrentFile >> mUnsavedFiles >> mTerminalWidth;
 }
 
 Flags<Location::ToStringFlag> QueryMessage::locationToStringFlags(Flags<Flag> queryFlags)
@@ -138,22 +143,24 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
 
     String spelling = Symbol::kindSpelling(symbol.kind).toLower();
     spelling.remove(' ');
-    auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType>> &map, bool hasWildcardsOrCategories) {
-        auto it = map.find(spelling);
-        auto matchDefinition = [&symbol](Flags<DefinitionType> f) {
-            f &= Definition|NotDefinition;
+    auto match = [&spelling, &symbol](const Map<String, Flags<DefinitionType>> &map, bool hasWildcardsOrCategories)
+    {
+        auto it              = map.find(spelling);
+        auto matchDefinition = [&symbol](Flags<DefinitionType> f)
+        {
+            f &= Definition | NotDefinition;
             switch (f.cast<int>()) {
-            case Definition:
-                if (symbol.isDefinition())
+                case Definition:
+                    if (symbol.isDefinition())
+                        return true;
+                    break;
+                case NotDefinition:
+                    if (!symbol.isDefinition())
+                        return true;
+                    break;
+                default:
+                    assert(f == (Definition | NotDefinition));
                     return true;
-                break;
-            case NotDefinition:
-                if (!symbol.isDefinition())
-                    return true;
-                break;
-            default:
-                assert(f == (Definition|NotDefinition));
-                return true;
             }
             return false;
         };
@@ -166,7 +173,7 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
                     if (matchDefinition(pair.second) && Rct::wildCmp(pair.first.constData(), spelling.constData())) {
                         return true;
                     }
-                }  else if (pair.second & Category && matchDefinition(pair.second)) {
+                } else if (pair.second & Category && matchDefinition(pair.second)) {
                     if (pair.first == "references") {
                         if (symbol.isReference())
                             return true;
@@ -193,10 +200,10 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
         }
         return false;
     };
-    if (!out.empty() && match(out, flags & (OutHasWildcards|OutHasCategories))) {
+    if (!out.empty() && match(out, flags & (OutHasWildcards | OutHasCategories))) {
         return false;
     }
-    if (in.empty() || match(in, flags & (InHasWildcards|InHasCategories))) {
+    if (in.empty() || match(in, flags & (InHasWildcards | InHasCategories))) {
         return true;
     } else {
         return false;
@@ -206,9 +213,9 @@ bool QueryMessage::KindFilters::filter(const Symbol &symbol) const
 void QueryMessage::KindFilters::insert(const String &arg)
 {
     for (String a : arg.toLower().split(',', String::SkipEmpty)) {
-        Flags<DefinitionType> f = Definition|NotDefinition;
+        Flags<DefinitionType> f                    = Definition | NotDefinition;
         Map<String, Flags<DefinitionType>> *target = &in;
-        const bool hasWildCard = a.contains("?") || a.contains("*");
+        const bool hasWildCard                     = a.contains("?") || a.contains("*");
         if (hasWildCard)
             f |= Wildcard;
 
@@ -229,8 +236,7 @@ void QueryMessage::KindFilters::insert(const String &arg)
         } else if (hasWildCard) {
             flags |= InHasWildcards;
         }
-        if (a == "references" || a == "statements" || a == "declarations"
-            || a == "expressions" || a == "attributes" || a == "preprocessing") {
+        if (a == "references" || a == "statements" || a == "declarations" || a == "expressions" || a == "attributes" || a == "preprocessing") {
             f |= Category;
             flags |= (o ? OutHasCategories : InHasCategories);
         }

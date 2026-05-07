@@ -16,13 +16,15 @@
 #include "Sandbox.h"
 
 static Path sRoot;
+
 namespace Sandbox {
 const Path &root()
 {
     return sRoot;
 }
+
 void setRoot(const Path &root)
 {
     sRoot = root;
 }
-}
+} //namespace Sandbox

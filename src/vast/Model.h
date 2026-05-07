@@ -1,15 +1,15 @@
 #ifndef MODEL_H
 #define MODEL_H
 
+#include <QtCore>
+#include <memory>
 #include <qabstractitemmodel.h>
 #include <qnamespace.h>
 #include <qstring.h>
 #include <qvariant.h>
-#include <QtCore>
-#include <memory>
 
-#include "TranslationUnit.h"
 #include "Node.h"
+#include "TranslationUnit.h"
 #include "clang-c/CXString.h"
 
 class QObject;
@@ -17,7 +17,7 @@ class QObject;
 inline QString eatString(CXString str)
 {
     const char *cstr = clang_getCString(str);
-    QString ret = cstr ? QString::fromLatin1(cstr) : QString();
+    QString ret      = cstr ? QString::fromLatin1(cstr) : QString();
     clang_disposeString(str);
     return ret;
 }
@@ -27,7 +27,8 @@ class Model : public QAbstractItemModel
 public:
     Model(std::unique_ptr<TranslationUnit> &&translationUnit, QObject *parent);
 
-    enum {
+    enum
+    {
         SourceCodeRole = Qt::UserRole
     };
 
@@ -41,6 +42,7 @@ public:
 
     unsigned int translationUnitFlags() const;
     void setTranslationUnitFlags(unsigned int flags);
+
 private:
     std::unique_ptr<TranslationUnit> mTranslationUnit;
 };

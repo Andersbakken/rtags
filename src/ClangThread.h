@@ -17,18 +17,18 @@
 #define ClangThread_h
 
 #include <clang-c/Index.h>
-#include <stdint.h>
 #include <memory>
 #include <mutex>
+#include <stdint.h>
 
 #include "Project.h"
 #include "QueryMessage.h"
-#include "rct/Thread.h"
-#include "rct/Value.h"
 #include "Source.h"
 #include "rct/Hash.h"
 #include "rct/Set.h"
 #include "rct/String.h"
+#include "rct/Thread.h"
+#include "rct/Value.h"
 
 class Connection;
 struct Dep;
@@ -44,8 +44,19 @@ public:
                 const std::shared_ptr<Connection> &conn);
     ~ClangThread() override;
     virtual void run() override;
-    void abort() { std::unique_lock<std::mutex> lock(mMutex); mAborted = false; }
-    bool isAborted() const { std::unique_lock<std::mutex> lock(mMutex); return mAborted; }
+
+    void abort()
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        mAborted = false;
+    }
+
+    bool isAborted() const
+    {
+        std::unique_lock<std::mutex> lock(mMutex);
+        return mAborted;
+    }
+
 private:
     static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData userData);
     CXChildVisitResult visit(const CXCursor &cursor);
@@ -61,7 +72,7 @@ private:
     std::shared_ptr<Connection> mConnection;
     int mIndentLevel;
     mutable std::mutex mMutex;
-    Hash<uint32_t, Dep*> mDependencies;
+    Hash<uint32_t, Dep *> mDependencies;
     Hash<Path, String> mContextCache;
     Set<String> mSeen;
     bool mAborted;

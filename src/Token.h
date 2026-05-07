@@ -19,9 +19,9 @@
 #include <clang-c/Index.h>
 #include <stdint.h>
 
-#include "rct/Serializer.h"
-#include "rct/Log.h"
 #include "Location.h"
+#include "rct/Log.h"
+#include "rct/Serializer.h"
 #include "rct/String.h"
 
 struct Token
@@ -34,13 +34,15 @@ struct Token
     String toString() const;
 };
 
-template <> inline Serializer &operator<<(Serializer &s, const Token &t)
+template <>
+inline Serializer &operator<<(Serializer &s, const Token &t)
 {
     s << static_cast<uint8_t>(t.kind) << t.spelling << t.location << t.offset << t.length;
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Token &t)
+template <>
+inline Deserializer &operator>>(Deserializer &s, Token &t)
 {
     uint8_t kind;
     s >> kind >> t.spelling >> t.location >> t.offset >> t.length;

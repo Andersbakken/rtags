@@ -1,26 +1,39 @@
-class Animal {
+class Animal
+{
 public:
-    Animal() : legs_(4) {}
+    Animal()
+        : legs_(4)
+    {
+    }
+
     virtual ~Animal() {}
+
     virtual void speak() {}
+
     int legs() const { return legs_; }
+
 private:
     int legs_;
 };
 
-class Dog : public Animal {
+class Dog : public Animal
+{
 public:
     void speak() override {}
+
     void fetch() {}
 };
 
-class Cat : public Animal {
+class Cat : public Animal
+{
 public:
     void speak() override {}
+
     void purr() {}
 };
 
-void use_animals() {
+void use_animals()
+{
     Dog d;
     d.speak();
     d.fetch();

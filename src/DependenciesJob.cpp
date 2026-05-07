@@ -17,9 +17,9 @@
 
 #include <algorithm>
 
+#include "Location.h"
 #include "Project.h"
 #include "QueryMessage.h"
-#include "Location.h"
 #include "rct/Flags.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"

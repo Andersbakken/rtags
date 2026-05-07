@@ -18,11 +18,11 @@
 
 #include <utility>
 
+#include "RTagsMessage.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
-#include "rct/String.h"
-#include "RTagsMessage.h"
 #include "rct/Path.h"
+#include "rct/String.h"
 
 class Deserializer;
 class Serializer;
@@ -30,31 +30,52 @@ class Serializer;
 class IndexMessage : public RTagsMessage
 {
 public:
-    enum { MessageId = CompileId };
+    enum
+    {
+        MessageId = CompileId
+    };
 
     IndexMessage();
 
     const Path &projectRoot() const { return mProjectRoot; }
+
     void setProjectRoot(const Path &projectRoot) { mProjectRoot = projectRoot; }
+
     const Path &workingDirectory() const { return mWorkingDirectory; }
+
     void setWorkingDirectory(Path &&wd) { mWorkingDirectory = std::move(wd); }
+
     void setEnvironment(const List<String> &environment) { mEnvironment = environment; }
+
     const List<String> &environment() const { return mEnvironment; }
+
     List<String> &&takeEnvironment() { return std::move(mEnvironment); }
+
     Path compileCommands() const { return mCompileCommands; }
+
     void setCompileCommands(Path &&path) { mCompileCommands = std::move(path); }
+
     const String &arguments() const { return mArgs; }
+
     String &&takeArguments() { return std::move(mArgs); }
+
     void setArguments(String &&args) { mArgs = std::move(args); }
-    enum Flag {
-        None = 0x0,
+
+    enum Flag
+    {
+        None       = 0x0,
         GuessFlags = 0x1
     };
+
     Flags<Flag> flags() const { return mFlags; }
+
     void setFlags(Flags<Flag> f) { mFlags = f; }
+
     void setFlag(Flag flag, bool on = true) { mFlags.set(flag, on); }
+
     virtual void encode(Serializer &serializer) const override;
     virtual void decode(Deserializer &deserializer) override;
+
 private:
     Path mWorkingDirectory;
     String mArgs;

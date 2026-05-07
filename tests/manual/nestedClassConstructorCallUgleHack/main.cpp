@@ -3,7 +3,9 @@ struct A
     struct B
     {
         B(int)
-        {}
+        {
+        }
+
         struct C
         {
             C(int) {}
@@ -28,7 +30,6 @@ int main()
 {
     return 0;
 }
-
 
 /*
   The problem is the following. When invoked on a namespaced or nested class,

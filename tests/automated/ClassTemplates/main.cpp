@@ -1,13 +1,18 @@
-struct A {
+struct A
+{
     void foo() {}
 };
-struct B {
+
+struct B
+{
     int foo() { return 0; }
 };
 
 template <typename T>
-struct X {
-    void f() {
+struct X
+{
+    void f()
+    {
         T t;
         t.foo();
     }
@@ -16,18 +21,18 @@ struct X {
 template struct X<A>;
 template struct X<B>;
 
-void use () {
+void use()
+{
     X<A> x;
 }
 
-
 template <typename... Ts>
-struct Y {};
+struct Y
+{
+};
 
 template struct Y<int, int>;
 template struct Y<int, char>;
 template struct Y<char, int>;
 template struct Y<char, char>;
 template struct Y<char, char, char>;
-
-

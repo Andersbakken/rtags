@@ -1,6 +1,6 @@
 #include "test.h"
 
-int TestClass::someFunction(const std::string& ting)
+int TestClass::someFunction(const std::string &ting)
 {
     return 5;
 }

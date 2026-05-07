@@ -4,4 +4,3 @@ void Foo::foo()
 {
     func();
 }
-

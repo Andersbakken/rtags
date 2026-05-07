@@ -1,16 +1,16 @@
-#include <string>
+#include "dtl.hpp"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <vector>
-#include <stdint.h>
-#include "dtl.hpp"
 
 uint32_t translatePoint(uint32_t offset, const dtl::Diff<char, std::string> &diff)
 {
-    const uint32_t old = offset;
-    const dtl::Ses<char> ses = diff.getSes();
+    const uint32_t old                                    = offset;
+    const dtl::Ses<char> ses                              = diff.getSes();
     const std::vector<std::pair<char, dtl::elemInfo>> seq = ses.getSequence();
-    int i = 0;
+    int i                                                 = 0;
     for (std::vector<std::pair<char, dtl::elemInfo>>::const_iterator it = seq.begin(); it != seq.end(); ++it) {
         if (it->second.type == 1) {
             if (it->second.afterIdx >= old || !offset) {
@@ -47,9 +47,9 @@ uint32_t translatePoint(uint32_t offset, const dtl::Diff<char, std::string> &dif
 int main(int argc, char **argv)
 {
     std::string a, b;
-    bool string = false;
+    bool string     = false;
     uint32_t offset = 10;
-    for (int i=1; i<argc; ++i) {
+    for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--string") || !strcmp(argv[i], "-s")) {
             string = true;
         } else if (a.empty()) {
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 
     if (!string) {
         std::string *files[] = { &a, &b, 0 };
-        for (int i=0; files[i]; ++i) {
+        for (int i = 0; files[i]; ++i) {
             FILE *f = fopen(files[i]->c_str(), "r");
             if (!f) {
                 fprintf(stderr, "Can't open %s for reading\n", files[i]->c_str());
@@ -95,4 +95,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

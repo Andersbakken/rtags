@@ -1,6 +1,9 @@
-void foo() {
-    union {
-        union {
+void foo()
+{
+    union
+    {
+        union
+        {
             int a;
         };
     };

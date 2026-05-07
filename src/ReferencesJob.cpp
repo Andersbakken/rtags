@@ -15,23 +15,23 @@
 
 #include "ReferencesJob.h"
 
-#include <stddef.h>
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <stddef.h>
 #include <utility>
 #include <vector>
 
 #include "Project.h"
-#include "RTags.h"
 #include "QueryMessage.h"
+#include "RTags.h"
 #include "Symbol.h"
-#include "clang-c/Index.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Map.h"
 #include "rct/Path.h"
 #include "rct/Value.h"
+#include "clang-c/Index.h"
 
 static inline Flags<QueryJob::JobFlag> jobFlags(Flags<QueryMessage::Flag> queryFlags)
 {
@@ -45,7 +45,8 @@ ReferencesJob::ReferencesJob(Location loc, const std::shared_ptr<QueryMessage> &
 }
 
 ReferencesJob::ReferencesJob(const String &sym, const std::shared_ptr<QueryMessage> &query, List<std::shared_ptr<Project>> &&projects)
-    : QueryJob(query, std::move(projects), ::jobFlags(query->flags())), mSymbolName(sym)
+    : QueryJob(query, std::move(projects), ::jobFlags(query->flags()))
+    , mSymbolName(sym)
 {
 }
 
@@ -56,7 +57,8 @@ int ReferencesJob::execute()
     Map<Location, std::pair<bool, CXCursorKind>> references;
     if (!mSymbolName.empty()) {
         const bool hasFilter = QueryJob::hasFilter();
-        auto inserter = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs) {
+        auto inserter        = [this, hasFilter](Project::SymbolMatchType type, const String &string, const Set<Location> &locs)
+        {
             if (type == Project::StartsWith) {
                 const size_t paren = string.indexOf('(');
                 if (paren == String::npos || paren != mSymbolName.size() || RTags::isFunctionVariable(string))
@@ -74,7 +76,7 @@ int ReferencesJob::execute()
         }
     }
     const bool declarationOnly = queryFlags() & QueryMessage::DeclarationOnly;
-    const bool definitionOnly = queryFlags() & QueryMessage::DefinitionOnly;
+    const bool definitionOnly  = queryFlags() & QueryMessage::DefinitionOnly;
     Location startLocation;
     bool first = true;
     for (auto it = mLocations.begin(); it != mLocations.end(); ++it) {
@@ -88,7 +90,7 @@ int ReferencesJob::execute()
         if (sym.isNull())
             continue;
         if (first && !(queryFlags() & QueryMessage::NoSortReferencesByInput)) {
-            first = false;
+            first         = false;
             startLocation = sym.location;
         }
 
@@ -196,7 +198,8 @@ int ReferencesJob::execute()
         writeFlags |= QueryJob::NoContext;
     }
 
-    auto writeCons = [this](const String &car, const String &cdr) {
+    auto writeCons = [this](const String &car, const String &cdr)
+    {
         write("(cons ", DontQuote);
         write(car, DontQuote);
         write(cdr);
@@ -204,60 +207,63 @@ int ReferencesJob::execute()
     };
 
     Value json;
-    auto writeLoc = [this, writeCons, writeFlags, &json](Location loc) {
+    auto writeLoc = [this, writeCons, writeFlags, &json](Location loc)
+    {
         if (queryFlags() & QueryMessage::Elisp) {
             if (!filterLocation(loc))
                 return;
             write("(list ", DontQuote);
-            locationToString(loc, [writeCons, this](LocationPiece piece, const String &string) {
-                    switch (piece) {
-                    case Piece_ContainingFunctionLocation:
-                        if (queryFlags() & QueryMessage::ContainingFunctionLocation)
-                            writeCons("'cfl", string);
-                        break;
-                    case Piece_ContainingFunctionName:
-                        if (queryFlags() & QueryMessage::ContainingFunction)
-                            writeCons("'cf", string);
-                        break;
-                    case Piece_Location:
-                        writeCons("'loc", string);
-                        break;
-                    case Piece_Context:
-                        if (!(queryFlags() & QueryMessage::NoContext))
-                            writeCons("'ctx", string);
-                        break;
-                    case Piece_SymbolName:
-                    case Piece_Kind:
-                        break;
-                    }
-                });
+            locationToString(loc, [writeCons, this](LocationPiece piece, const String &string)
+                             {
+                                 switch (piece) {
+                                     case Piece_ContainingFunctionLocation:
+                                         if (queryFlags() & QueryMessage::ContainingFunctionLocation)
+                                             writeCons("'cfl", string);
+                                         break;
+                                     case Piece_ContainingFunctionName:
+                                         if (queryFlags() & QueryMessage::ContainingFunction)
+                                             writeCons("'cf", string);
+                                         break;
+                                     case Piece_Location:
+                                         writeCons("'loc", string);
+                                         break;
+                                     case Piece_Context:
+                                         if (!(queryFlags() & QueryMessage::NoContext))
+                                             writeCons("'ctx", string);
+                                         break;
+                                     case Piece_SymbolName:
+                                     case Piece_Kind:
+                                         break;
+                                 }
+                             });
             write(")", DontQuote);
         } else if (queryFlags() & QueryMessage::JSON) {
             if (!filterLocation(loc))
                 return;
             Value value;
-            locationToString(loc, [&value, this](LocationPiece piece, const String &string) {
-                    switch (piece) {
-                    case Piece_ContainingFunctionLocation:
-                        if (queryFlags() & QueryMessage::ContainingFunctionLocation)
-                            value["cfl"] = string;
-                        break;
-                    case Piece_ContainingFunctionName:
-                        if (queryFlags() & QueryMessage::ContainingFunction)
-                            value["cf"] = string;
-                        break;
-                    case Piece_Location:
-                        value["loc"] = string;
-                        break;
-                    case Piece_Context:
-                        if (!(queryFlags() & QueryMessage::NoContext))
-                            value["ctx"] = string;
-                        break;
-                    case Piece_SymbolName:
-                    case Piece_Kind:
-                        break;
-                    }
-                });
+            locationToString(loc, [&value, this](LocationPiece piece, const String &string)
+                             {
+                                 switch (piece) {
+                                     case Piece_ContainingFunctionLocation:
+                                         if (queryFlags() & QueryMessage::ContainingFunctionLocation)
+                                             value["cfl"] = string;
+                                         break;
+                                     case Piece_ContainingFunctionName:
+                                         if (queryFlags() & QueryMessage::ContainingFunction)
+                                             value["cf"] = string;
+                                         break;
+                                     case Piece_Location:
+                                         value["loc"] = string;
+                                         break;
+                                     case Piece_Context:
+                                         if (!(queryFlags() & QueryMessage::NoContext))
+                                             value["ctx"] = string;
+                                         break;
+                                     case Piece_SymbolName:
+                                     case Piece_Kind:
+                                         break;
+                                 }
+                             });
             json.push_back(value);
         } else {
             write(loc, writeFlags);
@@ -282,7 +288,8 @@ int ReferencesJob::execute()
         List<RTags::SortedSymbol> sorted;
         sorted.reserve(references.size());
         for (Map<Location, std::pair<bool, CXCursorKind>>::const_iterator it = references.begin();
-             it != references.end(); ++it) {
+             it != references.end();
+             ++it) {
             sorted.push_back(RTags::SortedSymbol(it->first, it->second.first, it->second.second));
         }
         if (queryFlags() & QueryMessage::ReverseSort) {
@@ -290,10 +297,10 @@ int ReferencesJob::execute()
         } else {
             std::sort(sorted.begin(), sorted.end());
         }
-        int startIndex = 0;
+        int startIndex  = 0;
         const int count = sorted.size();
         if (!startLocation.isNull()) {
-            for (int i=0; i<count; ++i) {
+            for (int i = 0; i < count; ++i) {
                 if (sorted.at(i).location == startLocation) {
                     startIndex = i + 1;
                     break;
@@ -301,7 +308,7 @@ int ReferencesJob::execute()
             }
         }
 
-        for (int i=0; i<count; ++i) {
+        for (int i = 0; i < count; ++i) {
             Location loc = sorted.at((startIndex + i) % count).location;
             writeLoc(loc);
         }
@@ -309,7 +316,7 @@ int ReferencesJob::execute()
     if (queryFlags() & QueryMessage::Elisp) {
         write(")", DontQuote);
     } else if (queryFlags() & QueryMessage::JSON) {
-        write(json.toJSON(), DontQuote|Unfiltered);
+        write(json.toJSON(), DontQuote | Unfiltered);
     }
 
     return references.empty() ? 1 : 0;

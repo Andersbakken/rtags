@@ -5,7 +5,6 @@ class B
 public:
     void reallyInline()
     {
-
     }
 
     void sortaInline();
@@ -22,6 +21,4 @@ void Foo::func()
 
 void B::sortaInline()
 {
-
-
 }

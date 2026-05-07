@@ -16,23 +16,23 @@
 #ifndef IndexParseData_h
 #define IndexParseData_h
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
-#include <algorithm>
 #include <unordered_map>
 #include <utility>
 
-#include "rct/Path.h"
-#include "rct/List.h"
-#include "rct/Serializer.h"
-#include "rct/Log.h"
-#include "RTags.h"
-#include "rct/Connection.h"
-#include "Match.h"
 #include "Location.h"
+#include "Match.h"
+#include "RTags.h"
 #include "Sandbox.h"
 #include "Source.h"
+#include "rct/Connection.h"
 #include "rct/Hash.h"
+#include "rct/List.h"
+#include "rct/Log.h"
+#include "rct/Path.h"
+#include "rct/Serializer.h"
 #include "rct/String.h"
 
 class IndexParseData
@@ -49,7 +49,7 @@ public:
     void clear()
     {
         compileCommandsFileId = 0;
-        lastModifiedMs = 0;
+        lastModifiedMs        = 0;
         sources.clear();
         environment.clear();
     }
@@ -60,6 +60,7 @@ public:
     List<String> environment;
 
     bool empty() const { return environment.empty() && sources.empty(); }
+
     bool write(const std::function<bool(const String &)> &write, const Match &match = Match()) const;
 };
 

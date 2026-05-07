@@ -2,6 +2,7 @@
 #define foo_h
 
 #include "header.h"
+
 class Foo
 {
 public:

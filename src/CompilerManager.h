@@ -16,24 +16,26 @@
 #ifndef CompilerManager_h
 #define CompilerManager_h
 
+#include "rct/Flags.h"
 #include "rct/List.h"
 #include "rct/Path.h"
 #include "rct/Serializer.h"
-#include "rct/Flags.h"
 
 struct Source;
 class Path;
 
-namespace CompilerManager
-{
+namespace CompilerManager {
 List<Path> compilers();
-enum Flag {
-    None = 0x0,
-    IncludeDefines = 0x1,
+
+enum Flag
+{
+    None                = 0x0,
+    IncludeDefines      = 0x1,
     IncludeIncludePaths = 0x2
 };
+
 RCT_FLAGS(Flag);
 void applyToSource(Source &source, Flags<Flag> flags);
-}
+} //namespace CompilerManager
 
 #endif

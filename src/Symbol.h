@@ -29,21 +29,37 @@
 #include "rct/Value.h"
 
 class Project;
+
 struct Symbol
 {
     Symbol()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), linkage(CXLinkage_Invalid),
-          enumValue(0), startLine(-1), endLine(-1), flags(None), startColumn(-1), endColumn(-1),
-          size(0), fieldOffset(-1), alignment(-1)
-    {}
+        : symbolLength(0)
+        , kind(CXCursor_FirstInvalid)
+        , type(CXType_Invalid)
+        , linkage(CXLinkage_Invalid)
+        , enumValue(0)
+        , startLine(-1)
+        , endLine(-1)
+        , flags(None)
+        , startColumn(-1)
+        , endColumn(-1)
+        , size(0)
+        , fieldOffset(-1)
+        , alignment(-1)
+    {
+    }
 
     Location location;
     String symbolName, usr, typeName;
     List<String> baseClasses;
-    struct Argument {
+
+    struct Argument
+    {
         Argument()
             : length(0)
-        {}
+        {
+        }
+
         Location location, cursor;
         size_t length;
 
@@ -54,11 +70,16 @@ struct Symbol
             length = 0;
         }
     };
+
     List<Argument> arguments;
-    struct ArgumentUsage {
+
+    struct ArgumentUsage
+    {
         ArgumentUsage()
             : index(String::npos)
-        {}
+        {
+        }
+
         void clear()
         {
             invocation.clear();
@@ -66,6 +87,7 @@ struct Symbol
             argument.clear();
             index = String::npos;
         }
+
         Location invocation, invokedFunction;
         Argument argument;
         size_t index;
@@ -75,10 +97,12 @@ struct Symbol
     CXCursorKind kind;
     CXTypeKind type;
     CXLinkageKind linkage;
-    enum Flag {
+
+    enum Flag
+    {
         None                   = 0x0000,
         VirtualMethod          = 0x0001,
-        PureVirtualMethod      = 0x0002|VirtualMethod,
+        PureVirtualMethod      = 0x0002 | VirtualMethod,
         StaticMethod           = 0x0004,
         ConstMethod            = 0x0008,
         Variadic               = 0x0010,
@@ -92,18 +116,23 @@ struct Symbol
         FileSymbol             = 0x1000,
         TemplateFunction       = 0x2000
     };
+
     String mangledName, briefComment, xmlComment;
-    union {
+
+    union
+    {
         int32_t stackCost; // cost for function definitions
         int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
     };
+
     int32_t startLine, endLine;
     uint16_t flags;
     int16_t startColumn, endColumn;
-    uint16_t size; // sizeof
+    uint16_t size;                  // sizeof
     int16_t fieldOffset, alignment; // bits
 
     bool isNull() const { return location.isNull() || clang_isInvalid(kind); }
+
     void clear()
     {
         location.clear();
@@ -114,10 +143,10 @@ struct Symbol
         baseClasses.clear();
         arguments.clear();
         symbolLength = 0;
-        kind = CXCursor_FirstInvalid;
-        type = CXType_Invalid;
-        enumValue = 0;
-        flags = 0;
+        kind         = CXCursor_FirstInvalid;
+        type         = CXType_Invalid;
+        enumValue    = 0;
+        flags        = 0;
         mangledName.clear();
         briefComment.clear();
         xmlComment.clear();
@@ -125,55 +154,62 @@ struct Symbol
     }
 
     uint16_t targetsValue() const;
+
     static bool isClass(CXCursorKind kind)
     {
         switch (kind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_ClassTemplate:
-        case CXCursor_StructDecl:
-            return true;
-        default:
-            break;
+            case CXCursor_ClassDecl:
+            case CXCursor_ClassTemplate:
+            case CXCursor_StructDecl:
+                return true;
+            default:
+                break;
         }
         return false;
     }
 
     bool isClass() const { return isClass(kind); }
+
     bool isConstructorOrDestructor() const
     {
         switch (kind) {
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            return true;
-        default:
-            break;
+            case CXCursor_Constructor:
+            case CXCursor_Destructor:
+                return true;
+            default:
+                break;
         }
         return false;
     }
+
     bool isReference() const;
     bool isContainer() const;
 
     inline bool isDefinition() const { return flags & Definition; }
 
-    enum ToStringFlag {
-        DefaultFlags = 0x00,
-        IncludeTargets = 0x01,
-        IncludeReferences = 0x02,
-        IncludeParents = 0x04,
-        IncludeBaseClasses = 0x08,
-        IncludeContainingFunction = 0x10,
+    enum ToStringFlag
+    {
+        DefaultFlags                      = 0x00,
+        IncludeTargets                    = 0x01,
+        IncludeReferences                 = 0x02,
+        IncludeParents                    = 0x04,
+        IncludeBaseClasses                = 0x08,
+        IncludeContainingFunction         = 0x10,
         IncludeContainingFunctionLocation = 0x20,
-        IncludeSourceCode = 0x40
+        IncludeSourceCode                 = 0x40
     };
+
     Value toValue(const List<std::shared_ptr<Project>> &projects,
                   Flags<ToStringFlag> toStringFlags,
                   Flags<Location::ToStringFlag> locationToStringFlags,
                   const Set<String> &pieceFilters) const;
     String toString(const List<std::shared_ptr<Project>> &projects = List<std::shared_ptr<Project>>(),
-                    Flags<ToStringFlag> toStringFlags = DefaultFlags,
-                    Flags<Location::ToStringFlag> = Flags<Location::ToStringFlag>(),
-                    const Set<String> &pieceFilters = Set<String>()) const;
+                    Flags<ToStringFlag> toStringFlags              = DefaultFlags,
+                    Flags<Location::ToStringFlag>                  = Flags<Location::ToStringFlag>(),
+                    const Set<String> &pieceFilters                = Set<String>()) const;
+
     String kindSpelling() const { return kindSpelling(kind); }
+
     String displayName() const;
     static String kindSpelling(uint16_t kind);
 
@@ -182,19 +218,22 @@ struct Symbol
 
 RCT_FLAGS(Symbol::ToStringFlag);
 
-template <> inline Serializer &operator<<(Serializer &s, const Symbol::Argument &arg)
+template <>
+inline Serializer &operator<<(Serializer &s, const Symbol::Argument &arg)
 {
     s << arg.location << arg.cursor << arg.length;
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Symbol::Argument &arg)
+template <>
+inline Deserializer &operator>>(Deserializer &s, Symbol::Argument &arg)
 {
     s >> arg.location >> arg.cursor >> arg.length;
     return s;
 }
 
-template <> inline Serializer &operator<<(Serializer &s, const Symbol::ArgumentUsage &usage)
+template <>
+inline Serializer &operator<<(Serializer &s, const Symbol::ArgumentUsage &usage)
 {
     s << usage.index;
     if (usage.index != String::npos) {
@@ -203,7 +242,8 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol::ArgumentU
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Symbol::ArgumentUsage &usage)
+template <>
+inline Deserializer &operator>>(Deserializer &s, Symbol::ArgumentUsage &usage)
 {
     s >> usage.index;
     if (usage.index != String::npos) {
@@ -214,7 +254,8 @@ template <> inline Deserializer &operator>>(Deserializer &s, Symbol::ArgumentUsa
     return s;
 }
 
-template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
+template <>
+inline Serializer &operator<<(Serializer &s, const Symbol &t)
 {
     s << t.location << t.argumentUsage << t.symbolName << t.usr
       << t.typeName << t.baseClasses << t.arguments << t.symbolLength
@@ -225,19 +266,15 @@ template <> inline Serializer &operator<<(Serializer &s, const Symbol &t)
     return s;
 }
 
-template <> inline Deserializer &operator>>(Deserializer &s, Symbol &t)
+template <>
+inline Deserializer &operator>>(Deserializer &s, Symbol &t)
 {
     uint16_t kind, type;
     uint8_t linkage;
-    s >> t.location >> t.argumentUsage >> t.symbolName
-      >> t.usr >> t.typeName >> t.baseClasses >> t.arguments
-      >> t.symbolLength >> kind >> type >> linkage >> t.flags
-      >> t.mangledName >> t.briefComment >> t.xmlComment >> t.enumValue
-      >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn
-      >> t.size >> t.fieldOffset >> t.alignment;
+    s >> t.location >> t.argumentUsage >> t.symbolName >> t.usr >> t.typeName >> t.baseClasses >> t.arguments >> t.symbolLength >> kind >> type >> linkage >> t.flags >> t.mangledName >> t.briefComment >> t.xmlComment >> t.enumValue >> t.startLine >> t.endLine >> t.startColumn >> t.endColumn >> t.size >> t.fieldOffset >> t.alignment;
 
-    t.kind = static_cast<CXCursorKind>(kind);
-    t.type = static_cast<CXTypeKind>(type);
+    t.kind    = static_cast<CXCursorKind>(kind);
+    t.type    = static_cast<CXTypeKind>(type);
     t.linkage = static_cast<CXLinkageKind>(linkage);
 
     Sandbox::decode(t.typeName);

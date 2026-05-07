@@ -1,7 +1,8 @@
 struct A
 {
     A()
-    {}
+    {
+    }
 };
 
 int main()

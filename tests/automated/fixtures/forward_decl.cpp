@@ -1,10 +1,12 @@
 struct Opaque;
 
-struct Concrete {
+struct Concrete
+{
     int val;
 };
 
-void use_forward_decl() {
+void use_forward_decl()
+{
     Opaque *op = nullptr;
     Concrete c;
     c.val = 10;

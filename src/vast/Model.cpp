@@ -10,12 +10,13 @@
 #include <vector>
 
 #include "Node.h"
-#include "clang-c/Index.h"
 #include "qglobal.h"
+#include "clang-c/Index.h"
 
 class QObject;
 
-enum Columns {
+enum Columns
+{
     DisplayName,
     NodeType,
     Kind,
@@ -81,65 +82,65 @@ inline static QString displayName(const CXCursor &cursor)
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     switch (kind) {
-    case CXCursor_CXXAccessSpecifier:
-        switch (clang_getCXXAccessSpecifier(cursor)) {
-        case CX_CXXInvalidAccessSpecifier: break;
-        case CX_CXXPublic: ret = "public"; break;
-        case CX_CXXProtected: ret = "protected"; break;
-        case CX_CXXPrivate: ret = "private"; break;
-        }
-        break;
-    case CXCursor_UnexposedStmt:
-    case CXCursor_DeclStmt:
-    case CXCursor_CompoundStmt: ret = "{ ... }"; break;
-    case CXCursor_ReturnStmt: ret = "return"; break;
-    case CXCursor_BreakStmt: ret = "break"; break;
-    case CXCursor_ContinueStmt: ret = "continue"; break;
-    case CXCursor_CaseStmt: ret = "case ..."; break;
-    case CXCursor_ForStmt: ret = "for (...;...;...)"; break;
-    case CXCursor_CXXForRangeStmt: ret = "for (... : ...)"; break;
-    case CXCursor_DoStmt: ret = "do { ..."; break;
-    case CXCursor_WhileStmt: ret = "while (...)"; break;
-    case CXCursor_IfStmt: ret = "if (...)"; break;
-    case CXCursor_SwitchStmt: ret = "switch (...)"; break;
-    case CXCursor_DefaultStmt: ret = "default: ..."; break;
-    case CXCursor_IndirectGotoStmt:
-    case CXCursor_GotoStmt: ret = "goto ..."; break;
-    case CXCursor_GCCAsmStmt: ret = "asm ..."; break;
-    case CXCursor_NullStmt: ret = "null"; break;
-    case CXCursor_EnumDecl: ret = "enum"; break;
-    case CXCursor_UnionDecl: ret = "union"; break;
-    case CXCursor_StructDecl: ret = "struct"; break;
-    case CXCursor_ClassDecl: ret = "class"; break;
-    case CXCursor_UnexposedDecl: ret = "unexposed"; break;
-    case CXCursor_StaticAssert:
-    case CXCursor_BinaryOperator:
-    case CXCursor_IntegerLiteral:
-    case CXCursor_FloatingLiteral:
-    case CXCursor_ImaginaryLiteral:
-    case CXCursor_CharacterLiteral: {
-        CXToken *tokens = nullptr;
-        unsigned numTokens = 0;
-        CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        clang_tokenize(tu, range, &tokens, &numTokens);
-
-        if (numTokens) {
-            for (unsigned i=0; i<numTokens; ++i) {
-                ret += eatString(clang_getTokenSpelling(tu, tokens[i]));
+        case CXCursor_CXXAccessSpecifier:
+            switch (clang_getCXXAccessSpecifier(cursor)) {
+                case CX_CXXInvalidAccessSpecifier: break;
+                case CX_CXXPublic: ret = "public"; break;
+                case CX_CXXProtected: ret = "protected"; break;
+                case CX_CXXPrivate: ret = "private"; break;
             }
+            break;
+        case CXCursor_UnexposedStmt:
+        case CXCursor_DeclStmt:
+        case CXCursor_CompoundStmt: ret = "{ ... }"; break;
+        case CXCursor_ReturnStmt: ret = "return"; break;
+        case CXCursor_BreakStmt: ret = "break"; break;
+        case CXCursor_ContinueStmt: ret = "continue"; break;
+        case CXCursor_CaseStmt: ret = "case ..."; break;
+        case CXCursor_ForStmt: ret = "for (...;...;...)"; break;
+        case CXCursor_CXXForRangeStmt: ret = "for (... : ...)"; break;
+        case CXCursor_DoStmt: ret = "do { ..."; break;
+        case CXCursor_WhileStmt: ret = "while (...)"; break;
+        case CXCursor_IfStmt: ret = "if (...)"; break;
+        case CXCursor_SwitchStmt: ret = "switch (...)"; break;
+        case CXCursor_DefaultStmt: ret = "default: ..."; break;
+        case CXCursor_IndirectGotoStmt:
+        case CXCursor_GotoStmt: ret = "goto ..."; break;
+        case CXCursor_GCCAsmStmt: ret = "asm ..."; break;
+        case CXCursor_NullStmt: ret = "null"; break;
+        case CXCursor_EnumDecl: ret = "enum"; break;
+        case CXCursor_UnionDecl: ret = "union"; break;
+        case CXCursor_StructDecl: ret = "struct"; break;
+        case CXCursor_ClassDecl: ret = "class"; break;
+        case CXCursor_UnexposedDecl: ret = "unexposed"; break;
+        case CXCursor_StaticAssert:
+        case CXCursor_BinaryOperator:
+        case CXCursor_IntegerLiteral:
+        case CXCursor_FloatingLiteral:
+        case CXCursor_ImaginaryLiteral:
+        case CXCursor_CharacterLiteral: {
+            CXToken *tokens      = nullptr;
+            unsigned numTokens   = 0;
+            CXTranslationUnit tu = clang_Cursor_getTranslationUnit(cursor);
+            CXSourceRange range  = clang_getCursorExtent(cursor);
+            clang_tokenize(tu, range, &tokens, &numTokens);
+
+            if (numTokens) {
+                for (unsigned i = 0; i < numTokens; ++i) {
+                    ret += eatString(clang_getTokenSpelling(tu, tokens[i]));
+                }
+            }
+            clang_disposeTokens(tu, tokens, numTokens);
+            break;
         }
-        clang_disposeTokens(tu, tokens, numTokens);
-        break; }
-    default:
-        break;
+        default:
+            break;
     }
     if (ret.isEmpty()) {
         qDebug() << "GOT AN EMPTY ONE" << eatString(clang_getCursorKindSpelling(kind));
     }
 
     return ret;
-
 }
 
 inline static QString sourceCode(const CXCursor &cursor)
@@ -178,26 +179,26 @@ inline static QString sourceCode(const CXCursor &cursor)
 inline static QString toString(Node::NodeType type)
 {
     switch (type) {
-    case Node::Root: return "Root";
-    case Node::Children: return "Children";
-    case Node::Reference: return "Reference";
-    case Node::SemanticParent: return "SemanticParent";
-    case Node::LexicalParent: return "LexicalParent";
-    case Node::Definition: return "Definition";
-    case Node::Canonical: return "Canonical";
-    case Node::SpecializedCursorTemplate: return "SpecializedCursorTemplate";
-    case Node::Type: return "Type";
-    case Node::TypedefUnderlyingType: return "TypedefUnderlyingType";
-    case Node::EnumIntegerType: return "EnumIntegerType";
-    case Node::CanonicalType: return "CanonicalType";
-    case Node::PointeeType: return "PointeeType";
-    case Node::Result: return "Result";
-    case Node::ElementType: return "ElementType";
-    case Node::TemplateArgument: return "TemplateArgument";
-    case Node::Argument: return "Argument";
-    case Node::ArgumentType: return "ArgumentType";
-    case Node::OverloadedDeclaration: return "OverloadedDeclaration";
-    case Node::TypeDeclaration: return "TypeDeclaration";
+        case Node::Root: return "Root";
+        case Node::Children: return "Children";
+        case Node::Reference: return "Reference";
+        case Node::SemanticParent: return "SemanticParent";
+        case Node::LexicalParent: return "LexicalParent";
+        case Node::Definition: return "Definition";
+        case Node::Canonical: return "Canonical";
+        case Node::SpecializedCursorTemplate: return "SpecializedCursorTemplate";
+        case Node::Type: return "Type";
+        case Node::TypedefUnderlyingType: return "TypedefUnderlyingType";
+        case Node::EnumIntegerType: return "EnumIntegerType";
+        case Node::CanonicalType: return "CanonicalType";
+        case Node::PointeeType: return "PointeeType";
+        case Node::Result: return "Result";
+        case Node::ElementType: return "ElementType";
+        case Node::TemplateArgument: return "TemplateArgument";
+        case Node::Argument: return "Argument";
+        case Node::ArgumentType: return "ArgumentType";
+        case Node::OverloadedDeclaration: return "OverloadedDeclaration";
+        case Node::TypeDeclaration: return "TypeDeclaration";
     }
     return QString();
 }
@@ -215,7 +216,8 @@ inline static QString toNodeType(const Node *node)
 }
 
 Model::Model(std::unique_ptr<TranslationUnit> &&translationUnit, QObject *parent)
-    : QAbstractItemModel(parent), mTranslationUnit(std::move(translationUnit))
+    : QAbstractItemModel(parent)
+    , mTranslationUnit(std::move(translationUnit))
 {
 }
 
@@ -230,9 +232,9 @@ QModelIndex Model::index(int row, int column,
     }
 
     int r = 0;
-    for (int i = Node::FirstBit; i<=Node::LastBit; ++i) {
-        Node::NodeType nodeType = static_cast<Node::NodeType>(1ull << i);
-        Node **child = nullptr;
+    for (int i = Node::FirstBit; i <= Node::LastBit; ++i) {
+        Node::NodeType nodeType       = static_cast<Node::NodeType>(1ull << i);
+        Node **child                  = nullptr;
         std::vector<Node *> *children = nullptr;
         p->extract(nodeType, &child, &children);
         if (child && *child) {
@@ -265,9 +267,9 @@ int Model::rowCount(const QModelIndex &parent) const
     if (!node)
         return 1;
     size_t ret = 0;
-    for (int i = Node::FirstBit; i<=Node::LastBit; ++i) {
-        Node::NodeType nodeType = static_cast<Node::NodeType>(1ull << i);
-        Node **child = nullptr;
+    for (int i = Node::FirstBit; i <= Node::LastBit; ++i) {
+        Node::NodeType nodeType       = static_cast<Node::NodeType>(1ull << i);
+        Node **child                  = nullptr;
         std::vector<Node *> *children = nullptr;
         node->extract(nodeType, &child, &children);
         if (child && *child) {
@@ -279,7 +281,7 @@ int Model::rowCount(const QModelIndex &parent) const
     return ret;
 }
 
-int Model::columnCount(const QModelIndex &/*parent*/) const
+int Model::columnCount(const QModelIndex & /*parent*/) const
 {
     return ColumnCount;
 }
@@ -290,9 +292,9 @@ bool Model::hasChildren(const QModelIndex &parent) const
     if (!node)
         return true;
 
-    for (int i = Node::FirstBit; i<=Node::LastBit; ++i) {
-        Node::NodeType nodeType = static_cast<Node::NodeType>(1ull << i);
-        Node **child = nullptr;
+    for (int i = Node::FirstBit; i <= Node::LastBit; ++i) {
+        Node::NodeType nodeType       = static_cast<Node::NodeType>(1ull << i);
+        Node **child                  = nullptr;
         std::vector<Node *> *children = nullptr;
         node->extract(nodeType, &child, &children);
         if ((child && *child) || (children && children->size()))
@@ -308,33 +310,33 @@ QVariant Model::data(const QModelIndex &index, int role) const
         return QVariant();
 
     const CXCursor &cursor = node->clangCursor();
-    const CXType &type = node->clangType();
+    const CXType &type     = node->clangType();
     switch (role) {
-    case Qt::DisplayRole:
-        switch (index.column()) {
-        case DisplayName:
-            if (type.kind != CXType_Invalid) {
-                return displayName(type);
+        case Qt::DisplayRole:
+            switch (index.column()) {
+                case DisplayName:
+                    if (type.kind != CXType_Invalid) {
+                        return displayName(type);
+                    }
+                    return displayName(cursor);
+                case NodeType: return toNodeType(node);
+                case Kind:
+                    if (type.kind != CXType_Invalid)
+                        return eatString(clang_getTypeKindSpelling(type.kind));
+                    return eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+                case Location: return toString(clang_getCursorExtent(cursor));
             }
-            return displayName(cursor);
-        case NodeType: return toNodeType(node);
-        case Kind:
-            if (type.kind != CXType_Invalid)
-                return eatString(clang_getTypeKindSpelling(type.kind));
-            return eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-        case Location: return toString(clang_getCursorExtent(cursor));
-        }
-        break;
-    case Model::SourceCodeRole:
-        return sourceCode(cursor);
-    case Qt::ToolTipRole:
-        return data(index, Qt::DisplayRole).value<QString>() + " " + data(index, Model::SourceCodeRole).value<QString>();
-    case Qt::DecorationRole:
-    case Qt::EditRole:
-    case Qt::StatusTipRole:
-    case Qt::WhatsThisRole:
-    case Qt::SizeHintRole:
-        break;
+            break;
+        case Model::SourceCodeRole:
+            return sourceCode(cursor);
+        case Qt::ToolTipRole:
+            return data(index, Qt::DisplayRole).value<QString>() + " " + data(index, Model::SourceCodeRole).value<QString>();
+        case Qt::DecorationRole:
+        case Qt::EditRole:
+        case Qt::StatusTipRole:
+        case Qt::WhatsThisRole:
+        case Qt::SizeHintRole:
+            break;
     }
     return QVariant();
 }
@@ -345,10 +347,10 @@ QVariant Model::headerData(int section, Qt::Orientation orientation, int role) c
         return QVariant();
 
     switch (section) {
-    case DisplayName: return "DisplayName";
-    case NodeType: return "Type";
-    case Kind: return "Kind";
-    case Location: return "Location";
+        case DisplayName: return "DisplayName";
+        case NodeType: return "Type";
+        case Kind: return "Kind";
+        case Location: return "Location";
     }
     return QVariant();
 }

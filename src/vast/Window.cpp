@@ -1,5 +1,6 @@
 #include "Window.h"
 
+#include <algorithm>
 #include <qaction.h>
 #include <qboxlayout.h>
 #include <qbytearray.h>
@@ -21,7 +22,6 @@
 #include <qsplitter.h>
 #include <qvariant.h>
 #include <qwidget.h>
-#include <algorithm>
 #include <utility>
 
 #include "Model.h"
@@ -36,13 +36,13 @@ class QShowEvent;
 Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
     : QMainWindow()
 {
-    QWidget *central = new QWidget(this);
+    QWidget *central    = new QWidget(this);
     QVBoxLayout *layout = new QVBoxLayout(central);
-    mSplitter = new QSplitter(Qt::Horizontal, central);
+    mSplitter           = new QSplitter(Qt::Horizontal, central);
     layout->addWidget(mSplitter);
     setCentralWidget(central);
     mTreeView = new TreeView(mSplitter);
-    mModel = new Model(std::move(translationUnit), this);
+    mModel    = new Model(std::move(translationUnit), this);
     mTreeView->setModel(mModel);
     mTreeView->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
     mSplitter->addWidget(mTreeView);
@@ -59,16 +59,15 @@ Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
             mSplitter->restoreState(savedState);
     }
 
-    QObject::connect(mTreeView->selectionModel(), SIGNAL(currentChanged(QModelIndex, QModelIndex)),
-                     this, SLOT(onCurrentChanged(QModelIndex)));
+    QObject::connect(mTreeView->selectionModel(), SIGNAL(currentChanged(QModelIndex, QModelIndex)), this, SLOT(onCurrentChanged(QModelIndex)));
 
     QWidget *bottom = new QWidget(central);
     bottom->setSizePolicy(bottom->sizePolicy().verticalPolicy(), QSizePolicy::Maximum);
     layout->addWidget(bottom);
 
-    mSearch = new SearchEdit(bottom, mTreeView);
+    mSearch           = new SearchEdit(bottom, mTreeView);
     QHBoxLayout *hbox = new QHBoxLayout(bottom);
-    QLabel *buddy = new QLabel("&Search", bottom);
+    QLabel *buddy     = new QLabel("&Search", bottom);
     hbox->addWidget(buddy);
     buddy->setBuddy(mSearch);
     hbox->addWidget(mSearch);
@@ -83,7 +82,7 @@ Window::Window(std::unique_ptr<TranslationUnit> &&translationUnit)
 
     QMenu *edit = menuBar()->addMenu("&Edit");
     edit->addAction("&Search", mSearch, SLOT(setFocus()), QKeySequence::Find);
-    mFindNext = edit->addAction("&Next result", this, SLOT(searchNext()), QKeySequence::FindNext);
+    mFindNext     = edit->addAction("&Next result", this, SLOT(searchNext()), QKeySequence::FindNext);
     mFindPrevious = edit->addAction("&Previous result", this, SLOT(searchPrevious()), QKeySequence::FindPrevious);
 }
 
@@ -103,10 +102,10 @@ void Window::onSearchReturn()
         if (!parent.isValid()) {
             parent = mModel->index(0, 0);
         }
-        const int rows = mModel->rowCount(parent);
+        const int rows    = mModel->rowCount(parent);
         const int columns = mModel->columnCount(parent);
-        for (int row=0; row<rows; ++row) {
-            for (int column=0; column<columns; ++column) {
+        for (int row = 0; row < rows; ++row) {
+            for (int column = 0; column < columns; ++column) {
                 const QModelIndex idx = mModel->index(row, column, parent);
                 if (idx.data().toString().contains(mLastSearch)) {
                     mMatches.push_back(mModel->index(row, 0, parent));
@@ -141,7 +140,6 @@ void Window::searchNext()
     }
     mSearchLabel->setText(QString::number(mLastSearchIndex + 1) + "/" + QString::number(mMatches.size()));
     mTreeView->setCurrentIndex(mMatches[mLastSearchIndex]);
-
 }
 
 void Window::searchPrevious()
@@ -169,7 +167,7 @@ void Window::showPreferences()
     layout->addWidget(showDefines);
     layout->addWidget(showIncludes);
     layout->addWidget(showTypedefs);
-    QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Save|QDialogButtonBox::Cancel, &dialog);
+    QDialogButtonBox *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dialog);
     layout->addWidget(buttons);
     QObject::connect(buttons, SIGNAL(accepted()), &dialog, SLOT(accept()));
     QObject::connect(buttons, SIGNAL(rejected()), &dialog, SLOT(reject()));
@@ -186,7 +184,6 @@ void Window::showPreferences()
             flags |= TranslationUnit::ShowTypedefs;
 
         mModel->setTranslationUnitFlags(flags);
-
     }
 }
 
@@ -210,7 +207,7 @@ void Window::showEvent(QShowEvent *e)
 {
     QMainWindow::showEvent(e);
     mSourceViewWasVisible = mSourceView->width() != 0;
-    QByteArray geom = QSettings().value("geometry").value<QByteArray>();
+    QByteArray geom       = QSettings().value("geometry").value<QByteArray>();
     if (!geom.isEmpty())
         restoreGeometry(geom);
 }

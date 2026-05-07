@@ -13,7 +13,6 @@ private:
     }
 };
 
-
 int main()
 {
     Foo f;
