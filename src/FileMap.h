@@ -71,7 +71,7 @@ public:
         , mFD(other.mFD)
         , mOptions(other.mOptions)
     {
-        other.mPointer      = 0;
+        other.mPointer      = nullptr;
         other.mSize         = 0;
         other.mCount        = 0;
         other.mValuesOffset = 0;
