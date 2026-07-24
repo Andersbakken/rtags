@@ -283,6 +283,8 @@ public:
     time_t lastIdleTime() const { return mLastIdleTime; }
 
     bool isIndexing() const { return !mActiveJobs.empty(); }
+    int jobCounter() const { return mJobCounter; }
+    int activeJobCount() const { return mActiveJobs.size(); }
 
     void onFileAdded(const Path &path);
     void onFileModified(const Path &path);

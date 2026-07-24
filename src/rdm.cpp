@@ -209,6 +209,7 @@ enum OptionType
     DisableCompilerManager,
     EnableNDEBUG,
     Progress,
+    DetailedProgress,
     MaxFileMapCacheSize,
 #ifdef FILEMANAGER_OPT_IN
     FileManagerWatch,
@@ -374,6 +375,7 @@ int main(int argc, char **argv)
         { DisableCompilerManager, "disable-compiler-manager", 0, CommandLineParser::NoValue, "Do not query compilers for their actual include paths instead of letting clang use its own." },
         { EnableNDEBUG, "enable-NDEBUG", 'g', CommandLineParser::NoValue, "Don't remove -DNDEBUG from compile lines." },
         { Progress, "progress", 'p', CommandLineParser::NoValue, "Report compilation progress in diagnostics output." },
+        { DetailedProgress, "detailed-progress", 0, CommandLineParser::NoValue, "Show detailed per-file progress lines on stdout instead of the default fancy per-project progress bars." },
         { MaxFileMapCacheSize, "max-file-map-cache-size", 'y', CommandLineParser::Required, String::format("Max files to cache per query (Should not exceed maximum number of open file descriptors allowed per process) (default %d).", DEFAULT_RDM_MAX_FILE_MAP_CACHE_SIZE) },
 #ifdef FILEMANAGER_OPT_IN
         { FileManagerWatch, "filemanager-watch", 'M', CommandLineParser::NoValue, "Use a file system watcher for filemanager." },
@@ -733,6 +735,10 @@ int main(int argc, char **argv)
             }
             case Progress: {
                 serverOpts.options |= Server::Progress;
+                break;
+            }
+            case DetailedProgress: {
+                serverOpts.options |= Server::DetailedProgress;
                 break;
             }
             case MaxFileMapCacheSize: {

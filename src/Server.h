@@ -117,6 +117,7 @@ public:
 #ifdef OS_Linux
         NoForceLimitsInclude = (1ull << 36),
 #endif
+        DetailedProgress                        = (1ull << 37),
     };
 
     struct Options
