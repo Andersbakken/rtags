@@ -162,7 +162,7 @@ bool Server::init(const Options &options)
 #endif
     }
 #ifdef CLANG_INCLUDE
-    mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, CLANG_INCLUDE_STR));
+    mOptions.includePaths.push_back(Source::Include(Source::Include::Type_SystemClangHeaders, CLANG_INCLUDE_STR));
 #endif
 
     if (!(mOptions.options & NoLibClangIncludePath)) {
@@ -184,7 +184,7 @@ bool Server::init(const Options &options)
             systemInclude = systemInclude.ensureTrailingSlash();
             systemInclude << "clang/" << CLANG_VERSION_STRING << "/include/";
             if (systemInclude.isDir()) {
-                mOptions.includePaths.push_back(Source::Include(Source::Include::Type_System, systemInclude));
+                mOptions.includePaths.push_back(Source::Include(Source::Include::Type_SystemClangHeaders, systemInclude));
                 break;
             }
         }

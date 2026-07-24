@@ -57,11 +57,11 @@ struct Source
 
     enum Flag
     {
-        NoFlag       = 0x0,
-        NoRtti       = 0x1,
-        M32          = 0x2,
-        M64          = 0x4,
-        IsEmscripten = 0x8
+        NoFlag       = 0x00,
+        NoRtti       = 0x01,
+        M32          = 0x02,
+        M64          = 0x04,
+        Clang        = 0x08
     };
 
     Flags<Flag> flags;

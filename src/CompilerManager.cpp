@@ -32,14 +32,9 @@ static std::mutex sMutex;
 
 struct Compiler
 {
-    Compiler()
-        : inited(false)
-        , isEmscripten(false)
-    {
-    }
-
-    bool inited;
-    bool isEmscripten;
+    bool inited { false };
+    bool isEmscripten { false };
+    bool isClang { false };
 
     // There are three include-path-limiting options:
     //   1. -nostdinc      -- disables all default system include paths
@@ -131,7 +126,6 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
         }
         for (size_t i = 0; i < out.size(); ++i) {
             const String &line = out.at(i);
-            // error() << c << line;
             if (line.startsWith("#define ")) {
                 Source::Define def;
                 const size_t space = line.indexOf(' ', 8);
@@ -145,6 +139,9 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
                 if (def.define == "EMSCRIPTEN" || def.define == "__EMSCRIPTEN__") {
                     compiler.isEmscripten = true;
                     debug() << "[CompilerManager] Detected Emscripten compiler:" << cpath;
+                } else if (def.define == "__clang__") {
+                    compiler.isClang = true;
+                    debug() << "[CompilerManager] Detected Clang compiler:" << cpath;
                 }
             }
         }
@@ -233,7 +230,7 @@ void applyToSource(Source &source, Flags<CompilerManager::Flag> flags)
             source.arguments.push_back("-fno-modules");
         }
     }
-    source.flags |= (compiler.isEmscripten ? Source::IsEmscripten : Source::NoFlag);
+    source.flags |= (compiler.isClang ? Source::Clang : Source::NoFlag);
     if (compiler.isEmscripten && !source.arguments.contains("--target=wasm32-unknown-emscripten")) {
         source.arguments.push_back("--target=wasm32-unknown-emscripten");
         debug() << "[CompilerManager] Added --target=wasm32-unknown-emscripten for Emscripten source";

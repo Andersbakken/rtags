@@ -155,11 +155,11 @@ String IndexerJob::encode() const
             }
 
             Server::instance()->filterBlockedArguments(copy);
-            if (copy.flags & Source::IsEmscripten) {
-                debug() << "[IndexerJob] Skipping libclang include for Emscripten source:" << copy.fileId;
+            if (copy.flags & Source::Clang) {
+                debug() << "[IndexerJob] Skipping libclang include for clang source:" << copy.fileId;
                 List<Source::Include> filteredPaths;
                 for (const auto &inc : options.includePaths) {
-                    if (!inc.path.contains("/clang/")) {
+                    if (inc.type != Source::Include::Type_SystemClangHeaders) {
                         filteredPaths.push_back(inc);
                     }
                 }
