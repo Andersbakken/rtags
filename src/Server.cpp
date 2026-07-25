@@ -1038,20 +1038,21 @@ bool Server::load()
                                if (path.isDir()) {
                                    Path sources = path + "sources";
                                    if (sources.exists()) {
-                                       Path parentDir = path.parentDir();
-                                       Path filePath  = parentDir.fileName();
+                                       Path filePath = path.fileName();
                                        if (filePath.endsWith("/"))
                                            filePath.chop(1);
                                        RTags::decodePath(filePath);
                                        if (!filePath.empty()) {
-                                           String err;
-                                           IndexParseData data;
-                                           if (!Project::readSources(sources, data, &err)) {
-                                               error("Sources restore error %s: %s", path.constData(), err.constData());
-                                           } else {
-                                               char *end                  = nullptr;
-                                               data.compileCommandsFileId = strtoul(parentDir.fileName(), &end, 10);
-                                               if (!*end) {
+                                           char *end                            = nullptr;
+                                           const uint32_t compileCommandsFileId = strtoul(filePath.fileName(), &end, 10);
+                                           if (!*end) {
+                                               filePath = filePath.parentDir();
+                                               String err;
+                                               IndexParseData data;
+                                               if (!Project::readSources(sources, data, &err)) {
+                                                   error("Sources restore error %s: %s", path.constData(), err.constData());
+                                               } else {
+                                                   data.compileCommandsFileId = compileCommandsFileId;
                                                    projects[filePath].push_back(std::move(data));
                                                }
                                            }
