@@ -49,6 +49,7 @@ install_manifest.txt
 
 # Node
 node_modules/
+/mcp-server/dist/
 
 # Test artifacts
 /tests/186/
