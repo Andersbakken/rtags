@@ -36,6 +36,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "Source.h"
+#include "Tui.h"
 #include "rct/EventLoop.h"
 #include "rct/Flags.h"
 #include "rct/List.h"
@@ -947,6 +948,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (!daemon && !(serverOpts.options & Server::DetailedProgress)) {
+        Tui::enable();
+    }
+
 #ifdef RTAGS_HAS_LAUNCHD
     if (serverOpts.options & Server::Launchd) {
         // Clamp inactivity timeout. launchd starts to worry if the
@@ -1020,6 +1025,7 @@ int main(int argc, char **argv)
     loop->exec();
     const int ret = server->exitCode();
     server.reset();
+    Tui::disable();
     cleanupLogging();
     return ret;
 }

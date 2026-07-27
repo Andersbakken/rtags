@@ -203,7 +203,8 @@ set(RTAGS_SOURCES
     Symbol.cpp
     SymbolInfoJob.cpp
     Token.cpp
-    TokensJob.cpp)
+    TokensJob.cpp
+    Tui.cpp)
 
 add_library(rtags STATIC ${RTAGS_SOURCES})
 if (RTAGS_BUILD_CLANG)
@@ -226,7 +227,11 @@ else ()
     set(END_GROUP "-Wl,--end-group")
 endif ()
 
-set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP})
+set(CURSES_NEED_WIDE TRUE)
+find_package(Curses REQUIRED)
+include_directories(${CURSES_INCLUDE_DIRS})
+
+set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} ${CURSES_LIBRARIES})
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set_source_files_properties(AST.cpp PROPERTIES

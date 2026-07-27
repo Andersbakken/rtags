@@ -28,7 +28,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -46,6 +45,7 @@
 #include "RTagsVersion.h"
 #include "Sandbox.h"
 #include "Server.h"
+#include "Tui.h"
 #include "Token.h"
 #include "rct/Connection.h"
 #include "rct/DataFile.h"
@@ -878,97 +878,6 @@ static Flags<QueryMessage::Flag> queryFlags(const std::shared_ptr<LogOutput> &ou
     return NullFlags;
 }
 
-namespace {
-int sProgressBarLines = 0;
-
-bool progressBarsEnabled()
-{
-    static const bool tty = isatty(fileno(stdout));
-    return tty;
-}
-
-void clearProgressBars()
-{
-    if (!progressBarsEnabled() || sProgressBarLines <= 0)
-        return;
-    // Move cursor up to first bar line, then erase each line downward.
-    fprintf(stdout, "\r\x1b[%dA", sProgressBarLines);
-    for (int i = 0; i < sProgressBarLines; ++i) {
-        fprintf(stdout, "\x1b[2K");
-        if (i + 1 < sProgressBarLines)
-            fprintf(stdout, "\x1b[1B");
-    }
-    fprintf(stdout, "\r\x1b[%dA", sProgressBarLines - 1 > 0 ? sProgressBarLines - 1 : 0);
-    fflush(stdout);
-    sProgressBarLines = 0;
-}
-
-void renderProgressBars()
-{
-    if (!progressBarsEnabled())
-        return;
-
-    clearProgressBars();
-
-    Server *server = Server::instance();
-    if (!server)
-        return;
-
-    constexpr int barWidth = 30;
-
-    struct Row
-    {
-        String name;
-        int done;
-        int total;
-        int pct;
-    };
-    List<Row> rows;
-    size_t nameWidth  = 0;
-    int totalWidth    = 1;
-    for (const auto &pair : server->projects()) {
-        for (const auto &project : pair.second) {
-            if (!project || !project->isIndexing())
-                continue;
-            const int total  = project->jobCounter();
-            const int active = project->activeJobCount();
-            const int done   = std::max(0, total - active);
-            const int pct    = total > 0 ? static_cast<int>(round((double(done) / double(total)) * 100.0)) : 0;
-
-            Row row { project->displayName(), done, total, pct };
-            nameWidth  = std::max(nameWidth, row.name.size());
-            totalWidth = std::max(totalWidth, static_cast<int>(String::number(total).size()));
-            rows.push_back(std::move(row));
-        }
-    }
-
-    int lines = 0;
-    for (const Row &row : rows) {
-        const int filled = row.total > 0 ? (row.done * barWidth) / row.total : 0;
-
-        String bar;
-        bar.reserve(barWidth * 3);
-        for (int i = 0; i < filled; ++i)
-            bar.append("\xe2\x96\x88", 3); // U+2588 FULL BLOCK
-        for (int i = filled; i < barWidth; ++i)
-            bar.append("\xe2\x96\x91", 3); // U+2591 LIGHT SHADE
-
-        fprintf(stdout, "%-*s [%s] %3d%% (%*d/%*d)\n",
-                static_cast<int>(nameWidth),
-                row.name.constData(),
-                bar.constData(),
-                row.pct,
-                totalWidth,
-                row.done,
-                totalWidth,
-                row.total);
-        ++lines;
-    }
-    fflush(stdout);
-    sProgressBarLines = lines;
-}
-} // namespace
-
 void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::shared_ptr<IndexDataMessage> &msg)
 {
     List<std::shared_ptr<Project>> projects;
@@ -1034,7 +943,7 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
                 }
             });
     }
-    const bool detailed = (options.options & Server::DetailedProgress) || !progressBarsEnabled();
+    const bool detailed = (options.options & Server::DetailedProgress) || !Tui::enabled();
     if (success) {
         if (mIndexParseData.sources.contains(fileId)) {
             mIndexParseData.sources[fileId].parsed = msg->parseTime();
@@ -1044,16 +953,12 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         }
     } else {
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
-        if (!detailed)
-            clearProgressBars();
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.", static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter, String::formatTime(time(nullptr), String::Time).constData(), Location::path(fileId).toTilde().constData()), LogOutput::StdOut | LogOutput::TrailingNewLine);
     }
     if (!detailed)
-        renderProgressBars();
+        Tui::update(shared_from_this(), idx, mJobCounter);
 
     if (mActiveJobs.empty()) {
-        if (!detailed)
-            clearProgressBars();
         mLastIdleTime = time(nullptr);
         save();
         double timerElapsed         = (mTimer.elapsed() / 1000.0);
