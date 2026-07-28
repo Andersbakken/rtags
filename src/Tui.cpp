@@ -20,6 +20,7 @@
 #include <locale.h>
 #include <math.h>
 #include <mutex>
+#include <termios.h>
 #include <thread>
 #include <unistd.h>
 #include <vector>
@@ -47,21 +48,24 @@ struct ProjectSnapshot
 {
     Path key;
     String name;
-    int done  = 0;
-    int total = 0;
+    int done    = 0;
+    int total   = 0;
+    bool active = false;
 };
 
 std::mutex sMutex;
 std::atomic<bool> sEnabled { false };
 
-FILE *sTtyFile           = nullptr;
-SCREEN *sScreen          = nullptr;
-WINDOW *sMessagesWin     = nullptr;
-WINDOW *sBarsWin         = nullptr;
-int sSavedStdout         = -1;
-int sSavedStderr         = -1;
-int sPipeRead            = -1;
-int sPipeWrite           = -1;
+FILE *sTtyFile       = nullptr;
+SCREEN *sScreen      = nullptr;
+WINDOW *sMessagesWin = nullptr;
+WINDOW *sBarsWin     = nullptr;
+int sSavedStdout     = -1;
+int sSavedStderr     = -1;
+int sPipeRead        = -1;
+int sPipeWrite       = -1;
+struct termios sSavedTermios;
+bool sHaveSavedTermios = false;
 std::thread sReaderThread;
 std::atomic<bool> sReaderStop { false };
 
@@ -101,10 +105,8 @@ void drawBars()
     werase(sBarsWin);
 
     size_t nameWidth = 0;
-    int totalWidth   = 1;
     for (const auto &s : sSnapshots) {
-        nameWidth  = std::max(nameWidth, s.name.size());
-        totalWidth = std::max(totalWidth, static_cast<int>(String::number(s.total).size()));
+        nameWidth = std::max(nameWidth, s.name.size());
     }
 
     int winRows = 0, winCols = 0;
@@ -126,7 +128,7 @@ void drawBars()
         for (int i = filledCells; i < kBarWidth; ++i)
             waddwstr(sBarsWin, L"\u2591");
         waddch(sBarsWin, ']');
-        wprintw(sBarsWin, " %3d%% (%*d/%*d)", pct, totalWidth, s.done, totalWidth, s.total);
+        wprintw(sBarsWin, " %3d%% (%d/%d)", pct, s.done, s.total);
 
         if (winCols > 0) {
             int y, x;
@@ -255,6 +257,8 @@ bool enable()
     if (!sTtyFile)
         return false;
 
+    sHaveSavedTermios = (::tcgetattr(::fileno(sTtyFile), &sSavedTermios) == 0);
+
     setlocale(LC_ALL, "");
 
     int pipefd[2];
@@ -372,14 +376,25 @@ void disable()
         sBarsWin = nullptr;
     }
     if (sScreen) {
+        ::set_term(sScreen);
+        ::curs_set(1);
+        ::echo();
+        ::nocbreak();
         ::endwin();
         ::delscreen(sScreen);
         sScreen = nullptr;
     }
     if (sTtyFile) {
+        const int ttyFd = ::fileno(sTtyFile);
+        if (sHaveSavedTermios && ttyFd >= 0) {
+            ::tcsetattr(ttyFd, TCSANOW, &sSavedTermios);
+        }
+        static const char kRestore[] = "\033[?25h\033[0m\r";
+        (void)!::write(ttyFd, kRestore, sizeof(kRestore) - 1);
         ::fclose(sTtyFile);
         sTtyFile = nullptr;
     }
+    sHaveSavedTermios = false;
 }
 
 void update(const std::shared_ptr<Project> &project, int done, int total)
@@ -389,7 +404,7 @@ void update(const std::shared_ptr<Project> &project, int done, int total)
 
     std::lock_guard<std::mutex> lock(sMutex);
 
-    const Path key   = project->path();
+    const Path key        = project->path();
     ProjectSnapshot *slot = nullptr;
     for (auto &s : sSnapshots) {
         if (s.key == key) {
@@ -404,14 +419,42 @@ void update(const std::shared_ptr<Project> &project, int done, int total)
     }
     slot->name = project->displayName();
 
-    // If a new indexing round bumped the total, adopt it; otherwise keep the
-    // most-completed snapshot so finished projects stay pinned at 100%.
-    if (total > slot->total) {
+    // First real progress event replaces the seeded 100% snapshot so the new
+    // indexing round is visible from 0%. After that, keep the most-completed
+    // snapshot so finished projects stay pinned at 100%.
+    if (!slot->active) {
+        slot->active = true;
+        slot->total  = total;
+        slot->done   = done;
+    } else if (total > slot->total) {
         slot->total = total;
         slot->done  = done;
     } else if (total == slot->total && done > slot->done) {
         slot->done = done;
     }
+
+    redrawLocked();
+}
+
+void registerProject(const std::shared_ptr<Project> &project, int sourceCount)
+{
+    if (!sEnabled.load() || !project)
+        return;
+
+    std::lock_guard<std::mutex> lock(sMutex);
+
+    const Path key = project->path();
+    for (const auto &s : sSnapshots) {
+        if (s.key == key)
+            return;
+    }
+    ProjectSnapshot snap;
+    snap.key    = key;
+    snap.name   = project->displayName();
+    snap.total  = std::max(sourceCount, 0);
+    snap.done   = snap.total;
+    snap.active = false;
+    sSnapshots.push_back(std::move(snap));
 
     redrawLocked();
 }

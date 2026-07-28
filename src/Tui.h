@@ -23,6 +23,7 @@ class Project;
 namespace Tui {
 
 bool enable();
+void registerProject(const std::shared_ptr<Project> &project, int sourceCount);
 void disable();
 bool enabled();
 

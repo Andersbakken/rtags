@@ -46,6 +46,7 @@
 #include "Sandbox.h"
 #include "Source.h"
 #include "Symbol.h"
+#include "Tui.h"
 #include "rct/Connection.h"
 #include "rct/DataFile.h"
 #include "rct/EventLoop.h"
@@ -463,6 +464,7 @@ std::shared_ptr<Project> Server::addProject(const Path &path, uint32_t compileCo
     if (projects.size() > 1) {
         updateTrailers(projects);
     }
+    Tui::registerProject(proj, static_cast<int>(proj->indexParseData().sources.size()));
     return proj;
 }
 
