@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <assert.h>
+#include <atomic>
 #include <errno.h>
 #include <functional>
 #include <initializer_list>
@@ -94,7 +95,25 @@ static void signalHandler(int signal)
     }
     if (Server *server = Server::instance())
         server->stopServers();
+    Tui::disable();
     _exit(1);
+}
+
+static struct sigaction sOrigSigInt;
+static struct sigaction sOrigSigTerm;
+
+static void interruptHandler(int sig)
+{
+    static std::atomic<int> sCount { 0 };
+    if (++sCount >= 2) {
+        Tui::disable();
+        static const char msg[] = "\nrdm: force-exit on repeated signal\n";
+        (void)!::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        ::_exit(128 + sig);
+    }
+    const struct sigaction &orig = (sig == SIGINT) ? sOrigSigInt : sOrigSigTerm;
+    if (orig.sa_handler && orig.sa_handler != SIG_DFL && orig.sa_handler != SIG_IGN)
+        orig.sa_handler(sig);
 }
 
 static const char *DEFAULT_EXCLUDEFILTER     = "*/CMakeFiles/*;*/cmake*/Modules/*;*/conftest.c*;/tmp/*;/private/tmp/*;/private/var/*";
@@ -969,6 +988,15 @@ int main(int argc, char **argv)
 
     std::shared_ptr<EventLoop> loop = std::make_shared<EventLoop>();
     loop->init(EventLoop::MainEventLoop | EventLoop::EnableSigIntHandler | EventLoop::EnableSigTermHandler);
+
+    {
+        struct sigaction act;
+        memset(&act, 0, sizeof(act));
+        act.sa_handler = interruptHandler;
+        sigemptyset(&act.sa_mask);
+        ::sigaction(SIGINT, &act, &sOrigSigInt);
+        ::sigaction(SIGTERM, &act, &sOrigSigTerm);
+    }
 
     auto server = std::make_shared<Server>();
     if (!serverOpts.tests.empty()) {
