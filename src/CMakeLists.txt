@@ -228,8 +228,52 @@ else ()
 endif ()
 
 set(CURSES_NEED_WIDE TRUE)
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+    # Prefer MacPorts / Homebrew ncurses over the ancient system one, which
+    # lacks a proper wide-char (ncursesw) build. Homebrew ncurses is keg-only
+    # and lives under <brew>/opt/ncurses; MacPorts installs directly into
+    # /opt/local.
+    set(_curses_candidates
+        "/opt/local"
+        "/opt/local/opt/ncurses"
+        "/opt/homebrew/opt/ncurses"
+        "/usr/local/opt/ncurses"
+        "/opt/homebrew"
+        "/usr/local")
+    find_program(_brew_exe brew)
+    if (_brew_exe)
+        execute_process(COMMAND "${_brew_exe}" --prefix ncurses
+            OUTPUT_VARIABLE _brew_ncurses_prefix
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+            RESULT_VARIABLE _brew_ncurses_rc)
+        if (_brew_ncurses_rc EQUAL 0 AND _brew_ncurses_prefix)
+            list(INSERT _curses_candidates 0 "${_brew_ncurses_prefix}")
+        endif ()
+    endif ()
+    foreach (_curses_prefix ${_curses_candidates})
+        if (IS_DIRECTORY "${_curses_prefix}/include/ncursesw"
+                OR EXISTS "${_curses_prefix}/lib/libncursesw.dylib"
+                OR EXISTS "${_curses_prefix}/lib/libncursesw.a"
+                OR EXISTS "${_curses_prefix}/lib/libncurses.dylib"
+                OR EXISTS "${_curses_prefix}/lib/libncurses.a")
+            message(STATUS "Using ncurses from ${_curses_prefix}")
+            list(APPEND CURSES_INCLUDE_PATH
+                "${_curses_prefix}/include/ncursesw"
+                "${_curses_prefix}/include/ncurses"
+                "${_curses_prefix}/include")
+            list(APPEND CMAKE_LIBRARY_PATH "${_curses_prefix}/lib")
+            list(APPEND CMAKE_PREFIX_PATH "${_curses_prefix}")
+            break()
+        endif ()
+    endforeach ()
+endif ()
 find_package(Curses REQUIRED)
 include_directories(${CURSES_INCLUDE_DIRS})
+# Curses headers gate wide-char APIs (waddwstr, cchar_t, ...) behind
+# NCURSES_WIDECHAR / _XOPEN_SOURCE_EXTENDED. FindCurses locates libncursesw
+# but does not add the define, so do it here.
+add_definitions(-DNCURSES_WIDECHAR=1 -D_XOPEN_SOURCE_EXTENDED)
 
 set(RTAGS_LIBRARIES rtags ${START_GROUP} ${LIBCLANG_LIBRARIES} ${END_GROUP} ${CURSES_LIBRARIES})
 
