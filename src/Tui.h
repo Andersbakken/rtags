@@ -26,8 +26,9 @@ bool enable();
 void registerProject(const std::shared_ptr<Project> &project, int sourceCount);
 void disable();
 bool enabled();
+void asyncSafeRestore();
 
-void update(const std::shared_ptr<Project> &project, int done, int total);
+void update(const std::shared_ptr<Project> &project, int done, int total, const char *fileName);
 
 } // namespace Tui
 

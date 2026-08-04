@@ -21,11 +21,13 @@
 #include <initializer_list>
 #include <limits.h>
 #include <memory>
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
 #include <unistd.h>
 #include <utility>
 #include <vector>
@@ -95,21 +97,41 @@ static void signalHandler(int signal)
     }
     if (Server *server = Server::instance())
         server->stopServers();
-    Tui::disable();
+    Tui::asyncSafeRestore();
     _exit(1);
 }
 
 static struct sigaction sOrigSigInt;
 static struct sigaction sOrigSigTerm;
 
+static std::atomic<bool> sShutdownWatchdogArmed { false };
+
+static void *shutdownWatchdog(void *)
+{
+    struct timespec ts;
+    ts.tv_sec  = 5;
+    ts.tv_nsec = 0;
+    nanosleep(&ts, nullptr);
+    Tui::asyncSafeRestore();
+    static const char msg[] = "\nrdm: shutdown watchdog fired, force-exiting\n";
+    (void)!::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+    ::_exit(130);
+    return nullptr;
+}
+
 static void interruptHandler(int sig)
 {
     static std::atomic<int> sCount { 0 };
     if (++sCount >= 2) {
-        Tui::disable();
+        Tui::asyncSafeRestore();
         static const char msg[] = "\nrdm: force-exit on repeated signal\n";
         (void)!::write(STDERR_FILENO, msg, sizeof(msg) - 1);
         ::_exit(128 + sig);
+    }
+    if (!sShutdownWatchdogArmed.exchange(true)) {
+        pthread_t t;
+        if (pthread_create(&t, nullptr, shutdownWatchdog, nullptr) == 0)
+            pthread_detach(t);
     }
     const struct sigaction &orig = (sig == SIGINT) ? sOrigSigInt : sOrigSigTerm;
     if (orig.sa_handler && orig.sa_handler != SIG_DFL && orig.sa_handler != SIG_IGN)

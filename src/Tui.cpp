@@ -16,6 +16,8 @@
 #include "Tui.h"
 
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <fcntl.h>
 #include <locale.h>
 #include <math.h>
@@ -51,7 +53,11 @@ struct ProjectSnapshot
     int done    = 0;
     int total   = 0;
     bool active = false;
+    String lastFile;
+    std::chrono::steady_clock::time_point lastFileExpiry {};
 };
+
+constexpr auto kLastFileDuration = std::chrono::seconds(2);
 
 std::mutex sMutex;
 std::atomic<bool> sEnabled { false };
@@ -68,6 +74,10 @@ struct termios sSavedTermios;
 bool sHaveSavedTermios = false;
 std::thread sReaderThread;
 std::atomic<bool> sReaderStop { false };
+std::thread sTickerThread;
+std::atomic<bool> sTickerStop { false };
+std::condition_variable sTickerCv;
+std::mutex sTickerMutex;
 
 std::vector<ProjectSnapshot> sSnapshots;
 std::vector<String> sMessages;
@@ -129,6 +139,10 @@ void drawBars()
             waddwstr(sBarsWin, L"\u2591");
         waddch(sBarsWin, ']');
         wprintw(sBarsWin, " %3d%% (%d/%d)", pct, s.done, s.total);
+
+        if (!s.lastFile.empty() && std::chrono::steady_clock::now() < s.lastFileExpiry) {
+            wprintw(sBarsWin, " %s", s.lastFile.constData());
+        }
 
         if (winCols > 0) {
             int y, x;
@@ -211,6 +225,31 @@ void redrawLocked()
     drawMessages();
     drawBars();
     doupdate();
+}
+
+void tickerLoop()
+{
+    while (!sTickerStop.load()) {
+        std::unique_lock<std::mutex> tick(sTickerMutex);
+        sTickerCv.wait_for(tick, std::chrono::milliseconds(250));
+        if (sTickerStop.load())
+            break;
+        tick.unlock();
+        std::lock_guard<std::mutex> lock(sMutex);
+        const auto now  = std::chrono::steady_clock::now();
+        bool needRedraw = false;
+        for (auto &s : sSnapshots) {
+            if (!s.lastFile.empty() && now >= s.lastFileExpiry) {
+                s.lastFile.clear();
+                needRedraw = true;
+            }
+        }
+        if (needRedraw && sScreen) {
+            drawMessages();
+            drawBars();
+            doupdate();
+        }
+    }
 }
 
 void readerLoop()
@@ -301,6 +340,8 @@ bool enable()
     sEnabled.store(true);
     sReaderStop.store(false);
     sReaderThread = std::thread(readerLoop);
+    sTickerStop.store(false);
+    sTickerThread = std::thread(tickerLoop);
 
     relayoutLocked();
     drawMessages();
@@ -340,6 +381,10 @@ void disable()
         return;
 
     sReaderStop.store(true);
+    sTickerStop.store(true);
+    sTickerCv.notify_all();
+    if (sTickerThread.joinable())
+        sTickerThread.join();
 
     if (sPipeWrite >= 0) {
         ::close(sPipeWrite);
@@ -397,7 +442,22 @@ void disable()
     sHaveSavedTermios = false;
 }
 
-void update(const std::shared_ptr<Project> &project, int done, int total)
+void asyncSafeRestore()
+{
+    if (!sEnabled.load())
+        return;
+    const int fd = ::open("/dev/tty", O_WRONLY | O_NOCTTY);
+    if (fd >= 0) {
+        if (sHaveSavedTermios) {
+            ::tcsetattr(fd, TCSANOW, &sSavedTermios);
+        }
+        static const char kRestore[] = "\033[?25h\033[0m\r\n";
+        (void)!::write(fd, kRestore, sizeof(kRestore) - 1);
+        ::close(fd);
+    }
+}
+
+void update(const std::shared_ptr<Project> &project, int done, int total, const char *fileName)
 {
     if (!sEnabled.load() || !project)
         return;
@@ -431,6 +491,12 @@ void update(const std::shared_ptr<Project> &project, int done, int total)
         slot->done  = done;
     } else if (total == slot->total && done > slot->done) {
         slot->done = done;
+    }
+
+    if (fileName && *fileName) {
+        slot->lastFile       = fileName;
+        slot->lastFileExpiry = std::chrono::steady_clock::now() + kLastFileDuration;
+        sTickerCv.notify_all();
     }
 
     redrawLocked();

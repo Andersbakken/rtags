@@ -45,8 +45,8 @@
 #include "RTagsVersion.h"
 #include "Sandbox.h"
 #include "Server.h"
-#include "Tui.h"
 #include "Token.h"
+#include "Tui.h"
 #include "rct/Connection.h"
 #include "rct/DataFile.h"
 #include "rct/Log.h"
@@ -955,8 +955,10 @@ void Project::onJobFinished(const std::shared_ptr<IndexerJob> &job, const std::s
         assert(msg->indexerJobFlags() & IndexerJob::Crashed);
         logDirect(LogLevel::Error, String::format("[%3d%%] %d/%d %s %s indexing crashed.", static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter, String::formatTime(time(nullptr), String::Time).constData(), Location::path(fileId).toTilde().constData()), LogOutput::StdOut | LogOutput::TrailingNewLine);
     }
-    if (!detailed)
-        Tui::update(shared_from_this(), idx, mJobCounter);
+    if (!detailed) {
+        const Path path = Location::path(fileId);
+        Tui::update(shared_from_this(), idx, mJobCounter, path.fileName());
+    }
 
     if (mActiveJobs.empty()) {
         mLastIdleTime = time(nullptr);
