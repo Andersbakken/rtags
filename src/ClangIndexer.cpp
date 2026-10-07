@@ -919,8 +919,19 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                             }
                         }
                         if (handled) {
-                            loc = createLocation(mLastCursor);
-                            handleReference(mLastCursor, kind, loc, ref);
+                            // mLastCursor can be spelled in a different file
+                            // than the CallExpr (e.g. a TypeRef in a macro
+                            // body defined in a header we're not indexing).
+                            // Fall back to the CallExpr's location in that
+                            // case.
+                            bool lastBlocked       = false;
+                            const Location lastLoc = createLocation(mLastCursor, clang_getCursorKind(mLastCursor), &lastBlocked);
+                            if (lastBlocked || lastLoc.isNull()) {
+                                handled = false;
+                            } else {
+                                loc = lastLoc;
+                                handleReference(mLastCursor, kind, loc, ref);
+                            }
                         }
                     } else if (refKind == CXCursor_FieldDecl) {
                         handled = true;
