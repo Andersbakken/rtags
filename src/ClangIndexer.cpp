@@ -820,6 +820,21 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
                 }
             }
         }
+        // A blocked macro-body cursor can contain children from its expansion
+        // site, including references written in macro arguments.
+        CXFile spellingFile  = nullptr;
+        CXFile expansionFile = nullptr;
+        unsigned expansionLine;
+        unsigned expansionColumn;
+        const CXSourceLocation cursorLocation = clang_getCursorLocation(cursor);
+        clang_getSpellingLocation(cursorLocation, &spellingFile, nullptr, nullptr, nullptr);
+        clang_getExpansionLocation(cursorLocation, &expansionFile, &expansionLine, &expansionColumn, nullptr);
+        if (spellingFile && expansionFile && spellingFile != expansionFile) {
+            bool expansionBlocked            = false;
+            const Location expansionLocation = createLocation(expansionFile, expansionLine, expansionColumn, &expansionBlocked);
+            if (!expansionBlocked && !expansionLocation.isNull())
+                return CXChildVisit_Recurse;
+        }
         return CXChildVisit_Continue;
     }
 

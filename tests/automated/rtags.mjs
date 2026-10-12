@@ -39,11 +39,12 @@ export class RTags {
         this.#logFile = join(rtagsDir, "rdm.log");
     }
 
-    start() {
+    start(...options) {
         this.#rdm = spawn(
             RDM,
             [
                 "--no-rc",
+                ...options,
                 "--socket-file",
                 this.#socketFile,
                 "--log-file",

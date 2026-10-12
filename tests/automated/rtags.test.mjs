@@ -333,6 +333,23 @@ describe("macros", () => {
         const out = lines(stripDir(rt.references(f("macros.cpp"), 2, 9)));
         expect(out.some((l) => l.includes("macros.cpp:5"))).toBe(true);
     });
+
+    it("follows a member call passed through a macro argument", () => {
+        const daemon = new RTags();
+        const file = f("macro_call.cpp");
+        try {
+            daemon.start("--rp-daemon", "1");
+            daemon.rc("--set-buffers", file);
+            daemon.index(FIXTURES, ["macro_call.cpp"]);
+            expect(stripDir(daemon.followLocation(file, 18, 40))).toMatch(/macro_call\.cpp:7/);
+            daemon.rc("--reindex", file, "--wait");
+            const reindexed = stripDir(daemon.followLocation(file, 18, 40));
+            expect(reindexed).toMatch(/macro_call\.cpp:7/);
+            expect(reindexed).toMatch(/sockaddr/);
+        } finally {
+            daemon.stop();
+        }
+    });
 });
 
 describe("overloads", () => {
