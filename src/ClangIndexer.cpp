@@ -829,7 +829,9 @@ CXChildVisitResult ClangIndexer::indexVisitor(CXCursor cursor)
         const CXSourceLocation cursorLocation = clang_getCursorLocation(cursor);
         clang_getSpellingLocation(cursorLocation, &spellingFile, nullptr, nullptr, nullptr);
         clang_getExpansionLocation(cursorLocation, &expansionFile, &expansionLine, &expansionColumn, nullptr);
-        if (spellingFile && expansionFile && spellingFile != expansionFile) {
+        // Only descend into expressions/statements; declarations spelled in
+        // a blocked macro body (e.g. classes from TEST_CASE) stay skipped.
+        if (spellingFile && expansionFile && spellingFile != expansionFile && !clang_isDeclaration(kind)) {
             bool expansionBlocked            = false;
             const Location expansionLocation = createLocation(expansionFile, expansionLine, expansionColumn, &expansionBlocked);
             if (!expansionBlocked && !expansionLocation.isNull())
@@ -1821,7 +1823,13 @@ CXChildVisitResult ClangIndexer::handleStatement(const CXCursor &cursor, CXCurso
 
 void ClangIndexer::handleBaseClassSpecifier(const CXCursor &cursor)
 {
-    auto &lastClass = unit(mLastClass)->symbols[mLastClass];
+    if (mLastClass.isNull())
+        return;
+    auto u  = unit(mLastClass);
+    auto it = u->symbols.find(mLastClass);
+    if (it == u->symbols.end())
+        return;
+    auto &lastClass = it->second;
     if (!lastClass.isClass()) {
         // this happens with some weird macros in /usr/include/dispatch/io.h:161:1 and others on Mac
         // error() << "Couldn't find class for" << cursor << mLastClass;
